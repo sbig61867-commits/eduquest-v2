@@ -1,0 +1,382 @@
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
+import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic } from 'lucide-react'
+import type { Exam, Question, ProctoringEvent } from '@/types'
+import { useFaceDetection } from '@/hooks/use-face-detection'
+import { useObjectDetection } from '@/hooks/use-object-detection'
+import { useServerProctoring } from '@/hooks/use-server-proctoring'
+
+interface Props {
+  exam: Exam
+  userId: string
+  tenantId: string
+  onFinish: () => void
+}
+
+// userId / tenantId remain in Props for the caller's contract, but identity is
+// now derived server-side (from the session) in /api/exam/start and /submit.
+export function ExamTaker({ exam, onFinish }: Props) {
+  const [started, setStarted] = useState(false)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [current, setCurrent] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(exam.duration_minutes * 60)
+  const [violations, setViolations] = useState<ProctoringEvent[]>([])
+  const [violationAlert, setViolationAlert] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [finalScore, setFinalScore] = useState<{ score: number; maxScore: number } | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const analyzerRef = useRef<AnalyserNode | null>(null)
+  const audioIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const handleSubmitRef = useRef<() => void>(() => {})
+  const [cameraStatus, setCameraStatus] = useState<'idle' | 'active' | 'error'>('idle')
+
+  // Define addViolation BEFORE hook calls that reference it
+  const addViolation = useCallback((type: string, details?: string) => {
+    const event: ProctoringEvent = { type: type as ProctoringEvent['type'], timestamp: new Date().toISOString(), details }
+    setViolations(prev => [...prev, event])
+    const messages: Record<string, string> = {
+      tab_switch: '⚠️ Tab switch detected!',
+      fullscreen_exit: '⚠️ Please return to fullscreen mode!',
+      face_not_detected: '⚠️ Face not detected — look at the camera!',
+      multiple_faces: '⚠️ Multiple faces detected!',
+      audio_detected: '⚠️ Loud audio detected!',
+      looking_away: '⚠️ Please look at the screen!',
+      suspicious_activity: '⚠️ Suspicious activity detected!',
+    }
+    setViolationAlert(messages[type] ?? '⚠️ Proctoring alert!')
+    setTimeout(() => setViolationAlert(''), 4000)
+  }, [])
+
+  const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
+
+  // ── Legacy client-side layer (kept for immediate student alerts) ──
+  // MediaPipe: face detection + gaze direction
+  useFaceDetection(videoRef, proctoringActive, addViolation)
+  // TensorFlow COCO-SSD: phone, book, extra person detection
+  useObjectDetection(videoRef, proctoringActive, addViolation)
+
+  // ── New server-side layer (Gemini Vision — tamper-proof) ──
+  // Sends a frame every 30s to /api/proctor/analyze; results written directly to DB
+  const { flushAsync } = useServerProctoring(
+    videoRef,
+    canvasRef,
+    exam.id,
+    proctoringActive,
+    (types, description) => {
+      types.forEach(t => addViolation(t, `[Server] ${description}`))
+    }
+  )
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      if (audioIntervalRef.current) clearInterval(audioIntervalRef.current)
+      audioCtxRef.current?.close().catch(() => {})
+    }
+  }, [])
+
+  // Tab visibility detection
+  useEffect(() => {
+    if (!started || !exam.proctoring_enabled) return
+    const handler = () => { if (document.hidden) addViolation('tab_switch') }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [started, exam.proctoring_enabled, addViolation])
+
+  // Fullscreen enforcement
+  useEffect(() => {
+    if (!started || !exam.proctoring_enabled) return
+    const handler = () => { if (!document.fullscreenElement) addViolation('fullscreen_exit') }
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [started, exam.proctoring_enabled, addViolation])
+
+  // Timer — uses ref to avoid stale closure over handleSubmit
+  useEffect(() => {
+    if (!started || submitted) return
+    const interval = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { handleSubmitRef.current(); return 0 }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [started, submitted])
+
+  // Start audio monitoring via Web Audio API
+  const startAudioMonitor = useCallback((stream: MediaStream) => {
+    const ctx = new AudioContext()
+    const analyzer = ctx.createAnalyser()
+    analyzer.fftSize = 256
+    const src = ctx.createMediaStreamSource(stream)
+    src.connect(analyzer)
+    audioCtxRef.current = ctx
+    analyzerRef.current = analyzer
+    const data = new Uint8Array(analyzer.frequencyBinCount)
+    audioIntervalRef.current = setInterval(() => {
+      analyzer.getByteFrequencyData(data)
+      const avg = data.reduce((a, b) => a + b, 0) / data.length
+      if (avg > 30) addViolation('audio_detected', `Audio level: ${Math.round(avg)}`)
+    }, 3000)
+  }, [addViolation])
+
+  async function startExam() {
+    if (exam.proctoring_enabled) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        streamRef.current = stream
+        setCameraStatus('active')
+        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play() }
+        startAudioMonitor(stream)
+        await document.documentElement.requestFullscreen()
+      } catch {
+        setCameraStatus('error')
+        alert('Camera and microphone access are required for this proctored exam.')
+        return
+      }
+    }
+
+    // Register the attempt server-side. The server records the authoritative
+    // start time and enforces the window — the client cannot fake either.
+    const res = await fetch('/api/exam/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ examId: exam.id }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      // Stop any camera we just opened and surface the reason
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+      setCameraStatus('idle')
+      alert(data.error ?? 'Could not start the exam.')
+      return
+    }
+
+    // Resume support: if an attempt was already in progress, compute the real
+    // remaining time from the server start timestamp instead of resetting it.
+    const { startedAt, resumed } = await res.json()
+    if (resumed && startedAt) {
+      const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+      const remaining = exam.duration_minutes * 60 - elapsedSecs
+      if (remaining <= 0) { handleSubmitRef.current(); return }
+      setTimeLeft(remaining)
+    }
+
+    setStarted(true)
+  }
+
+  async function handleSubmit() {
+    if (submitting || submitted) return
+    setSubmitting(true)
+
+    // Stop audio monitoring (doesn't affect camera — camera needed for flushAsync)
+    if (audioIntervalRef.current) { clearInterval(audioIntervalRef.current); audioIntervalRef.current = null }
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      audioCtxRef.current.close().catch(() => {})
+      audioCtxRef.current = null
+    }
+
+    // Flush BEFORE stopping camera tracks — the final frame needs a live feed.
+    // This also awaits any in-flight /api/proctor/analyze write so the DB is
+    // settled before /api/exam/submit reads proctoring_events.
+    await flushAsync()
+
+    // Now safe to stop camera and exit fullscreen
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+
+    // Collect client-only violation types (tab_switch, fullscreen_exit, audio_detected).
+    // Score and final merge are computed server-side in /api/exam/submit.
+    const clientOnlyTypes = new Set(['tab_switch', 'fullscreen_exit', 'audio_detected'])
+    const clientViolations = violations.filter(v => clientOnlyTypes.has(v.type))
+
+    const res = await fetch('/api/exam/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ examId: exam.id, answers, clientViolations }),
+    })
+
+    if (!res.ok) {
+      setSubmitting(false)
+      alert('Submission failed. Please try again.')
+      return
+    }
+
+    const data = await res.json()
+    setFinalScore({ score: data.score, maxScore: data.maxScore })
+    setSubmitted(true)
+    setSubmitting(false)
+  }
+
+  // Keep ref in sync so the timer callback always calls the latest version
+  handleSubmitRef.current = handleSubmit
+
+  const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  const question: Question = exam.questions[current]
+  const progress = ((current + 1) / exam.questions.length) * 100
+
+  if (submitted) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
+            <Send className="w-8 h-8 text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white">Exam Submitted!</h2>
+          {finalScore && (
+            <p className="text-slate-400">Your score: <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
+          )}
+          {violations.length > 0 && <p className="text-amber-400 text-sm">{violations.length} proctoring violation(s) recorded</p>}
+          <Button onClick={onFinish} className="mt-4">Back to Exams</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!started) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">{exam.title}</h2>
+            <p className="text-slate-400">{exam.questions.length} questions · {exam.duration_minutes} minutes</p>
+          </div>
+          <div className="space-y-3">
+            {[
+              `You have ${exam.duration_minutes} minutes to complete this exam.`,
+              'Once started, the timer cannot be paused.',
+              exam.proctoring_enabled ? 'Camera and microphone access required (proctored exam).' : null,
+              exam.proctoring_enabled ? 'Tab switching and exiting fullscreen will be recorded.' : null,
+              'Make sure you have a stable internet connection.',
+            ].filter(Boolean).map((rule, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                <span className="text-blue-400 mt-0.5">•</span>
+                <span>{rule}</span>
+              </div>
+            ))}
+          </div>
+          {exam.proctoring_enabled && (
+            <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
+              <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
+              <p className="text-blue-300 text-sm">This exam is proctored. Camera monitoring is active.</p>
+            </div>
+          )}
+          <Button onClick={startExam} className="w-full" size="lg">Start Exam</Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Hidden canvas for frame capture */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Header */}
+      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-5 py-3 sticky top-0 z-10">
+        <h2 className="text-white font-semibold truncate flex-1">{exam.title}</h2>
+        <div className="flex items-center gap-3">
+          {exam.proctoring_enabled && (
+            <div className="flex items-center gap-1.5">
+              <Eye className={`w-4 h-4 ${cameraStatus === 'active' ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <Mic className={`w-4 h-4 ${cameraStatus === 'active' ? 'text-emerald-400' : 'text-slate-500'}`} />
+            </div>
+          )}
+          {violations.length > 0 && (
+            <span className="flex items-center gap-1 text-amber-400 text-sm font-medium">
+              <AlertTriangle className="w-4 h-4" />{violations.length}
+            </span>
+          )}
+          <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-400' : 'text-white'}`}>
+            <Clock className="w-4 h-4" />{formatTime(timeLeft)}
+          </span>
+          {exam.proctoring_enabled && cameraStatus === 'active' && (
+            <video ref={videoRef} className="w-20 h-14 rounded-lg object-cover border border-slate-700 bg-slate-800" muted />
+          )}
+        </div>
+      </div>
+
+      {/* Violation alert */}
+      {violationAlert && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm font-medium animate-pulse">
+          {violationAlert}
+        </div>
+      )}
+
+      {/* Progress */}
+      <div className="flex items-center gap-3">
+        <span className="text-slate-400 text-sm shrink-0">Q {current + 1} / {exam.questions.length}</span>
+        <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
+        </div>
+        <span className="text-slate-400 text-sm shrink-0">{Object.keys(answers).length} answered</span>
+      </div>
+
+      {/* Question Card */}
+      {question && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+          <div className="flex items-start gap-3">
+            <span className="bg-blue-600 text-white text-sm font-bold px-2.5 py-1 rounded-lg shrink-0">{current + 1}</span>
+            <p className="text-white text-lg leading-relaxed">{question.text}</p>
+          </div>
+
+          <div className="space-y-2.5">
+            {question.type === 'mcq' && question.options?.map((opt, i) => (
+              <label key={i} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-blue-600/20 border-blue-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}>
+                <input type="radio" name={question.id} value={opt} checked={answers[question.id] === opt} onChange={() => setAnswers(a => ({ ...a, [question.id]: opt }))} className="sr-only" />
+                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 border-current">
+                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-blue-400" />}
+                </span>
+                <span>{opt}</span>
+              </label>
+            ))}
+
+            {question.type === 'true_false' && ['True', 'False'].map(opt => (
+              <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-blue-600/20 border-blue-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}>
+                <input type="radio" name={question.id} value={opt} checked={answers[question.id] === opt} onChange={() => setAnswers(a => ({ ...a, [question.id]: opt }))} className="sr-only" />
+                <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 border-current">
+                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-blue-400" />}
+                </span>
+                <span>{opt}</span>
+              </label>
+            ))}
+
+            {question.type === 'short_answer' && (
+              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Type your answer here..." />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between">
+        <Button variant="secondary" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>
+          <ChevronLeft className="w-4 h-4" /> Previous
+        </Button>
+        <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
+          {exam.questions.map((_, i) => (
+            <button key={i} onClick={() => setCurrent(i)} className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${i === current ? 'bg-blue-600 text-white' : answers[exam.questions[i].id] ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-600/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+              {i + 1}
+            </button>
+          ))}
+        </div>
+        {current < exam.questions.length - 1 ? (
+          <Button onClick={() => setCurrent(c => c + 1)}>Next <ChevronRight className="w-4 h-4" /></Button>
+        ) : (
+          <Button variant="primary" onClick={handleSubmit} loading={submitting} className="bg-emerald-600 hover:bg-emerald-500">
+            <Send className="w-4 h-4" /> Submit
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}

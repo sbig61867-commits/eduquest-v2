@@ -1,0 +1,193 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
+// Role ceiling: what roles each caller can invite
+const ROLE_CEILING: Record<string, string[]> = {
+  super_admin:      ['university_admin', 'teacher', 'student'],
+  university_admin: ['teacher', 'student'],
+  teacher:          ['student'],
+}
+
+// Default expiry durations in hours
+const DEFAULT_EXPIRY_HOURS: Record<string, number> = {
+  university_admin: 72,  // 3 days
+  teacher:          48,  // 2 days
+  student:          168, // 7 days
+}
+
+// ── GET /api/invitations ─────────────────────────────────────
+// Returns all invitations visible to the current user.
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: profile } = await supabase
+    .from('users').select('role, tenant_id').eq('id', user.id).single()
+  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+
+  let query = supabase
+    .from('invitations')
+    .select(`
+      *,
+      tenants(name),
+      groups(name),
+      inviter:invited_by(full_name, email)
+    `)
+    .order('created_at', { ascending: false })
+
+  // Scope: super_admin sees all, others only see their tenant's invitations
+  if (profile.role !== 'super_admin') {
+    query = query.eq('tenant_id', profile.tenant_id)
+  }
+
+  // Teachers only see invitations they created
+  if (profile.role === 'teacher') {
+    query = query.eq('invited_by', user.id)
+  }
+
+  const { data, error } = await query
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ invitations: data ?? [] })
+}
+
+// ── POST /api/invitations ────────────────────────────────────
+// Creates a new invitation. Sends back the invitation URL.
+export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: caller } = await supabase
+    .from('users').select('role, tenant_id').eq('id', user.id).single()
+  if (!caller) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+
+  if (!ROLE_CEILING[caller.role]) {
+    return NextResponse.json({ error: 'You cannot create invitations' }, { status: 403 })
+  }
+
+  let body: {
+    email?: string
+    role?: string
+    tenant_id?: string
+    group_id?: string
+    expires_hours?: number
+  }
+  try { body = await request.json() }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+
+  const { email, role, group_id, expires_hours } = body
+  let groupNameSnapshot: string | null = null
+
+  // ── Validate inputs ──────────────────────────────────────
+  if (!email?.trim() || !role) {
+    return NextResponse.json({ error: 'email and role are required' }, { status: 400 })
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+  }
+  if (!ROLE_CEILING[caller.role].includes(role)) {
+    return NextResponse.json(
+      { error: `Your role (${caller.role}) cannot invite a ${role}` },
+      { status: 403 }
+    )
+  }
+
+  // ── Resolve tenant_id ────────────────────────────────────
+  const tenant_id = caller.role === 'super_admin'
+    ? (body.tenant_id ?? null)
+    : caller.tenant_id
+
+  if (!tenant_id) {
+    return NextResponse.json({ error: 'tenant_id is required for this role' }, { status: 400 })
+  }
+
+  // ── Validate group_id if provided ───────────────────────
+  if (group_id) {
+    if (role !== 'student') {
+      return NextResponse.json({ error: 'group_id is only valid for student invitations' }, { status: 400 })
+    }
+    const { data: group } = await supabase
+      .from('groups').select('id, name, teacher_id, tenant_id').eq('id', group_id).single()
+
+    if (!group || group.tenant_id !== tenant_id) {
+      return NextResponse.json({ error: 'Group not found in this tenant' }, { status: 400 })
+    }
+    // Teachers can only invite to their own groups
+    if (caller.role === 'teacher' && group.teacher_id !== user.id) {
+      return NextResponse.json({ error: 'You can only invite students to your own groups' }, { status: 403 })
+    }
+    groupNameSnapshot = group.name
+  }
+
+  // ── Check if user with this email already exists in this tenant ──
+  const { data: existingUser } = await supabase
+    .from('users').select('id, tenant_id').eq('email', email.trim()).single()
+
+  if (existingUser) {
+    if (existingUser.tenant_id === tenant_id) {
+      return NextResponse.json({ error: 'A user with this email already exists in this university' }, { status: 409 })
+    }
+    return NextResponse.json(
+      { error: 'This email is already registered in another university. Contact support to transfer.' },
+      { status: 409 }
+    )
+  }
+
+  // ── Check auth.users (catches orphaned accounts: registered in auth but no users row) ──
+  const adminClient = getAdminClient()
+  const { data: authExists, error: authCheckError } = await adminClient
+    .rpc('check_email_in_auth', { p_email: email.trim().toLowerCase() })
+
+  if (!authCheckError && authExists) {
+    return NextResponse.json(
+      { error: 'This email is already registered. If you lost access to your account, contact support.' },
+      { status: 409 }
+    )
+  }
+
+  // ── Compute expiry ───────────────────────────────────────
+  const hours = Math.min(Math.max(expires_hours ?? DEFAULT_EXPIRY_HOURS[role], 1), 720) // max 30 days
+  const expires_at = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
+
+  // ── Insert (the partial unique index prevents duplicate pending invitations) ──
+  const { data: invitation, error: insertError } = await adminClient
+    .from('invitations')
+    .insert({
+      email: email.trim().toLowerCase(),
+      role,
+      tenant_id,
+      group_id: group_id ?? null,
+      group_name_snapshot: groupNameSnapshot,
+      invited_by: user.id,
+      expires_at,
+    })
+    .select('*')
+    .single()
+
+  if (insertError) {
+    // Unique constraint violation = pending invitation already exists for this email+tenant
+    if (insertError.code === '23505') {
+      return NextResponse.json(
+        { error: 'A pending invitation for this email already exists. Revoke it first to create a new one.' },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: insertError.message }, { status: 500 })
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const joinUrl = `${baseUrl}/join/${invitation.token}`
+
+  return NextResponse.json({ invitation, joinUrl }, { status: 201 })
+}
