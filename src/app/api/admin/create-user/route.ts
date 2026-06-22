@@ -15,8 +15,10 @@ function extractError(err: unknown): string {
   if (!err) return 'Unknown error'
   if (typeof err === 'string') return err
   const e = err as Record<string, unknown>
-  return (e.message as string) || (e.msg as string) || (e.error_description as string) ||
-    (e.code as string) || JSON.stringify(err) || 'Unknown error'
+  const msg = (e.message as string) || (e.msg as string) || (e.error_description as string) || (e.code as string)
+  if (msg) return msg
+  const json = JSON.stringify(err)
+  return (!json || json === '{}') ? 'Unknown error' : json
 }
 
 export async function POST(request: Request) {
