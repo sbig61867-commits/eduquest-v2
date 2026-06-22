@@ -233,20 +233,23 @@ CREATE POLICY "grades_insert" ON grades FOR INSERT WITH CHECK (
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  INSERT INTO users (id, email, full_name, role, tenant_id)
+  INSERT INTO public.users (id, email, full_name, role, tenant_id)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    'student',  -- always safe default; role is set explicitly by accept_invitation() or admin API
-    NULL        -- always NULL; tenant is set explicitly after creation
+    'student',
+    NULL
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+EXCEPTION WHEN OTHERS THEN
+  RAISE LOG 'handle_new_user error for %: %', NEW.email, SQLERRM;
+  RETURN NEW;
+END $$;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
