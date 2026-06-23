@@ -37,34 +37,41 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
 
     setLoading(true)
 
-    const res = await fetch('/api/auth/accept-invitation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, email: email.trim(), password, fullName }),
-    })
+    try {
+      const res = await fetch('/api/auth/accept-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, email: email.trim(), password, fullName }),
+      })
 
-    const data = await res.json()
+      let data: Record<string, unknown> = {}
+      try { data = await res.json() } catch { /* empty response */ }
 
-    if (!res.ok) {
-      setError(data.error ?? 'Registration failed. Please try again.')
+      if (!res.ok) {
+        setError((data.error as string) ?? 'Registration failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email as string,
+        password,
+      })
+
+      if (signInError || !session.user) {
+        router.push(`/login?email=${encodeURIComponent(data.email as string)}&registered=true`)
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('users').select('role').eq('id', session.user.id).single()
+
+      router.push(getRoleDashboardPath((profile?.role ?? 'student') as Role))
+    } catch (err) {
+      setError('A network error occurred. Please try again.')
+      console.error('[join-form]', err)
       setLoading(false)
-      return
     }
-
-    const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password,
-    })
-
-    if (signInError || !session.user) {
-      router.push(`/login?email=${encodeURIComponent(data.email)}&registered=true`)
-      return
-    }
-
-    const { data: profile } = await supabase
-      .from('users').select('role').eq('id', session.user.id).single()
-
-    router.push(getRoleDashboardPath((profile?.role ?? 'student') as Role))
   }
 
   return (
