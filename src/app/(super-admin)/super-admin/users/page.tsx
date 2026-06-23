@@ -21,5 +21,5 @@ export default async function AllUsersPage() {
       .order('name'),
   ])
 
-  return <SuperUsersClient initialUsers={(users ?? []) as any} tenants={tenants ?? []} />
+  return <SuperUsersClient initialUsers={(users ?? []) as unknown as Parameters<typeof SuperUsersClient>[0]['initialUsers']} tenants={tenants ?? []} />
 }

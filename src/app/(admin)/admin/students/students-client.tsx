@@ -23,8 +23,12 @@ export function StudentsClient({ initialStudents }: Props) {
   )
 
   async function toggleStatus(student: User) {
-    const { error } = await supabase.from('users').update({ is_active: !student.is_active }).eq('id', student.id)
-    if (!error) setStudents(prev => prev.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s))
+    const res = await fetch('/api/admin/toggle-user', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: student.id, isActive: !student.is_active }),
+    })
+    if (res.ok) setStudents(prev => prev.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s))
   }
 
   async function deleteStudent(id: string) {

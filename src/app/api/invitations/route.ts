@@ -220,7 +220,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const baseUrl = (() => {
+    const url = process.env.NEXT_PUBLIC_APP_URL
+    if (url) return url.replace(/\/$/, '')
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+    return 'http://localhost:3000'
+  })()
   const joinUrl = `${baseUrl}/join/${invitation.token}`
 
   // Send invitation email (private links only — public links are shared manually)

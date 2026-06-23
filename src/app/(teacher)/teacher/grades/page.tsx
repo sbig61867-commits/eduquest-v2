@@ -1,31 +1,44 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { redirect } from 'next/navigation'
+import type { Question } from '@/types'
+
+interface ExamRow { title: string; teacher_id: string; questions: Question[] }
+interface UserRow  { full_name: string; email: string }
+interface SubmissionRow {
+  id: string
+  score: number
+  submitted_at: string
+  exams: ExamRow | null
+  users: UserRow | null
+}
 
 export default async function TeacherGradesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: submissions } = await supabase
+  const { data: raw } = await supabase
     .from('exam_submissions')
-    .select('*, exams!inner(title, teacher_id, questions), users(full_name, email)')
+    .select('id, score, submitted_at, exams!inner(title, teacher_id, questions), users(full_name, email)')
     .eq('exams.teacher_id', user.id)
     .not('score', 'is', null)
     .order('submitted_at', { ascending: false })
+
+  const submissions = (raw ?? []) as unknown as SubmissionRow[]
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Student Grades</h2>
-        <p className="text-slate-400 mt-1">{submissions?.length ?? 0} graded submissions</p>
+        <p className="text-slate-400 mt-1">{submissions.length} graded submissions</p>
       </div>
 
-      {!submissions?.length ? (
+      {!submissions.length ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BarChart2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400">No graded submissions yet.</p>
@@ -45,16 +58,16 @@ export default async function TeacherGradesPage() {
             </thead>
             <tbody className="divide-y divide-slate-800">
               {submissions.map(sub => {
-                const max = (sub.exams as any)?.questions?.reduce((a: number, q: any) => a + q.points, 0) || 1
-                const pct = Math.round((sub.score / max) * 100)
+                const max = sub.exams?.questions?.reduce((a, q) => a + q.points, 0) || 1
+                const pct = Math.round(((sub.score ?? 0) / max) * 100)
                 const passed = pct >= 60
                 return (
                   <tr key={sub.id} className="hover:bg-slate-800/50 transition-colors">
                     <td className="px-5 py-4">
-                      <p className="text-white text-sm font-medium">{(sub.users as any)?.full_name ?? '—'}</p>
-                      <p className="text-slate-500 text-xs">{(sub.users as any)?.email ?? ''}</p>
+                      <p className="text-white text-sm font-medium">{sub.users?.full_name ?? '—'}</p>
+                      <p className="text-slate-500 text-xs">{sub.users?.email ?? ''}</p>
                     </td>
-                    <td className="px-5 py-4 text-slate-300 text-sm">{(sub.exams as any)?.title ?? '—'}</td>
+                    <td className="px-5 py-4 text-slate-300 text-sm">{sub.exams?.title ?? '—'}</td>
                     <td className="px-5 py-4">
                       <span className={`text-sm font-bold ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
                         {sub.score}/{max} ({pct}%)

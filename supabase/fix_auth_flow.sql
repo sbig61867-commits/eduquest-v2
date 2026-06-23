@@ -73,14 +73,6 @@ CREATE TRIGGER on_user_claims_change
 
 -- ============================================================
 -- FIX 3: Backfill — sync claims for all existing users
+-- Touch role column (same value) to fire sync_user_claims trigger
 -- ============================================================
-UPDATE public.users SET updated_at = NOW()
-WHERE id IN (SELECT id FROM public.users);
-
--- Or if updated_at doesn't exist, force the trigger via role:
--- This UPDATE touches role (same value) which triggers sync_user_claims
-DO $$
-BEGIN
-  UPDATE public.users SET role = role;
-END;
-$$;
+UPDATE public.users SET role = role;

@@ -63,9 +63,14 @@ export async function POST(request: Request) {
 }
 faceVisible=false if no face. lookingAway=true if eyes not facing camera. multipleFaces=true if more than one person. suspiciousActivity=true if phone/book/screen visible.`
 
-    const result = await model.generateContent([
-      { inlineData: { mimeType: 'image/jpeg', data: frameBase64 } },
-      prompt,
+    const result = await Promise.race([
+      model.generateContent([
+        { inlineData: { mimeType: 'image/jpeg', data: frameBase64 } },
+        prompt,
+      ]),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Gemini timeout')), 10_000)
+      ),
     ])
 
     const text = result.response.text().trim()
