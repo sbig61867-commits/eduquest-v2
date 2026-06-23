@@ -37,6 +37,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   // 20 exam generations per user per hour
   const rl = await rateLimit(`exam:${user.id}`, { limit: 20, windowSecs: 3600 })
   if (!rl.allowed) {

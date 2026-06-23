@@ -9,6 +9,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   // 10 AI lesson requests per user per hour
   const rl = await rateLimit(`lesson:${user.id}`, { limit: 10, windowSecs: 3600 })
   if (!rl.allowed) {
