@@ -68,9 +68,11 @@ function LoginForm() {
 
         {(error || errorMsg) && (
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-            {error || (errorMsg === 'account_disabled'
-              ? 'Your account has been disabled.'
-              : 'You are not authorized to access this page.')}
+            {error || (
+              errorMsg === 'account_disabled'   ? 'Your account has been disabled. Contact your administrator.' :
+              errorMsg === 'university_removed' ? 'Your university has been removed from the platform. Contact support.' :
+              'You are not authorized to access this page.'
+            )}
           </div>
         )}
 

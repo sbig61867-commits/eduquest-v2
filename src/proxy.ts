@@ -72,13 +72,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Read role + is_active from JWT claims; fall back to DB only if absent.
+  // Read role + is_active + tenant_id from JWT claims; fall back to DB only if absent.
   let { role, isActive } = claimsFromUser(user)
+  let tenantId: string | null | undefined = (user.app_metadata?.tenant_id as string | null) ?? undefined
+
   if (role === undefined || isActive === undefined) {
     const { data: profile } = await supabase
-      .from('users').select('role, is_active').eq('id', user.id).single()
-    role = (profile?.role as Role | undefined) ?? role
+      .from('users').select('role, is_active, tenant_id').eq('id', user.id).single()
+    role     = (profile?.role as Role | undefined) ?? role
     isActive = profile?.is_active ?? isActive
+    tenantId = profile?.tenant_id ?? tenantId
   }
 
   if (isActive === false) {
@@ -87,6 +90,11 @@ export async function proxy(request: NextRequest) {
 
   if (!role) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // university_admin/teacher/student without a tenant = their university was deleted
+  if (role !== 'super_admin' && !tenantId) {
+    return NextResponse.redirect(new URL('/login?error=university_removed', request.url))
   }
 
   // RBAC check

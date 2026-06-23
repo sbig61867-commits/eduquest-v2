@@ -174,3 +174,26 @@ DROP TRIGGER IF EXISTS on_tenant_active_change ON tenants;
 CREATE TRIGGER on_tenant_active_change
   AFTER UPDATE OF is_active ON tenants
   FOR EACH ROW EXECUTE FUNCTION cascade_tenant_active_status();
+
+-- ============================================================
+-- 5. DEACTIVATE USERS WHEN TENANT IS DELETED
+-- When a tenant is hard-deleted, set all its users is_active=false
+-- so they see a clear error instead of a broken dashboard.
+-- (tenant_id becomes NULL via ON DELETE SET NULL — this trigger
+--  fires BEFORE that to capture the tenant_id while it still exists)
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION deactivate_users_on_tenant_delete()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE public.users
+  SET is_active = FALSE
+  WHERE tenant_id = OLD.id
+    AND role != 'super_admin';
+  RETURN OLD;
+END $$;
+
+DROP TRIGGER IF EXISTS on_tenant_delete ON tenants;
+CREATE TRIGGER on_tenant_delete
+  BEFORE DELETE ON tenants
+  FOR EACH ROW EXECUTE FUNCTION deactivate_users_on_tenant_delete();
