@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export async function PATCH(request: Request) {
   const supabase = await createClient()
@@ -39,9 +48,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Cannot modify a super admin account' }, { status: 403 })
   }
 
-  void tenantFilter // used in guard above
-
-  const { error } = await supabase
+  const { error } = await adminClient()
     .from('users').update({ is_active: isActive }).eq('id', userId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

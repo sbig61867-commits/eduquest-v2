@@ -10,7 +10,7 @@ import {
   Building2, ChevronRight, Users, GraduationCap,
   ShieldCheck, ArrowLeft, ToggleRight,
 } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDate, getRoleLabel } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ const roleColors: Record<string, 'blue' | 'green' | 'yellow' | 'gray' | 'red'> =
   student:          'gray',
 }
 
-const roleLabel = (r: string) => r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+const roleLabel = (r: string) => getRoleLabel(r as Parameters<typeof getRoleLabel>[0])
 
 function Avatar({ name, color = 'blue' }: { name: string; color?: string }) {
   const colors: Record<string, string> = {
@@ -334,10 +334,10 @@ export function SuperUsersClient({ initialUsers, tenants }: Props) {
   // ── Actions ────────────────────────────────────────────────────────────────
 
   async function toggleUser(u: User) {
-    const res = await fetch('/api/admin/create-user', {
+    const res = await fetch('/api/admin/toggle-user', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: u.id, is_active: !u.is_active }),
+      body: JSON.stringify({ userId: u.id, isActive: !u.is_active }),
     })
     if (res.ok) setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_active: !x.is_active } : x))
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { groqChat } from '@/lib/ai/groq'
 
 interface Question {
   id: string
@@ -87,28 +88,7 @@ Return ONLY a valid JSON array, no markdown:
 Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] and 5 points. correct_answer must match an option exactly.`
 
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: 'Return only valid JSON arrays, no markdown, no explanations.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.6,
-        max_tokens: 4096,
-      }),
-    })
-
-    if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`Groq API error ${res.status}: ${errText}`)
-    }
-
-    const data = await res.json()
-    const content = data.choices?.[0]?.message?.content
-    if (!content) throw new Error('Empty response from Groq')
+    const content = await groqChat(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
 
     const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
     const jsonMatch = text.match(/\[[\s\S]*\]/)

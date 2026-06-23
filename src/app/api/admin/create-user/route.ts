@@ -108,29 +108,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: extractError(err) }, { status: 500 })
   }
 }
-
-// Toggle is_active (super_admin only)
-export async function PATCH(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { data: { user: caller } } = await supabase.auth.getUser()
-    if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const { data: callerProfile } = await supabase
-      .from('users').select('role').eq('id', caller.id).single()
-    if (callerProfile?.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const { id, is_active } = await request.json()
-    if (!id || typeof is_active !== 'boolean') {
-      return NextResponse.json({ error: 'Missing id or is_active' }, { status: 400 })
-    }
-
-    const { error } = await getAdminClient().from('users').update({ is_active }).eq('id', id)
-    if (error) return NextResponse.json({ error: extractError(error) }, { status: 400 })
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    return NextResponse.json({ error: extractError(err) }, { status: 500 })
-  }
-}
