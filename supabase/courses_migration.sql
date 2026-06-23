@@ -45,8 +45,7 @@ CREATE TABLE IF NOT EXISTS course_units (
   order_index  INTEGER NOT NULL DEFAULT 0,
   is_published BOOLEAN NOT NULL DEFAULT FALSE,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- For leveled courses: unique order per level; for flat: unique order per course
-  UNIQUE NULLS NOT DISTINCT (level_id, course_id, order_index)
+  -- Uniqueness enforced via partial indexes below (handles NULL level_id safely)
 );
 
 -- ============================================================
@@ -126,7 +125,11 @@ CREATE TABLE IF NOT EXISTS exam_retake_permissions (
 -- 9. MODIFY EXISTING TABLES
 -- ============================================================
 
--- exams: add optional course_id (either group_id OR course_id)
+-- exams: group_id was NOT NULL — relax it so course exams don't need a group
+ALTER TABLE exams
+  ALTER COLUMN group_id DROP NOT NULL;
+
+-- Add optional course_id for continuing education exams
 ALTER TABLE exams
   ADD COLUMN IF NOT EXISTS course_id UUID REFERENCES courses(id) ON DELETE CASCADE;
 
@@ -135,7 +138,7 @@ ALTER TABLE exams DROP CONSTRAINT IF EXISTS exam_must_belong_to_group_or_course;
 ALTER TABLE exams ADD CONSTRAINT exam_must_belong_to_group_or_course
   CHECK (
     (group_id IS NOT NULL AND course_id IS NULL) OR
-    (group_id IS NULL AND course_id IS NOT NULL)
+    (group_id IS NULL  AND course_id IS NOT NULL)
   );
 
 -- exam_submissions: add grading_status for manual review workflow
@@ -150,6 +153,15 @@ ALTER TABLE invitations
 -- ============================================================
 -- 10. INDEXES FOR PERFORMANCE
 -- ============================================================
+-- Partial unique indexes for course_units order (handles nullable level_id)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_course_units_order_leveled
+  ON course_units(level_id, order_index)
+  WHERE level_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_course_units_order_flat
+  ON course_units(course_id, order_index)
+  WHERE level_id IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_courses_tenant         ON courses(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_courses_teacher        ON courses(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_course_levels_course   ON course_levels(course_id);
