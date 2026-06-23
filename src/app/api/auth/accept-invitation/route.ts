@@ -81,6 +81,17 @@ export async function POST(request: Request) {
 
   const newUserId = authData.user.id
 
+  // ── Step 3b: ensure user profile exists before calling RPC ───
+  // The handle_new_user trigger creates this row, but we upsert here
+  // as a safety net in case the trigger is delayed or fails silently.
+  await adminClient.from('users').upsert({
+    id:        newUserId,
+    email:     email.trim().toLowerCase(),
+    full_name: fullName.trim(),
+    role:      'student',
+    tenant_id: null,
+  }, { onConflict: 'id', ignoreDuplicates: true })
+
   // ── Step 4: atomically accept invitation + set role/tenant ──
   const { error: rpcError } = await adminClient
     .rpc('accept_invitation', {
