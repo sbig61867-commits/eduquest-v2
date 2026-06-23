@@ -48,7 +48,9 @@ export async function proxy(request: NextRequest) {
 
   // ── Public routes ──
   if (isPublicRoute(pathname)) {
-    if (user) {
+    // /join/ must always be accessible — don't redirect even if logged in
+    // (user may be super admin opening their own invitation link to test it)
+    if (user && !pathname.startsWith('/join/')) {
       let { role } = claimsFromUser(user)
       if (!role) {
         const { data: profile } = await supabase
