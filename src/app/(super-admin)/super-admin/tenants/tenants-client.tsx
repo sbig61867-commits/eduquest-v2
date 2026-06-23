@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Building2, ToggleLeft, Trash2, UserPlus, Link, Copy, Check } from 'lucide-react'
+import { Plus, Building2, ToggleLeft, Trash2, UserPlus, Mail } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Tenant } from '@/types'
 
@@ -26,15 +27,8 @@ export function TenantsClient({ initialTenants }: Props) {
   const [adminError, setAdminError] = useState('')
   const [adminSuccess, setAdminSuccess] = useState('')
 
-  // Invite admin via link modal
-  const [inviteTarget, setInviteTarget] = useState<Tenant | null>(null)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteLoading, setInviteLoading] = useState(false)
-  const [inviteError, setInviteError] = useState('')
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-
   const supabase = createClient()
+  const router = useRouter()
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -99,49 +93,6 @@ export function TenantsClient({ initialTenants }: Props) {
     setAdminLoading(false)
   }
 
-  // ── Invite admin via link ─────────────────────────────────
-  function openInvite(tenant: Tenant) {
-    setInviteTarget(tenant)
-    setInviteEmail('')
-    setInviteError('')
-    setInviteLink(null)
-    setCopied(false)
-  }
-
-  async function handleInvite(e: React.FormEvent) {
-    e.preventDefault()
-    if (!inviteTarget) return
-    setInviteLoading(true)
-    setInviteError('')
-    setInviteLink(null)
-
-    const res = await fetch('/api/invitations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: inviteEmail,
-        role: 'university_admin',
-        tenant_id: inviteTarget.id,
-        expires_hours: 72,
-        is_public: false,
-      }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      setInviteError(data.error ?? 'Failed to create invitation')
-    } else {
-      setInviteLink(data.joinUrl)
-      setInviteEmail('')
-    }
-    setInviteLoading(false)
-  }
-
-  async function copyLink() {
-    if (!inviteLink) return
-    await navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
     <div className="space-y-6">
@@ -180,9 +131,9 @@ export function TenantsClient({ initialTenants }: Props) {
                 <Button variant="secondary" size="sm" className="w-full" onClick={() => openAddAdmin(tenant)}>
                   <UserPlus className="w-4 h-4" /> Add Admin (manual)
                 </Button>
-                {/* Invite admin via link */}
-                <Button variant="secondary" size="sm" className="w-full !bg-blue-600/10 !border-blue-500/20 !text-blue-400 hover:!bg-blue-600/20" onClick={() => openInvite(tenant)}>
-                  <Link className="w-4 h-4" /> Invite Admin (link)
+                {/* Invite admin via link — redirects to the Invitations page */}
+                <Button variant="secondary" size="sm" className="w-full !bg-blue-600/10 !border-blue-500/20 !text-blue-400 hover:!bg-blue-600/20" onClick={() => router.push('/super-admin/invitations')}>
+                  <Mail className="w-4 h-4" /> Invite Admin (link)
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={() => toggleTenant(tenant)} className="flex-1">
@@ -249,50 +200,6 @@ export function TenantsClient({ initialTenants }: Props) {
         </form>
       </Modal>
 
-      {/* Invite Admin via Link Modal */}
-      <Modal open={!!inviteTarget} onClose={() => setInviteTarget(null)} title={`Invite Admin — ${inviteTarget?.name ?? ''}`}>
-        <div className="space-y-4">
-          <p className="text-slate-400 text-sm">
-            Enter the admin&apos;s email. They will receive a unique link to register and will automatically get access to{' '}
-            <span className="text-white font-medium">{inviteTarget?.name}</span>.
-          </p>
-
-          {inviteLink ? (
-            <div className="space-y-3">
-              <p className="text-emerald-400 text-sm font-medium">✓ Invitation link created! Valid for 72 hours.</p>
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5">
-                <code className="text-blue-300 text-xs flex-1 break-all">{inviteLink}</code>
-                <button onClick={copyLink} className="text-slate-400 hover:text-white shrink-0 ml-1">
-                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-slate-500 text-xs">Send this link to the admin. It can only be used once.</p>
-              <div className="flex gap-3 pt-1">
-                <Button variant="secondary" className="flex-1" onClick={() => { setInviteLink(null); setInviteEmail('') }}>
-                  Create Another
-                </Button>
-                <Button className="flex-1" onClick={() => setInviteTarget(null)}>Done</Button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleInvite} className="space-y-4">
-              {inviteError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{inviteError}</p>}
-              <Input
-                label="Admin Email"
-                type="email"
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-                required
-                placeholder="admin@university.edu"
-              />
-              <div className="flex gap-3 pt-1">
-                <Button type="button" variant="secondary" onClick={() => setInviteTarget(null)} className="flex-1">Cancel</Button>
-                <Button type="submit" loading={inviteLoading} className="flex-1">Generate Link</Button>
-              </div>
-            </form>
-          )}
-        </div>
-      </Modal>
     </div>
   )
 }
