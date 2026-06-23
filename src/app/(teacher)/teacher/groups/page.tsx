@@ -34,6 +34,8 @@ export default async function GroupsPage() {
     <GroupsClient
       initialGroups={groups ?? []}
       tenantStudents={tenantStudents ?? []}
+      teacherId={user.id}
+      tenantId={profile?.tenant_id ?? ''}
     />
   )
 }

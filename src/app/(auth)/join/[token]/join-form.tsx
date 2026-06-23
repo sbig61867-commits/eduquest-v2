@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
@@ -19,8 +19,24 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError]                   = useState('')
   const [loading, setLoading]               = useState(false)
+  const [signingOut, setSigningOut]         = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  // If the user is already signed in, sign them out first so they can register
+  // with the invitation credentials (e.g. super_admin testing an invite link)
+  useEffect(() => {
+    async function ensureSignedOut() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setSigningOut(true)
+        await supabase.auth.signOut()
+        setSigningOut(false)
+      }
+    }
+    ensureSignedOut()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -76,6 +92,15 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       console.error('[join-form]', err)
       setLoading(false)
     }
+  }
+
+  if (signingOut) {
+    return (
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl text-center">
+        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-slate-400 text-sm">Preparing registration…</p>
+      </div>
+    )
   }
 
   return (

@@ -25,9 +25,11 @@ interface Student {
 interface Props {
   initialGroups: Group[]
   tenantStudents: Student[]
+  teacherId: string
+  tenantId: string
 }
 
-export function GroupsClient({ initialGroups, tenantStudents }: Props) {
+export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantId }: Props) {
   const [groups, setGroups] = useState(initialGroups)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Group | null>(null)
@@ -70,11 +72,12 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
         .single()
       if (data) setGroups(prev => prev.map(g => g.id === editing.id ? { ...g, ...data } : g))
     } else {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('groups')
-        .insert({ name: form.name, description: form.description })
+        .insert({ name: form.name, description: form.description, teacher_id: teacherId, tenant_id: tenantId })
         .select('*, group_students(count)')
         .single()
+      if (error) { console.error('[groups] insert error', error); setLoading(false); return }
       if (data) setGroups(prev => [data, ...prev])
     }
     setShowAdd(false)
