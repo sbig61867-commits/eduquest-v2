@@ -82,25 +82,45 @@ export async function POST(request: Request) {
     tenant_id?: string
     group_id?: string
     expires_hours?: number
+    is_public?: boolean
+    max_uses?: number
   }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
   const { email, role, group_id, expires_hours } = body
+  const isPublic = body.is_public === true
+  const maxUses  = body.max_uses ? Number(body.max_uses) : null
   let groupNameSnapshot: string | null = null
 
-  // ── Validate inputs ──────────────────────────────────────
-  if (!email?.trim() || !role) {
-    return NextResponse.json({ error: 'email and role are required' }, { status: 400 })
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+  // ── Validate role ────────────────────────────────────────
+  if (!role) {
+    return NextResponse.json({ error: 'role is required' }, { status: 400 })
   }
   if (!ROLE_CEILING[caller.role].includes(role)) {
     return NextResponse.json(
       { error: `Your role (${caller.role}) cannot invite a ${role}` },
       { status: 403 }
     )
+  }
+
+  // ── Public link rules ────────────────────────────────────
+  // super_admin → university_admin must ALWAYS be email-specific (high privilege)
+  if (isPublic && caller.role === 'super_admin' && role === 'university_admin') {
+    return NextResponse.json(
+      { error: 'University Admin invitations must always be email-specific for security.' },
+      { status: 400 }
+    )
+  }
+
+  // ── Email validation ─────────────────────────────────────
+  if (!isPublic) {
+    if (!email?.trim()) {
+      return NextResponse.json({ error: 'email is required for private invitations' }, { status: 400 })
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+    }
   }
 
   // ── Resolve tenant_id ────────────────────────────────────
@@ -130,47 +150,53 @@ export async function POST(request: Request) {
     groupNameSnapshot = group.name
   }
 
-  // ── Check if user with this email already exists in this tenant ──
-  const { data: existingUser } = await supabase
-    .from('users').select('id, tenant_id').eq('email', email.trim()).single()
-
-  if (existingUser) {
-    if (existingUser.tenant_id === tenant_id) {
-      return NextResponse.json({ error: 'A user with this email already exists in this university' }, { status: 409 })
-    }
-    return NextResponse.json(
-      { error: 'This email is already registered in another university. Contact support to transfer.' },
-      { status: 409 }
-    )
-  }
-
-  // ── Check auth.users (catches orphaned accounts: registered in auth but no users row) ──
   const adminClient = getAdminClient()
-  const { data: authExists, error: authCheckError } = await adminClient
-    .rpc('check_email_in_auth', { p_email: email.trim().toLowerCase() })
 
-  if (!authCheckError && authExists) {
-    return NextResponse.json(
-      { error: 'This email is already registered. If you lost access to your account, contact support.' },
-      { status: 409 }
-    )
+  // ── Email duplicate checks (private invitations only) ────
+  if (!isPublic && email) {
+    const trimmedEmail = email.trim().toLowerCase()
+
+    const { data: existingUser } = await supabase
+      .from('users').select('id, tenant_id').eq('email', trimmedEmail).single()
+
+    if (existingUser) {
+      if (existingUser.tenant_id === tenant_id) {
+        return NextResponse.json({ error: 'A user with this email already exists in this university' }, { status: 409 })
+      }
+      return NextResponse.json(
+        { error: 'This email is already registered in another university. Contact support to transfer.' },
+        { status: 409 }
+      )
+    }
+
+    const { data: authExists, error: authCheckError } = await adminClient
+      .rpc('check_email_in_auth', { p_email: trimmedEmail })
+
+    if (!authCheckError && authExists) {
+      return NextResponse.json(
+        { error: 'This email is already registered. If you lost access to your account, contact support.' },
+        { status: 409 }
+      )
+    }
   }
 
   // ── Compute expiry ───────────────────────────────────────
-  const hours = Math.min(Math.max(expires_hours ?? DEFAULT_EXPIRY_HOURS[role], 1), 720) // max 30 days
+  const hours = Math.min(Math.max(expires_hours ?? DEFAULT_EXPIRY_HOURS[role], 1), 720)
   const expires_at = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
 
-  // ── Insert (the partial unique index prevents duplicate pending invitations) ──
+  // ── Insert ───────────────────────────────────────────────
   const { data: invitation, error: insertError } = await adminClient
     .from('invitations')
     .insert({
-      email: email.trim().toLowerCase(),
+      email:               isPublic ? null : email!.trim().toLowerCase(),
       role,
       tenant_id,
-      group_id: group_id ?? null,
+      group_id:            group_id ?? null,
       group_name_snapshot: groupNameSnapshot,
-      invited_by: user.id,
+      invited_by:          user.id,
       expires_at,
+      is_public:           isPublic,
+      max_uses:            isPublic ? maxUses : null,
     })
     .select('*')
     .single()

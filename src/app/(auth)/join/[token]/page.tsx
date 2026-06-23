@@ -12,63 +12,40 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 type InvitationResult =
-  | { email: string; role: string; tenant_name: string; expires_at: string }
-  | { error: 'NOT_FOUND' | 'USED' | 'REVOKED' | 'EXPIRED' }
+  | { email: string | null; role: string; tenant_name: string; expires_at: string; is_public: boolean; max_uses: number | null; use_count: number }
+  | null
 
-const ERROR_MESSAGES: Record<string, { title: string; body: string; hint?: string }> = {
-  NOT_FOUND: {
-    title: 'Invalid Invitation',
-    body: 'This invitation link is invalid.',
-  },
-  USED: {
-    title: 'Invitation Already Used',
-    body: 'This invitation has already been used.',
-    hint: 'If you already registered, please sign in.',
-  },
-  REVOKED: {
-    title: 'Invitation Revoked',
-    body: 'This invitation has been revoked.',
-    hint: 'Please contact your administrator for a new invitation.',
-  },
-  EXPIRED: {
-    title: 'Invitation Expired',
-    body: 'This invitation link has expired. Please contact your administrator to request a new one.',
-  },
+const ERROR_MESSAGES = {
+  title: 'Invalid or Expired Invitation',
+  body:  'This invitation link is invalid, has expired, or has already been fully used.',
+  hint:  'Please contact your administrator for a new invitation.',
 }
 
-async function getInvitation(token: string): Promise<InvitationResult | null> {
+async function getInvitation(token: string): Promise<InvitationResult> {
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
   const { data } = await admin.rpc('get_invitation_by_token', { p_token: token })
-  return data as InvitationResult | null
+  return data as InvitationResult
 }
 
 export default async function JoinPage({ params }: Props) {
   const { token } = await params
-  const result = await getInvitation(token)
+  const invitation = await getInvitation(token)
 
-  // ── Error / invalid ──
-  if (!result || 'error' in result) {
-    const code = result && 'error' in result ? result.error : 'NOT_FOUND'
-    const msg = ERROR_MESSAGES[code] ?? ERROR_MESSAGES['NOT_FOUND']
+  if (!invitation) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
         <div className="w-full max-w-md p-8 text-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl space-y-4">
           <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
             <span className="text-red-400 text-2xl">✕</span>
           </div>
-          <h1 className="text-xl font-bold text-white">{msg.title}</h1>
-          <p className="text-slate-400 text-sm">{msg.body}</p>
-          {msg.hint && (
-            <p className="text-slate-500 text-sm">{msg.hint}</p>
-          )}
-          <a
-            href="/login"
-            className="inline-block mt-2 text-blue-400 hover:text-blue-300 text-sm underline"
-          >
+          <h1 className="text-xl font-bold text-white">{ERROR_MESSAGES.title}</h1>
+          <p className="text-slate-400 text-sm">{ERROR_MESSAGES.body}</p>
+          <p className="text-slate-500 text-sm">{ERROR_MESSAGES.hint}</p>
+          <a href="/login" className="inline-block mt-2 text-blue-400 hover:text-blue-300 text-sm underline">
             Already have an account? Sign in
           </a>
         </div>
@@ -76,12 +53,11 @@ export default async function JoinPage({ params }: Props) {
     )
   }
 
-  const invitation = result
-
-  const expiresDate = new Date(invitation.expires_at)
-  const expiresLabel = expiresDate.toLocaleDateString('en-US', {
+  const expiresLabel = new Date(invitation.expires_at).toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
+
+  const accentColor = invitation.is_public ? 'purple' : 'blue'
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4">
@@ -89,24 +65,32 @@ export default async function JoinPage({ params }: Props) {
 
         {/* Header */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-${accentColor}-600 mb-4`}>
             <span className="text-white text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">You're invited!</h1>
+          <h1 className="text-2xl font-bold text-white">You&apos;re invited!</h1>
           <p className="text-slate-400 text-sm mt-1">
             Join <span className="text-white font-semibold">{invitation.tenant_name}</span> as a{' '}
-            <span className="text-blue-400 font-semibold">
+            <span className={`text-${accentColor}-400 font-semibold`}>
               {ROLE_LABELS[invitation.role] ?? invitation.role}
             </span>
           </p>
         </div>
 
         {/* Invitation details card */}
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-5 py-4 space-y-1.5">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Invited email</span>
-            <span className="text-white font-medium">{invitation.email}</span>
-          </div>
+        <div className={`bg-${accentColor}-500/10 border border-${accentColor}-500/20 rounded-xl px-5 py-4 space-y-1.5`}>
+          {!invitation.is_public && invitation.email && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">Invited email</span>
+              <span className="text-white font-medium">{invitation.email}</span>
+            </div>
+          )}
+          {invitation.is_public && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">Link type</span>
+              <span className="text-purple-400 font-medium">Open to anyone</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">University</span>
             <span className="text-white font-medium">{invitation.tenant_name}</span>
@@ -115,6 +99,12 @@ export default async function JoinPage({ params }: Props) {
             <span className="text-slate-400">Role</span>
             <span className="text-white font-medium">{ROLE_LABELS[invitation.role] ?? invitation.role}</span>
           </div>
+          {invitation.is_public && invitation.max_uses != null && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">Spots remaining</span>
+              <span className="text-white font-medium">{invitation.max_uses - invitation.use_count}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Expires</span>
             <span className="text-amber-400 font-medium">{expiresLabel}</span>
@@ -122,7 +112,11 @@ export default async function JoinPage({ params }: Props) {
         </div>
 
         {/* Registration form */}
-        <JoinForm token={token} invitedEmail={invitation.email} />
+        <JoinForm
+          token={token}
+          invitedEmail={invitation.email ?? ''}
+          isPublic={invitation.is_public}
+        />
 
         <p className="text-center text-slate-500 text-xs">
           Already have an account?{' '}

@@ -35,32 +35,29 @@ export async function POST(request: Request) {
   if (fullName.trim().length < 2) {
     return NextResponse.json({ error: 'Full name must be at least 2 characters' }, { status: 400 })
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+  }
 
   const adminClient = getAdminClient()
 
   // ── Step 1: validate token ────────────────────────────────
-  // Uses a SECURITY DEFINER function — no auth cookie needed
   const { data: invData, error: invError } = await adminClient
     .rpc('get_invitation_by_token', { p_token: token })
 
-  if (invError || !invData || invData.error) {
-    const msgMap: Record<string, string> = {
-      EXPIRED:   'This invitation has expired. Request a new one.',
-      USED:      'This invitation has already been used.',
-      REVOKED:   'This invitation has been revoked.',
-      NOT_FOUND: 'This invitation link is invalid.',
-    }
-    const msg = invData?.error ? (msgMap[invData.error] ?? 'Invalid invitation.') : 'Invalid invitation.'
-    return NextResponse.json({ error: msg }, { status: 410 })
+  if (invError || !invData) {
+    return NextResponse.json({ error: 'This invitation link is invalid or has expired.' }, { status: 410 })
   }
 
-  // ── Step 2: verify email matches ─────────────────────────
-  // The invitation is for a specific email — cannot be used by anyone else
-  if (invData.email.toLowerCase() !== email.trim().toLowerCase()) {
-    return NextResponse.json(
-      { error: 'The email address does not match this invitation.' },
-      { status: 403 }
-    )
+  // ── Step 2: verify email (private invitations only) ───────
+  // Public invitations accept any email; private are locked to the invited address.
+  if (!invData.is_public) {
+    if (!invData.email || invData.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return NextResponse.json(
+        { error: 'The email address does not match this invitation.' },
+        { status: 403 }
+      )
+    }
   }
 
   // ── Step 3: create auth user ──────────────────────────────

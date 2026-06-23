@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Mail, Plus, X, Copy, Check, Clock, UserCheck, Ban, RefreshCw } from 'lucide-react'
+import { Mail, Link, Plus, X, Copy, Check, Clock, UserCheck, Ban, RefreshCw, Users } from 'lucide-react'
 import type { Invitation } from '@/types'
 
 interface Props {
@@ -25,6 +25,9 @@ const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
+// Roles that MUST always use a private (email-specific) invitation
+const PRIVATE_ONLY_ROLES = new Set(['university_admin'])
+
 const STATUS_COLORS: Record<string, string> = {
   pending:  'text-amber-400 bg-amber-400/10',
   accepted: 'text-emerald-400 bg-emerald-400/10',
@@ -37,21 +40,36 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   revoked:  <Ban className="w-3 h-3" />,
 }
 
+type InvitationRow = Invitation & {
+  is_public?: boolean
+  max_uses?: number | null
+  use_count?: number
+}
+
 export function InvitationsClient({ callerRole, tenants, groups }: Props) {
-  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [invitations, setInvitations] = useState<InvitationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // Form state
-  const [email, setEmail]         = useState('')
-  const [role, setRole]           = useState(ROLE_OPTIONS[callerRole][0].value)
-  const [tenantId, setTenantId]   = useState(tenants[0]?.id ?? '')
-  const [groupId, setGroupId]     = useState('')
+  const [isPublic, setIsPublic]       = useState(false)
+  const [email, setEmail]             = useState('')
+  const [role, setRole]               = useState(ROLE_OPTIONS[callerRole][0].value)
+  const [tenantId, setTenantId]       = useState(tenants[0]?.id ?? '')
+  const [groupId, setGroupId]         = useState('')
   const [expiresHours, setExpiresHours] = useState(48)
-  const [formError, setFormError] = useState('')
-  const [creating, setCreating]   = useState(false)
-  const [newLink, setNewLink]     = useState<string | null>(null)
+  const [maxUses, setMaxUses]         = useState<number | ''>('')
+  const [formError, setFormError]     = useState('')
+  const [creating, setCreating]       = useState(false)
+  const [newLink, setNewLink]         = useState<string | null>(null)
+
+  // When role changes to university_admin, force private
+  const handleRoleChange = (newRole: string) => {
+    setRole(newRole)
+    setGroupId('')
+    if (PRIVATE_ONLY_ROLES.has(newRole)) setIsPublic(false)
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -69,7 +87,13 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     setCreating(true)
     setNewLink(null)
 
-    const body: Record<string, unknown> = { email, role, expires_hours: expiresHours }
+    const body: Record<string, unknown> = {
+      role,
+      expires_hours: expiresHours,
+      is_public: isPublic,
+    }
+    if (!isPublic) body.email = email
+    if (isPublic && maxUses !== '') body.max_uses = maxUses
     if (callerRole === 'super_admin' && tenantId) body.tenant_id = tenantId
     if (role === 'student' && groupId) body.group_id = groupId
 
@@ -89,6 +113,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     setNewLink(data.joinUrl)
     setEmail('')
     setGroupId('')
+    setMaxUses('')
     setCreating(false)
     load()
   }
@@ -98,7 +123,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     load()
   }
 
-  async function copyLink(inv: Invitation) {
+  async function copyLink(inv: InvitationRow) {
     const base = window.location.origin
     const url = `${base}/join/${inv.token}`
     await navigator.clipboard.writeText(url)
@@ -106,8 +131,10 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const isExpired = (inv: Invitation) =>
+  const isExpired = (inv: InvitationRow) =>
     inv.status === 'pending' && new Date(inv.expires_at) < new Date()
+
+  const canBePublic = !PRIVATE_ONLY_ROLES.has(role)
 
   return (
     <div className="space-y-6">
@@ -142,21 +169,63 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold flex items-center gap-2">
-              <Mail className="w-4 h-4 text-blue-400" /> New Invitation
+              {isPublic
+                ? <><Link className="w-4 h-4 text-purple-400" /> Public Link</>
+                : <><Mail className="w-4 h-4 text-blue-400" /> Private Invitation</>
+              }
             </h2>
             <button onClick={() => setShowForm(false)} className="text-slate-500 hover:text-white">
               <X className="w-4 h-4" />
             </button>
           </div>
 
+          {/* Link type toggle */}
+          <div className="flex rounded-lg border border-slate-700 overflow-hidden text-sm">
+            <button
+              type="button"
+              onClick={() => setIsPublic(false)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                !isPublic
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Private (specific email)
+            </button>
+            <button
+              type="button"
+              onClick={() => canBePublic && setIsPublic(true)}
+              disabled={!canBePublic}
+              title={!canBePublic ? 'University Admin invitations must be email-specific' : undefined}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                isPublic
+                  ? 'bg-purple-600 text-white'
+                  : canBePublic
+                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    : 'text-slate-600 cursor-not-allowed'
+              }`}
+            >
+              <Link className="w-3.5 h-3.5" />
+              Public link (anyone)
+            </button>
+          </div>
+
+          {isPublic && (
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-4 py-3 text-purple-300 text-sm">
+              Anyone with this link can register as a <strong>{role.replace('_', ' ')}</strong>.
+              {role === 'student' && groupId && ' They will automatically join the selected group.'}
+            </div>
+          )}
+
           {newLink && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-2">
               <p className="text-emerald-400 text-sm font-semibold">Invitation created!</p>
-              <p className="text-slate-300 text-xs">Share this link with the invitee:</p>
+              <p className="text-slate-300 text-xs">Share this link:</p>
               <div className="flex items-center gap-2 bg-slate-950 rounded-lg px-3 py-2">
                 <code className="text-blue-300 text-xs flex-1 break-all">{newLink}</code>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(newLink); }}
+                  onClick={() => navigator.clipboard.writeText(newLink)}
                   className="text-slate-400 hover:text-white shrink-0"
                 >
                   <Copy className="w-4 h-4" />
@@ -172,23 +241,27 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           )}
 
           <form onSubmit={createInvitation} className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm text-slate-400 mb-1">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="invitee@university.edu"
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
-            </div>
+
+            {/* Email — only for private invitations */}
+            {!isPublic && (
+              <div className="col-span-2">
+                <label className="block text-sm text-slate-400 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  placeholder="invitee@university.edu"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm text-slate-400 mb-1">Role</label>
               <select
                 value={role}
-                onChange={e => { setRole(e.target.value); setGroupId('') }}
+                onChange={e => handleRoleChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 {ROLE_OPTIONS[callerRole].map(o => (
@@ -215,7 +288,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
             {role === 'student' && groups.length > 0 && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Group (optional)</label>
+                <label className="block text-sm text-slate-400 mb-1">Group {isPublic ? '' : '(optional)'}</label>
                 <select
                   value={groupId}
                   onChange={e => setGroupId(e.target.value)}
@@ -241,6 +314,21 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               />
             </div>
 
+            {/* Max uses — only for public links */}
+            {isPublic && (
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Max uses (blank = unlimited)</label>
+                <input
+                  type="number"
+                  value={maxUses}
+                  onChange={e => setMaxUses(e.target.value === '' ? '' : Number(e.target.value))}
+                  min={1}
+                  placeholder="Unlimited"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                />
+              </div>
+            )}
+
             <div className="col-span-2 flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -252,9 +340,13 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               <button
                 type="submit"
                 disabled={creating}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white text-sm font-medium transition-colors"
+                className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-60 ${
+                  isPublic
+                    ? 'bg-purple-600 hover:bg-purple-500'
+                    : 'bg-blue-600 hover:bg-blue-500'
+                }`}
               >
-                {creating ? 'Creating…' : 'Create Invitation'}
+                {creating ? 'Creating…' : isPublic ? 'Generate Public Link' : 'Send Invitation'}
               </button>
             </div>
           </form>
@@ -277,23 +369,32 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">Email</th>
+                <th className="text-left px-5 py-3 text-slate-400 font-medium">Email / Type</th>
                 <th className="text-left px-5 py-3 text-slate-400 font-medium">Role</th>
                 {callerRole === 'super_admin' && (
                   <th className="text-left px-5 py-3 text-slate-400 font-medium">University</th>
                 )}
                 <th className="text-left px-5 py-3 text-slate-400 font-medium">Status</th>
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">Expires</th>
+                <th className="text-left px-5 py-3 text-slate-400 font-medium">Uses / Expires</th>
                 <th className="text-right px-5 py-3 text-slate-400 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {invitations.map(inv => {
                 const expired = isExpired(inv)
-                const status = expired ? 'expired' : inv.status
+                const status  = expired ? 'expired' : inv.status
                 return (
                   <tr key={inv.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-5 py-3 text-white font-medium">{inv.email}</td>
+                    <td className="px-5 py-3">
+                      {inv.is_public ? (
+                        <span className="inline-flex items-center gap-1.5 text-purple-400">
+                          <Link className="w-3.5 h-3.5" />
+                          Public link
+                        </span>
+                      ) : (
+                        <span className="text-white font-medium">{inv.email}</span>
+                      )}
+                    </td>
                     <td className="px-5 py-3">
                       <span className="capitalize text-slate-300">{inv.role.replace('_', ' ')}</span>
                     </td>
@@ -312,8 +413,15 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                         {expired ? 'expired' : inv.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-400 text-xs">
-                      {new Date(inv.expires_at).toLocaleDateString()}
+                    <td className="px-5 py-3 text-slate-400 text-xs space-y-0.5">
+                      {inv.is_public && (
+                        <div className="flex items-center gap-1 text-purple-400">
+                          <Users className="w-3 h-3" />
+                          {inv.use_count ?? 0}
+                          {inv.max_uses != null ? ` / ${inv.max_uses}` : ' used'}
+                        </div>
+                      )}
+                      <div>{new Date(inv.expires_at).toLocaleDateString()}</div>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-2">

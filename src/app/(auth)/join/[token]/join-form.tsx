@@ -8,15 +8,17 @@ import type { Role } from '@/types'
 
 interface Props {
   token: string
-  invitedEmail: string
+  invitedEmail: string  // empty string for public invitations
+  isPublic: boolean
 }
 
-export function JoinForm({ token, invitedEmail }: Props) {
-  const [fullName, setFullName] = useState('')
-  const [password, setPassword] = useState('')
+export function JoinForm({ token, invitedEmail, isPublic }: Props) {
+  const [email, setEmail]                   = useState(isPublic ? '' : invitedEmail)
+  const [fullName, setFullName]             = useState('')
+  const [password, setPassword]             = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error, setError]                   = useState('')
+  const [loading, setLoading]               = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -35,11 +37,10 @@ export function JoinForm({ token, invitedEmail }: Props) {
 
     setLoading(true)
 
-    // Step 1: create account via server — validates token + creates auth user + accepts invitation
     const res = await fetch('/api/auth/accept-invitation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, email: invitedEmail, password, fullName }),
+      body: JSON.stringify({ token, email: email.trim(), password, fullName }),
     })
 
     const data = await res.json()
@@ -50,19 +51,16 @@ export function JoinForm({ token, invitedEmail }: Props) {
       return
     }
 
-    // Step 2: sign in with the credentials just created
     const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
       email: data.email,
       password,
     })
 
     if (signInError || !session.user) {
-      // Account exists but auto-login failed — send to login page with email pre-filled
       router.push(`/login?email=${encodeURIComponent(data.email)}&registered=true`)
       return
     }
 
-    // Step 3: read role from profile and redirect to the correct dashboard
     const { data: profile } = await supabase
       .from('users').select('role').eq('id', session.user.id).single()
 
@@ -80,18 +78,31 @@ export function JoinForm({ token, invitedEmail }: Props) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email — read-only, matches the invitation */}
+        {/* Email — editable for public links, read-only for private */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
-          <input
-            type="email"
-            value={invitedEmail}
-            readOnly
-            className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed select-none"
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            This invitation is locked to this email address.
-          </p>
+          {isPublic ? (
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              placeholder="your@email.com"
+              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+            />
+          ) : (
+            <>
+              <input
+                type="email"
+                value={invitedEmail}
+                readOnly
+                className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed select-none"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                This invitation is locked to this email address.
+              </p>
+            </>
+          )}
         </div>
 
         <div>
@@ -135,7 +146,11 @@ export function JoinForm({ token, invitedEmail }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors mt-2"
+          className={`w-full py-2.5 px-4 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors mt-2 ${
+            isPublic
+              ? 'bg-purple-600 hover:bg-purple-500'
+              : 'bg-blue-600 hover:bg-blue-500'
+          }`}
         >
           {loading ? 'Creating account…' : 'Join EduQuest'}
         </button>
