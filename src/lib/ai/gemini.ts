@@ -8,17 +8,30 @@ function getModel() {
   return new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-2.0-flash' })
 }
 
-export async function generateLessonContent(topic: string, level: string): Promise<string> {
+export async function generateLessonContent(
+  topic: string,
+  level: string,
+  customInstructions?: string
+): Promise<string> {
   const model = getModel()
-  const result = await model.generateContent(
-    `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
 
-Structure the lesson with:
+  const structureBlock = customInstructions?.trim()
+    ? `The teacher has provided specific instructions for how to structure this content — follow them exactly:
+"""
+${customInstructions.trim()}
+"""
+Do not add sections that are not requested. Do not ignore sections that are requested.`
+    : `Structure the lesson with:
 1. Learning Objectives (3-5 bullet points)
 2. Introduction
 3. Main Content (broken into clear sections)
 4. Key Concepts Summary
-5. Practice Questions (5 questions)
+5. Practice Questions (5 questions)`
+
+  const result = await model.generateContent(
+    `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
+
+${structureBlock}
 
 Format the response in Markdown.`
   )

@@ -34,16 +34,28 @@ async function groqChat(prompt: string, systemPrompt?: string): Promise<string> 
   return content
 }
 
-export async function generateLessonContentGroq(topic: string, level: string): Promise<string> {
-  return groqChat(
-    `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
-
-Structure the lesson with:
+export async function generateLessonContentGroq(
+  topic: string,
+  level: string,
+  customInstructions?: string
+): Promise<string> {
+  const structureBlock = customInstructions?.trim()
+    ? `The teacher has provided specific instructions for how to structure this content — follow them exactly:
+"""
+${customInstructions.trim()}
+"""
+Do not add sections that are not requested. Do not ignore sections that are requested.`
+    : `Structure the lesson with:
 1. Learning Objectives (3-5 bullet points)
 2. Introduction
 3. Main Content (broken into clear sections)
 4. Key Concepts Summary
-5. Practice Questions (5 questions)
+5. Practice Questions (5 questions)`
+
+  return groqChat(
+    `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
+
+${structureBlock}
 
 Format the response in Markdown.`
   )

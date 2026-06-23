@@ -23,19 +23,22 @@ export async function POST(request: Request) {
     )
   }
 
-  let body: { topic?: string; level?: string }
+  let body: { topic?: string; level?: string; customInstructions?: string }
   try { body = await request.json() } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   const rawTopic = body.topic?.trim() ?? ''
   const level = body.level?.trim() ?? 'undergraduate'
+  const rawInstructions = body.customInstructions?.trim() ?? ''
 
   if (!rawTopic) return NextResponse.json({ error: 'Topic is required' }, { status: 400 })
   if (rawTopic.length > 200) return NextResponse.json({ error: 'Topic is too long (max 200 chars)' }, { status: 400 })
+  if (rawInstructions.length > 1000) return NextResponse.json({ error: 'Instructions too long (max 1000 chars)' }, { status: 400 })
 
-  // Sanitize: strip chars that are used in prompt injection
+  // Sanitize both fields against prompt injection
   const topic = rawTopic.replace(/[<>{}[\]`\\]/g, '').trim()
+  const customInstructions = rawInstructions.replace(/[<>{}[\]`\\]/g, '').trim() || undefined
 
   const groqKey = process.env.GROQ_API_KEY
   const geminiKey = process.env.GEMINI_API_KEY
@@ -48,17 +51,17 @@ export async function POST(request: Request) {
 
   try {
     if (hasGroq) {
-      const content = await generateLessonContentGroq(topic, level)
+      const content = await generateLessonContentGroq(topic, level, customInstructions)
       return NextResponse.json({ content, provider: 'groq' })
     }
-    const content = await generateLessonContent(topic, level)
+    const content = await generateLessonContent(topic, level, customInstructions)
     return NextResponse.json({ content, provider: 'gemini' })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[generate-lesson]', msg)
     if (hasGroq && hasGemini) {
       try {
-        const content = await generateLessonContent(topic, level)
+        const content = await generateLessonContent(topic, level, customInstructions)
         return NextResponse.json({ content, provider: 'gemini-fallback' })
       } catch {}
     }

@@ -20,6 +20,8 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   const [form, setForm] = useState({ title: '', content: '', group_id: groups[0]?.id ?? '' })
   const [aiTopic, setAiTopic] = useState('')
   const [aiLevel, setAiLevel] = useState('undergraduate')
+  const [aiInstructions, setAiInstructions] = useState('')
+  const [showAiInstructions, setShowAiInstructions] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
@@ -33,7 +35,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
     const res = await fetch('/api/ai/generate-lesson', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: aiTopic, level: aiLevel }),
+      body: JSON.stringify({ topic: aiTopic, level: aiLevel, customInstructions: aiInstructions }),
     })
     const data = await res.json()
     if (data.content) setForm(p => ({ ...p, content: data.content, title: p.title || aiTopic }))
@@ -110,20 +112,50 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Lesson' : 'New Lesson'} size="xl">
         <div className="space-y-5">
           {/* AI Generator */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <span className="text-blue-400 text-sm font-medium">AI Lesson Generator</span>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-400" />
+                <span className="text-blue-400 text-sm font-medium">AI Lesson Generator</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiInstructions(p => !p)}
+                className="text-xs text-slate-400 hover:text-blue-400 transition-colors underline underline-offset-2"
+              >
+                {showAiInstructions ? 'Hide custom instructions' : 'Add custom instructions'}
+              </button>
             </div>
+
             <div className="flex gap-2">
-              <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Enter topic (e.g. Photosynthesis, Binary Trees...)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Enter topic (e.g. Photosynthesis, Present Tense...)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <select value={aiLevel} onChange={e => setAiLevel(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="high school">High School</option>
                 <option value="undergraduate">Undergraduate</option>
                 <option value="graduate">Graduate</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
               </select>
               <Button onClick={generateWithAI} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
             </div>
+
+            {showAiInstructions && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-slate-400">
+                  Describe how you want the AI to structure and present this content. Leave empty to use the default structure.
+                </p>
+                <textarea
+                  value={aiInstructions}
+                  onChange={e => setAiInstructions(e.target.value)}
+                  rows={4}
+                  maxLength={1000}
+                  placeholder={`Examples:\n• "Split into: grammar rule, examples, idioms, task, then a 5-question quiz"\n• "University lecture with theory, case studies, discussion points, and references"\n• "Step-by-step tutorial with code examples and explanations"`}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <p className="text-xs text-slate-500 text-right">{aiInstructions.length}/1000</p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
