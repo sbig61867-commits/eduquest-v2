@@ -17,6 +17,7 @@ export interface User {
   role: Role
   tenant_id: string | null
   is_active: boolean
+  can_create_courses: boolean
   created_at: string
 }
 

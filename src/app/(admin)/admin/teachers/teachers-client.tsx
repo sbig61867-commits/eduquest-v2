@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Search, Trash2, ToggleLeft, UserPlus } from 'lucide-react'
+import { Mail, Search, Trash2, ToggleLeft, UserPlus, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { User } from '@/types'
 
@@ -27,9 +27,19 @@ export function TeachersClient({ initialTeachers }: Props) {
       .from('users')
       .update({ is_active: !teacher.is_active })
       .eq('id', teacher.id)
-    if (!error) {
+    if (!error)
       setTeachers(prev => prev.map(t => t.id === teacher.id ? { ...t, is_active: !t.is_active } : t))
-    }
+  }
+
+  async function toggleCoursePermission(teacher: User) {
+    const next = !teacher.can_create_courses
+    const res = await fetch('/api/admin/teacher-permissions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher_id: teacher.id, can_create_courses: next }),
+    })
+    if (res.ok)
+      setTeachers(prev => prev.map(t => t.id === teacher.id ? { ...t, can_create_courses: next } : t))
   }
 
   async function deleteTeacher(id: string) {
@@ -68,12 +78,13 @@ export function TeachersClient({ initialTeachers }: Props) {
               <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Email</th>
               <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Joined</th>
               <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Status</th>
+              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">Courses</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-slate-500 py-10">No teachers found</td></tr>
+              <tr><td colSpan={6} className="text-center text-slate-500 py-10">No teachers found</td></tr>
             )}
             {filtered.map(teacher => (
               <tr key={teacher.id} className="hover:bg-slate-800/50 transition-colors">
@@ -98,6 +109,20 @@ export function TeachersClient({ initialTeachers }: Props) {
                     {teacher.is_active ? 'Active' : 'Disabled'}
                   </Badge>
                 </td>
+                <td className="px-5 py-4 hidden xl:table-cell">
+                  <button
+                    onClick={() => toggleCoursePermission(teacher)}
+                    title={teacher.can_create_courses ? 'Revoke course creation' : 'Allow course creation'}
+                    className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                      teacher.can_create_courses
+                        ? 'bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20'
+                        : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-400'
+                    }`}
+                  >
+                    <BookOpen className="w-3 h-3" />
+                    {teacher.can_create_courses ? 'Allowed' : 'Not allowed'}
+                  </button>
+                </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1 justify-end">
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(teacher)}>
@@ -113,7 +138,6 @@ export function TeachersClient({ initialTeachers }: Props) {
           </tbody>
         </table>
       </div>
-
     </div>
   )
 }
