@@ -27,7 +27,9 @@ async function getInvitation(token: string): Promise<InvitationResult> {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const { data } = await admin.rpc('get_invitation_by_token', { p_token: token })
+  const { data, error } = await admin.rpc('get_invitation_by_token', { p_token: token })
+  if (error) console.error('[join-page] RPC error:', error.message, error.code)
+  if (!data) console.error('[join-page] RPC returned null for token:', token.slice(0, 8) + '…')
   return data as InvitationResult
 }
 
