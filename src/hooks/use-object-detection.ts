@@ -6,12 +6,17 @@ const SUSPICIOUS_OBJECTS = ['cell phone', 'book', 'laptop', 'tv', 'remote', 'key
 
 type OnViolation = (type: string, details?: string) => void
 
+interface CocoSsdModel {
+  detect(video: HTMLVideoElement): Promise<Array<{ class: string; score: number }>>
+  dispose?(): void
+}
+
 export function useObjectDetection(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   enabled: boolean,
   onViolation: OnViolation
 ) {
-  const modelRef = useRef<any>(null)
+  const modelRef = useRef<CocoSsdModel | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const detect = useCallback(async () => {
@@ -29,7 +34,7 @@ export function useObjectDetection(
         }
       }
       // Count people
-      const people = predictions.filter((p: any) => p.class === 'person' && p.score > 0.5)
+      const people = predictions.filter(p => p.class === 'person' && p.score > 0.5)
       if (people.length > 1) {
         onViolation('multiple_faces', `${people.length} people detected in frame`)
       }

@@ -115,6 +115,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
   }
 
+  if (
+    !result ||
+    typeof (result as Record<string, unknown>).score !== 'number' ||
+    typeof (result as Record<string, unknown>).max_score !== 'number'
+  ) {
+    console.error('[exam/submit] unexpected RPC result shape', result)
+    return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
+  }
   const out = result as { score: number; max_score: number }
   return NextResponse.json({ score: out.score, maxScore: out.max_score })
 }

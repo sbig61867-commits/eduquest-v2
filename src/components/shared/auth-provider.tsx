@@ -13,13 +13,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let latestLoad = 0
 
     async function applyProfile(userId: string, loadId: number) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*, tenants(*)')
         .eq('id', userId)
         .single()
       // Discard result if a newer load started (race condition guard)
       if (loadId !== latestLoad) return
+      if (profileError) {
+        console.error('[auth-provider] profile fetch failed', profileError.message)
+      }
       if (profile) {
         setUser(profile)
         setTenant(profile.tenants ?? null)

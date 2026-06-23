@@ -18,12 +18,15 @@ export function useUser() {
           return
         }
 
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('users')
           .select('*, tenants(*)')
           .eq('id', session.user.id)
           .single()
 
+        if (profileError) {
+          console.error('[use-user] profile fetch failed', profileError.message)
+        }
         if (profile) {
           setUser(profile)
           setTenant(profile.tenants ?? null)

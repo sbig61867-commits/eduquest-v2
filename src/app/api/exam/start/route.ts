@@ -67,6 +67,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to start exam' }, { status: 500 })
   }
 
+  if (
+    !result ||
+    typeof (result as Record<string, unknown>).started_at !== 'string' ||
+    typeof (result as Record<string, unknown>).resumed !== 'boolean'
+  ) {
+    console.error('[exam/start] unexpected RPC result shape', result)
+    return NextResponse.json({ error: 'Failed to start exam' }, { status: 500 })
+  }
   const out = result as { started_at: string; resumed: boolean }
   return NextResponse.json({ startedAt: out.started_at, resumed: out.resumed })
 }

@@ -36,10 +36,17 @@ export async function rateLimit(key: string, opts: RateLimitOptions): Promise<Ra
     return { allowed: true, remaining: opts.limit, resetAt: Date.now() + opts.windowSecs * 1000 }
   }
 
-  const result = data as { allowed: boolean; remaining: number; reset_at: string }
+  const row = data as Record<string, unknown>
+  if (
+    typeof row.allowed !== 'boolean' ||
+    typeof row.remaining !== 'number' ||
+    typeof row.reset_at !== 'string'
+  ) {
+    return { allowed: true, remaining: opts.limit, resetAt: Date.now() + opts.windowSecs * 1000 }
+  }
   return {
-    allowed: result.allowed,
-    remaining: result.remaining,
-    resetAt: new Date(result.reset_at).getTime(),
+    allowed: row.allowed,
+    remaining: row.remaining,
+    resetAt: new Date(row.reset_at).getTime(),
   }
 }

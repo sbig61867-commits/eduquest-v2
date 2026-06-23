@@ -2,19 +2,25 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 
-type FaceStatus = {
-  faceCount: number
-  lookingAway: boolean
-}
-
 type OnViolation = (type: string, details?: string) => void
+
+interface Keypoint { x: number; y: number }
+interface BoundingBox { originX: number; originY: number; width: number; height: number }
+interface FaceDetection {
+  keypoints?: Keypoint[]
+  boundingBox?: BoundingBox
+}
+interface FaceDetectorInstance {
+  detectForVideo(video: HTMLVideoElement, timestamp: number): { detections: FaceDetection[] }
+  close?(): void
+}
 
 export function useFaceDetection(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   enabled: boolean,
   onViolation: OnViolation
 ) {
-  const detectorRef = useRef<any>(null)
+  const detectorRef = useRef<FaceDetectorInstance | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const loadedRef = useRef(false)
 
@@ -48,8 +54,8 @@ export function useFaceDetection(
 
         // MediaPipe keypoints are normalised [0,1]; boundingBox is also normalised
         const box = detection.boundingBox
+        if (!box) return
         const boxW = video.videoWidth > 0 ? video.videoWidth : 1
-        const boxH = video.videoHeight > 0 ? video.videoHeight : 1
         const boxCenterXNorm = (box.originX + box.width / 2) / boxW
         const boxWidthNorm = box.width / boxW
 

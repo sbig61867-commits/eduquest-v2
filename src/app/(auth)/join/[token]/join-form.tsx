@@ -48,25 +48,29 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       try { data = await res.json() } catch { /* empty response */ }
 
       if (!res.ok) {
-        setError((data.error as string) ?? 'Registration failed. Please try again.')
+        const msg = typeof data.error === 'string' ? data.error : 'Registration failed. Please try again.'
+        setError(msg)
         setLoading(false)
         return
       }
 
+      const registeredEmail = typeof data.email === 'string' ? data.email : email.trim()
+
       const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email as string,
+        email: registeredEmail,
         password,
       })
 
       if (signInError || !session.user) {
-        router.push(`/login?email=${encodeURIComponent(data.email as string)}&registered=true`)
+        router.push(`/login?email=${encodeURIComponent(registeredEmail)}&registered=true`)
         return
       }
 
       const { data: profile } = await supabase
         .from('users').select('role').eq('id', session.user.id).single()
 
-      router.push(getRoleDashboardPath((profile?.role ?? 'student') as Role))
+      const role: Role = (profile?.role as Role) ?? 'student'
+      router.push(getRoleDashboardPath(role))
     } catch (err) {
       setError('A network error occurred. Please try again.')
       console.error('[join-form]', err)
