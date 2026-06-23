@@ -44,8 +44,7 @@ CREATE TABLE IF NOT EXISTS course_units (
   title        TEXT NOT NULL,               -- e.g. "Unit 3 – Daily Routines"
   order_index  INTEGER NOT NULL DEFAULT 0,
   is_published BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- Uniqueness enforced via partial indexes below (handles NULL level_id safely)
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -125,6 +124,11 @@ CREATE TABLE IF NOT EXISTS exam_retake_permissions (
 -- 9. MODIFY EXISTING TABLES
 -- ============================================================
 
+-- Add course creation permission flag to teachers
+-- Granted by university_admin or super_admin
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS can_create_courses BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- exams: group_id was NOT NULL — relax it so course exams don't need a group
 ALTER TABLE exams
   ALTER COLUMN group_id DROP NOT NULL;
@@ -195,8 +199,12 @@ CREATE POLICY "courses_select" ON courses FOR SELECT
 
 CREATE POLICY "courses_insert" ON courses FOR INSERT
   WITH CHECK (
-    current_user_role() IN ('teacher','university_admin','super_admin') AND
-    tenant_id = current_tenant_id()
+    tenant_id = current_tenant_id() AND (
+      current_user_role() = 'super_admin' OR
+      current_user_role() = 'university_admin' OR
+      (current_user_role() = 'teacher' AND
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND can_create_courses = TRUE))
+    )
   );
 
 CREATE POLICY "courses_update" ON courses FOR UPDATE
