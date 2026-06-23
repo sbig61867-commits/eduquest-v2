@@ -34,6 +34,7 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Group | null>(null)
   const [form, setForm] = useState({ name: '', description: '' })
+  const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
 
   // Manage students modal
@@ -44,8 +45,8 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
 
   const supabase = createClient()
 
-  function openAdd() { setForm({ name: '', description: '' }); setEditing(null); setShowAdd(true) }
-  function openEdit(g: Group) { setForm({ name: g.name, description: g.description ?? '' }); setEditing(g); setShowAdd(true) }
+  function openAdd() { setForm({ name: '', description: '' }); setEditing(null); setFormError(''); setShowAdd(true) }
+  function openEdit(g: Group) { setForm({ name: g.name, description: g.description ?? '' }); setEditing(g); setFormError(''); setShowAdd(true) }
 
   async function openManage(group: Group) {
     setManagingGroup(group)
@@ -62,14 +63,20 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setFormError('')
     setLoading(true)
     if (editing) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('groups')
         .update({ name: form.name, description: form.description })
         .eq('id', editing.id)
         .select()
         .single()
+      if (error) {
+        setFormError(error.message)
+        setLoading(false)
+        return
+      }
       if (data) setGroups(prev => prev.map(g => g.id === editing.id ? { ...g, ...data } : g))
     } else {
       const { data, error } = await supabase
@@ -77,8 +84,19 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
         .insert({ name: form.name, description: form.description, teacher_id: teacherId, tenant_id: tenantId })
         .select('*, group_students(count)')
         .single()
-      if (error) { console.error('[groups] insert error', error); setLoading(false); return }
-      if (data) setGroups(prev => [data, ...prev])
+      if (error) {
+        console.error('[groups] insert error', error)
+        setFormError(error.message)
+        setLoading(false)
+        return
+      }
+      if (data) {
+        setGroups(prev => [data, ...prev])
+      } else {
+        // Insert succeeded but select returned nothing (RLS) — reload page
+        window.location.reload()
+        return
+      }
     }
     setShowAdd(false)
     setLoading(false)
@@ -172,6 +190,11 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
       {/* Create / Edit Group Modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title={editing ? 'Edit Group' : 'New Group'}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {formError}
+            </div>
+          )}
           <Input label="Group Name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g. Computer Science - Batch 2024" />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-300">Description (optional)</label>
