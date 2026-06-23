@@ -135,9 +135,10 @@ export async function POST(request: Request) {
     await admin.auth.admin.deleteUser(userId).catch(e =>
       console.error('[accept-invitation] ROLLBACK FAILED — orphaned user:', userId, e)
     )
-    console.error('[accept-invitation] error after auth user created:', err)
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error('[accept-invitation] error after auth user created:', detail)
     return NextResponse.json(
-      { error: 'Registration failed. Please try again.' },
+      { error: `Registration failed: ${detail}` },
       { status: 500 }
     )
   }
