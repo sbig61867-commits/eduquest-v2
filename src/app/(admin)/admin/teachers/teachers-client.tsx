@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Modal } from '@/components/ui/modal'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { UserPlus, Search, MoreVertical, Mail, Trash2, ToggleLeft } from 'lucide-react'
+import { Mail, Search, Trash2, ToggleLeft, UserPlus } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { User } from '@/types'
 
@@ -15,33 +14,13 @@ interface Props { initialTeachers: User[] }
 export function TeachersClient({ initialTeachers }: Props) {
   const [teachers, setTeachers] = useState(initialTeachers)
   const [search, setSearch] = useState('')
-  const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ full_name: '', email: '', password: '' })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const supabase = createClient()
+  const router = useRouter()
 
   const filtered = teachers.filter(t =>
     t.full_name.toLowerCase().includes(search.toLowerCase()) ||
     t.email.toLowerCase().includes(search.toLowerCase())
   )
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    const res = await fetch('/api/admin/create-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, role: 'teacher' }),
-    })
-    const data = await res.json()
-    if (!res.ok) { setError(data.error); setLoading(false); return }
-    setTeachers(prev => [data.user, ...prev])
-    setForm({ full_name: '', email: '', password: '' })
-    setShowAdd(false)
-    setLoading(false)
-  }
 
   async function toggleStatus(teacher: User) {
     const { error } = await supabase
@@ -66,8 +45,8 @@ export function TeachersClient({ initialTeachers }: Props) {
           <h2 className="text-2xl font-bold text-white">Teachers</h2>
           <p className="text-slate-400 mt-1">{teachers.length} total teachers</p>
         </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <UserPlus className="w-4 h-4" /> Add Teacher
+        <Button onClick={() => router.push('/admin/invitations')}>
+          <UserPlus className="w-4 h-4" /> Invite Teacher
         </Button>
       </div>
 
@@ -135,18 +114,6 @@ export function TeachersClient({ initialTeachers }: Props) {
         </table>
       </div>
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Teacher">
-        <form onSubmit={handleAdd} className="space-y-4">
-          {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
-          <Input label="Full Name" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Dr. Ahmed Hassan" />
-          <Input label="Email" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="teacher@university.edu" />
-          <Input label="Password" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required placeholder="Min 8 characters" />
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
-            <Button type="submit" loading={loading} className="flex-1">Add Teacher</Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   )
 }
