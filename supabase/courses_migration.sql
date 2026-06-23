@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS courses (
   description     TEXT,
   thumbnail_url   TEXT,
   language        TEXT,                      -- e.g. 'English', 'Arabic'
+  has_levels      BOOLEAN NOT NULL DEFAULT TRUE,  -- FALSE = flat (units only, no levels)
   is_published    BOOLEAN NOT NULL DEFAULT FALSE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -37,14 +38,15 @@ CREATE TABLE IF NOT EXISTS course_levels (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS course_units (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  level_id     UUID NOT NULL REFERENCES course_levels(id) ON DELETE CASCADE,
+  level_id     UUID REFERENCES course_levels(id) ON DELETE CASCADE, -- NULL for flat courses
   course_id    UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   tenant_id    UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   title        TEXT NOT NULL,               -- e.g. "Unit 3 – Daily Routines"
   order_index  INTEGER NOT NULL DEFAULT 0,
   is_published BOOLEAN NOT NULL DEFAULT FALSE,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(level_id, order_index)
+  -- For leveled courses: unique order per level; for flat: unique order per course
+  UNIQUE NULLS NOT DISTINCT (level_id, course_id, order_index)
 );
 
 -- ============================================================
