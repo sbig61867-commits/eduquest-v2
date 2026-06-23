@@ -12,15 +12,14 @@ export default async function AllUsersPage() {
   const [{ data: users }, { data: tenants }] = await Promise.all([
     supabase
       .from('users')
-      .select('*, tenants(name)')
+      .select('id, full_name, email, role, is_active, created_at, tenant_id, tenants(name, slug)')
       .order('created_at', { ascending: false })
-      .limit(200),
+      .limit(500),
     supabase
       .from('tenants')
-      .select('id, name')
-      .eq('is_active', true)
+      .select('id, name, slug, is_active, created_at')
       .order('name'),
   ])
 
-  return <SuperUsersClient initialUsers={users ?? []} tenants={tenants ?? []} />
+  return <SuperUsersClient initialUsers={(users ?? []) as any} tenants={tenants ?? []} />
 }
