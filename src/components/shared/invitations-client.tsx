@@ -29,15 +29,17 @@ const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
 const PRIVATE_ONLY_ROLES = new Set(['university_admin'])
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:  'text-amber-400 bg-amber-400/10',
-  accepted: 'text-emerald-400 bg-emerald-400/10',
-  revoked:  'text-slate-400 bg-slate-400/10',
+  pending:   'text-amber-400 bg-amber-400/10',
+  accepted:  'text-emerald-400 bg-emerald-400/10',
+  revoked:   'text-slate-400 bg-slate-400/10',
+  depleted:  'text-purple-400 bg-purple-400/10',
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
-  pending:  <Clock className="w-3 h-3" />,
-  accepted: <UserCheck className="w-3 h-3" />,
-  revoked:  <Ban className="w-3 h-3" />,
+  pending:   <Clock className="w-3 h-3" />,
+  accepted:  <UserCheck className="w-3 h-3" />,
+  revoked:   <Ban className="w-3 h-3" />,
+  depleted:  <Users className="w-3 h-3" />,
 }
 
 type InvitationRow = Invitation & {
@@ -133,6 +135,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
   const isExpired = (inv: InvitationRow) =>
     inv.status === 'pending' && new Date(inv.expires_at) < new Date()
+
+  // Public links that reached max_uses show as "depleted" not "revoked"
+  const resolvedStatus = (inv: InvitationRow) => {
+    if (inv.is_public && inv.status === 'revoked' && inv.max_uses != null && (inv.use_count ?? 0) >= inv.max_uses) {
+      return 'depleted'
+    }
+    return inv.status
+  }
 
   const canBePublic = !PRIVATE_ONLY_ROLES.has(role)
 
@@ -409,8 +419,8 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                           ? 'text-red-400 bg-red-400/10'
                           : STATUS_COLORS[inv.status]
                       }`}>
-                        {expired ? <Clock className="w-3 h-3" /> : STATUS_ICONS[inv.status]}
-                        {expired ? 'expired' : inv.status}
+                        {expired ? <Clock className="w-3 h-3" /> : STATUS_ICONS[resolvedStatus(inv)] ?? STATUS_ICONS[inv.status]}
+                        {expired ? 'expired' : resolvedStatus(inv)}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-slate-400 text-xs space-y-0.5">

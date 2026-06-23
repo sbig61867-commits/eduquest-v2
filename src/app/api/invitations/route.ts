@@ -132,6 +132,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'tenant_id is required for this role' }, { status: 400 })
   }
 
+  // Verify tenant exists and is active
+  if (caller.role === 'super_admin') {
+    const { data: tenant } = await supabase.from('tenants').select('id, is_active').eq('id', tenant_id).single()
+    if (!tenant) return NextResponse.json({ error: 'University not found' }, { status: 404 })
+    if (!tenant.is_active) return NextResponse.json({ error: 'This university is currently suspended' }, { status: 403 })
+  }
+
   // ── Validate group_id if provided ───────────────────────
   if (group_id) {
     if (role !== 'student') {
