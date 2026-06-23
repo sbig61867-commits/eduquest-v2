@@ -18,9 +18,11 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
   const [password, setPassword]             = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError]                   = useState('')
+  const [debugInfo, setDebugInfo]           = useState<string | null>(null)
   const [loading, setLoading]               = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const isDev = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEV_MODE === 'true'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -50,6 +52,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       if (!res.ok) {
         const msg = typeof data.error === 'string' ? data.error : 'Registration failed. Please try again.'
         setError(msg)
+        setDebugInfo(JSON.stringify({ status: res.status, ...data }, null, 2))
         setLoading(false)
         return
       }
@@ -72,7 +75,9 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       const role: Role = (profile?.role as Role) ?? 'student'
       router.push(getRoleDashboardPath(role))
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       setError('A network error occurred. Please try again.')
+      setDebugInfo(JSON.stringify({ network_error: msg }, null, 2))
       console.error('[join-form]', err)
       setLoading(false)
     }
@@ -83,8 +88,20 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       <h2 className="text-lg font-semibold text-white mb-5">Create your account</h2>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-          {error}
+        <div className="mb-4 space-y-2">
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            {error}
+          </div>
+          {isDev && debugInfo && (
+            <details className="rounded-lg bg-slate-800 border border-slate-700 text-xs">
+              <summary className="px-3 py-2 text-amber-400 cursor-pointer select-none font-mono">
+                🛠 Dev — تفاصيل الخطأ
+              </summary>
+              <pre className="px-3 pb-3 text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
+                {debugInfo}
+              </pre>
+            </details>
+          )}
         </div>
       )}
 
