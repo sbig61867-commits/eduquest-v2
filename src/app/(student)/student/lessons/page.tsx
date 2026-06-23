@@ -1,33 +1,47 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 
 export default async function StudentLessonsPage() {
   const supabase = await createClient()
-  const { data: lessons } = await supabase
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  // Get only the groups this student is enrolled in
+  const { data: groupRows } = await supabase
+    .from('group_students')
+    .select('group_id')
+    .eq('student_id', user.id)
+
+  const groupIds = (groupRows ?? []).map(r => r.group_id)
+
+  const lessons = groupIds.length === 0 ? [] : await supabase
     .from('lessons')
     .select('*, groups(name)')
     .eq('is_published', true)
+    .in('group_id', groupIds)
     .order('created_at', { ascending: false })
+    .then(r => r.data ?? [])
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">My Lessons</h2>
-        <p className="text-slate-400 mt-1">{lessons?.length ?? 0} lessons available</p>
+        <p className="text-slate-400 mt-1">{lessons.length} lessons available</p>
       </div>
 
-      {!lessons?.length ? (
+      {lessons.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400">No lessons available yet.</p>
+          <p className="text-slate-500 text-sm mt-1">Your teacher will publish lessons as the course progresses.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {lessons.map(lesson => (
+          {lessons.map((lesson: any) => (
             <details key={lesson.id} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-colors">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                 <div className="flex items-center gap-3">
@@ -36,7 +50,7 @@ export default async function StudentLessonsPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold">{lesson.title}</h3>
-                    <p className="text-slate-400 text-sm">{(lesson as any).groups?.name ?? '—'} · {formatDate(lesson.created_at)}</p>
+                    <p className="text-slate-400 text-sm">{lesson.groups?.name ?? '—'} · {formatDate(lesson.created_at)}</p>
                   </div>
                 </div>
                 <span className="text-slate-500 text-sm group-open:rotate-180 transition-transform">▼</span>
