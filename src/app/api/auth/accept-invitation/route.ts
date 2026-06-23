@@ -9,16 +9,6 @@ function getAdminClient() {
   )
 }
 
-// ── POST /api/auth/accept-invitation ────────────────────────
-// Called from the /join/[token] page when the user submits the form.
-//
-// Flow:
-//  1. Validate token via get_invitation_by_token() RPC (read-only, no auth required)
-//  2. Verify email matches what the user typed
-//  3. Create auth.users entry (service role, bypasses email confirmation)
-//  4. Call accept_invitation() RPC — atomically consumes token + sets role + tenant
-//  5. If RPC fails (race condition: token already used), delete the auth user (rollback)
-//  6. Return { email } so the client can sign in with signInWithPassword
 export async function POST(request: Request) {
   let body: { token?: string; email?: string; password?: string; fullName?: string }
   try { body = await request.json() }
@@ -35,24 +25,37 @@ export async function POST(request: Request) {
   if (fullName.trim().length < 2) {
     return NextResponse.json({ error: 'Full name must be at least 2 characters' }, { status: 400 })
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+
+  const cleanEmail = email.trim().toLowerCase()
+  const admin = getAdminClient()
+
+  // ── Step 1: validate & lock invitation ───────────────────────
+  const { data: inv, error: invErr } = await admin
+    .from('invitations')
+    .select('id, role, tenant_id, email, group_id, course_id, is_public, max_uses, use_count, status, expires_at')
+    .eq('token', token)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .single()
+
+  if (invErr || !inv) {
+    return NextResponse.json(
+      { error: 'This invitation link is invalid or has expired.' },
+      { status: 410 }
+    )
   }
 
-  const adminClient = getAdminClient()
-
-  // ── Step 1: validate token ────────────────────────────────
-  const { data: invData, error: invError } = await adminClient
-    .rpc('get_invitation_by_token', { p_token: token })
-
-  if (invError || !invData) {
-    return NextResponse.json({ error: 'This invitation link is invalid or has expired.' }, { status: 410 })
+  // Check max_uses for public links
+  if (inv.is_public && inv.max_uses != null && inv.use_count >= inv.max_uses) {
+    return NextResponse.json(
+      { error: 'This invitation link has reached its maximum number of uses.' },
+      { status: 410 }
+    )
   }
 
-  // ── Step 2: verify email (private invitations only) ───────
-  // Public invitations accept any email; private are locked to the invited address.
-  if (!invData.is_public) {
-    if (!invData.email || invData.email.toLowerCase() !== email.trim().toLowerCase()) {
+  // ── Step 2: verify email for private invitations ──────────────
+  if (!inv.is_public) {
+    if (!inv.email || inv.email.toLowerCase() !== cleanEmail) {
       return NextResponse.json(
         { error: 'The email address does not match this invitation.' },
         { status: 403 }
@@ -60,17 +63,16 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Step 3: create auth user ──────────────────────────────
-  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-    email: email.trim().toLowerCase(),
+  // ── Step 3: create auth user ──────────────────────────────────
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email: cleanEmail,
     password,
-    email_confirm: true, // skip email verification — invitation already confirmed the email
+    email_confirm: true,
     user_metadata: { full_name: fullName.trim() },
   })
 
   if (authError) {
-    // Most likely: email already registered
-    if (authError.message?.includes('already registered') || authError.status === 422) {
+    if (authError.message?.toLowerCase().includes('already') || authError.status === 422) {
       return NextResponse.json(
         { error: 'An account with this email already exists. Try logging in instead.' },
         { status: 409 }
@@ -79,54 +81,64 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: authError.message }, { status: 400 })
   }
 
-  const newUserId = authData.user.id
+  const userId = authData.user.id
 
-  // ── Step 3b: ensure user profile exists before calling RPC ───
-  // The handle_new_user trigger creates this row, but we upsert here
-  // as a safety net in case the trigger is delayed or fails silently.
-  await adminClient.from('users').upsert({
-    id:        newUserId,
-    email:     email.trim().toLowerCase(),
-    full_name: fullName.trim(),
-    role:      'student',
-    tenant_id: null,
-  }, { onConflict: 'id', ignoreDuplicates: true })
+  try {
+    // ── Step 4: create user profile ───────────────────────────
+    const { error: profileErr } = await admin.from('users').upsert({
+      id:        userId,
+      email:     cleanEmail,
+      full_name: fullName.trim(),
+      role:      inv.role,
+      tenant_id: inv.tenant_id,
+      is_active: true,
+    }, { onConflict: 'id' })
 
-  // ── Step 4: atomically accept invitation + set role/tenant ──
-  const { error: rpcError } = await adminClient
-    .rpc('accept_invitation', {
-      p_token:     token,
-      p_user_id:   newUserId,
-      p_full_name: fullName.trim(),
-    })
+    if (profileErr) throw new Error(`Profile: ${profileErr.message}`)
 
-  if (rpcError) {
-    // Step 5: rollback — delete the auth user we just created
-    const { error: deleteError } = await adminClient.auth.admin.deleteUser(newUserId)
-    if (deleteError) {
-      // Orphaned user in auth.users — must be cleaned up manually
-      console.error('[accept-invitation] ROLLBACK FAILED — orphaned auth user:', {
-        userId: newUserId,
-        email: email.trim().toLowerCase(),
-        deleteError: deleteError.message,
-      })
-      return NextResponse.json(
-        { error: 'Registration incomplete due to a server error. Please contact support with your email address.' },
-        { status: 500 }
-      )
+    // ── Step 5: mark invitation as used ──────────────────────
+    if (inv.is_public) {
+      const newCount = (inv.use_count ?? 0) + 1
+      const newStatus = inv.max_uses != null && newCount >= inv.max_uses ? 'revoked' : 'pending'
+      await admin.from('invitations').update({
+        use_count: newCount,
+        status: newStatus,
+      }).eq('id', inv.id)
+    } else {
+      await admin.from('invitations').update({
+        status:      'accepted',
+        accepted_at: new Date().toISOString(),
+        accepted_by: userId,
+      }).eq('id', inv.id)
     }
 
-    // Distinguish "token already consumed" from other DB errors
-    if (rpcError.message?.includes('INVITATION_INVALID_OR_EXPIRED')) {
-      return NextResponse.json(
-        { error: 'This invitation was already used or has expired. Request a new one.' },
-        { status: 410 }
-      )
+    // ── Step 6: enroll in group (student only) ───────────────
+    if (inv.group_id && inv.role === 'student') {
+      await admin.from('group_students')
+        .upsert({ group_id: inv.group_id, student_id: userId }, { onConflict: 'group_id,student_id', ignoreDuplicates: true })
     }
-    console.error('[accept-invitation] RPC error:', rpcError)
-    return NextResponse.json({ error: 'Registration failed. Please try again.' }, { status: 500 })
+
+    // ── Step 7: enroll in course (student only) ──────────────
+    if (inv.course_id && inv.role === 'student') {
+      await admin.from('course_enrollments')
+        .upsert({
+          course_id: inv.course_id,
+          student_id: userId,
+          tenant_id: inv.tenant_id,
+        }, { onConflict: 'course_id,student_id', ignoreDuplicates: true })
+    }
+
+    return NextResponse.json({ email: cleanEmail })
+
+  } catch (err) {
+    // Rollback: delete the auth user so the email can be used again
+    await admin.auth.admin.deleteUser(userId).catch(e =>
+      console.error('[accept-invitation] ROLLBACK FAILED — orphaned user:', userId, e)
+    )
+    console.error('[accept-invitation] error after auth user created:', err)
+    return NextResponse.json(
+      { error: 'Registration failed. Please try again.' },
+      { status: 500 }
+    )
   }
-
-  // ── Step 6: return email so client can sign in ────────────
-  return NextResponse.json({ email: email.trim().toLowerCase() })
 }
