@@ -1,7 +1,5 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 // Change FROM_EMAIL to your domain email when ready (e.g. noreply@yourplatform.com)
 const FROM_EMAIL = 'EduQuest <onboarding@resend.dev>'
 const APP_NAME   = 'EduQuest'
@@ -75,6 +73,8 @@ export async function sendInvitationEmail({
     console.warn('[email] RESEND_API_KEY not set — skipping email')
     return
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
   const roleLabel = ROLE_LABELS[role] ?? role
   const expiry    = new Date(expiresAt).toLocaleDateString('en-US', {
