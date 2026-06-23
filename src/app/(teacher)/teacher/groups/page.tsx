@@ -30,12 +30,14 @@ export default async function GroupsPage() {
     .eq('is_active', true)
     .order('full_name')
 
+  if (!profile?.tenant_id) redirect('/login')
+
   return (
     <GroupsClient
       initialGroups={groups ?? []}
       tenantStudents={tenantStudents ?? []}
       teacherId={user.id}
-      tenantId={profile?.tenant_id ?? ''}
+      tenantId={profile.tenant_id}
     />
   )
 }
