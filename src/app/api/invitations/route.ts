@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { sendInvitationEmail } from '@/lib/email'
 
 function getAdminClient() {
   return createAdminClient(
@@ -221,6 +222,24 @@ export async function POST(request: Request) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const joinUrl = `${baseUrl}/join/${invitation.token}`
+
+  // Send invitation email (private links only — public links are shared manually)
+  if (!isPublic && invitation.email) {
+    const { data: inviterProfile } = await supabase
+      .from('users').select('full_name').eq('id', user.id).single()
+
+    const { data: tenant } = await supabase
+      .from('tenants').select('name').eq('id', tenant_id).single()
+
+    sendInvitationEmail({
+      to:          invitation.email,
+      role,
+      tenantName:  tenant?.name ?? 'your university',
+      joinUrl,
+      expiresAt:   invitation.expires_at,
+      inviterName: inviterProfile?.full_name ?? undefined,
+    }).catch(err => console.error('[email] Failed to send invitation email:', err))
+  }
 
   return NextResponse.json({ invitation, joinUrl }, { status: 201 })
 }
