@@ -51,12 +51,15 @@ export async function proxy(request: NextRequest) {
     // /join/ must always be accessible — don't redirect even if logged in
     // (user may be super admin opening their own invitation link to test it)
     if (user && !pathname.startsWith('/join/')) {
-      let { role } = claimsFromUser(user)
-      if (!role) {
+      let { role, isActive } = claimsFromUser(user)
+      if (!role || isActive === undefined) {
         const { data: profile } = await supabase
-          .from('users').select('role').eq('id', user.id).single()
-        role = profile?.role as Role | undefined
+          .from('users').select('role, is_active').eq('id', user.id).single()
+        role     = (profile?.role as Role | undefined) ?? role
+        isActive = profile?.is_active ?? isActive
       }
+      // Don't redirect disabled users — they stay on /login to see the error message
+      if (isActive === false) return supabaseResponse
       if (role && ROLE_DASHBOARDS[role]) {
         return NextResponse.redirect(new URL(ROLE_DASHBOARDS[role], request.url))
       }
