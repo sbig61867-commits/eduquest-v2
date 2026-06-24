@@ -9,50 +9,18 @@ export default async function StudentExamsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Get student's enrolled group IDs
-  const { data: groupRows } = await supabase
-    .from('group_students')
-    .select('group_id')
-    .eq('student_id', user.id)
+  // Fetch enrolled exams via the SECURITY DEFINER RPC. It returns only the
+  // exams the student is enrolled in (group or course) and strips
+  // correct_answer server-side, so answers never reach the client. Students
+  // have no direct SELECT on the exams table (see exam_answer_leak_fix_migration.sql).
+  const { data: rpcExams } = await supabase.rpc('get_student_exams')
 
-  // Get student's enrolled course IDs
-  const { data: courseRows } = await supabase
-    .from('course_enrollments')
-    .select('course_id')
-    .eq('student_id', user.id)
-
-  const groupIds  = (groupRows  ?? []).map(r => r.group_id)
-  const courseIds = (courseRows ?? []).map(r => r.course_id)
-
-  // Fetch exams only for groups/courses the student is enrolled in
-  let rawExams: any[] = []
-
-  if (groupIds.length > 0) {
-    const { data } = await supabase
-      .from('exams')
-      .select('*, groups(name)')
-      .eq('is_published', true)
-      .in('group_id', groupIds)
-      .order('created_at', { ascending: false })
-    rawExams = [...rawExams, ...(data ?? [])]
-  }
-
-  if (courseIds.length > 0) {
-    const { data } = await supabase
-      .from('exams')
-      .select('*, courses(title)')
-      .eq('is_published', true)
-      .in('course_id', courseIds)
-      .order('created_at', { ascending: false })
-    rawExams = [...rawExams, ...(data ?? [])]
-  }
-
-  // Strip correct_answer before sending to client — grading is server-side
-  const exams = rawExams.map(exam => ({
-    ...exam,
-    questions: (exam.questions ?? []).map(
-      ({ correct_answer: _stripped, ...rest }: Record<string, unknown>) => rest
-    ),
+  // Reshape flat RPC rows into the nested shape the client component expects.
+  const exams = (rpcExams ?? []).map((row: any) => ({
+    ...row,
+    questions: row.questions ?? [],
+    groups:  row.group_name   ? { name: row.group_name }    : null,
+    courses: row.course_title ? { title: row.course_title } : null,
   }))
 
   // Get submissions + retake permissions
@@ -70,10 +38,10 @@ export default async function StudentExamsPage() {
   const retakeAllowedIds = new Set(retakePermissions?.map(r => r.exam_id) ?? [])
 
   // A student can take an exam if: not submitted, OR has retake permission
-  const availableExams = exams.filter(e =>
+  const availableExams = exams.filter((e: { id: string }) =>
     !submittedIds.has(e.id) || retakeAllowedIds.has(e.id)
   )
-  const completedExams = exams.filter(e =>
+  const completedExams = exams.filter((e: { id: string }) =>
     submittedIds.has(e.id) && !retakeAllowedIds.has(e.id)
   )
 

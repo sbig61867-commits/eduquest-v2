@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { rateLimit } from '@/lib/rate-limit'
+
+// Students no longer have direct SELECT on exams (answer-leak fix); read exam
+// metadata with the service-role client. The user is already authenticated above.
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -38,7 +49,7 @@ export async function POST(request: Request) {
   }
 
   // Verify exam exists, is published, and has proctoring enabled
-  const { data: exam } = await supabase
+  const { data: exam } = await adminClient()
     .from('exams')
     .select('id, proctoring_enabled')
     .eq('id', examId)

@@ -7,11 +7,13 @@ export default async function StudentDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ count: lessons }, { count: exams }, { count: submissions }] = await Promise.all([
+  const [{ count: lessons }, { data: examRows }, { count: submissions }] = await Promise.all([
     supabase.from('lessons').select('*', { count: 'exact', head: true }),
-    supabase.from('exams').select('*', { count: 'exact', head: true }).eq('is_published', true),
+    // Students have no direct exams SELECT; count enrolled exams via the RPC.
+    supabase.rpc('get_student_exams'),
     supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''),
   ])
+  const exams = (examRows ?? []).length
 
   const cards = [
     { label: 'Available Lessons', value: lessons ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },

@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+
+// Students no longer have direct SELECT on exams (answer-leak fix). The exam
+// (incl. correct_answer, used for server-side grading) is read with the
+// service-role client; authorization is enforced by the enrollment check below.
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 /**
  * POST /api/exam/submit
@@ -36,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   // Verify the student belongs to this exam's group (via group_students)
-  const { data: exam } = await supabase
+  const { data: exam } = await adminClient()
     .from('exams')
     .select('id, tenant_id, group_id, questions, proctoring_enabled')
     .eq('id', examId)

@@ -206,8 +206,13 @@ CREATE POLICY "lessons_update" ON lessons FOR UPDATE USING (
 );
 
 -- EXAMS: same pattern as lessons
+-- Students do NOT get direct row access (questions JSONB embeds correct_answer);
+-- they read exams only via get_student_exams() which strips the answers.
+-- See exam_answer_leak_fix_migration.sql.
 CREATE POLICY "exams_select" ON exams FOR SELECT USING (
-  current_user_role() = 'super_admin' OR tenant_id = current_tenant_id()
+  current_user_role() = 'super_admin'
+  OR (current_user_role() = 'university_admin' AND tenant_id = current_tenant_id())
+  OR (current_user_role() = 'teacher' AND teacher_id = auth.uid())
 );
 CREATE POLICY "exams_insert" ON exams FOR INSERT WITH CHECK (
   current_user_role() IN ('teacher','university_admin','super_admin') AND

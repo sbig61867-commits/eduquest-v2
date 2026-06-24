@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 CREATE INDEX IF NOT EXISTS idx_rate_limits_reset_at ON rate_limits(reset_at);
 
+-- Lock the table from direct PostgREST access. All access goes through the
+-- check_rate_limit RPC (SECURITY DEFINER, bypasses RLS), so enabling RLS with
+-- NO policies denies every direct SELECT/INSERT/UPDATE/DELETE while leaving the
+-- limiter fully functional. Prevents users from reading other users' keys or
+-- resetting their own counters to bypass the limiter.
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
 -- Atomic counter: increments within a window, resets when the window passes.
 -- One round-trip, race-free via INSERT ... ON CONFLICT.
 CREATE OR REPLACE FUNCTION check_rate_limit(p_key TEXT, p_limit INT, p_window_secs INT)

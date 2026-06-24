@@ -66,37 +66,31 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
     setFormError('')
     setLoading(true)
     if (editing) {
-      const { data, error } = await supabase
-        .from('groups')
-        .update({ name: form.name, description: form.description })
-        .eq('id', editing.id)
-        .select()
-        .single()
-      if (error) {
-        setFormError(error.message)
+      const res = await fetch('/api/groups', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editing.id, name: form.name, description: form.description }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setFormError(json.error ?? 'Failed to update group')
         setLoading(false)
         return
       }
-      if (data) setGroups(prev => prev.map(g => g.id === editing.id ? { ...g, ...data } : g))
+      setGroups(prev => prev.map(g => g.id === editing.id ? { ...g, ...json } : g))
     } else {
-      const { data, error } = await supabase
-        .from('groups')
-        .insert({ name: form.name, description: form.description, teacher_id: teacherId, tenant_id: tenantId })
-        .select('*, group_students(count)')
-        .single()
-      if (error) {
-        console.error('[groups] insert error', error)
-        setFormError(error.message)
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, description: form.description }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setFormError(json.error ?? 'Failed to create group')
         setLoading(false)
         return
       }
-      if (data) {
-        setGroups(prev => [data, ...prev])
-      } else {
-        // Insert succeeded but select returned nothing (RLS) — reload page
-        window.location.reload()
-        return
-      }
+      setGroups(prev => [json, ...prev])
     }
     setShowAdd(false)
     setLoading(false)
@@ -104,7 +98,11 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
 
   async function deleteGroup(id: string) {
     if (!confirm('Delete this group? All related lessons and exams will be removed.')) return
-    await supabase.from('groups').delete().eq('id', id)
+    await fetch('/api/groups', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
     setGroups(prev => prev.filter(g => g.id !== id))
   }
 

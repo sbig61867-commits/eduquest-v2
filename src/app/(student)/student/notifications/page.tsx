@@ -18,7 +18,9 @@ export default async function NotificationsPage() {
 
   const groupIds = (memberOf ?? []).map(r => r.group_id)
 
-  const [{ data: recentLessons }, { data: recentExams }, { data: recentGrades }] = await Promise.all([
+  // Exams come from the SECURITY DEFINER RPC (students have no direct exams
+  // SELECT). It already returns only enrolled, published exams, answers stripped.
+  const [{ data: recentLessons }, { data: rpcExams }, { data: recentGrades }] = await Promise.all([
     groupIds.length > 0
       ? supabase
           .from('lessons')
@@ -28,15 +30,7 @@ export default async function NotificationsPage() {
           .order('created_at', { ascending: false })
           .limit(10)
       : Promise.resolve({ data: [] }),
-    groupIds.length > 0
-      ? supabase
-          .from('exams')
-          .select('id, title, created_at, group_id, groups(name), starts_at, ends_at')
-          .in('group_id', groupIds)
-          .eq('is_published', true)
-          .order('created_at', { ascending: false })
-          .limit(10)
-      : Promise.resolve({ data: [] }),
+    supabase.rpc('get_student_exams'),
     supabase
       .from('exam_submissions')
       .select('id, score, submitted_at, exams(title)')
@@ -45,6 +39,11 @@ export default async function NotificationsPage() {
       .order('submitted_at', { ascending: false })
       .limit(5),
   ])
+
+  // RPC returns flat group_name; reshape to match the lessons/grades shape and cap at 10.
+  const recentExams = (rpcExams ?? [])
+    .slice(0, 10)
+    .map((e: any) => ({ ...e, groups: e.group_name ? { name: e.group_name } : null }))
 
   // Merge and sort all notifications by date
   const notifications = [
@@ -103,8 +102,8 @@ export default async function NotificationsPage() {
       ) : (
         <div className="space-y-2">
           {notifications.map(n => {
-            const Icon = iconMap[n.type]
-            const color = colorMap[n.type]
+            const Icon = iconMap[n.type as keyof typeof iconMap]
+            const color = colorMap[n.type as keyof typeof colorMap]
             return (
               <div key={n.id} className="flex items-start gap-4 bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 hover:border-slate-700 transition-colors">
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
