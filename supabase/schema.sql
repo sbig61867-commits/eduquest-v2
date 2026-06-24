@@ -135,16 +135,27 @@ ALTER TABLE exam_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE grades          ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: get current user's role
+-- NOTE: search_path is pinned because SECURITY DEFINER functions inherit the
+-- CALLER's search_path. Under PostgREST the `authenticated` role can run with a
+-- restricted search_path, so an unqualified `FROM users` fails with
+-- "relation \"users\" does not exist" → the function returns NULL → every RLS
+-- policy that calls it denies with 403. Schema-qualify the table AND pin the path.
 CREATE OR REPLACE FUNCTION current_user_role()
-RETURNS TEXT AS $$
-  SELECT role FROM users WHERE id = auth.uid();
-$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+RETURNS TEXT
+LANGUAGE SQL SECURITY DEFINER STABLE
+SET search_path = public, pg_temp
+AS $$
+  SELECT role FROM public.users WHERE id = auth.uid();
+$$;
 
 -- Helper function: get current user's tenant_id
 CREATE OR REPLACE FUNCTION current_tenant_id()
-RETURNS UUID AS $$
-  SELECT tenant_id FROM users WHERE id = auth.uid();
-$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+RETURNS UUID
+LANGUAGE SQL SECURITY DEFINER STABLE
+SET search_path = public, pg_temp
+AS $$
+  SELECT tenant_id FROM public.users WHERE id = auth.uid();
+$$;
 
 -- TENANTS: super_admin sees all; others see only their own
 CREATE POLICY "tenants_select" ON tenants FOR SELECT USING (
@@ -207,11 +218,16 @@ CREATE POLICY "exams_update" ON exams FOR UPDATE USING (
   (current_user_role() = 'teacher' AND teacher_id = auth.uid())
 );
 
--- SUBMISSIONS: student sees own; teacher sees their exam's submissions
+-- SUBMISSIONS: student sees own; teacher sees only their own exams' submissions; admin sees tenant
 CREATE POLICY "submissions_select" ON exam_submissions FOR SELECT USING (
   current_user_role() = 'super_admin' OR
   student_id = auth.uid() OR
-  tenant_id = current_tenant_id()
+  (current_user_role() = 'university_admin' AND tenant_id = current_tenant_id()) OR
+  (current_user_role() = 'teacher' AND EXISTS (
+     SELECT 1 FROM exams
+     WHERE exams.id = exam_submissions.exam_id
+       AND exams.teacher_id = auth.uid()
+  ))
 );
 CREATE POLICY "submissions_insert" ON exam_submissions FOR INSERT WITH CHECK (
   student_id = auth.uid() AND tenant_id = current_tenant_id()
