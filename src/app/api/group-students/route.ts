@@ -64,8 +64,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 })
   }
 
-  type Row = { student_id: string; users: { id: string; full_name: string; email: string } | null }
-  const students = (data ?? [] as Row[]).map((r: Row) => r.users).filter(Boolean)
+  type UserItem = { id: string; full_name: string; email: string }
+  type Row = { student_id: string; users: UserItem | UserItem[] | null }
+  const students = (data ?? [] as Row[]).map((r: Row) => Array.isArray(r.users) ? r.users[0] : r.users).filter(Boolean)
   return NextResponse.json({ students })
 }
 

@@ -41,8 +41,8 @@ export default async function NotificationsPage() {
   ])
 
   type RpcExamRow = { id: string; title: string; created_at: string; group_name: string | null; [key: string]: unknown }
-  type LessonRow  = { id: string; title: string; created_at: string; groups: { name: string } | null }
-  type GradeRow   = { id: string; score: number; submitted_at: string; exams: { title: string } | null }
+  type LessonRow  = { id: string; title: string; created_at: string; groups: { name: string }[] | { name: string } | null }
+  type GradeRow   = { id: string; score: number; submitted_at: string; exams: { title: string }[] | { title: string } | null }
 
   // RPC returns flat group_name; reshape to match the lessons/grades shape and cap at 10.
   const recentExams = (rpcExams ?? [])
@@ -55,7 +55,7 @@ export default async function NotificationsPage() {
       id: `lesson-${l.id}`,
       type: 'lesson' as const,
       title: `New lesson: ${l.title}`,
-      subtitle: `In group: ${l.groups?.name ?? '—'}`,
+      subtitle: `In group: ${Array.isArray(l.groups) ? (l.groups[0]?.name ?? '—') : (l.groups?.name ?? '—')}`,
       date: l.created_at,
     })),
     ...(recentExams ?? []).map((e: RpcExamRow & { groups: { name: string } | null }) => ({
@@ -68,7 +68,7 @@ export default async function NotificationsPage() {
     ...(recentGrades ?? [] as GradeRow[]).map((g: GradeRow) => ({
       id: `grade-${g.id}`,
       type: 'grade' as const,
-      title: `Grade posted: ${g.exams?.title ?? 'Exam'}`,
+      title: `Grade posted: ${Array.isArray(g.exams) ? (g.exams[0]?.title ?? 'Exam') : (g.exams?.title ?? 'Exam')}`,
       subtitle: `Score: ${g.score} points`,
       date: g.submitted_at,
     })),

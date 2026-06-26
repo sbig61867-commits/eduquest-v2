@@ -20,8 +20,14 @@ export default async function StudentProfilePage() {
     .select('groups(id, name, description, teacher:users!groups_teacher_id_fkey(full_name))')
     .eq('student_id', user.id)
 
-  type GroupRow = { groups: { id: string; name: string; description: string | null; teacher: { full_name: string } | null } | null }
-  const myGroups = (groups ?? [] as GroupRow[]).map((r: GroupRow) => r.groups).filter(Boolean)
+  type GroupItem = { id: string; name: string; description: string | null; teacher: { full_name: string } | { full_name: string }[] | null }
+  type GroupRow = { groups: GroupItem | GroupItem[] | null }
+  const myGroups = (groups ?? [] as GroupRow[]).map((r: GroupRow) => {
+    const g = Array.isArray(r.groups) ? r.groups[0] : r.groups
+    if (!g) return null
+    const teacher = Array.isArray(g.teacher) ? g.teacher[0] : g.teacher
+    return { id: g.id, name: g.name, description: g.description, teacher: teacher ? { full_name: teacher.full_name } : null }
+  }).filter((g): g is NonNullable<typeof g> => g !== null)
 
   return <StudentProfileClient profile={profile} groups={myGroups} />
 }
