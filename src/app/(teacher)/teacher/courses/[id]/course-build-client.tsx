@@ -8,11 +8,9 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  ChevronLeft, Plus, Layers, BookOpen, FileText, ClipboardList,
-  Pencil, Trash2, ChevronDown, ChevronRight, Sparkles, Eye, EyeOff,
-  GraduationCap
+  ChevronLeft, Plus, Layers, BookOpen,
+  Trash2, ChevronDown, ChevronRight, Sparkles,
 } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

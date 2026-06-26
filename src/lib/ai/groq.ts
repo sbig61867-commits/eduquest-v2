@@ -61,26 +61,3 @@ Format the response in Markdown.`
   )
 }
 
-export async function generateExamQuestionsGroq(
-  topic: string,
-  count: number,
-  type: 'mcq' | 'true_false' | 'mixed'
-): Promise<string> {
-  return groqChat(
-    `Generate ${count} ${type === 'mixed' ? 'mixed type' : type} exam questions about "${topic}".
-
-Return a JSON array with this structure:
-[
-  {
-    "text": "Question text",
-    "type": "mcq" | "true_false" | "short_answer",
-    "options": ["A", "B", "C", "D"],
-    "correct_answer": "correct answer",
-    "points": 10
-  }
-]
-
-Return ONLY the JSON array, no markdown.`,
-    'You are an expert educator. Return only valid JSON.'
-  )
-}

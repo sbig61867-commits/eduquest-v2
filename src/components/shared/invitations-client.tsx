@@ -81,7 +81,18 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/invitations')
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled) {
+          setInvitations(data.invitations ?? [])
+          setLoading(false)
+        }
+      })
+    return () => { cancelled = true }
+  }, [])
 
   async function createInvitation(e: React.FormEvent) {
     e.preventDefault()
@@ -117,12 +128,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     setGroupId('')
     setMaxUses('')
     setCreating(false)
-    load()
+    setLoading(true)
+    void load()
   }
 
   async function revoke(id: string) {
     await fetch(`/api/invitations/${id}`, { method: 'PATCH' })
-    load()
+    setLoading(true)
+    void load()
   }
 
   async function copyLink(inv: InvitationRow) {
@@ -392,7 +405,6 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             <tbody className="divide-y divide-slate-800/60">
               {invitations.map(inv => {
                 const expired = isExpired(inv)
-                const status  = expired ? 'expired' : inv.status
                 return (
                   <tr key={inv.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="px-5 py-3">

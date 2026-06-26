@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic } from 'lucide-react'
 import type { Exam, Question, ProctoringEvent } from '@/types'
@@ -218,7 +218,7 @@ export function ExamTaker({ exam, onFinish }: Props) {
   }
 
   // Keep ref in sync so the timer callback always calls the latest version
-  handleSubmitRef.current = handleSubmit
+  useLayoutEffect(() => { handleSubmitRef.current = handleSubmit })
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
   const question: Question = exam.questions[current]

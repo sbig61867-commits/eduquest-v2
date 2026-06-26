@@ -36,6 +36,8 @@ export function useUser() {
     )
 
     return () => subscription.unsubscribe()
+  // supabase client is a stable singleton; adding it/setters would re-subscribe every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { user, tenant, isLoading }

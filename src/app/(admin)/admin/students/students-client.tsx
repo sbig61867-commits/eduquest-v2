@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Search, Trash2, ToggleLeft, Mail } from 'lucide-react'
@@ -14,7 +13,6 @@ interface Props { initialStudents: User[] }
 export function StudentsClient({ initialStudents }: Props) {
   const [students, setStudents] = useState(initialStudents)
   const [search, setSearch] = useState('')
-  const supabase = createClient()
   const router = useRouter()
 
   const filtered = students.filter(s =>

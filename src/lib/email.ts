@@ -1,7 +1,8 @@
 import { Resend } from 'resend'
 
-// Change FROM_EMAIL to your domain email when ready (e.g. noreply@yourplatform.com)
-const FROM_EMAIL = 'EduQuest <onboarding@resend.dev>'
+// Set EMAIL_FROM in your env to your verified domain (e.g. "EduQuest <noreply@yourdomain.com>")
+// The resend.dev address only delivers to the Resend account owner — not production-ready.
+const FROM_EMAIL = process.env.EMAIL_FROM ?? 'EduQuest <onboarding@resend.dev>'
 const APP_NAME   = 'EduQuest'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -72,6 +73,10 @@ export async function sendInvitationEmail({
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not set — skipping email')
     return
+  }
+
+  if (!process.env.EMAIL_FROM && process.env.NODE_ENV === 'production') {
+    console.warn('[email] EMAIL_FROM not set — using resend.dev sandbox address which only delivers to the account owner. Set EMAIL_FROM to your verified domain.')
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY)

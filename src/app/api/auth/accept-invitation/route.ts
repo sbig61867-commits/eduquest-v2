@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { rateLimit } from '@/lib/rate-limit'
 
 function getAdminClient() {
   return createAdminClient(
@@ -10,6 +11,16 @@ function getAdminClient() {
 }
 
 export async function POST(request: Request) {
+  // Rate-limit by IP: 5 registration attempts per hour per IP to prevent bulk account creation
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 5, windowSecs: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
   let body: { token?: string; email?: string; password?: string; fullName?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
@@ -138,7 +149,7 @@ export async function POST(request: Request) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[accept-invitation] error after auth user created:', detail)
     return NextResponse.json(
-      { error: `Registration failed: ${detail}` },
+      { error: 'Registration failed. Please try again or contact support.' },
       { status: 500 }
     )
   }

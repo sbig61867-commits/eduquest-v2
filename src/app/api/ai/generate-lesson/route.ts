@@ -36,9 +36,10 @@ export async function POST(request: Request) {
   if (rawTopic.length > 200) return NextResponse.json({ error: 'Topic is too long (max 200 chars)' }, { status: 400 })
   if (rawInstructions.length > 1000) return NextResponse.json({ error: 'Instructions too long (max 1000 chars)' }, { status: 400 })
 
-  // Sanitize both fields against prompt injection
-  const topic = rawTopic.replace(/[<>{}[\]`\\]/g, '').trim()
-  const customInstructions = rawInstructions.replace(/[<>{}[\]`\\]/g, '').trim() || undefined
+  // Sanitize both fields against prompt injection (same ruleset as generate-exam)
+  const topic = rawTopic.replace(/[<>{}[\]`\\'"]/g, '').trim()
+  if (!topic) return NextResponse.json({ error: 'Topic contains invalid characters' }, { status: 400 })
+  const customInstructions = rawInstructions.replace(/[<>{}[\]`\\'"]/g, '').trim() || undefined
 
   const groqKey = process.env.GROQ_API_KEY
   const geminiKey = process.env.GEMINI_API_KEY

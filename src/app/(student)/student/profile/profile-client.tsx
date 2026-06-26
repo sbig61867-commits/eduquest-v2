@@ -143,7 +143,7 @@ export function StudentProfileClient({ profile, groups }: Props) {
                 <div>
                   <p className="text-white text-sm font-medium">{g.name}</p>
                   <p className="text-slate-400 text-xs">
-                    Teacher: {(g.teacher as any)?.full_name ?? '—'}
+                    Teacher: {g.teacher?.full_name ?? '—'}
                   </p>
                   {g.description && (
                     <p className="text-slate-500 text-xs mt-0.5">{g.description}</p>

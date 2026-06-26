@@ -41,7 +41,7 @@ export default async function StudentLessonsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {lessons.map((lesson: any) => (
+          {(lessons as Array<{ id: string; title: string; created_at: string; content: string; groups: { name: string } | null }>).map((lesson) => (
             <details key={lesson.id} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-colors">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                 <div className="flex items-center gap-3">

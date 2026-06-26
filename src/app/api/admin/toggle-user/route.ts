@@ -32,8 +32,6 @@ export async function PATCH(request: Request) {
   }
 
   // Verify the target user belongs to the caller's tenant (super_admin can update anyone)
-  const tenantFilter = caller.role === 'super_admin' ? {} : { tenant_id: caller.tenant_id }
-
   const { data: target } = await supabase
     .from('users').select('id, tenant_id, role').eq('id', userId).single()
 

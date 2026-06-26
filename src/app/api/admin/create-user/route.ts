@@ -98,13 +98,13 @@ export async function POST(request: Request) {
       console.error('[create-user] profile upsert error:', upsertError)
       // Rollback: delete the auth user so we don't leave orphaned auth entries
       await adminClient.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json({ error: extractError(upsertError) }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to create user profile. Please try again.' }, { status: 500 })
     }
 
     return NextResponse.json({ user: profile })
 
   } catch (err) {
     console.error('[create-user] unexpected error:', err)
-    return NextResponse.json({ error: extractError(err) }, { status: 500 })
+    return NextResponse.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 })
   }
 }

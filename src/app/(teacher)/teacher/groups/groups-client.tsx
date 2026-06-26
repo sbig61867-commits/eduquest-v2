@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Plus, Users, Pencil, Trash2, UserPlus, X, Search } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
 
 interface Group {
   id: string
@@ -29,7 +28,7 @@ interface Props {
   tenantId: string
 }
 
-export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantId }: Props) {
+export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   const [groups, setGroups] = useState(initialGroups)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Group | null>(null)
@@ -56,7 +55,8 @@ export function GroupsClient({ initialGroups, tenantStudents, teacherId, tenantI
       .from('group_students')
       .select('student_id, users!group_students_student_id_fkey(id, full_name, email)')
       .eq('group_id', group.id)
-    const students = (data ?? []).map((r: any) => r.users).filter(Boolean)
+    type StudentRow = { student_id: string; users: { id: string; full_name: string; email: string } | null }
+    const students = (data ?? [] as StudentRow[]).map((r: StudentRow) => r.users).filter(Boolean)
     setGroupStudents(students)
     setLoadingStudents(false)
   }

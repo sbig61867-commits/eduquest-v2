@@ -1,9 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Flag } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 
 const DEFAULT_FLAGS = [
   { name: 'ai_lesson_generation', label: 'AI Lesson Generation', description: 'Allow teachers to generate lessons with Gemini AI' },

@@ -20,7 +20,8 @@ export default async function StudentProfilePage() {
     .select('groups(id, name, description, teacher:users!groups_teacher_id_fkey(full_name))')
     .eq('student_id', user.id)
 
-  const myGroups = (groups ?? []).map((r: any) => r.groups).filter(Boolean)
+  type GroupRow = { groups: { id: string; name: string; description: string | null; teacher: { full_name: string } | null } | null }
+  const myGroups = (groups ?? [] as GroupRow[]).map((r: GroupRow) => r.groups).filter(Boolean)
 
   return <StudentProfileClient profile={profile} groups={myGroups} />
 }

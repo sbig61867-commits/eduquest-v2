@@ -15,8 +15,9 @@ export default async function StudentExamsPage() {
   // have no direct SELECT on the exams table (see exam_answer_leak_fix_migration.sql).
   const { data: rpcExams } = await supabase.rpc('get_student_exams')
 
+  type RpcExamRow = { id: string; title: string; created_at: string; questions: unknown[]; group_name: string | null; course_title: string | null; [key: string]: unknown }
   // Reshape flat RPC rows into the nested shape the client component expects.
-  const exams = (rpcExams ?? []).map((row: any) => ({
+  const exams = (rpcExams ?? []).map((row: RpcExamRow) => ({
     ...row,
     questions: row.questions ?? [],
     groups:  row.group_name   ? { name: row.group_name }    : null,

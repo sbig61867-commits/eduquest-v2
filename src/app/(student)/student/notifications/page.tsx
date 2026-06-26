@@ -40,28 +40,32 @@ export default async function NotificationsPage() {
       .limit(5),
   ])
 
+  type RpcExamRow = { id: string; title: string; created_at: string; group_name: string | null; [key: string]: unknown }
+  type LessonRow  = { id: string; title: string; created_at: string; groups: { name: string } | null }
+  type GradeRow   = { id: string; score: number; submitted_at: string; exams: { title: string } | null }
+
   // RPC returns flat group_name; reshape to match the lessons/grades shape and cap at 10.
   const recentExams = (rpcExams ?? [])
     .slice(0, 10)
-    .map((e: any) => ({ ...e, groups: e.group_name ? { name: e.group_name } : null }))
+    .map((e: RpcExamRow) => ({ ...e, groups: e.group_name ? { name: e.group_name } : null }))
 
   // Merge and sort all notifications by date
   const notifications = [
-    ...(recentLessons ?? []).map((l: any) => ({
+    ...(recentLessons ?? [] as LessonRow[]).map((l: LessonRow) => ({
       id: `lesson-${l.id}`,
       type: 'lesson' as const,
       title: `New lesson: ${l.title}`,
       subtitle: `In group: ${l.groups?.name ?? '—'}`,
       date: l.created_at,
     })),
-    ...(recentExams ?? []).map((e: any) => ({
+    ...(recentExams ?? []).map((e: RpcExamRow & { groups: { name: string } | null }) => ({
       id: `exam-${e.id}`,
       type: 'exam' as const,
       title: `New exam: ${e.title}`,
       subtitle: `In group: ${e.groups?.name ?? '—'}`,
       date: e.created_at,
     })),
-    ...(recentGrades ?? []).map((g: any) => ({
+    ...(recentGrades ?? [] as GradeRow[]).map((g: GradeRow) => ({
       id: `grade-${g.id}`,
       type: 'grade' as const,
       title: `Grade posted: ${g.exams?.title ?? 'Exam'}`,

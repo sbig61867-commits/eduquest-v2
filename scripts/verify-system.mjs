@@ -19,7 +19,7 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 const log = (ok, msg) => console.log(`${ok ? '✅' : '❌'} ${msg}`)
 const created = { users: [], tenants: [], lessons: [], groups: [], courses: [] }
 let pass = 0, fail = 0
-const check = (cond, msg) => { cond ? pass++ : fail++; log(cond, msg); return cond }
+const check = (cond, msg) => { if (cond) { pass++ } else { fail++ } log(cond, msg); return cond }
 
 async function main() {
   console.log('\n━━━ 1. SCHEMA / MIGRATION STATE ━━━')

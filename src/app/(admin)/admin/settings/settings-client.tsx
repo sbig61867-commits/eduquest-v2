@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -111,10 +112,12 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
 
         {form.logo_url && (
           <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">
-            <img
+            <Image
               src={form.logo_url}
               alt="Logo preview"
-              className="w-12 h-12 rounded-lg object-contain bg-white p-1"
+              width={48}
+              height={48}
+              className="rounded-lg object-contain bg-white p-1"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
             <span className="text-slate-400 text-sm">Logo preview</span>
