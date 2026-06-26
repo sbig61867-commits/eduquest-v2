@@ -359,15 +359,15 @@ export function CoursesClient({ initialCourses }: Props) {
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <Upload className="w-10 h-10 text-slate-500" />
-                  <p className="text-slate-300 font-medium">Click to select a .pptx file</p>
-                  <p className="text-slate-500 text-sm">Maximum size: 20 MB</p>
+                  <p className="text-slate-300 font-medium">Click to select a file</p>
+                  <p className="text-slate-500 text-sm">PPTX · DOCX · PDF — Maximum 20 MB</p>
                 </div>
               )}
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pptx"
+              accept=".pptx,.docx,.pdf"
               className="hidden"
               onChange={handleFileChange}
             />
