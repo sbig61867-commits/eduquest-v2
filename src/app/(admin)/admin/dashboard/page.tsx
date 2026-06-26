@@ -1,17 +1,26 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
 async function getStats(tenantId: string) {
-  const supabase = await createClient()
+  const admin = adminClient()
   const [{ count: teachers }, { count: students }, { count: lessons }, { count: exams }] =
     await Promise.all([
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
-      supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-      supabase.from('exams').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      admin.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
+      admin.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
+      admin.from('lessons').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      admin.from('exams').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     ])
   return { teachers: teachers ?? 0, students: students ?? 0, lessons: lessons ?? 0, exams: exams ?? 0 }
 }
@@ -21,7 +30,6 @@ export default async function AdminDashboard() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Resolve the admin's real tenant — counts are scoped to their university
   const { data: profile } = await supabase
     .from('users').select('tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) redirect('/login?error=no_tenant')

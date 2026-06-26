@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -23,8 +22,6 @@ export function ExamsClient({ initialExams, groups }: Props) {
   const [aiCount, setAiCount] = useState(10)
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
-
   async function generateQuestions() {
     if (!aiTopic) return
     setAiLoading(true)
@@ -42,24 +39,35 @@ export function ExamsClient({ initialExams, groups }: Props) {
     e.preventDefault()
     if (questions.length === 0) { alert('Add at least one question'); return }
     setLoading(true)
-    const { data } = await supabase.from('exams').insert({
-      ...form,
-      questions,
-    }).select('*, groups(name)').single()
-    if (data) setExams(prev => [data, ...prev])
+    const res = await fetch('/api/exams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, questions }),
+    })
+    const data = await res.json()
+    if (res.ok) setExams(prev => [data, ...prev])
     setShowModal(false)
     setQuestions([])
     setLoading(false)
   }
 
   async function togglePublish(exam: Exam) {
-    const { data } = await supabase.from('exams').update({ is_published: !exam.is_published }).eq('id', exam.id).select('*, groups(name)').single()
-    if (data) setExams(prev => prev.map(e => e.id === exam.id ? data : e))
+    const res = await fetch('/api/exams', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: exam.id, is_published: !exam.is_published }),
+    })
+    const data = await res.json()
+    if (res.ok) setExams(prev => prev.map(e => e.id === exam.id ? data : e))
   }
 
   async function deleteExam(id: string) {
     if (!confirm('Delete this exam?')) return
-    await supabase.from('exams').delete().eq('id', id)
+    await fetch('/api/exams', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
     setExams(prev => prev.filter(e => e.id !== id))
   }
 

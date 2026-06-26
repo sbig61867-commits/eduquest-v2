@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -24,8 +23,6 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   const [showAiInstructions, setShowAiInstructions] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
-
   function openAdd() { setForm({ title: '', content: '', group_id: groups[0]?.id ?? '' }); setEditing(null); setShowModal(true) }
   function openEdit(l: Lesson) { setForm({ title: l.title, content: l.content ?? '', group_id: '' }); setEditing(l); setShowModal(true) }
 
@@ -46,24 +43,43 @@ export function LessonsClient({ initialLessons, groups }: Props) {
     e.preventDefault()
     setLoading(true)
     if (editing) {
-      const { data } = await supabase.from('lessons').update({ title: form.title, content: form.content }).eq('id', editing.id).select('*, groups(name)').single()
-      if (data) setLessons(prev => prev.map(l => l.id === editing.id ? data : l))
+      const res = await fetch('/api/lessons', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editing.id, title: form.title, content: form.content }),
+      })
+      const data = await res.json()
+      if (res.ok) setLessons(prev => prev.map(l => l.id === editing.id ? data : l))
     } else {
-      const { data } = await supabase.from('lessons').insert({ title: form.title, content: form.content, group_id: form.group_id }).select('*, groups(name)').single()
-      if (data) setLessons(prev => [data, ...prev])
+      const res = await fetch('/api/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: form.title, content: form.content, group_id: form.group_id }),
+      })
+      const data = await res.json()
+      if (res.ok) setLessons(prev => [data, ...prev])
     }
     setShowModal(false)
     setLoading(false)
   }
 
   async function togglePublish(lesson: Lesson) {
-    const { data } = await supabase.from('lessons').update({ is_published: !lesson.is_published }).eq('id', lesson.id).select('*, groups(name)').single()
-    if (data) setLessons(prev => prev.map(l => l.id === lesson.id ? data : l))
+    const res = await fetch('/api/lessons', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lesson.id, is_published: !lesson.is_published }),
+    })
+    const data = await res.json()
+    if (res.ok) setLessons(prev => prev.map(l => l.id === lesson.id ? data : l))
   }
 
   async function deleteLesson(id: string) {
     if (!confirm('Delete this lesson?')) return
-    await supabase.from('lessons').delete().eq('id', id)
+    await fetch('/api/lessons', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
     setLessons(prev => prev.filter(l => l.id !== id))
   }
 

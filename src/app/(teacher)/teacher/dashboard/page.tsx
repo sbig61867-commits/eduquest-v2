@@ -1,16 +1,28 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { redirect } from 'next/navigation'
 import { Users, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
+
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function TeacherDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
+  const admin = adminClient()
   const [{ count: groups }, { count: lessons }, { count: exams }] = await Promise.all([
-    supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user?.id ?? ''),
-    supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user?.id ?? ''),
-    supabase.from('exams').select('*', { count: 'exact', head: true }).eq('teacher_id', user?.id ?? ''),
+    admin.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
+    admin.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
+    admin.from('exams').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
   ])
 
   const cards = [
