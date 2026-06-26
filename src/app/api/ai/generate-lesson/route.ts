@@ -68,6 +68,6 @@ export async function POST(request: Request) {
         console.error('[generate-lesson] Gemini fallback also failed:', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr)
       }
     }
-    return NextResponse.json({ error: 'AI generation failed', detail: msg }, { status: 500 })
+    return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
   }
 }
