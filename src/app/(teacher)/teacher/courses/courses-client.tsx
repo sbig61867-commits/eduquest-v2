@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -38,44 +37,44 @@ export function CoursesClient({ initialCourses, tenantId }: Props) {
     language: '',
     has_levels: true,
   })
-  const supabase = createClient()
   const router = useRouter()
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const { data, error } = await supabase
-      .from('courses')
-      .insert({
-        title: form.title,
-        description: form.description || null,
-        language: form.language || null,
-        has_levels: form.has_levels,
-        tenant_id: tenantId,
-      })
-      .select('*, course_levels(count), course_enrollments(count)')
-      .single()
-    if (!error && data) {
+    const res = await fetch('/api/courses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    const data = await res.json()
+    if (res.ok) {
       setCourses(prev => [data, ...prev])
       setForm({ title: '', description: '', language: '', has_levels: true })
       setShowAdd(false)
+    } else {
+      alert(data.error ?? 'Failed to create course')
     }
     setLoading(false)
   }
 
   async function togglePublish(course: Course) {
-    const { data } = await supabase
-      .from('courses')
-      .update({ is_published: !course.is_published })
-      .eq('id', course.id)
-      .select('*, course_levels(count), course_enrollments(count)')
-      .single()
-    if (data) setCourses(prev => prev.map(c => c.id === course.id ? data : c))
+    const res = await fetch('/api/courses', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: course.id, is_published: !course.is_published }),
+    })
+    const data = await res.json()
+    if (res.ok) setCourses(prev => prev.map(c => c.id === course.id ? data : c))
   }
 
   async function deleteCourse(id: string) {
     if (!confirm('Delete this course? All levels, units, and content will be permanently removed.')) return
-    await supabase.from('courses').delete().eq('id', id)
+    await fetch('/api/courses', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
     setCourses(prev => prev.filter(c => c.id !== id))
   }
 
