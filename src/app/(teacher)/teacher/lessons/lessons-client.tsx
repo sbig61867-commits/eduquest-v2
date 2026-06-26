@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, BookOpen, Sparkles, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Plus, BookOpen, Sparkles, Pencil, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 interface Lesson { id: string; title: string; content: string | null; is_published: boolean; created_at: string; groups: { name: string } | null }
@@ -13,6 +14,7 @@ interface Group { id: string; name: string }
 interface Props { initialLessons: Lesson[]; groups: Group[] }
 
 export function LessonsClient({ initialLessons, groups }: Props) {
+  const router = useRouter()
   const [lessons, setLessons] = useState(initialLessons)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Lesson | null>(null)
@@ -113,6 +115,9 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                   {lesson.content && <p className="text-slate-500 text-sm mt-2 line-clamp-2">{lesson.content.replace(/[#*`]/g, '').slice(0, 150)}...</p>}
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  <Button variant="secondary" size="sm" onClick={() => router.push(`/teacher/lessons/${lesson.id}`)}>
+                    <ExternalLink className="w-3.5 h-3.5" /> فتح
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(lesson)} title={lesson.is_published ? 'Unpublish' : 'Publish'}>
                     {lesson.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
