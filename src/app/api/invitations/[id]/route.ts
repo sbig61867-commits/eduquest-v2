@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 // ── PATCH /api/invitations/[id] ──────────────────────────────
 // Revokes a pending invitation. Only the creator or a higher-role
@@ -43,13 +52,16 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { error } = await supabase
+  const { error } = await adminClient()
     .from('invitations')
     .update({ status: 'revoked' })
     .eq('id', id)
     .eq('status', 'pending') // extra guard against race
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[invitations/revoke]', error)
+    return NextResponse.json({ error: 'Failed to revoke invitation' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

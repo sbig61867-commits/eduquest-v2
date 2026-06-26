@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+
+// Auth/authz uses the user session (RLS-scoped).
+// Writes use the admin client to bypass RLS — safe because authorization
+// is fully enforced in application code above before any write happens.
+// This pattern is necessary because current_user_role() / current_tenant_id()
+// are SECURITY DEFINER helpers that may return NULL under PostgREST's
+// restricted search_path if the DB migration hasn't been applied yet.
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // ── Auth check (user session, RLS) ──────────────────────────
   const { data: profile } = await supabase
     .from('users')
     .select('role, tenant_id')
@@ -23,7 +39,8 @@ export async function POST(request: Request) {
   const { name, description } = body
   if (!name?.trim()) return NextResponse.json({ error: 'Group name is required' }, { status: 400 })
 
-  const { data, error } = await supabase
+  // ── Privileged write (admin client, bypasses RLS) ────────────
+  const { data, error } = await adminClient()
     .from('groups')
     .insert({
       name: name.trim(),
@@ -47,6 +64,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // ── Auth check (user session, RLS) ──────────────────────────
   const { data: profile } = await supabase
     .from('users')
     .select('role, tenant_id')
@@ -64,8 +82,8 @@ export async function PATCH(request: Request) {
   const { id, name, description } = body
   if (!id || !name?.trim()) return NextResponse.json({ error: 'Missing id or name' }, { status: 400 })
 
-  // Verify the group belongs to this tenant and — for teachers — to themselves
-  const { data: group } = await supabase
+  // ── Ownership check: verify group belongs to this tenant + teacher ──
+  const { data: group } = await adminClient()
     .from('groups')
     .select('id, teacher_id, tenant_id')
     .eq('id', id)
@@ -78,7 +96,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data, error } = await supabase
+  // ── Privileged write (admin client, bypasses RLS) ────────────
+  const { data, error } = await adminClient()
     .from('groups')
     .update({ name: name.trim(), description: description?.trim() ?? null })
     .eq('id', id)
@@ -98,6 +117,7 @@ export async function DELETE(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // ── Auth check (user session, RLS) ──────────────────────────
   const { data: profile } = await supabase
     .from('users')
     .select('role, tenant_id')
@@ -115,8 +135,8 @@ export async function DELETE(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-  // Verify the group belongs to this tenant and — for teachers — to themselves
-  const { data: group } = await supabase
+  // ── Ownership check: verify group belongs to this tenant + teacher ──
+  const { data: group } = await adminClient()
     .from('groups')
     .select('id, teacher_id, tenant_id')
     .eq('id', id)
@@ -129,7 +149,8 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { error } = await supabase
+  // ── Privileged write (admin client, bypasses RLS) ────────────
+  const { error } = await adminClient()
     .from('groups')
     .delete()
     .eq('id', id)

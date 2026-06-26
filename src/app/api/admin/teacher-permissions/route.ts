@@ -56,7 +56,10 @@ export async function PATCH(request: Request) {
     .update({ can_create_courses })
     .eq('id', teacher_id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[teacher-permissions]', error)
+    return NextResponse.json({ error: 'Failed to update teacher permissions' }, { status: 500 })
+  }
 
   return NextResponse.json({
     success: true,
