@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -42,8 +41,6 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   const [studentSearch, setStudentSearch] = useState('')
   const [loadingStudents, setLoadingStudents] = useState(false)
 
-  const supabase = createClient()
-
   function openAdd() { setForm({ name: '', description: '' }); setEditing(null); setFormError(''); setShowAdd(true) }
   function openEdit(g: Group) { setForm({ name: g.name, description: g.description ?? '' }); setEditing(g); setFormError(''); setShowAdd(true) }
 
@@ -51,13 +48,9 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     setManagingGroup(group)
     setStudentSearch('')
     setLoadingStudents(true)
-    const { data } = await supabase
-      .from('group_students')
-      .select('student_id, users!group_students_student_id_fkey(id, full_name, email)')
-      .eq('group_id', group.id)
-    type StudentRow = { student_id: string; users: { id: string; full_name: string; email: string } | null }
-    const students = (data ?? [] as StudentRow[]).map((r: StudentRow) => r.users).filter(Boolean)
-    setGroupStudents(students)
+    const res = await fetch(`/api/group-students?group_id=${group.id}`)
+    const json = await res.json()
+    setGroupStudents(res.ok ? (json.students ?? []) : [])
     setLoadingStudents(false)
   }
 
@@ -108,9 +101,13 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
 
   async function addStudentToGroup(student: Student) {
     if (!managingGroup) return
-    const alreadyIn = groupStudents.some(s => s.id === student.id)
-    if (alreadyIn) return
-    await supabase.from('group_students').insert({ group_id: managingGroup.id, student_id: student.id })
+    if (groupStudents.some(s => s.id === student.id)) return
+    const res = await fetch('/api/group-students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: managingGroup.id, student_id: student.id }),
+    })
+    if (!res.ok) return
     setGroupStudents(prev => [...prev, student])
     setGroups(prev => prev.map(g =>
       g.id === managingGroup.id
@@ -121,10 +118,12 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
 
   async function removeStudentFromGroup(studentId: string) {
     if (!managingGroup) return
-    await supabase.from('group_students')
-      .delete()
-      .eq('group_id', managingGroup.id)
-      .eq('student_id', studentId)
+    const res = await fetch('/api/group-students', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: managingGroup.id, student_id: studentId }),
+    })
+    if (!res.ok) return
     setGroupStudents(prev => prev.filter(s => s.id !== studentId))
     setGroups(prev => prev.map(g =>
       g.id === managingGroup.id
