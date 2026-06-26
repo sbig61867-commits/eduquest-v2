@@ -64,7 +64,9 @@ export async function POST(request: Request) {
       try {
         const content = await generateLessonContent(topic, level, customInstructions)
         return NextResponse.json({ content, provider: 'gemini-fallback' })
-      } catch {}
+      } catch (fallbackErr: unknown) {
+        console.error('[generate-lesson] Gemini fallback also failed:', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr)
+      }
     }
     return NextResponse.json({ error: 'AI generation failed', detail: msg }, { status: 500 })
   }

@@ -51,13 +51,25 @@ export async function POST(request: Request) {
   // Verify exam exists, is published, and has proctoring enabled
   const { data: exam } = await adminClient()
     .from('exams')
-    .select('id, proctoring_enabled')
+    .select('id, group_id, proctoring_enabled')
     .eq('id', examId)
     .eq('is_published', true)
     .single()
 
   if (!exam?.proctoring_enabled) {
     return NextResponse.json({ issues: [], description: '' })
+  }
+
+  // Verify the student is enrolled in the exam's group before writing any proctoring events
+  const { data: enrollment } = await supabase
+    .from('group_students')
+    .select('student_id')
+    .eq('group_id', exam.group_id)
+    .eq('student_id', user.id)
+    .single()
+
+  if (!enrollment) {
+    return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
   }
 
   try {

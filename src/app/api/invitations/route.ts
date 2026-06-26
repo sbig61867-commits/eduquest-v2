@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { sendInvitationEmail } from '@/lib/email'
+import { rateLimit } from '@/lib/rate-limit'
 
 function getAdminClient() {
   return createAdminClient(
@@ -75,6 +76,15 @@ export async function POST(request: Request) {
 
   if (!ROLE_CEILING[caller.role]) {
     return NextResponse.json({ error: 'You cannot create invitations' }, { status: 403 })
+  }
+
+  // 50 invitations per user per hour
+  const rl = await rateLimit(`invitations:${user.id}`, { limit: 50, windowSecs: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
   }
 
   let body: {

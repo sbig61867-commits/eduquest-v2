@@ -49,7 +49,10 @@ export async function PATCH(request: Request) {
   const { error } = await adminClient()
     .from('users').update({ is_active: isActive }).eq('id', userId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[toggle-user]', error)
+    return NextResponse.json({ error: 'Failed to update user status' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

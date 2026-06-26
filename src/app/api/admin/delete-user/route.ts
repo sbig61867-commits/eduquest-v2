@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function DELETE(request: Request) {
   const supabase = await createClient()
@@ -12,6 +13,15 @@ export async function DELETE(request: Request) {
 
   if (!callerProfile || !['university_admin', 'super_admin'].includes(callerProfile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // 20 deletions per admin per hour
+  const rl = await rateLimit(`delete-user:${caller.id}`, { limit: 20, windowSecs: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
   }
 
   const id = new URL(request.url).searchParams.get('id')
@@ -41,7 +51,10 @@ export async function DELETE(request: Request) {
   )
 
   const { error } = await admin.auth.admin.deleteUser(id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) {
+    console.error('[delete-user]', error)
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }
