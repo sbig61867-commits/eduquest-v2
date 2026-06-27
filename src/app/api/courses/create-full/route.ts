@@ -92,18 +92,28 @@ export async function POST(request: Request) {
     }
 
     if (Array.isArray(unit.lessons) && unit.lessons.length > 0) {
+      // unit_items.type is constrained to ('grammar','idioms','rules','task','quiz','video','text').
+      // A generated lesson is a markdown body, so it maps to 'text' (same as the manual
+      // "Text / Explanation" item). Using 'lesson' here silently violated the CHECK
+      // constraint, so no items were ever created — every unit showed "0 items".
       const itemRows = unit.lessons.map(l => ({
         unit_id: newUnit.id,
         course_id: newCourse.id,
         tenant_id: profile.tenant_id,
         title: l.title,
-        type: 'lesson',
+        type: 'text',
         content: { body: '' },
         order_index: l.order,
       }))
 
       const { error: itemErr } = await admin.from('unit_items').insert(itemRows)
-      if (itemErr) console.error('[create-full] unit_items insert:', itemErr)
+      if (itemErr) {
+        console.error('[create-full] unit_items insert:', itemErr)
+        return NextResponse.json(
+          { error: `Course created but adding lessons failed: ${itemErr.message}` },
+          { status: 500 }
+        )
+      }
     }
   }
 
