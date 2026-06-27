@@ -40,11 +40,11 @@ async function extractFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function extractFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod = await import('pdf-parse') as any
-  const pdfParse = mod.default ?? mod
-  const data = await pdfParse(Buffer.from(buffer))
-  return data.text
+  // pdf-parse v2: class-based API (no default export function)
+  const { PDFParse } = await import('pdf-parse')
+  const parser = new PDFParse({ data: Buffer.from(buffer) })
+  const result = await parser.getText()
+  return result.text
 }
 
 async function extractText(file: File): Promise<string> {

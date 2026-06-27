@@ -6,6 +6,7 @@ const navItems = [
   { label: 'Tenants',      href: '/super-admin/tenants',      icon: 'Building2' as const },
   { label: 'All Users',    href: '/super-admin/users',        icon: 'Users' as const },
   { label: 'Invitations',  href: '/super-admin/invitations',  icon: 'Mail' as const },
+  { label: 'Reports',      href: '/super-admin/reports',      icon: 'BarChart2' as const },
   { label: 'Feature Flags',href: '/super-admin/features',     icon: 'Flag' as const },
   { label: 'Audit Logs',   href: '/super-admin/audit',        icon: 'ShieldCheck' as const },
   { label: 'Settings',     href: '/super-admin/settings',     icon: 'Settings' as const },

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Building2, ToggleLeft, Trash2, UserPlus, Mail } from 'lucide-react'
+import { Plus, Building2, Archive, ArchiveRestore, Trash2, UserPlus, Mail } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Tenant } from '@/types'
 
@@ -48,15 +48,25 @@ export function TenantsClient({ initialTenants }: Props) {
   }
 
   async function toggleTenant(tenant: Tenant) {
-    const { data } = await supabase
-      .from('tenants').update({ is_active: !tenant.is_active }).eq('id', tenant.id).select().single()
-    if (data) setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
+    const archive = tenant.is_active // active -> archive (suspend); suspended -> restore
+    if (archive && !confirm(`أرشفة جامعة "${tenant.name}"؟ سيُمنع كل مستخدميها من الدخول. البيانات تبقى محفوظة ويمكن استرجاعها لاحقاً.`)) return
+    const res = await fetch('/api/admin/archive-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant_id: tenant.id, archive }),
+    })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error ?? 'Failed to update university'); return }
+    setTenants(prev => prev.map(t => t.id === tenant.id ? data.tenant : t))
   }
 
-  async function deleteTenant(id: string) {
-    if (!confirm('Delete this university? ALL data including users, lessons, and exams will be permanently removed.')) return
-    await supabase.from('tenants').delete().eq('id', id)
-    setTenants(prev => prev.filter(t => t.id !== id))
+  async function deleteTenant(tenant: Tenant) {
+    if (!confirm(`حذف نهائي لجامعة "${tenant.name}"؟\n\nسيُمحى كل شيء للأبد: المستخدمون وحساباتهم، المجموعات، الدروس، الاختبارات، والعلامات. لا يمكن التراجع.\n\nللإيقاف المؤقت استخدم "أرشفة" بدلاً من ذلك.`)) return
+    if (!confirm(`تأكيد أخير: اكتب نعم في ذهنك — هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`)) return
+    const res = await fetch(`/api/admin/delete-tenant?id=${tenant.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error ?? 'Failed to delete university'); return }
+    setTenants(prev => prev.filter(t => t.id !== tenant.id))
   }
 
   // ── Manual add admin ──────────────────────────────────────
@@ -119,7 +129,7 @@ export function TenantsClient({ initialTenants }: Props) {
                   <Building2 className="w-5 h-5 text-blue-400" />
                 </div>
                 <Badge variant={tenant.is_active ? 'green' : 'red'}>
-                  {tenant.is_active ? 'Active' : 'Suspended'}
+                  {tenant.is_active ? 'نشطة' : 'مؤرشفة'}
                 </Badge>
               </div>
               <h3 className="text-white font-semibold text-lg mb-1">{tenant.name}</h3>
@@ -136,13 +146,19 @@ export function TenantsClient({ initialTenants }: Props) {
                   <Mail className="w-4 h-4" /> Invite Admin (link)
                 </Button>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => toggleTenant(tenant)} className="flex-1">
-                    <ToggleLeft className="w-4 h-4" />
-                    {tenant.is_active ? 'Suspend' : 'Activate'}
+                  <Button
+                    variant="ghost" size="sm"
+                    onClick={() => toggleTenant(tenant)}
+                    className={`flex-1 ${tenant.is_active ? 'hover:text-amber-400 hover:bg-amber-500/10' : 'hover:text-emerald-400 hover:bg-emerald-500/10'}`}
+                  >
+                    {tenant.is_active
+                      ? <><Archive className="w-4 h-4" /> أرشفة</>
+                      : <><ArchiveRestore className="w-4 h-4" /> استرجاع</>}
                   </Button>
                   <Button
                     variant="ghost" size="sm"
-                    onClick={() => deleteTenant(tenant.id)}
+                    onClick={() => deleteTenant(tenant)}
+                    title="حذف نهائي"
                     className="hover:text-red-400 hover:bg-red-500/10"
                   >
                     <Trash2 className="w-4 h-4" />

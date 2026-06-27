@@ -11,6 +11,7 @@ function getAdminClient() {
 }
 
 export async function POST(request: Request) {
+ try {
   // Rate-limit by IP: 5 registration attempts per hour per IP to prevent bulk account creation
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 5, windowSecs: 3600 })
@@ -83,13 +84,20 @@ export async function POST(request: Request) {
   })
 
   if (authError) {
-    if (authError.message?.toLowerCase().includes('already') || authError.status === 422) {
+    const m = (authError.message ?? '').toLowerCase()
+    // Supabase signals a duplicate via several shapes depending on version:
+    // message contains "already"/"registered"/"exists", code 'email_exists', or HTTP 422.
+    const isDuplicate =
+      m.includes('already') || m.includes('registered') || m.includes('exists') ||
+      authError.code === 'email_exists' || authError.status === 422
+    if (isDuplicate) {
       return NextResponse.json(
         { error: 'An account with this email already exists. Try logging in instead.' },
         { status: 409 }
       )
     }
-    return NextResponse.json({ error: authError.message }, { status: 400 })
+    console.error('[accept-invitation] createUser error:', authError)
+    return NextResponse.json({ error: authError.message || 'Could not create account.' }, { status: 400 })
   }
 
   const userId = authData.user.id
@@ -153,4 +161,15 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
+ } catch (outer) {
+    // Any unhandled error in steps 1-3 (before the auth user is created) lands here.
+    // Without this, the route would return a 500 HTML page and the client would
+    // show its generic "Registration failed" fallback, hiding the real cause.
+    const detail = outer instanceof Error ? outer.message : String(outer)
+    console.error('[accept-invitation] unhandled error:', detail)
+    return NextResponse.json(
+      { error: 'Registration failed due to a server error. Please try again or contact support.' },
+      { status: 500 }
+    )
+ }
 }
