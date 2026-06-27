@@ -54,6 +54,7 @@ export function CoursesClient({ initialCourses }: Props) {
   const [pptxLoading, setPptxLoading] = useState(false)
   const [pptxError, setPptxError] = useState('')
   const [generatedCourse, setGeneratedCourse] = useState<GeneratedCourse | null>(null)
+  const [sourceText, setSourceText] = useState('') // extracted file text — bound to AI content generation
   const [expandedUnits, setExpandedUnits] = useState<Set<number>>(new Set([0]))
   const [creating, setCreating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -127,6 +128,7 @@ export function CoursesClient({ initialCourses }: Props) {
         setPptxError(data.error ?? 'Failed to process file')
       } else {
         setGeneratedCourse(data.course)
+        setSourceText(data.sourceText ?? '')
         setPptxStep('preview')
       }
     } catch {
@@ -172,7 +174,7 @@ export function CoursesClient({ initialCourses }: Props) {
       const res = await fetch('/api/courses/create-full', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ course: generatedCourse }),
+        body: JSON.stringify({ course: generatedCourse, source_text: sourceText }),
       })
       const data = await res.json()
       if (res.ok) {

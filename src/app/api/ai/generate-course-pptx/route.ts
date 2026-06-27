@@ -185,7 +185,9 @@ ${truncatedText}`
       throw new Error('AI returned incomplete course structure')
     }
 
-    return NextResponse.json({ course, charCount: slideText.length })
+    // Return the extracted text too so it can be stored on the course and used
+    // to generate each section's content strictly from this file (no outside knowledge).
+    return NextResponse.json({ course, charCount: slideText.length, sourceText: slideText.slice(0, 12000) })
   } catch (e) {
     console.error('[generate-course-file] AI error:', e)
     return NextResponse.json({ error: 'Failed to generate course structure from file.' }, { status: 500 })

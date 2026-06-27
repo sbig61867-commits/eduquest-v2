@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS courses (
   language        TEXT,                      -- e.g. 'English', 'Arabic'
   has_levels      BOOLEAN NOT NULL DEFAULT TRUE,  -- FALSE = flat (units only, no levels)
   is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+  source_text     TEXT,                          -- extracted text of the imported file; AI content is generated strictly from this
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

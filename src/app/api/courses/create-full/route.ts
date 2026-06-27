@@ -41,11 +41,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { course?: CourseInput }
+  let body: { course?: CourseInput; source_text?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const { course } = body
+  const { course, source_text } = body
   if (!course?.title?.trim()) return NextResponse.json({ error: 'Course title is required' }, { status: 400 })
   if (!Array.isArray(course.units) || course.units.length === 0) {
     return NextResponse.json({ error: 'At least one unit is required' }, { status: 400 })
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       has_levels: course.has_levels ?? false,
       teacher_id: user.id,
       tenant_id: profile.tenant_id,
+      source_text: source_text?.slice(0, 12000) || null,
     })
     .select('id')
     .single()

@@ -148,16 +148,23 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
 
   // ── Item CRUD ─────────────────────────────────────────────────────────────
 
+  // Generate this section's content STRICTLY from the course's uploaded file.
+  // Uses the item Title as the section to write — no outside/internet knowledge.
   async function generateItemContent() {
-    if (!itemForm.aiTopic) return
+    const title = itemForm.title.trim() || itemForm.aiTopic.trim()
+    if (!title) { alert('اكتب عنوان القسم أولاً ليُولّد محتواه من ملف الكورس.'); return }
     setAiLoading(true)
-    const res = await fetch('/api/ai/generate-lesson', {
+    const res = await fetch('/api/courses/generate-item-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: itemForm.aiTopic, level: 'undergraduate' }),
+      body: JSON.stringify({ course_id: course.id, title }),
     })
     const data = await res.json()
-    if (data.content) setItemForm(p => ({ ...p, body: data.content, title: p.title || itemForm.aiTopic }))
+    if (res.ok && data.content) {
+      setItemForm(p => ({ ...p, body: data.content, title: p.title || title }))
+    } else {
+      alert(data.error ?? 'فشل توليد المحتوى')
+    }
     setAiLoading(false)
   }
 
@@ -355,23 +362,18 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       {/* Add Content Item */}
       <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title="Add Content" size="xl">
         <form onSubmit={addItem} className="space-y-4">
-          {/* AI Generator */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 space-y-2">
+          {/* AI Generator — strictly from the course's uploaded file */}
+          <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 space-y-2">
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <span className="text-blue-400 text-sm font-medium">Generate with AI</span>
+              <Sparkles className="w-4 h-4 text-violet-400" />
+              <span className="text-violet-300 text-sm font-medium">توليد المحتوى من ملف الكورس</span>
             </div>
-            <div className="flex gap-2">
-              <input
-                value={itemForm.aiTopic}
-                onChange={e => setItemForm(p => ({ ...p, aiTopic: e.target.value }))}
-                placeholder="Topic to generate..."
-                className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <Button type="button" onClick={generateItemContent} loading={aiLoading} variant="secondary" size="sm">
-                Generate
-              </Button>
-            </div>
+            <p className="text-slate-400 text-xs">
+              اكتب عنوان القسم في خانة Title بالأسفل، ثم اضغط توليد — سيُكتب المحتوى من ملفك المرفوع فقط، بلا أي معلومات خارجية.
+            </p>
+            <Button type="button" onClick={generateItemContent} loading={aiLoading} variant="secondary" size="sm">
+              <Sparkles className="w-4 h-4" /> توليد من ملف الكورس
+            </Button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
