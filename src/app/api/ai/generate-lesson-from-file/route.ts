@@ -2,16 +2,29 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import JSZip from 'jszip'
-import { groqChat } from '@/lib/ai/groq'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+
+// gemini-2.0-flash caps a single response around 8192 output tokens (~24k
+// chars). Groq's llama-3.3-70b-versatile caps at 4096 — Gemini gives a
+// materially larger single-pass ceiling, which is why composition (not just
+// vision extraction) now runs through it.
+const GEMINI_MODEL = 'gemini-2.0-flash'
+const MAX_OUTPUT_TOKENS = 8192
+
+function getGeminiModel() {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) throw new Error('GEMINI_API_KEY not configured')
+  return new GoogleGenerativeAI(key).getGenerativeModel({
+    model: GEMINI_MODEL,
+    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+  })
+}
 
 // ── Vision extraction (images + scanned/image-only PDFs) ─────────
 // Gemini reads the file natively (including scanned pages) and transcribes
 // the visible text verbatim — used when there is no selectable text layer.
 async function extractWithGeminiVision(buffer: ArrayBuffer, mimeType: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY
-  if (!key) throw new Error('GEMINI_API_KEY not configured')
-  const model = new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-2.0-flash' })
+  const model = getGeminiModel()
 
   const prompt = `Transcribe ALL text visible in this document exactly as written, in the original language and order.
 Do not summarize, translate, explain, or add any commentary. Do not skip any page or section.
@@ -143,36 +156,79 @@ export async function POST(request: Request) {
   // summary, so cutting it at a fixed length would silently drop material.
   const fullText = rawText
 
+  try {
+    const content = await composeLesson(fullText, level, customInstructions)
+    return NextResponse.json({ content })
+  } catch (e) {
+    console.error('[generate-lesson-from-file] AI:', e)
+    return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
+  }
+}
+
+// ── Composition (verbatim, lightly formatted) ─────────────────────
+
+function buildPrompt(chunk: string, level: string, customInstructions: string, part?: { index: number; total: number }): string {
   const structureBlock = customInstructions.trim()
     ? `The teacher has provided specific instructions — follow them exactly:\n"""\n${customInstructions}\n"""`
     : `Apply only light, minimal formatting (headings for existing sections, paragraph breaks, bullet points where the source already lists items). Do not invent new sections such as "Learning Objectives" or "Review Questions" unless they already exist in the source.`
 
-  const prompt = `You are transcribing a teacher's source material into a lesson page.
+  const continuationNote = part && part.index > 0
+    ? `\nThis is part ${part.index + 1} of ${part.total} of one longer document, already in progress — continue directly with this part's content. Do not repeat a title or restart with an introduction.`
+    : ''
+
+  return `You are transcribing a teacher's source material into a lesson page.
 Reproduce the SAME content as the source — do not add information, examples, questions, or explanations that are not present in it, and do not omit or shorten any part of it.
 Keep the same language as the source material.
 
 Level: ${level}
-
-${structureBlock}
+${structureBlock}${continuationNote}
 
 Format in Markdown.
 
 Source content:
-${fullText}`
+${chunk}`
+}
 
-  try {
-    const content = await groqChat(prompt, 'Transcribe the source content faithfully in Markdown. Do not add or remove information.')
-    return NextResponse.json({ content })
-  } catch (e) {
-    console.error('[generate-lesson-from-file] AI:', e)
-    // Groq's context window can be exceeded by very long source documents.
-    const msg = e instanceof Error ? e.message.toLowerCase() : ''
-    if (msg.includes('context') || msg.includes('too long') || msg.includes('413')) {
-      return NextResponse.json(
-        { error: 'The file is too long for the AI to process in one pass. Try splitting it into smaller files.' },
-        { status: 413 }
-      )
+// Splits on paragraph boundaries (never mid-sentence) once a chunk would
+// approach Gemini's output ceiling, so long documents (~20+ pages) still
+// come back complete instead of being cut off silently.
+const CHUNK_CHAR_TARGET = 14000
+
+function splitIntoChunks(text: string): string[] {
+  if (text.length <= CHUNK_CHAR_TARGET) return [text]
+
+  const paragraphs = text.split(/\n\s*\n/)
+  const chunks: string[] = []
+  let current = ''
+  for (const p of paragraphs) {
+    if (current && (current.length + p.length) > CHUNK_CHAR_TARGET) {
+      chunks.push(current)
+      current = p
+    } else {
+      current = current ? `${current}\n\n${p}` : p
     }
-    return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
   }
+  if (current) chunks.push(current)
+  return chunks
+}
+
+async function composeLesson(fullText: string, level: string, customInstructions: string): Promise<string> {
+  const chunks = splitIntoChunks(fullText)
+  const model = getGeminiModel()
+
+  if (chunks.length === 1) {
+    const result = await model.generateContent(buildPrompt(chunks[0], level, customInstructions))
+    return result.response.text()
+  }
+
+  // Long document: process each chunk independently (in order) and stitch
+  // the results into one continuous lesson.
+  const parts: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const result = await model.generateContent(
+      buildPrompt(chunks[i], level, customInstructions, { index: i, total: chunks.length })
+    )
+    parts.push(result.response.text())
+  }
+  return parts.join('\n\n')
 }
