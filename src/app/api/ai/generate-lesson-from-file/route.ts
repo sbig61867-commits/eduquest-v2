@@ -3,6 +3,25 @@ import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import JSZip from 'jszip'
 import { groqChat } from '@/lib/ai/groq'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+// ── Vision extraction (images + scanned/image-only PDFs) ─────────
+// Gemini reads the file natively (including scanned pages) and transcribes
+// the visible text verbatim — used when there is no selectable text layer.
+async function extractWithGeminiVision(buffer: ArrayBuffer, mimeType: string): Promise<string> {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) throw new Error('GEMINI_API_KEY not configured')
+  const model = new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-2.0-flash' })
+
+  const prompt = `Transcribe ALL text visible in this document exactly as written, in the original language and order.
+Do not summarize, translate, explain, or add any commentary. Do not skip any page or section.
+If there are diagrams or images with labels, transcribe the labels/captions too.
+Output only the transcribed text.`
+
+  const data = Buffer.from(buffer).toString('base64')
+  const result = await model.generateContent([{ inlineData: { mimeType, data } }, prompt])
+  return result.response.text()
+}
 
 // ── Text extractors ──────────────────────────────────────────────
 
@@ -44,15 +63,27 @@ async function extractFromPdf(buffer: ArrayBuffer): Promise<string> {
   const { PDFParse } = await import('pdf-parse')
   const parser = new PDFParse({ data: Buffer.from(buffer) })
   const result = await parser.getText()
-  return result.text
+  const text = result.text ?? ''
+  // A scanned/image-only PDF has no selectable text layer — pdf-parse returns
+  // near-nothing (page markers/whitespace) in that case. Fall back to Gemini
+  // vision, which reads the rendered pages directly.
+  if (text.replace(/\s/g, '').length < 40) {
+    return extractWithGeminiVision(buffer, 'application/pdf')
+  }
+  return text
+}
+
+const IMAGE_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
 }
 
 async function extractText(file: File): Promise<string> {
   const buffer = await file.arrayBuffer()
-  const ext = file.name.toLowerCase().split('.').pop()
+  const ext = file.name.toLowerCase().split('.').pop() ?? ''
   if (ext === 'pptx') return extractFromPptx(buffer)
   if (ext === 'docx') return extractFromDocx(buffer)
   if (ext === 'pdf')  return extractFromPdf(buffer)
+  if (IMAGE_MIME[ext]) return extractWithGeminiVision(buffer, IMAGE_MIME[ext])
   throw new Error(`Unsupported file type: .${ext}`)
 }
 
@@ -87,9 +118,10 @@ export async function POST(request: Request) {
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  const ext = file.name.toLowerCase().split('.').pop()
-  if (!['pptx', 'docx', 'pdf'].includes(ext ?? '')) {
-    return NextResponse.json({ error: 'Only .pptx, .docx, and .pdf files are supported' }, { status: 400 })
+  const ext = file.name.toLowerCase().split('.').pop() ?? ''
+  const supportedExt = ['pptx', 'docx', 'pdf', 'jpg', 'jpeg', 'png', 'webp']
+  if (!supportedExt.includes(ext)) {
+    return NextResponse.json({ error: 'Only .pptx, .docx, .pdf, .jpg, .jpeg, .png, and .webp files are supported' }, { status: 400 })
   }
   if (file.size > 20 * 1024 * 1024) {
     return NextResponse.json({ error: 'File too large (max 20 MB)' }, { status: 400 })
@@ -104,23 +136,20 @@ export async function POST(request: Request) {
   }
 
   if (!rawText.trim()) {
-    return NextResponse.json({ error: 'No text found in file. It may be image-only.' }, { status: 422 })
+    return NextResponse.json({ error: 'No text found in file.' }, { status: 422 })
   }
 
-  const truncated = rawText.slice(0, 8000)
+  // No truncation — the teacher asked for the full source content, not a
+  // summary, so cutting it at a fixed length would silently drop material.
+  const fullText = rawText
 
   const structureBlock = customInstructions.trim()
     ? `The teacher has provided specific instructions — follow them exactly:\n"""\n${customInstructions}\n"""`
-    : `Structure the lesson with:
-1. Learning Objectives (3-5 bullet points)
-2. Introduction
-3. Main Content (broken into clear sections with headings)
-4. Key Concepts Summary
-5. 3 Review Questions`
+    : `Apply only light, minimal formatting (headings for existing sections, paragraph breaks, bullet points where the source already lists items). Do not invent new sections such as "Learning Objectives" or "Review Questions" unless they already exist in the source.`
 
-  const prompt = `You are an educational content writer.
-A teacher uploaded a file with academic content. Create a comprehensive lesson based ONLY on this content.
-Do NOT add information not present in the source. Keep the same language as the source material.
+  const prompt = `You are transcribing a teacher's source material into a lesson page.
+Reproduce the SAME content as the source — do not add information, examples, questions, or explanations that are not present in it, and do not omit or shorten any part of it.
+Keep the same language as the source material.
 
 Level: ${level}
 
@@ -129,13 +158,21 @@ ${structureBlock}
 Format in Markdown.
 
 Source content:
-${truncated}`
+${fullText}`
 
   try {
-    const content = await groqChat(prompt, 'Write educational lesson content in Markdown. Base it strictly on the provided source.')
+    const content = await groqChat(prompt, 'Transcribe the source content faithfully in Markdown. Do not add or remove information.')
     return NextResponse.json({ content })
   } catch (e) {
     console.error('[generate-lesson-from-file] AI:', e)
+    // Groq's context window can be exceeded by very long source documents.
+    const msg = e instanceof Error ? e.message.toLowerCase() : ''
+    if (msg.includes('context') || msg.includes('too long') || msg.includes('413')) {
+      return NextResponse.json(
+        { error: 'The file is too long for the AI to process in one pass. Try splitting it into smaller files.' },
+        { status: 413 }
+      )
+    }
     return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
   }
 }

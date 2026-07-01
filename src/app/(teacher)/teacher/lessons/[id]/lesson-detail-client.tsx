@@ -239,10 +239,10 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                     <span className="text-slate-500 text-xs">({(uploadedFile.size / 1024 / 1024).toFixed(1)} MB)</span>
                   </div>
                 ) : (
-                  <p className="text-slate-400 text-sm">اضغط لاختيار ملف — PDF / PPTX / DOCX (حتى 20 MB)</p>
+                  <p className="text-slate-400 text-sm">اضغط لاختيار ملف — PDF / PPTX / DOCX / JPG / PNG (حتى 20 MB)</p>
                 )}
               </div>
-              <input ref={fileRef} type="file" accept=".pdf,.pptx,.docx" className="hidden"
+              <input ref={fileRef} type="file" accept=".pdf,.pptx,.docx,.jpg,.jpeg,.png,.webp" className="hidden"
                 onChange={e => setUploadedFile(e.target.files?.[0] ?? null)} />
 
               <div className="flex gap-2">
