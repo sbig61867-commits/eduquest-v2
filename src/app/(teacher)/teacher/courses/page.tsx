@@ -1,18 +1,9 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { CoursesClient } from './courses-client'
 import { Lock, GraduationCap } from 'lucide-react'
-
-function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
 
 export default async function CoursesPage() {
   const supabase = await createClient()
@@ -44,7 +35,7 @@ export default async function CoursesPage() {
     )
   }
 
-  const { data: courses } = await adminClient()
+  const { data: courses } = await supabase
     .from('courses')
     .select('*, course_levels(count), course_enrollments(count)')
     .eq('teacher_id', user.id)

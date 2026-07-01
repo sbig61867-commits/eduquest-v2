@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, BookOpen, ClipboardList, Users, Sparkles, Upload,
-  FileText, Plus, Trash2, Eye, EyeOff, Download, Check, X
+  FileText, Plus, Trash2, Download, Check, X
 } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 
@@ -35,7 +35,7 @@ interface Props {
 const TABS = ['المحتوى', 'الواجب', 'التسليمات'] as const
 type Tab = typeof TABS[number]
 
-export function LessonDetailClient({ lesson, initialHomework, groups }: Props) {
+export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('المحتوى')
 

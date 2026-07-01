@@ -1,26 +1,17 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
-
-async function getStats(tenantId: string) {
-  const admin = adminClient()
+async function getStats(supabase: SupabaseClient, tenantId: string) {
   const [{ count: teachers }, { count: students }, { count: lessons }, { count: exams }] =
     await Promise.all([
-      admin.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
-      admin.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
-      admin.from('lessons').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-      admin.from('exams').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
+      supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      supabase.from('exams').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     ])
   return { teachers: teachers ?? 0, students: students ?? 0, lessons: lessons ?? 0, exams: exams ?? 0 }
 }
@@ -34,7 +25,7 @@ export default async function AdminDashboard() {
     .from('users').select('tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) redirect('/login?error=no_tenant')
 
-  const stats = await getStats(profile.tenant_id)
+  const stats = await getStats(supabase, profile.tenant_id)
 
   const cards = [
     { label: 'Teachers', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },

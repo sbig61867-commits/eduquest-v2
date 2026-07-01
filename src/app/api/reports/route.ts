@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   }
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const access = canAccessReport(profile, scope)
+  const access = canAccessReport(profile)
   if (!access.ok) return NextResponse.json({ error: access.reason ?? 'Forbidden' }, { status: 403 })
 
   const admin = reportsAdminClient()

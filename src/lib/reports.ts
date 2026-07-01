@@ -24,7 +24,7 @@ export interface CallerProfile { role: string; tenant_id: string | null }
 // Today only super_admin may pull reports. The structure below is where
 // per-role scoping goes later (university_admin → own tenant, teacher →
 // own groups). Returning a reason keeps the API messages clear.
-export function canAccessReport(profile: CallerProfile, _scope: ReportScope): { ok: boolean; reason?: string } {
+export function canAccessReport(profile: CallerProfile): { ok: boolean; reason?: string } {
   if (profile.role === 'super_admin') return { ok: true }
   // Placeholder for future expansion — intentionally denied for now.
   // e.g. university_admin: verify the target belongs to profile.tenant_id

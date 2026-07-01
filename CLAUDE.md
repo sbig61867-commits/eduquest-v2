@@ -56,6 +56,10 @@ Exam timing and grading never trust the client:
 
 The schema and all changes live as SQL files in `supabase/`, applied **manually in the Supabase SQL Editor** (no migration CLI). `schema.sql` is the base; the other files are ordered, idempotent migrations (e.g. `invitations_migration.sql`, `rls_performance_migration.sql`, `courses_migration.sql`, `phase1_migration.sql`, `platform_hardening_migration.sql`). When you change DB behavior: update `schema.sql` to reflect the new state **and** add a standalone re-runnable migration file. Triggers `handle_new_user` (placeholder profile on signup) and `sync_user_claims` (JWT claim sync) are central — both use exception handlers so they don't block auth.
 
+**Run `supabase/fix_all_search_path_migration.sql` on the live DB** (in addition to the already-applied `fix_helper_search_path.sql`) — it pins `search_path` on `check_rate_limit`, `start_exam_attempt`, `append_proctoring_events`, `finalize_exam_submission`, `cleanup_expired_invitations`, and `get_invitation_by_token`, which were found missing it (same class of bug: unqualified table refs under PostgREST's restricted search_path → silent 403/failure).
+
+Once that migration is applied, RLS-scoped reads work correctly again, so route/page code should read through the **user session client** (`src/lib/supabase/server.ts`), not the service-role admin client — the admin client bypassed RLS as a workaround and is no longer needed for plain reads. Keep manual `.eq('tenant_id', ...)` / `.eq('teacher_id', ...)` filters as defense-in-depth even though RLS now enforces them. The service-role client remains correct for: privileged writes that need cross-tenant verification first (`api/admin/*`, `accept-invitation`), tables with **no** SELECT policy at all (e.g. `group_students` — RLS enabled, zero policies, so admin is the only way to read it), and the rate-limit table.
+
 ## Conventions
 
 - Supabase joined-query results often need typed casts; the codebase uses `as unknown as RowType[]` with explicit interfaces rather than `as any`.

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const profile = await getProfile(user.id)
   if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data, error } = await adminClient()
+  const { data, error } = await supabase
     .from('exams')
     .select('*, exam_submissions(count)')
     .eq('lesson_id', lessonId)
