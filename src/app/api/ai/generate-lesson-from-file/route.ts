@@ -72,18 +72,24 @@ async function extractFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function extractFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // pdf-parse v2: class-based API (no default export function)
-  const { PDFParse } = await import('pdf-parse')
-  const parser = new PDFParse({ data: Buffer.from(buffer) })
-  const result = await parser.getText()
-  const text = result.text ?? ''
-  // A scanned/image-only PDF has no selectable text layer — pdf-parse returns
-  // near-nothing (page markers/whitespace) in that case. Fall back to Gemini
-  // vision, which reads the rendered pages directly.
-  if (text.replace(/\s/g, '').length < 40) {
+  // pdf-parse v2's underlying pdfjs-dist can throw "DOMMatrix is not defined"
+  // in the serverless runtime for certain PDFs (it optionally tries to use
+  // @napi-rs/canvas for rendering, which isn't installed here) — not just for
+  // scanned files. Treat any pdf-parse failure the same as "no text layer"
+  // and fall back to Gemini vision, which reads the rendered pages directly.
+  try {
+    const { PDFParse } = await import('pdf-parse')
+    const parser = new PDFParse({ data: Buffer.from(buffer) })
+    const result = await parser.getText()
+    const text = result.text ?? ''
+    if (text.replace(/\s/g, '').length < 40) {
+      return extractWithGeminiVision(buffer, 'application/pdf')
+    }
+    return text
+  } catch (e) {
+    console.error('[extractFromPdf] pdf-parse failed, falling back to Gemini vision:', e)
     return extractWithGeminiVision(buffer, 'application/pdf')
   }
-  return text
 }
 
 const IMAGE_MIME: Record<string, string> = {
