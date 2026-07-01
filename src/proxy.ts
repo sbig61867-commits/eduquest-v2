@@ -5,8 +5,11 @@ import type { Role } from '@/types'
 // Exact matches — only these exact paths are public
 const PUBLIC_EXACT = new Set(['/login'])
 
-// Prefix matches — these paths AND all their sub-paths are public
-const PUBLIC_PREFIXES = ['/auth/callback', '/join/']
+// Prefix matches — these paths AND all their sub-paths are public.
+// /api/auth/accept-invitation MUST be public: the joining user has no session
+// yet (they're creating their account), so gating it would 307-redirect the
+// POST to /login and the client would see a non-JSON body as "Registration failed".
+const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitation']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
@@ -49,8 +52,9 @@ export async function proxy(request: NextRequest) {
   // ── Public routes ──
   if (isPublicRoute(pathname)) {
     // /join/ must always be accessible — don't redirect even if logged in
-    // (user may be super admin opening their own invitation link to test it)
-    if (user && !pathname.startsWith('/join/')) {
+    // (user may be super admin opening their own invitation link to test it).
+    // /api/ public routes must never be turned into a dashboard redirect either.
+    if (user && !pathname.startsWith('/join/') && !pathname.startsWith('/api/')) {
       let { role, isActive } = claimsFromUser(user)
       if (!role || isActive === undefined) {
         const { data: profile } = await supabase
