@@ -3,7 +3,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/login'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
@@ -52,10 +52,11 @@ export async function proxy(request: NextRequest) {
 
   // ── Public routes ──
   if (isPublicRoute(pathname)) {
-    // /join/ must always be accessible — don't redirect even if logged in
-    // (user may be super admin opening their own invitation link to test it).
-    // /api/ public routes must never be turned into a dashboard redirect either.
-    if (user && !pathname.startsWith('/join/') && !pathname.startsWith('/api/')) {
+    // Logged-in users are bounced to their dashboard only from '/' and '/login'.
+    // /join/ must stay accessible (super admin testing an invitation link),
+    // /privacy and /terms must stay readable while logged in, and /api/ public
+    // routes must never be turned into a dashboard redirect.
+    if (user && (pathname === '/' || pathname === '/login')) {
       let { role, isActive } = claimsFromUser(user)
       if (!role || isActive === undefined) {
         const { data: profile } = await supabase
