@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -21,7 +21,7 @@ function calcMax(questions: Question[] | undefined): number {
 
 export default async function GradesPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   const { data: raw } = await supabase

@@ -1,13 +1,13 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { CourseBuildClient } from './course-build-client'
 
 export default async function CourseBuildPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   const { data: course } = await supabase

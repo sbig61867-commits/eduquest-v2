@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GroupsClient } from './groups-client'
 
 export default async function GroupsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   // Read the teacher's profile (users SELECT policy has id=auth.uid() escape — always works)

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -19,22 +19,23 @@ async function getStats(supabase: SupabaseClient, tenantId: string) {
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users').select('tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) redirect('/login?error=no_tenant')
-
-  const stats = await getStats(supabase, profile.tenant_id)
+  // tenant_id comes from the JWT claims (synced by sync_user_claims) — no DB lookup needed
+  const tenantId = user.tenant_id
+  if (!tenantId) redirect('/login?error=no_tenant')
 
   // Recent lessons stand in as the activity feed until a dedicated audit table exists
-  const { data: recentLessons } = await supabase
-    .from('lessons')
-    .select('id, title, created_at, is_published, users:teacher_id(full_name)')
-    .eq('tenant_id', profile.tenant_id)
-    .order('created_at', { ascending: false })
-    .limit(5)
+  const [stats, { data: recentLessons }] = await Promise.all([
+    getStats(supabase, tenantId),
+    supabase
+      .from('lessons')
+      .select('id, title, created_at, is_published, users:teacher_id(full_name)')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ])
   const activity = (recentLessons ?? []) as unknown as Array<{ id: string; title: string; created_at: string; is_published: boolean; users: { full_name: string } | null }>
 
   const cards = [

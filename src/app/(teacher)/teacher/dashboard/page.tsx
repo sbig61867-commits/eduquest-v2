@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Users, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 
 export default async function TeacherDashboard() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   const [{ count: groups }, { count: lessons }, { count: exams }] = await Promise.all([

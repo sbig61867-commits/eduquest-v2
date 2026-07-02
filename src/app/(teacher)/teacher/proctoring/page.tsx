@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -42,7 +42,7 @@ interface SubmissionRow {
 
 export default async function ProctoringReportsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   const { data: raw } = await supabase

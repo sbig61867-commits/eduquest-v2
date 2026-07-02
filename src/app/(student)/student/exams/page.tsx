@@ -1,20 +1,25 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StudentExamsClient } from './exams-client'
 import { getExamPolicies } from '@/lib/settings'
 
 export default async function StudentExamsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   // Fetch enrolled exams via the SECURITY DEFINER RPC. It returns only the
   // exams the student is enrolled in (group or course) and strips
   // correct_answer server-side, so answers never reach the client. Students
   // have no direct SELECT on the exams table (see exam_answer_leak_fix_migration.sql).
-  const { data: rpcExams } = await supabase.rpc('get_student_exams')
+  const [{ data: rpcExams }, { data: submissions }, { data: retakePermissions }, policies] = await Promise.all([
+    supabase.rpc('get_student_exams'),
+    supabase.from('exam_submissions').select('exam_id, score, grading_status').eq('student_id', user.id),
+    supabase.from('exam_retake_permissions').select('exam_id').eq('student_id', user.id),
+    getExamPolicies(supabase),
+  ])
 
   type RpcExamRow = { id: string; title: string; created_at: string; questions: unknown[]; group_name: string | null; course_title: string | null; [key: string]: unknown }
   // Reshape flat RPC rows into the nested shape the client component expects.
@@ -24,19 +29,6 @@ export default async function StudentExamsPage() {
     groups:  row.group_name   ? { name: row.group_name }    : null,
     courses: row.course_title ? { title: row.course_title } : null,
   }))
-
-  // Get submissions + retake permissions
-  const { data: submissions } = await supabase
-    .from('exam_submissions')
-    .select('exam_id, score, grading_status')
-    .eq('student_id', user.id)
-
-  const { data: retakePermissions } = await supabase
-    .from('exam_retake_permissions')
-    .select('exam_id')
-    .eq('student_id', user.id)
-
-  const policies = await getExamPolicies(supabase)
 
   const submittedIds    = new Set(submissions?.map(s => s.exam_id) ?? [])
   const retakeAllowedIds = new Set(retakePermissions?.map(r => r.exam_id) ?? [])

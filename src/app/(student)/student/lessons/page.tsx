@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -8,7 +8,7 @@ import { Markdown } from '@/components/shared/markdown'
 
 export default async function StudentLessonsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   // Get only the groups this student is enrolled in

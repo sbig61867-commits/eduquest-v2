@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, BarChart2, Bell } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -10,7 +10,7 @@ interface GradeRow { id: string; score: number; max_score: number; exams: { titl
 
 export default async function StudentDashboard() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
 
   // Same scoping as /student/lessons: published lessons in the student's groups only
   const { data: groupRows } = await supabase

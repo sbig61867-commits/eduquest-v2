@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { BookOpen, Users, ClipboardList, GraduationCap } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { redirect } from 'next/navigation'
@@ -20,7 +20,7 @@ interface GroupRow {
 
 export default async function AdminCoursesPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   const { data: adminUser } = await supabase
