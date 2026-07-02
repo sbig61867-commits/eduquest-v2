@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StudentExamsClient } from './exams-client'
+import { getExamPolicies } from '@/lib/settings'
 
 export default async function StudentExamsPage() {
   const supabase = await createClient()
@@ -35,6 +36,8 @@ export default async function StudentExamsPage() {
     .select('exam_id')
     .eq('student_id', user.id)
 
+  const policies = await getExamPolicies(supabase)
+
   const submittedIds    = new Set(submissions?.map(s => s.exam_id) ?? [])
   const retakeAllowedIds = new Set(retakePermissions?.map(r => r.exam_id) ?? [])
 
@@ -52,6 +55,7 @@ export default async function StudentExamsPage() {
       completedExams={completedExams}
       submissions={submissions ?? []}
       userId={user.id}
+      violationWarningThreshold={policies.violation_warning_threshold}
     />
   )
 }

@@ -31,9 +31,10 @@ const ROLE_DASHBOARDS: Record<Role, string> = {
 }
 
 // Identity (role + is_active) is carried in the JWT's app_metadata, synced from
-// public.users by the `on_user_claims_change` trigger. getUser() validates the
-// token AND returns the live app_metadata, so the proxy gets both with NO extra
-// DB round-trip on every request — the main per-navigation latency win.
+// public.users by the `on_user_claims_change` trigger. getClaims() validates the
+// token locally (cached JWKS — no network round-trip) and returns app_metadata,
+// so the proxy gets both with NO extra network call on every request — the main
+// per-navigation latency win.
 // A one-time DB fallback covers legacy users whose claims were never backfilled.
 type Claims = { role: Role | undefined; isActive: boolean | undefined }
 
@@ -46,7 +47,7 @@ function claimsFromUser(user: { app_metadata?: Record<string, unknown> }): Claim
 }
 
 export async function proxy(request: NextRequest) {
-  const { supabaseResponse, user, supabase } = await updateSession(request)
+  const { supabaseResponse, claims: user, supabase } = await updateSession(request)
   const pathname = request.nextUrl.pathname
 
   // ── Public routes ──
@@ -58,7 +59,7 @@ export async function proxy(request: NextRequest) {
       let { role, isActive } = claimsFromUser(user)
       if (!role || isActive === undefined) {
         const { data: profile } = await supabase
-          .from('users').select('role, is_active').eq('id', user.id).single()
+          .from('users').select('role, is_active').eq('id', user.sub).single()
         role     = (profile?.role as Role | undefined) ?? role
         isActive = profile?.is_active ?? isActive
       }
@@ -82,7 +83,7 @@ export async function proxy(request: NextRequest) {
 
   if (role === undefined || isActive === undefined) {
     const { data: profile } = await supabase
-      .from('users').select('role, is_active, tenant_id').eq('id', user.id).single()
+      .from('users').select('role, is_active, tenant_id').eq('id', user.sub).single()
     role     = (profile?.role as Role | undefined) ?? role
     isActive = profile?.is_active ?? isActive
     tenantId = profile?.tenant_id ?? tenantId

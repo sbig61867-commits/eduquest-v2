@@ -138,6 +138,9 @@ BEGIN
 END $$;
 
 -- ── get_invitation_by_token ───────────────────────────────────
+-- Restored to the phase1_migration.sql shape (is_public/max_uses/use_count) —
+-- the join page's isPublic branch depends on these fields. A prior fix here
+-- accidentally regressed it to the older fix_rpc_error_codes.sql shape.
 CREATE OR REPLACE FUNCTION public.get_invitation_by_token(p_token TEXT)
 RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public, pg_temp
@@ -145,34 +148,34 @@ AS $$
 DECLARE
   inv RECORD;
 BEGIN
-  -- First check if token exists at all (regardless of status/expiry)
-  SELECT i.email, i.role, i.expires_at, i.status, t.name AS tenant_name
+  SELECT
+    i.email,
+    i.role,
+    i.expires_at,
+    i.group_id,
+    i.is_public,
+    i.max_uses,
+    i.use_count,
+    t.name AS tenant_name
   INTO inv
   FROM public.invitations i
   JOIN public.tenants t ON t.id = i.tenant_id
-  WHERE i.token = p_token;
+  WHERE i.token     = p_token
+    AND i.status    = 'pending'
+    AND i.expires_at > NOW()
+    AND (i.max_uses IS NULL OR i.use_count < i.max_uses);
 
   IF NOT FOUND THEN
-    RETURN json_build_object('error', 'NOT_FOUND');
+    RETURN NULL;
   END IF;
 
-  IF inv.status = 'accepted' THEN
-    RETURN json_build_object('error', 'USED');
-  END IF;
-
-  IF inv.status = 'revoked' THEN
-    RETURN json_build_object('error', 'REVOKED');
-  END IF;
-
-  IF inv.expires_at <= NOW() THEN
-    RETURN json_build_object('error', 'EXPIRED');
-  END IF;
-
-  -- Valid pending invitation
   RETURN json_build_object(
     'email',       inv.email,
     'role',        inv.role,
     'tenant_name', inv.tenant_name,
-    'expires_at',  inv.expires_at
+    'expires_at',  inv.expires_at,
+    'is_public',   inv.is_public,
+    'max_uses',    inv.max_uses,
+    'use_count',   inv.use_count
   );
 END $$;

@@ -11,12 +11,12 @@ import type { Question } from '@/types'
 
 interface Exam { id: string; title: string; duration_minutes: number; questions: Question[]; is_published: boolean; proctoring_enabled: boolean; created_at: string; groups: { name: string } | null }
 interface Group { id: string; name: string }
-interface Props { initialExams: Exam[]; groups: Group[] }
+interface Props { initialExams: Exam[]; groups: Group[]; proctoringDefault?: boolean }
 
-export function ExamsClient({ initialExams, groups }: Props) {
+export function ExamsClient({ initialExams, groups, proctoringDefault = false }: Props) {
   const [exams, setExams] = useState(initialExams)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: false })
+  const [form, setForm] = useState({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault })
   const [questions, setQuestions] = useState<Question[]>([])
   const [aiTopic, setAiTopic] = useState('')
   const [aiCount, setAiCount] = useState(10)
@@ -82,7 +82,7 @@ export function ExamsClient({ initialExams, groups }: Props) {
           <h2 className="text-2xl font-bold text-white">Exams</h2>
           <p className="text-slate-400 mt-1">{exams.length} exams created</p>
         </div>
-        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: false }); setQuestions([]); setShowModal(true) }}>
+        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setShowModal(true) }}>
           <Plus className="w-4 h-4" /> New Exam
         </Button>
       </div>

@@ -275,3 +275,27 @@ END $$;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+
+-- ============================================================
+-- PLATFORM SETTINGS (see platform_settings_migration.sql)
+-- Key/value store; read by any authenticated user, written by super_admin.
+-- Seeded keys: invitation_defaults {university_admin,teacher,student,max_expiry_hours}
+--              ai_rate_limits {lesson_per_hour,exam_per_hour}
+--              exam_policies {proctoring_default_enabled,violation_warning_threshold}
+-- ============================================================
+CREATE TABLE platform_settings (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE platform_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "settings_read_authenticated" ON platform_settings
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "settings_write_super_admin" ON platform_settings
+  FOR ALL TO authenticated
+  USING (public.current_user_role() = 'super_admin')
+  WITH CHECK (public.current_user_role() = 'super_admin');

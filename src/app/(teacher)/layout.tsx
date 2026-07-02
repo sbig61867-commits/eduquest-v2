@@ -1,5 +1,6 @@
-import { Sidebar } from '@/components/shared/sidebar'
+﻿import { Sidebar } from '@/components/shared/sidebar'
 import { Header } from '@/components/shared/header'
+import { ContentShell } from '@/components/shared/content-shell'
 
 const navItems = [
   { label: 'Dashboard',   href: '/teacher/dashboard',   icon: 'LayoutDashboard' as const },
@@ -16,10 +17,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen bg-slate-950">
       <Sidebar items={navItems} title="Teacher" />
-      <div className="pl-64 transition-all duration-300">
+      <ContentShell>
         <Header title="Teacher Panel" />
-        <main className="pt-16 p-6">{children}</main>
-      </div>
+        <main className="pt-16 p-4 lg:p-6">{children}</main>
+      </ContentShell>
     </div>
   )
 }

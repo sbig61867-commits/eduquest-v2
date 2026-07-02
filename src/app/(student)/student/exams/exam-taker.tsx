@@ -12,12 +12,13 @@ interface Props {
   exam: Exam
   userId: string
   tenantId: string
+  violationWarningThreshold?: number
   onFinish: () => void
 }
 
 // userId / tenantId remain in Props for the caller's contract, but identity is
 // now derived server-side (from the session) in /api/exam/start and /submit.
-export function ExamTaker({ exam, onFinish }: Props) {
+export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Props) {
   const [started, setStarted] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [current, setCurrent] = useState(0)
@@ -309,6 +310,14 @@ export function ExamTaker({ exam, onFinish }: Props) {
       {violationAlert && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm font-medium animate-pulse">
           {violationAlert}
+        </div>
+      )}
+
+      {/* Persistent warning once the violation threshold is reached */}
+      {exam.proctoring_enabled && violations.length >= violationWarningThreshold && (
+        <div className="bg-red-600/20 border border-red-500 rounded-lg px-4 py-3 flex items-center gap-2 text-red-300 text-sm font-semibold">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          {violations.length} proctoring violations recorded. Your teacher will review all of them — further violations may invalidate this exam.
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { generateLessonContent } from '@/lib/ai/gemini'
 import { generateLessonContentGroq } from '@/lib/ai/groq'
 import { rateLimit } from '@/lib/rate-limit'
+import { getAiRateLimits } from '@/lib/settings'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -14,8 +15,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // 10 AI lesson requests per user per hour
-  const rl = await rateLimit(`lesson:${user.id}`, { limit: 10, windowSecs: 3600 })
+  const aiLimits = await getAiRateLimits(supabase)
+  const rl = await rateLimit(`lesson:${user.id}`, { limit: aiLimits.lesson_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { sendInvitationEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
+import { getInvitationDefaults } from '@/lib/settings'
 
 function getAdminClient() {
   return createAdminClient(
@@ -19,12 +20,9 @@ const ROLE_CEILING: Record<string, string[]> = {
   teacher:          ['student'],
 }
 
-// Default expiry durations in hours
-const DEFAULT_EXPIRY_HOURS: Record<string, number> = {
-  university_admin: 72,  // 3 days
-  teacher:          48,  // 2 days
-  student:          168, // 7 days
-}
+// Default expiry durations come from platform_settings ('invitation_defaults'),
+// editable by the super admin in /super-admin/settings, with hard-coded
+// fallbacks in src/lib/settings.ts.
 
 // ── GET /api/invitations ─────────────────────────────────────
 // Returns all invitations visible to the current user.
@@ -199,7 +197,9 @@ export async function POST(request: Request) {
   }
 
   // ── Compute expiry ───────────────────────────────────────
-  const hours = Math.min(Math.max(expires_hours ?? DEFAULT_EXPIRY_HOURS[role], 1), 720)
+  const defaults = await getInvitationDefaults(supabase)
+  const roleDefault = defaults[role as 'university_admin' | 'teacher' | 'student'] ?? 48
+  const hours = Math.min(Math.max(expires_hours ?? roleDefault, 1), defaults.max_expiry_hours)
   const expires_at = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
 
   // ── Insert ───────────────────────────────────────────────

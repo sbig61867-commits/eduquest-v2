@@ -1,15 +1,19 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import { Building2, Users, Flag, ShieldCheck } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
+
+interface TenantRow { id: string; name: string; created_at: string }
 
 async function getStats() {
   const supabase = await createClient()
-  const [{ count: tenants }, { count: users }] = await Promise.all([
-    supabase.from('tenants').select('*', { count: 'exact', head: true }),
+  const [{ data: recentTenants, count: tenants }, { count: users }] = await Promise.all([
+    supabase.from('tenants').select('id, name, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(5),
     supabase.from('users').select('*', { count: 'exact', head: true }),
   ])
-  return { tenants: tenants ?? 0, users: users ?? 0 }
+  return { tenants: tenants ?? 0, users: users ?? 0, recentTenants: (recentTenants ?? []) as TenantRow[] }
 }
 
 export default async function SuperAdminDashboard() {
@@ -49,7 +53,25 @@ export default async function SuperAdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-white font-semibold mb-4">Recent Tenants</h3>
-          <p className="text-slate-500 text-sm">No tenants yet. Create the first university.</p>
+          {stats.recentTenants.length === 0 ? (
+            <p className="text-slate-500 text-sm">No tenants yet. Create the first university.</p>
+          ) : (
+            <ul className="space-y-3">
+              {stats.recentTenants.map(t => (
+                <li key={t.id}>
+                  <Link href="/super-admin/tenants" className="flex items-center gap-3 group">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white text-sm font-medium truncate group-hover:text-blue-400 transition-colors">{t.name}</p>
+                      <p className="text-slate-500 text-xs">{formatDate(t.created_at)}</p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-white font-semibold mb-4">System Status</h3>

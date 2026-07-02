@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { getAiRateLimits } from '@/lib/settings'
 import { groqChat } from '@/lib/ai/groq'
 
 interface Question {
@@ -43,8 +44,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // 20 exam generations per user per hour
-  const rl = await rateLimit(`exam:${user.id}`, { limit: 20, windowSecs: 3600 })
+  const aiLimits = await getAiRateLimits(supabase)
+  const rl = await rateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },

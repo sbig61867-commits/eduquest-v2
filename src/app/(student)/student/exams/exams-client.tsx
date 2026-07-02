@@ -23,13 +23,14 @@ interface Props {
   completedExams:  ExamWithContext[]
   submissions: Submission[]
   userId: string
+  violationWarningThreshold?: number
 }
 
-export function StudentExamsClient({ availableExams, completedExams, submissions, userId }: Props) {
+export function StudentExamsClient({ availableExams, completedExams, submissions, userId, violationWarningThreshold = 5 }: Props) {
   const [activeExam, setActiveExam] = useState<Exam | null>(null)
 
   if (activeExam) {
-    return <ExamTaker exam={activeExam} userId={userId} tenantId="" onFinish={() => setActiveExam(null)} />
+    return <ExamTaker exam={activeExam} userId={userId} tenantId="" violationWarningThreshold={violationWarningThreshold} onFinish={() => setActiveExam(null)} />
   }
 
   const submissionMap = Object.fromEntries(submissions.map(s => [s.exam_id, s]))

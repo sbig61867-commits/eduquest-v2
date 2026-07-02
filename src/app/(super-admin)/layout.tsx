@@ -1,5 +1,6 @@
-import { Sidebar } from '@/components/shared/sidebar'
+﻿import { Sidebar } from '@/components/shared/sidebar'
 import { Header } from '@/components/shared/header'
+import { ContentShell } from '@/components/shared/content-shell'
 
 const navItems = [
   { label: 'Dashboard',    href: '/super-admin/dashboard',    icon: 'LayoutDashboard' as const },
@@ -16,10 +17,10 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-screen bg-slate-950">
       <Sidebar items={navItems} title="Super Admin" />
-      <div className="pl-64 transition-all duration-300">
+      <ContentShell>
         <Header title="Super Admin Panel" />
-        <main className="pt-16 p-6">{children}</main>
-      </div>
+        <main className="pt-16 p-4 lg:p-6">{children}</main>
+      </ContentShell>
     </div>
   )
 }

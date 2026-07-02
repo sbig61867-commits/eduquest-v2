@@ -24,44 +24,62 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   const [aiInstructions, setAiInstructions] = useState('')
   const [showAiInstructions, setShowAiInstructions] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
-  function openAdd() { setForm({ title: '', content: '', group_id: groups[0]?.id ?? '' }); setEditing(null); setShowModal(true) }
-  function openEdit(l: Lesson) { setForm({ title: l.title, content: l.content ?? '', group_id: '' }); setEditing(l); setShowModal(true) }
+  function openAdd() { setForm({ title: '', content: '', group_id: groups[0]?.id ?? '' }); setEditing(null); setAiError(''); setFormError(''); setShowModal(true) }
+  function openEdit(l: Lesson) { setForm({ title: l.title, content: l.content ?? '', group_id: '' }); setEditing(l); setAiError(''); setFormError(''); setShowModal(true) }
 
   async function generateWithAI() {
     if (!aiTopic) return
     setAiLoading(true)
-    const res = await fetch('/api/ai/generate-lesson', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: aiTopic, level: aiLevel, customInstructions: aiInstructions }),
-    })
-    const data = await res.json()
-    if (data.content) setForm(p => ({ ...p, content: data.content, title: p.title || aiTopic }))
+    setAiError('')
+    try {
+      const res = await fetch('/api/ai/generate-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: aiTopic, level: aiLevel, customInstructions: aiInstructions }),
+      })
+      const data = await res.json()
+      if (res.ok && data.content) {
+        setForm(p => ({ ...p, content: data.content, title: p.title || aiTopic }))
+      } else {
+        setAiError(data.error ?? 'AI generation failed. Please try again.')
+      }
+    } catch {
+      setAiError('Network error. Please check your connection and try again.')
+    }
     setAiLoading(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    if (editing) {
-      const res = await fetch('/api/lessons', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editing.id, title: form.title, content: form.content }),
-      })
-      const data = await res.json()
-      if (res.ok) setLessons(prev => prev.map(l => l.id === editing.id ? data : l))
-    } else {
-      const res = await fetch('/api/lessons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: form.title, content: form.content, group_id: form.group_id }),
-      })
-      const data = await res.json()
-      if (res.ok) setLessons(prev => [data, ...prev])
+    setFormError('')
+    try {
+      if (editing) {
+        const res = await fetch('/api/lessons', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editing.id, title: form.title, content: form.content }),
+        })
+        const data = await res.json()
+        if (!res.ok) { setFormError(data.error ?? 'Failed to save lesson'); setLoading(false); return }
+        setLessons(prev => prev.map(l => l.id === editing.id ? data : l))
+      } else {
+        const res = await fetch('/api/lessons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: form.title, content: form.content, group_id: form.group_id }),
+        })
+        const data = await res.json()
+        if (!res.ok) { setFormError(data.error ?? 'Failed to create lesson'); setLoading(false); return }
+        setLessons(prev => [data, ...prev])
+      }
+      setShowModal(false)
+    } catch {
+      setFormError('Network error. Please try again.')
     }
-    setShowModal(false)
     setLoading(false)
   }
 
@@ -161,6 +179,8 @@ export function LessonsClient({ initialLessons, groups }: Props) {
               <Button onClick={generateWithAI} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
             </div>
 
+            {aiError && <p className="text-red-400 text-sm">{aiError}</p>}
+
             {showAiInstructions && (
               <div className="space-y-1.5">
                 <p className="text-xs text-slate-400">
@@ -184,18 +204,27 @@ export function LessonsClient({ initialLessons, groups }: Props) {
             {!editing && (
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-300">Group</label>
-                <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} required className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
+                {groups.length === 0 ? (
+                  <div className="px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+                    You don&apos;t have any groups yet. Create a group first from{' '}
+                    <button type="button" onClick={() => router.push('/teacher/groups')} className="underline underline-offset-2 font-medium">My Groups</button>
+                    {' '}— lessons must belong to a group so students can see them.
+                  </div>
+                ) : (
+                  <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} required className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                )}
               </div>
             )}
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-300">Content (Markdown supported)</label>
               <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={10} required className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono" placeholder="Write lesson content or generate with AI above..." />
             </div>
+            {formError && <p className="text-red-400 text-sm">{formError}</p>}
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
-              <Button type="submit" loading={loading} className="flex-1">{editing ? 'Save Changes' : 'Create Lesson'}</Button>
+              <Button type="submit" loading={loading} disabled={!editing && groups.length === 0} className="flex-1">{editing ? 'Save Changes' : 'Create Lesson'}</Button>
             </div>
           </form>
         </div>
