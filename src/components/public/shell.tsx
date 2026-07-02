@@ -11,8 +11,12 @@ export type Lang = 'ar' | 'en'
 export function useLang(): [Lang, (l: Lang) => void] {
   const [lang, setLangState] = useState<Lang>('ar')
   useEffect(() => {
+    // Intentional one-time post-hydration sync: the server always renders 'ar'
+    // (no access to localStorage), so the saved choice must be applied after
+    // mount — a hydration-safe pattern, not a cascading-render bug.
     const saved = localStorage.getItem('public-lang')
-    if (saved === 'en' || saved === 'ar') setLangState(saved)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved === 'en') setLangState('en')
   }, [])
   const setLang = (l: Lang) => {
     setLangState(l)
