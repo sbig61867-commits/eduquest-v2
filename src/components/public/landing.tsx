@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
 import {
@@ -61,6 +62,17 @@ const dict = {
     ctaTitle: 'جاهز تنقل جامعتك للمستوى التالي؟',
     ctaDesc: 'راسلنا وسنجهز بيئة جامعتك ونرافقكم خطوة بخطوة.',
     ctaButton: 'راسلنا الآن',
+    contactTitle: 'تواصل معنا',
+    contactDesc: 'اترك رسالتك وسنرد عليك على بريدك في أقرب وقت.',
+    contactName: 'الاسم',
+    contactEmail: 'بريدك الإلكتروني',
+    contactMessage: 'رسالتك',
+    contactMessagePh: 'أخبرنا عن جامعتك وما تحتاجه...',
+    contactSend: 'إرسال الرسالة',
+    contactSending: 'جارٍ الإرسال...',
+    contactSuccess: 'وصلتنا رسالتك! سنرد عليك على بريدك قريباً.',
+    contactError: 'تعذر الإرسال — تأكد من الحقول وحاول مجدداً.',
+    contactRateLimit: 'وصلت الحد الأقصى للرسائل — حاول لاحقاً.',
   },
   en: {
     heroBadge: 'Cloud education platform for universities',
@@ -113,8 +125,19 @@ const dict = {
       { n: '3', title: 'Start teaching', desc: 'Lessons, exams and grades — everything works from day one' },
     ],
     ctaTitle: 'Ready to take your university to the next level?',
-    ctaDesc: 'Email us and we’ll set up your university’s environment and guide you step by step.',
-    ctaButton: 'Email us now',
+    ctaDesc: 'Message us and we’ll set up your university’s environment and guide you step by step.',
+    ctaButton: 'Message us now',
+    contactTitle: 'Contact Us',
+    contactDesc: 'Leave your message and we’ll reply to your email as soon as possible.',
+    contactName: 'Name',
+    contactEmail: 'Your email',
+    contactMessage: 'Your message',
+    contactMessagePh: 'Tell us about your university and what you need...',
+    contactSend: 'Send Message',
+    contactSending: 'Sending...',
+    contactSuccess: 'Message received! We’ll reply to your email soon.',
+    contactError: 'Could not send — check the fields and try again.',
+    contactRateLimit: 'Message limit reached — please try again later.',
   },
 }
 
@@ -124,6 +147,34 @@ export function Landing() {
   const [lang, setLang] = useLang()
   const t = dict[lang]
   const Arrow = lang === 'ar' ? ArrowLeft : ArrowRight
+
+  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [sendError, setSendError] = useState('')
+
+  async function submitContact(e: React.FormEvent) {
+    e.preventDefault()
+    setSendError(''); setSending(true)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (res.status === 429) setSendError(t.contactRateLimit)
+      else if (!res.ok) setSendError(t.contactError)
+      else {
+        setSent(true)
+        setForm({ name: '', email: '', message: '' })
+      }
+    } catch {
+      setSendError(t.contactError)
+    }
+    setSending(false)
+  }
+
+  const scrollToContact = () => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })
 
   return (
     <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950">
@@ -143,10 +194,10 @@ export function Landing() {
             {t.heroDesc}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
-            <a href="mailto:sbig61867@gmail.com?subject=EduQuest%20Subscription"
+            <button onClick={scrollToContact}
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors flex items-center justify-center gap-2">
               {t.heroCta} <Arrow className="w-4 h-4" />
-            </a>
+            </button>
             <Link href="/login"
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 font-semibold transition-colors text-center">
               {t.heroLogin}
@@ -233,11 +284,53 @@ export function Landing() {
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-600/20 to-slate-900 border border-blue-500/20 rounded-2xl p-10 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t.ctaTitle}</h2>
           <p className="text-slate-300 mb-8 max-w-xl mx-auto">{t.ctaDesc}</p>
-          <a href="mailto:sbig61867@gmail.com?subject=EduQuest%20Subscription"
+          <button onClick={scrollToContact}
             className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
             <Mail className="w-4 h-4" /> {t.ctaButton}
-          </a>
+          </button>
         </div>
+      </section>
+
+      {/* Contact form */}
+      <section id="contact" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 scroll-mt-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-3">{t.contactTitle}</h2>
+        <p className="text-slate-400 text-center max-w-xl mx-auto mb-10">{t.contactDesc}</p>
+        <form onSubmit={submitContact} className="max-w-xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4">
+          {sent && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 text-emerald-400 text-sm font-medium">
+              {t.contactSuccess}
+            </div>
+          )}
+          {sendError && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-400 text-sm font-medium">
+              {sendError}
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-300">{t.contactName}</label>
+              <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                required maxLength={100}
+                className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-300">{t.contactEmail}</label>
+              <input type="email" dir="ltr" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                required maxLength={200}
+                className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-slate-300">{t.contactMessage}</label>
+            <textarea value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
+              required maxLength={2000} rows={5} placeholder={t.contactMessagePh}
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors resize-y" />
+          </div>
+          <button type="submit" disabled={sending}
+            className="w-full px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold transition-colors flex items-center justify-center gap-2">
+            <Mail className="w-4 h-4" /> {sending ? t.contactSending : t.contactSend}
+          </button>
+        </form>
       </section>
 
       <PublicFooter lang={lang} />

@@ -33,7 +33,7 @@ const privacy: Record<'ar' | 'en', PolicyDict> = {
         'عند حذف جامعة من المنصة تُحذف بيانات مستخدميها المرتبطة بها.',
       ]},
       { h: 'التواصل', body: [
-        'لأي استفسار حول الخصوصية راسلنا على: sbig61867@gmail.com',
+        'لأي استفسار حول الخصوصية استخدم نموذج «تواصل معنا» في الصفحة الرئيسية.',
       ]},
     ],
   },
@@ -64,7 +64,7 @@ const privacy: Record<'ar' | 'en', PolicyDict> = {
         'When a university is removed from the platform, its users’ associated data is deleted.',
       ]},
       { h: 'Contact', body: [
-        'For any privacy questions, email us at: sbig61867@gmail.com',
+        'For any privacy questions, use the “Contact Us” form on the home page.',
       ]},
     ],
   },
@@ -100,7 +100,7 @@ const terms: Record<'ar' | 'en', PolicyDict> = {
         'قد تُحدَّث هذه الشروط، وسيُعلن عن أي تغيير جوهري داخل المنصة.',
       ]},
       { h: 'التواصل', body: [
-        'لأي استفسار حول هذه الشروط راسلنا على: sbig61867@gmail.com',
+        'لأي استفسار حول هذه الشروط استخدم نموذج «تواصل معنا» في الصفحة الرئيسية.',
       ]},
     ],
   },
@@ -133,7 +133,7 @@ const terms: Record<'ar' | 'en', PolicyDict> = {
         'These terms may be updated; any material change will be announced inside the platform.',
       ]},
       { h: 'Contact', body: [
-        'For any questions about these terms, email us at: sbig61867@gmail.com',
+        'For any questions about these terms, use the “Contact Us” form on the home page.',
       ]},
     ],
   },

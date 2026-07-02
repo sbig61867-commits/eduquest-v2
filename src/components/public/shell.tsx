@@ -66,7 +66,7 @@ export function PublicFooter({ lang }: { lang: Lang }) {
         <div className="flex items-center gap-5 text-sm">
           <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">{t.privacy}</Link>
           <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">{t.terms}</Link>
-          <a href="mailto:sbig61867@gmail.com" className="text-slate-400 hover:text-white transition-colors">{t.contact}</a>
+          <Link href="/#contact" className="text-slate-400 hover:text-white transition-colors">{t.contact}</Link>
         </div>
       </div>
     </footer>
