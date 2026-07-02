@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
 import {
   Sparkles, ShieldCheck, Users, BookOpen, ClipboardList, BarChart2,
-  Building2, GraduationCap, UserRound, Mail, XCircle, ArrowLeft, ArrowRight,
+  Building2, GraduationCap, UserRound, Mail, XCircle, CheckCircle2, ArrowLeft, ArrowRight,
 } from 'lucide-react'
 
 const dict = {
@@ -31,10 +31,26 @@ const dict = {
       { icon: 'BookOpen', title: 'دروس ومجموعات منظمة', desc: 'المعلم ينظم طلابه في مجموعات (شُعَب)، وينشر الدروس لكل مجموعة، والطالب يرى محتوى مجموعته فقط.' },
     ],
     rolesTitle: 'لكل دور لوحته الخاصة',
+    rolesDesc: 'المنصة مبنية على أدوار واضحة — كل مستخدم يرى فقط ما يخصه، بواجهة مصممة لمهامه.',
     roles: [
-      { icon: 'Building2', title: 'إدارة الجامعة', desc: 'تدعو المعلمين وتتابع الطلاب والإحصائيات والتقارير' },
-      { icon: 'GraduationCap', title: 'المعلم', desc: 'مجموعات ودروس واختبارات بمساعدة الذكاء الاصطناعي ومراقبة وتصحيح' },
-      { icon: 'UserRound', title: 'الطالب', desc: 'دروسه واختباراته وعلاماته في واجهة بسيطة تعمل من الجوال' },
+      { icon: 'Building2', title: 'إدارة الجامعة', points: [
+        'دعوة المعلمين وإدارة حساباتهم',
+        'متابعة الطلاب وتفعيل/تعطيل الحسابات',
+        'إحصائيات المؤسسة: معلمون، طلاب، دروس، اختبارات',
+        'تقارير شاملة وسجل النشاط الأخير',
+      ]},
+      { icon: 'GraduationCap', title: 'المعلم', points: [
+        'إنشاء المجموعات (الشُعَب) ودعوة الطلاب إليها',
+        'توليد الدروس والاختبارات بالذكاء الاصطناعي وتعديلها',
+        'مراجعة أحداث المراقبة لكل طالب بعد الاختبار',
+        'التصحيح ونشر العلامات بضغطة واحدة',
+      ]},
+      { icon: 'UserRound', title: 'الطالب', points: [
+        'دروس مجموعته مرتبة ومنسقة',
+        'تقديم الاختبارات من أي جهاز — حتى الجوال',
+        'علاماته فور نشرها بدون انتظار',
+        'واجهة بسيطة بلا تشتيت',
+      ]},
     ],
     howTitle: 'كيف تبدأ جامعتك؟',
     steps: [
@@ -69,10 +85,26 @@ const dict = {
       { icon: 'BookOpen', title: 'Organized lessons & groups', desc: 'Teachers organize students into groups, publish lessons per group, and each student sees only their own group’s content.' },
     ],
     rolesTitle: 'A dedicated dashboard for every role',
+    rolesDesc: 'The platform is built on clear roles — every user sees only what belongs to them, in an interface designed for their tasks.',
     roles: [
-      { icon: 'Building2', title: 'University Admin', desc: 'Invites teachers, tracks students, statistics and reports' },
-      { icon: 'GraduationCap', title: 'Teacher', desc: 'Groups, lessons, AI-assisted exams, proctoring and grading' },
-      { icon: 'UserRound', title: 'Student', desc: 'Lessons, exams and grades in a simple mobile-friendly view' },
+      { icon: 'Building2', title: 'University Admin', points: [
+        'Invite teachers and manage their accounts',
+        'Track students and enable/disable accounts',
+        'Institution statistics: teachers, students, lessons, exams',
+        'Full reports and a recent-activity feed',
+      ]},
+      { icon: 'GraduationCap', title: 'Teacher', points: [
+        'Create groups and invite students to them',
+        'Generate lessons and exams with AI, then edit them',
+        'Review each student’s proctoring events after the exam',
+        'Grade and publish results with one click',
+      ]},
+      { icon: 'UserRound', title: 'Student', points: [
+        'Their group’s lessons, organized and formatted',
+        'Take exams from any device — even a phone',
+        'Grades the moment they are published',
+        'A simple, distraction-free interface',
+      ]},
     ],
     howTitle: 'How does your university start?',
     steps: [
@@ -157,17 +189,25 @@ export function Landing() {
 
       {/* Roles */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.rolesTitle}</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-3">{t.rolesTitle}</h2>
+        <p className="text-slate-400 text-center max-w-2xl mx-auto mb-10">{t.rolesDesc}</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {t.roles.map((r, i) => {
             const Icon = icons[r.icon as keyof typeof icons]
             return (
-              <div key={i} className="text-center bg-slate-900 border border-slate-800 rounded-xl p-8">
-                <div className="w-14 h-14 rounded-2xl bg-blue-600/15 flex items-center justify-center mx-auto mb-4">
+              <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-7">
+                <div className="w-14 h-14 rounded-2xl bg-blue-600/15 flex items-center justify-center mb-4">
                   <Icon className="w-7 h-7 text-blue-400" />
                 </div>
-                <h3 className="text-white font-semibold mb-2">{r.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{r.desc}</p>
+                <h3 className="text-white font-semibold text-lg mb-4">{r.title}</h3>
+                <ul className="space-y-2.5">
+                  {r.points.map((p, j) => (
+                    <li key={j} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="text-slate-400 text-sm leading-relaxed">{p}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )
           })}
