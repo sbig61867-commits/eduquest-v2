@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, BookOpen, ClipboardList, Users, Sparkles, Upload,
-  FileText, Plus, Trash2, Download, Check, X
+  FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff
 } from 'lucide-react'
+import { Markdown } from '@/components/shared/markdown'
 import { Modal } from '@/components/ui/modal'
 
 interface Lesson {
@@ -44,6 +45,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const [title, setTitle] = useState(lesson.title)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // Content preview
+  const [previewMode, setPreviewMode] = useState(false)
 
   // AI from file
   const [fileMode, setFileMode] = useState(false)
@@ -261,7 +265,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                 <label className="text-xs text-slate-500">تعليمات إضافية (اختياري)</label>
                 <textarea value={aiInstructions} onChange={e => setAiInstructions(e.target.value)} rows={2}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
-                  placeholder='مثال: "قسّم الدرس إلى: تعريف، أمثلة، أسئلة مراجعة"' />
+                  placeholder='اختياري — مثال: "ركّز على التعريفات وأضف جدولاً ملخصاً في النهاية". اتركه فارغاً للحصول على المحتوى كما هو.' />
               </div>
 
               {aiError && <p className="text-red-400 text-sm">{aiError}</p>}
@@ -273,15 +277,29 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
           {/* Content editor */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">المحتوى (Markdown)</label>
-            <textarea
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              rows={18}
-              className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-              placeholder="اكتب محتوى الدرس هنا أو ولّده من ملف..."
-              dir="auto"
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-slate-300">المحتوى (Markdown)</label>
+              <button
+                onClick={() => setPreviewMode(p => !p)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 text-xs transition-colors"
+              >
+                {previewMode ? <><EyeOff className="w-3.5 h-3.5" /> تحرير</> : <><Eye className="w-3.5 h-3.5" /> معاينة</>}
+              </button>
+            </div>
+            {previewMode ? (
+              <div className="min-h-[300px] px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm prose prose-invert max-w-none">
+                {content.trim() ? <Markdown content={content} /> : <p className="text-slate-500 italic">لا يوجد محتوى للمعاينة</p>}
+              </div>
+            ) : (
+              <textarea
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                rows={18}
+                className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                placeholder="اكتب محتوى الدرس هنا أو ولّده من ملف..."
+                dir="auto"
+              />
+            )}
           </div>
 
           <div className="flex justify-end">
