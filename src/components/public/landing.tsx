@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
 import {
   Sparkles, ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
+  ChevronDown, Users, BookOpen, ClipboardList, BarChart2,
 } from 'lucide-react'
 
 const dict = {
@@ -27,6 +28,16 @@ const dict = {
       { icon: 'Building2', title: 'عزل كامل لكل جامعة', desc: 'بيانات كل جامعة معزولة تماماً على مستوى قاعدة البيانات.' },
     ],
     allFeatures: 'استكشف كل المميزات',
+    mock: {
+      title: 'لوحة المعلم',
+      stats: [
+        { icon: 'Users', label: 'الطلاب', value: '128' },
+        { icon: 'BookOpen', label: 'الدروس', value: '42' },
+        { icon: 'ClipboardList', label: 'الاختبارات', value: '16' },
+        { icon: 'BarChart2', label: 'متوسط العلامات', value: '84%' },
+      ],
+      chartLabel: 'نشاط آخر ٧ أيام',
+    },
     ctaTitle: 'جاهز تنقل جامعتك للمستوى التالي؟',
     ctaDesc: 'راسلنا وسنجهز بيئة جامعتك ونرافقكم خطوة بخطوة.',
     ctaButton: 'راسلنا الآن',
@@ -51,13 +62,26 @@ const dict = {
       { icon: 'Building2', title: 'Full isolation per university', desc: 'Every university’s data is fully isolated at the database level.' },
     ],
     allFeatures: 'Explore all features',
+    mock: {
+      title: 'Teacher Dashboard',
+      stats: [
+        { icon: 'Users', label: 'Students', value: '128' },
+        { icon: 'BookOpen', label: 'Lessons', value: '42' },
+        { icon: 'ClipboardList', label: 'Exams', value: '16' },
+        { icon: 'BarChart2', label: 'Avg. Grade', value: '84%' },
+      ],
+      chartLabel: 'Last 7 days activity',
+    },
     ctaTitle: 'Ready to take your university to the next level?',
     ctaDesc: 'Message us and we’ll set up your university’s environment and guide you step by step.',
     ctaButton: 'Message us now',
   },
 }
 
-const icons = { Sparkles, ShieldCheck, Building2 } as const
+const icons = { Sparkles, ShieldCheck, Building2, Users, BookOpen, ClipboardList, BarChart2 } as const
+
+// Fake weekly-activity bars for the hero dashboard mockup (pure CSS, no images)
+const CHART_BARS = [45, 70, 55, 90, 65, 100, 80]
 
 export function Landing() {
   const [lang, setLang] = useLang()
@@ -70,20 +94,20 @@ export function Landing() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.15),transparent_60%)]" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-24 text-center">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-6">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.18),transparent_60%)]" />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-6 text-center">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-5">
             {t.heroBadge}
           </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight max-w-3xl mx-auto">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-tight max-w-3xl mx-auto bg-gradient-to-b from-white via-white to-slate-400 bg-clip-text text-transparent">
             {t.heroTitle}
           </h1>
-          <p className="text-slate-400 text-lg mt-6 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-slate-400 text-base sm:text-lg mt-4 sm:mt-6 max-w-2xl mx-auto leading-relaxed">
             {t.heroDesc}
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-7">
             <Link href="/contact"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors flex items-center justify-center gap-2">
+              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25">
               {t.heroCta} <Arrow className="w-4 h-4" />
             </Link>
             <Link href="/login"
@@ -91,11 +115,56 @@ export function Landing() {
               {t.heroLogin}
             </Link>
           </div>
+
+          {/* Dashboard mockup — pure CSS preview of the product */}
+          <div className="relative max-w-3xl mx-auto mt-10 sm:mt-14 text-start" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <div className="absolute -inset-4 bg-blue-600/10 blur-2xl rounded-3xl" />
+            <div className="relative bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-2xl overflow-hidden shadow-2xl">
+              {/* window bar */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-900">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
+                <span className="text-slate-500 text-xs font-medium ms-2">{t.mock.title}</span>
+              </div>
+              <div className="p-4 sm:p-5">
+                {/* stat cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                  {t.mock.stats.map((s, i) => {
+                    const Icon = icons[s.icon as keyof typeof icons]
+                    return (
+                      <div key={i} className="bg-slate-800/70 border border-slate-700/50 rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-slate-400 text-[11px]">{s.label}</span>
+                          <Icon className="w-3.5 h-3.5 text-blue-400" />
+                        </div>
+                        <p className="text-white text-lg font-bold">{s.value}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* activity bars */}
+                <div className="mt-3 bg-slate-800/70 border border-slate-700/50 rounded-xl p-3">
+                  <p className="text-slate-400 text-[11px] mb-2">{t.mock.chartLabel}</p>
+                  <div className="flex items-end gap-1.5 sm:gap-2 h-16">
+                    {CHART_BARS.map((h, i) => (
+                      <div key={i} className="flex-1 rounded-t-md bg-gradient-to-t from-blue-600/40 to-blue-500" style={{ height: `${h}%` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* scroll cue */}
+          <div className="flex justify-center mt-6 pb-2">
+            <ChevronDown className="w-5 h-5 text-slate-500 animate-bounce" />
+          </div>
         </div>
       </section>
 
       {/* Problem */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.problemTitle}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
           {t.problems.map((p, i) => (
@@ -108,7 +177,7 @@ export function Landing() {
       </section>
 
       {/* Solution teaser */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.teaserTitle}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {t.teaser.map((f, i) => {
@@ -133,7 +202,7 @@ export function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-600/20 to-slate-900 border border-blue-500/20 rounded-2xl p-10 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t.ctaTitle}</h2>
           <p className="text-slate-300 mb-8 max-w-xl mx-auto">{t.ctaDesc}</p>
