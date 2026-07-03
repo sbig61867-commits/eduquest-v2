@@ -3,7 +3,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/contact'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
