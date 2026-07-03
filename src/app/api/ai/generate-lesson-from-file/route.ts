@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import JSZip from 'jszip'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { groqChat } from '@/lib/ai/groq'
 
 // gemini-2.0-flash caps a single response around 8192 output tokens (~24k
 // chars). Groq's llama-3.3-70b-versatile caps at 4096 — Gemini gives a
@@ -72,22 +73,19 @@ async function extractFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function extractFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // pdf-parse v2's underlying pdfjs-dist can throw "DOMMatrix is not defined"
-  // in the serverless runtime for certain PDFs (it optionally tries to use
-  // @napi-rs/canvas for rendering, which isn't installed here) — not just for
-  // scanned files. Treat any pdf-parse failure the same as "no text layer"
-  // and fall back to Gemini vision, which reads the rendered pages directly.
+  // unpdf bundles a serverless-ready pdfjs build (no DOMMatrix/canvas
+  // dependency), unlike pdf-parse v2 which crashed on Vercel. Gemini vision
+  // remains the fallback only for scanned/image-only PDFs with no text layer.
   try {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse({ data: Buffer.from(buffer) })
-    const result = await parser.getText()
-    const text = result.text ?? ''
-    if (text.replace(/\s/g, '').length < 40) {
+    const { extractText, getDocumentProxy } = await import('unpdf')
+    const pdf = await getDocumentProxy(new Uint8Array(buffer))
+    const { text } = await extractText(pdf, { mergePages: true })
+    if ((text ?? '').replace(/\s/g, '').length < 40) {
       return extractWithGeminiVision(buffer, 'application/pdf')
     }
     return text
   } catch (e) {
-    console.error('[extractFromPdf] pdf-parse failed, falling back to Gemini vision:', e)
+    console.error('[extractFromPdf] unpdf failed, falling back to Gemini vision:', e)
     return extractWithGeminiVision(buffer, 'application/pdf')
   }
 }
@@ -151,6 +149,15 @@ export async function POST(request: Request) {
     rawText = await extractText(file)
   } catch (e) {
     console.error('[generate-lesson-from-file] extraction:', e)
+    const msg = e instanceof Error ? e.message : ''
+    // Vision fallback (scanned PDFs / images) died on provider quota — tell
+    // the teacher the real cause instead of a generic read failure.
+    if (msg.includes('429') || msg.toLowerCase().includes('quota')) {
+      return NextResponse.json(
+        { error: 'This file has no readable text layer (scanned?) and the vision AI quota is temporarily exhausted. Try a text-based PDF/DOCX/PPTX, or try again later.' },
+        { status: 422 }
+      )
+    }
     return NextResponse.json({ error: 'Failed to read file content.' }, { status: 422 })
   }
 
@@ -199,15 +206,18 @@ ${chunk}`
 // approach Gemini's output ceiling, so long documents (~20+ pages) still
 // come back complete instead of being cut off silently.
 const CHUNK_CHAR_TARGET = 14000
+// Groq's llama-3.3-70b caps output at 4096 tokens, so its chunks must be
+// smaller than Gemini's for the output to fit without truncation.
+const GROQ_CHUNK_CHAR_TARGET = 8000
 
-function splitIntoChunks(text: string): string[] {
-  if (text.length <= CHUNK_CHAR_TARGET) return [text]
+function splitIntoChunks(text: string, target: number): string[] {
+  if (text.length <= target) return [text]
 
   const paragraphs = text.split(/\n\s*\n/)
   const chunks: string[] = []
   let current = ''
   for (const p of paragraphs) {
-    if (current && (current.length + p.length) > CHUNK_CHAR_TARGET) {
+    if (current && (current.length + p.length) > target) {
       chunks.push(current)
       current = p
     } else {
@@ -218,8 +228,8 @@ function splitIntoChunks(text: string): string[] {
   return chunks
 }
 
-async function composeLesson(fullText: string, level: string, customInstructions: string): Promise<string> {
-  const chunks = splitIntoChunks(fullText)
+async function composeWithGemini(fullText: string, level: string, customInstructions: string): Promise<string> {
+  const chunks = splitIntoChunks(fullText, CHUNK_CHAR_TARGET)
   const model = getGeminiModel()
 
   if (chunks.length === 1) {
@@ -237,4 +247,27 @@ async function composeLesson(fullText: string, level: string, customInstructions
     parts.push(result.response.text())
   }
   return parts.join('\n\n')
+}
+
+async function composeWithGroq(fullText: string, level: string, customInstructions: string): Promise<string> {
+  const chunks = splitIntoChunks(fullText, GROQ_CHUNK_CHAR_TARGET)
+  const system = 'You transcribe source material into Markdown lesson pages faithfully, without adding or omitting content.'
+
+  const parts: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const part = chunks.length > 1 ? { index: i, total: chunks.length } : undefined
+    parts.push(await groqChat(buildPrompt(chunks[i], level, customInstructions, part), system))
+  }
+  return parts.join('\n\n')
+}
+
+async function composeLesson(fullText: string, level: string, customInstructions: string): Promise<string> {
+  // Gemini first (larger output window), Groq as fallback — e.g. when the
+  // Gemini free-tier quota is exhausted (429) the teacher still gets a lesson.
+  try {
+    return await composeWithGemini(fullText, level, customInstructions)
+  } catch (e) {
+    console.error('[composeLesson] Gemini failed, falling back to Groq:', e instanceof Error ? e.message : e)
+    return composeWithGroq(fullText, level, customInstructions)
+  }
 }

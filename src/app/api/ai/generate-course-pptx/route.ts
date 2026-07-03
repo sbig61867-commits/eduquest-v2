@@ -53,17 +53,15 @@ async function extractFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function extractFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // pdf-parse v2's underlying pdfjs-dist can throw "DOMMatrix is not defined"
-  // for certain PDFs in the serverless runtime (it optionally reaches for
-  // @napi-rs/canvas, which isn't installed here) — this is a library issue,
-  // not a corrupt file, so surface a clear message instead of an opaque 500.
+  // unpdf bundles a serverless-ready pdfjs build (no DOMMatrix/canvas
+  // dependency), so it works in the Vercel runtime where pdf-parse v2 crashed.
   try {
-    const { PDFParse } = await import('pdf-parse')
-    const parser = new PDFParse({ data: Buffer.from(buffer) })
-    const result = await parser.getText()
-    return result.text
+    const { extractText: extractPdfText, getDocumentProxy } = await import('unpdf')
+    const pdf = await getDocumentProxy(new Uint8Array(buffer))
+    const { text } = await extractPdfText(pdf, { mergePages: true })
+    return text
   } catch (e) {
-    console.error('[generate-course-pptx] pdf-parse failed:', e)
+    console.error('[generate-course-pptx] unpdf failed:', e)
     throw new Error('Could not read this PDF (unsupported PDF structure). Try a different export of the file, or use PPTX/DOCX instead.')
   }
 }
