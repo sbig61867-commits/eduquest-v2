@@ -11,6 +11,7 @@ import {
   GraduationCap, Upload, Sparkles, ChevronDown, ChevronUp, FileText, Check
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { AiProgress } from '@/components/shared/ai-progress'
 
 interface Course {
   id: string
@@ -379,6 +380,8 @@ export function CoursesClient({ initialCourses }: Props) {
                 {pptxError}
               </div>
             )}
+
+            <AiProgress active={pptxLoading} />
 
             <div className="bg-slate-800/60 rounded-lg px-4 py-3 flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />

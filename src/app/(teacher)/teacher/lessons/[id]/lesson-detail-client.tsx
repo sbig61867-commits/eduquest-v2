@@ -10,6 +10,7 @@ import {
   FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff
 } from 'lucide-react'
 import { Markdown } from '@/components/shared/markdown'
+import { AiProgress } from '@/components/shared/ai-progress'
 import { Modal } from '@/components/ui/modal'
 
 interface Lesson {
@@ -267,6 +268,8 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
                   placeholder='اختياري — مثال: "ركّز على التعريفات وأضف جدولاً ملخصاً في النهاية". اتركه فارغاً للحصول على المحتوى كما هو.' />
               </div>
+
+              <AiProgress active={aiLoading} />
 
               {aiError && <p className="text-red-400 text-sm">{aiError}</p>}
             </div>
