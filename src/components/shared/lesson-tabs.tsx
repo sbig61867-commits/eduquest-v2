@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Markdown } from '@/components/shared/markdown'
-import { CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
+import { CheckCircle2, XCircle, RotateCcw, Volume2, Languages } from 'lucide-react'
 
 // Renders lesson Markdown as tabs, one per top-level `## ` section.
 // Sections whose body contains structured questions (### Qn blocks with an
@@ -33,6 +33,89 @@ function splitSections(content: string): { preamble: string; sections: Section[]
   }
   if (current) sections.push(current)
   return { preamble: preamble.join('\n').trim(), sections }
+}
+
+// ── Vocabulary / idiom items ─────────────────────────────────────
+// Generator format: `- **term** — simple English explanation ||الترجمة||`
+// term gets a pronunciation button (browser speech synthesis, no API);
+// the Arabic translation stays hidden until the student asks for it.
+
+const VOCAB_RE = /^[-*]\s+\*\*(.+?)\*\*\s*[—–:-]\s*(.+?)(?:\s*\|\|(.+?)\|\|)?\s*$/
+
+function speak(text: string) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  const u = new SpeechSynthesisUtterance(text)
+  u.lang = /[a-z]/i.test(text) ? 'en-US' : 'ar-SA'
+  u.rate = 0.9
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(u)
+}
+
+function VocabItem({ term, explanation, translation }: { term: string; explanation: string; translation?: string }) {
+  const [showTr, setShowTr] = useState(false)
+  return (
+    <div className="flex items-start gap-2.5 rounded-lg border border-slate-700/70 bg-slate-800/40 px-3 py-2.5">
+      <button
+        onClick={() => speak(term)}
+        title="استمع للنطق"
+        aria-label={`استمع لنطق ${term}`}
+        className="shrink-0 mt-0.5 w-7 h-7 rounded-full bg-violet-600/20 text-violet-300 hover:bg-violet-600 hover:text-white flex items-center justify-center transition-colors"
+      >
+        <Volume2 className="w-3.5 h-3.5" />
+      </button>
+      <div className="flex-1 min-w-0 text-sm">
+        <span className="font-bold text-white">{term}</span>
+        <span className="text-slate-500 mx-2">—</span>
+        <span className="text-slate-300">{explanation}</span>
+        {translation && (
+          showTr
+            ? <span className="ms-2 px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-xs" dir="rtl">{translation}</span>
+            : (
+              <button
+                onClick={() => setShowTr(true)}
+                title="لم أفهم — أظهر الترجمة العربية"
+                className="ms-2 inline-flex items-center gap-1 px-2 py-0.5 rounded border border-slate-600 text-slate-400 hover:text-white hover:border-slate-400 text-xs transition-colors align-middle"
+              >
+                <Languages className="w-3 h-3" /> ترجمة
+              </button>
+            )
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Renders a content section: consecutive vocab-format lines become
+// interactive vocab rows; everything else stays Markdown.
+function SectionBody({ body }: { body: string }) {
+  const lines = body.split('\n')
+  const blocks: Array<{ type: 'md'; text: string } | { type: 'vocab'; items: { term: string; explanation: string; translation?: string }[] }> = []
+
+  for (const line of lines) {
+    const m = line.match(VOCAB_RE)
+    if (m) {
+      const item = { term: m[1].trim(), explanation: m[2].trim(), translation: m[3]?.trim() }
+      const last = blocks[blocks.length - 1]
+      if (last?.type === 'vocab') last.items.push(item)
+      else blocks.push({ type: 'vocab', items: [item] })
+    } else {
+      const last = blocks[blocks.length - 1]
+      if (last?.type === 'md') last.text += line + '\n'
+      else blocks.push({ type: 'md', text: line + '\n' })
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {blocks.map((b, i) => (
+        <Fragment key={i}>
+          {b.type === 'md'
+            ? (b.text.trim() ? <Markdown content={b.text} /> : null)
+            : <div className="space-y-2">{b.items.map((it, j) => <VocabItem key={j} {...it} />)}</div>}
+        </Fragment>
+      ))}
+    </div>
+  )
 }
 
 // ── Quiz parsing ─────────────────────────────────────────────────
@@ -231,7 +314,7 @@ export function LessonTabs({ content }: { content: string }) {
       <div role="tabpanel">
         {quiz.questions.length > 0
           ? <InteractiveQuiz key={active} intro={quiz.intro} questions={quiz.questions} />
-          : <Markdown content={section.body} />}
+          : <SectionBody body={section.body} />}
       </div>
     </div>
   )
