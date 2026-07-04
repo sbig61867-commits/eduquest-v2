@@ -6,16 +6,19 @@ import React from 'react'
 
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = []
-  // bold → italic → inline code
-  const pattern = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`)/g
+  // highlight → bold → italic → inline code
+  // ==text== renders as a green highlight — used for the correct answer
+  // inside worked examples (e.g. "There ==is== a car.").
+  const pattern = /(==(.+?)==|\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`)/g
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
   while ((m = pattern.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index))
-    if (m[2] !== undefined) nodes.push(<strong key={`${keyPrefix}-b${i}`}>{m[2]}</strong>)
-    else if (m[3] !== undefined) nodes.push(<em key={`${keyPrefix}-i${i}`}>{m[3]}</em>)
-    else if (m[4] !== undefined) nodes.push(<code key={`${keyPrefix}-c${i}`} className="px-1 py-0.5 rounded bg-slate-800 text-blue-300 text-[0.85em]">{m[4]}</code>)
+    if (m[2] !== undefined) nodes.push(<mark key={`${keyPrefix}-hl${i}`} className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">{m[2]}</mark>)
+    else if (m[3] !== undefined) nodes.push(<strong key={`${keyPrefix}-b${i}`}>{m[3]}</strong>)
+    else if (m[4] !== undefined) nodes.push(<em key={`${keyPrefix}-i${i}`}>{m[4]}</em>)
+    else if (m[5] !== undefined) nodes.push(<code key={`${keyPrefix}-c${i}`} className="px-1 py-0.5 rounded bg-slate-800 text-blue-300 text-[0.85em]">{m[5]}</code>)
     last = m.index + m[0].length
     i++
   }

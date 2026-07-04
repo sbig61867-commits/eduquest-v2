@@ -92,7 +92,8 @@ Question text (use ________ for fill-in-the-blank)
 **Answer:** B
 
 Fill-in-the-blank questions have no option lines and the Answer is the exact missing word. Never put a combined "Answers" list at the end.
-- In language lessons, vocabulary/idiom items use \`- **term** — simple English explanation ||الترجمة العربية||\` (explanation in simple English; Arabic ONLY inside ||...||, shown to the student on demand).`
+- In language lessons, vocabulary/idiom items use \`- **term** — simple English explanation ||الترجمة العربية||\` (explanation in simple English; Arabic ONLY inside ||...||, shown to the student on demand).
+- Examples in content sections are shown ALREADY SOLVED with the answer wrapped in ==double equals== (highlighted green), e.g. "There ==is== a car." — unsolved exercises belong in quiz sections only.`
     : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries.
 
 First detect the subject and the language of the source, then choose 2-4 content-section names that fit it. ALWAYS write every section name (including the two quiz sections below) in the SAME language as the source:
@@ -105,6 +106,7 @@ Include a section only if the source actually has that kind of content, but alwa
 
 STRICT content-placement rules:
 - Content sections contain ONLY explanations, rules, definitions, lists, and WORKED examples (with their solutions shown). A "rules"/"grammar"/"concepts" section must EXPLAIN each point and show example(s).
+- Every example in content sections MUST be shown ALREADY SOLVED, with the answer wrapped in ==double equals== so the platform highlights it in green — e.g. "There ==is== a car in the garage." / "==Is there== a boy in the room?". Never leave a blank (________) unsolved in a content section.
 - NO exercises, drills, fill-in-the-blanks, or questions of any kind in content sections. Every exercise or question found in the source MUST be moved into the quiz section instead.
 - Do not omit source content and do not add facts that are not in the source.
 
