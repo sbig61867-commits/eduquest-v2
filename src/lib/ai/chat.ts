@@ -19,6 +19,8 @@ async function openAiCompatChat(opts: {
   url: string
   apiKey: string
   model: string
+  /** OpenRouter-style fallback routing: alternate models tried upstream if the primary is congested. */
+  models?: string[]
   prompt: string
   systemPrompt?: string
   headers?: Record<string, string>
@@ -32,6 +34,7 @@ async function openAiCompatChat(opts: {
     },
     body: JSON.stringify({
       model: opts.model,
+      ...(opts.models ? { models: opts.models } : {}),
       messages: [
         ...(opts.systemPrompt ? [{ role: 'system', content: opts.systemPrompt }] : []),
         { role: 'user', content: opts.prompt },
@@ -62,7 +65,15 @@ function openRouterChat(prompt: string, systemPrompt?: string): Promise<string> 
   return openAiCompatChat({
     url: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: process.env.OPENROUTER_API_KEY!,
+    // Free models get congested individually (429 upstream), so let
+    // OpenRouter route across several — verified live 2026-07-04.
     model: 'meta-llama/llama-3.3-70b-instruct:free',
+    models: [
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'openai/gpt-oss-120b:free',
+      'qwen/qwen3-next-80b-a3b-instruct:free',
+      'nvidia/nemotron-3-super-120b-a12b:free',
+    ],
     prompt, systemPrompt,
     headers: { 'X-Title': 'EduQuest' },
   })
