@@ -72,19 +72,28 @@ export async function POST(request: Request) {
   }
 }
 
-// ── Composition (verbatim, lightly formatted) ─────────────────────
+// ── Composition (organized into tabbed sections) ─────────────────
 
 function buildPrompt(chunk: string, level: string, customInstructions: string, part?: { index: number; total: number }): string {
   const structureBlock = customInstructions.trim()
     ? `The teacher has provided specific instructions — follow them exactly:\n"""\n${customInstructions}\n"""`
-    : `Apply only light, minimal formatting (headings for existing sections, paragraph breaks, bullet points where the source already lists items). Do not invent new sections such as "Learning Objectives" or "Review Questions" unless they already exist in the source.`
+    : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries (use \`###\` and smaller inside a section).
+
+Choose section names that fit the subject and write them in the SAME language as the source:
+- Language-learning material (English, etc.): sections like Vocabulary, Grammar, Idioms & Expressions, Examples & Practice — include a section only if the source actually contains that kind of content.
+- Other subjects (science, math, history, …): choose fitting sections such as Key Concepts, Definitions, Explanations, Examples, Formulas.
+- Put ALL the source content into these sections — do not omit, shorten, or alter any of it, and do not add facts that are not in the source.
+
+Then ALWAYS end with exactly these two extra sections (named in the source language, e.g. Arabic source → "اختبر نفسك" and "اختبار شامل"):
+1. \`## Quick Quiz\` — 5 short questions (multiple choice or fill-in-the-blank) drawn strictly from this material, with an "Answers" list at the bottom of the section.
+2. \`## Comprehensive Test\` — 8-12 questions covering ALL parts of the material (mix of MCQ, fill-in-the-blank, and short answer), with an "Answers" list at the bottom of the section.`
 
   const continuationNote = part && part.index > 0
-    ? `\nThis is part ${part.index + 1} of ${part.total} of one longer document, already in progress — continue directly with this part's content. Do not repeat a title or restart with an introduction.`
+    ? `\nThis is part ${part.index + 1} of ${part.total} of one longer document, already in progress — continue directly with this part's content. Do not repeat a title or restart with an introduction. Only produce the Quick Quiz and Comprehensive Test sections if this is the FINAL part (part ${part.total} of ${part.total}), covering the whole document.`
     : ''
 
-  return `You are transcribing a teacher's source material into a lesson page.
-Reproduce the SAME content as the source — do not add information, examples, questions, or explanations that are not present in it, and do not omit or shorten any part of it.
+  return `You are converting a teacher's source material into a structured lesson page.
+Preserve the source content faithfully — do not invent information that is not present in it (quiz/test questions must be answerable from the material alone).
 Keep the same language as the source material.
 
 Level: ${level}

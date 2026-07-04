@@ -9,7 +9,7 @@ import {
   ArrowLeft, BookOpen, ClipboardList, Users, Sparkles, Upload,
   FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff
 } from 'lucide-react'
-import { Markdown } from '@/components/shared/markdown'
+import { LessonTabs } from '@/components/shared/lesson-tabs'
 import { AiProgress } from '@/components/shared/ai-progress'
 import { Modal } from '@/components/ui/modal'
 
@@ -291,7 +291,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
             </div>
             {previewMode ? (
               <div className="min-h-[300px] px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm prose prose-invert max-w-none">
-                {content.trim() ? <Markdown content={content} /> : <p className="text-slate-500 italic">لا يوجد محتوى للمعاينة</p>}
+                {content.trim() ? <LessonTabs content={content} /> : <p className="text-slate-500 italic">لا يوجد محتوى للمعاينة</p>}
               </div>
             ) : (
               <textarea

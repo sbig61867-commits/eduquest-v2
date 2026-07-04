@@ -4,7 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { Markdown } from '@/components/shared/markdown'
+import { LessonTabs } from '@/components/shared/lesson-tabs'
 
 export default async function StudentLessonsPage() {
   const supabase = await createClient()
@@ -57,7 +57,7 @@ export default async function StudentLessonsPage() {
                 <span className="text-slate-500 text-sm group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div className="px-5 pb-5 border-t border-slate-800 pt-4">
-                <Markdown content={lesson.content ?? ''} />
+                <LessonTabs content={lesson.content ?? ''} />
               </div>
             </details>
           ))}
