@@ -77,16 +77,36 @@ export async function POST(request: Request) {
 function buildPrompt(chunk: string, level: string, customInstructions: string, part?: { index: number; total: number }): string {
   const structureBlock = customInstructions.trim()
     ? `The teacher has provided specific instructions — follow them exactly:\n"""\n${customInstructions}\n"""`
-    : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries (use \`###\` and smaller inside a section).
+    : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries.
 
 Choose section names that fit the subject and write them in the SAME language as the source:
-- Language-learning material (English, etc.): sections like Vocabulary, Grammar, Idioms & Expressions, Examples & Practice — include a section only if the source actually contains that kind of content.
+- Language-learning material (English, etc.): sections like Vocabulary, Grammar, Idioms & Expressions, Examples — include a section only if the source actually contains that kind of content.
 - Other subjects (science, math, history, …): choose fitting sections such as Key Concepts, Definitions, Explanations, Examples, Formulas.
-- Put ALL the source content into these sections — do not omit, shorten, or alter any of it, and do not add facts that are not in the source.
 
-Then ALWAYS end with exactly these two extra sections (named in the source language, e.g. Arabic source → "اختبر نفسك" and "اختبار شامل"):
-1. \`## Quick Quiz\` — 5 short questions (multiple choice or fill-in-the-blank) drawn strictly from this material, with an "Answers" list at the bottom of the section.
-2. \`## Comprehensive Test\` — 8-12 questions covering ALL parts of the material (mix of MCQ, fill-in-the-blank, and short answer), with an "Answers" list at the bottom of the section.`
+STRICT content-placement rules:
+- Content sections (Vocabulary, Grammar, Examples, …) contain ONLY explanations, rules, definitions, word lists, and WORKED examples (with their solutions shown). The Grammar section must EXPLAIN each rule and show example sentences.
+- NO exercises, drills, fill-in-the-blanks, or questions of any kind in content sections. Every exercise or question found in the source MUST be moved into the Quick Quiz section instead.
+- Do not omit source content and do not add facts that are not in the source.
+
+Then ALWAYS end with exactly these two extra sections (named in the source language — Arabic source → "اختبر نفسك" and "اختبار شامل"):
+1. \`## Quick Quiz\` — all exercises found in the source, plus short questions, totalling at least 5.
+2. \`## Comprehensive Test\` — 8-12 NEW questions covering ALL parts of the material (mix of multiple choice and fill-in-the-blank).
+
+EVERY question in Quick Quiz and Comprehensive Test MUST use EXACTLY this machine-readable format (the platform turns it into an interactive quiz — deviating breaks it):
+
+### Q1
+Question text here (use ________ for fill-in-the-blank questions)
+- A) first option
+- B) second option
+- C) third option
+- D) fourth option
+**Answer:** B
+
+### Q2
+Fill-in-the-blank question with ________ in it
+**Answer:** the missing word
+
+Rules for questions: multiple choice has 2-4 options and the Answer is the letter only. Fill-in-the-blank has NO option lines and the Answer is the exact missing word/phrase. Never put an "Answers" list at the end — each question carries its own **Answer:** line.`
 
   const continuationNote = part && part.index > 0
     ? `\nThis is part ${part.index + 1} of ${part.total} of one longer document, already in progress — continue directly with this part's content. Do not repeat a title or restart with an introduction. Only produce the Quick Quiz and Comprehensive Test sections if this is the FINAL part (part ${part.total} of ${part.total}), covering the whole document.`

@@ -48,7 +48,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const [saved, setSaved] = useState(false)
 
   // Content preview
-  const [previewMode, setPreviewMode] = useState(false)
+  // Default to preview when the lesson already has content, so the teacher
+  // lands on the same tabbed view the student sees; "تحرير" switches to raw.
+  const [previewMode, setPreviewMode] = useState(() => !!(lesson.content ?? '').trim())
 
   // AI from file
   const [fileMode, setFileMode] = useState(false)
