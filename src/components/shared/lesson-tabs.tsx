@@ -152,7 +152,57 @@ function parseQuiz(body: string): { intro: string; questions: QuizQuestion[] } {
     const text = textLines.join('\n').trim()
     if (text && answer) questions.push({ text, options, answer })
   }
-  return { intro, questions }
+  if (questions.length > 0) return { intro, questions }
+  // Providers sometimes deviate from the ### Qn format — fall back to the
+  // legacy layout: numbered questions with a)/b) options and a trailing
+  // "Answers:" list, so those quizzes stay interactive too.
+  return parseLegacyQuiz(body)
+}
+
+const LEGACY_ANSWERS_HEADER = /^(?:\*\*)?\s*(?:Answers|الإجابات|الاجابات|الأجوبة)\s*(?:\*\*)?\s*[::]?\s*$/i
+const LEGACY_Q_RE = /^\s*(\d+)[.)]\s+(.+)$/
+
+function parseLegacyQuiz(body: string): { intro: string; questions: QuizQuestion[] } {
+  const lines = body.split('\n')
+  const headerIdx = lines.findIndex(l => LEGACY_ANSWERS_HEADER.test(l))
+  if (headerIdx === -1) return { intro: '', questions: [] }
+
+  // Answers list: "1. b) There is" / "2- c" / "3) the missing word"
+  const answers = new Map<number, string>()
+  for (const line of lines.slice(headerIdx + 1)) {
+    const m = line.match(/^\s*(\d+)[.)\-–]?\s*(.+)$/)
+    if (!m) continue
+    const rest = m[2].trim()
+    const letter = rest.match(/^([A-Da-dأ-د])[).\-–\s]/)?.[1] ?? (rest.length === 1 ? rest : null)
+    answers.set(parseInt(m[1]), letter ? letter.toUpperCase() : rest)
+  }
+  if (answers.size === 0) return { intro: '', questions: [] }
+
+  const introLines: string[] = []
+  const parsed: Array<{ num: number; text: string; options: { letter: string; label: string }[] }> = []
+  let current: { num: number; text: string; options: { letter: string; label: string }[] } | null = null
+
+  for (const line of lines.slice(0, headerIdx)) {
+    const q = line.match(LEGACY_Q_RE)
+    const opt = line.match(OPTION_RE)
+    if (q && !opt) {
+      if (current) parsed.push(current)
+      current = { num: parseInt(q[1]), text: q[2].trim(), options: [] }
+    } else if (opt && current) {
+      current.options.push({ letter: opt[1].toUpperCase(), label: opt[2].trim() })
+    } else if (current && line.trim()) {
+      current.text += '\n' + line
+    } else if (!current) {
+      introLines.push(line)
+    }
+  }
+  if (current) parsed.push(current)
+
+  const questions: QuizQuestion[] = parsed
+    .filter(p => answers.has(p.num))
+    .map(p => ({ text: p.text.trim(), options: p.options, answer: answers.get(p.num)! }))
+
+  return { intro: introLines.join('\n').trim(), questions }
 }
 
 function normalize(s: string): string {
@@ -174,11 +224,19 @@ function isCorrect(q: QuizQuestion, given: string): boolean {
 
 // ── Interactive quiz section ─────────────────────────────────────
 
+// Open-ended questions (no options, long model answer) can't be graded by
+// exact matching — they become self-check: the model answer is revealed for
+// the student to compare, and they don't count toward the score.
+function isSelfCheck(q: QuizQuestion): boolean {
+  return q.options.length === 0 && q.answer.split(/\s+/).length > 4
+}
+
 function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQuestion[] }) {
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [checked, setChecked] = useState(false)
 
-  const score = questions.reduce((n, q, i) => n + (isCorrect(q, answers[i] ?? '') ? 1 : 0), 0)
+  const gradable = questions.filter(q => !isSelfCheck(q))
+  const score = questions.reduce((n, q, i) => n + (!isSelfCheck(q) && isCorrect(q, answers[i] ?? '') ? 1 : 0), 0)
   const allAnswered = questions.every((_, i) => (answers[i] ?? '').trim() !== '')
 
   function reset() { setAnswers({}); setChecked(false) }
@@ -189,16 +247,21 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
 
       {questions.map((q, i) => {
         const given = answers[i] ?? ''
-        const correct = checked && isCorrect(q, given)
-        const wrong = checked && !correct
+        const selfCheck = isSelfCheck(q)
+        const correct = checked && !selfCheck && isCorrect(q, given)
+        const wrong = checked && !selfCheck && !correct
         return (
           <div key={i} className={`rounded-xl border p-4 space-y-3 ${
-            checked ? (correct ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-red-500/40 bg-red-500/5') : 'border-slate-700 bg-slate-800/40'
+            checked
+              ? selfCheck
+                ? 'border-sky-500/40 bg-sky-500/5'
+                : correct ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-red-500/40 bg-red-500/5'
+              : 'border-slate-700 bg-slate-800/40'
           }`}>
             <div className="flex items-start gap-2">
               <span className="shrink-0 w-6 h-6 rounded-full bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
               <div className="flex-1 text-sm text-slate-200"><Markdown content={q.text} /></div>
-              {checked && (correct
+              {checked && !selfCheck && (correct
                 ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                 : <XCircle className="w-5 h-5 text-red-400 shrink-0" />)}
             </div>
@@ -242,6 +305,9 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                   }`}
                 />
                 {wrong && <p className="text-emerald-400 text-xs">الإجابة الصحيحة: {q.answer}</p>}
+                {checked && selfCheck && (
+                  <p className="text-sky-300 text-xs bg-sky-500/10 rounded px-2 py-1.5 mt-1">الإجابة النموذجية للمقارنة: {q.answer}</p>
+                )}
               </div>
             )}
           </div>
@@ -260,9 +326,10 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
         ) : (
           <>
             <div className={`px-4 py-2 rounded-lg text-sm font-bold ${
-              score === questions.length ? 'bg-emerald-500/15 text-emerald-400' : score >= questions.length / 2 ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
+              score === gradable.length ? 'bg-emerald-500/15 text-emerald-400' : score >= gradable.length / 2 ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
             }`}>
-              نتيجتك: {score} / {questions.length}
+              نتيجتك: {score} / {gradable.length}
+              {gradable.length < questions.length && <span className="font-normal opacity-70"> (+{questions.length - gradable.length} سؤال تقييم ذاتي)</span>}
             </div>
             <button
               onClick={reset}
