@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { generateLessonContent } from '@/lib/ai/gemini'
-import { generateLessonContentGroq } from '@/lib/ai/groq'
+import { generateLessonContentAI } from '@/lib/ai/chat'
 import { rateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
 
@@ -42,32 +41,16 @@ export async function POST(request: Request) {
   if (!topic) return NextResponse.json({ error: 'Topic contains invalid characters' }, { status: 400 })
   const customInstructions = rawInstructions.replace(/[<>{}[\]`\\'"]/g, '').trim() || undefined
 
-  const groqKey = process.env.GROQ_API_KEY
-  const geminiKey = process.env.GEMINI_API_KEY
-  const hasGroq = groqKey && groqKey !== 'your_groq_api_key_here'
-  const hasGemini = geminiKey && geminiKey !== 'your_gemini_api_key_here'
-
-  if (!hasGroq && !hasGemini) {
-    return NextResponse.json({ error: 'No AI provider configured' }, { status: 503 })
-  }
-
+  // aiChat tries Groq → Cerebras → Gemini → OpenRouter, skipping providers
+  // whose keys are not configured.
   try {
-    if (hasGroq) {
-      const content = await generateLessonContentGroq(topic, level, customInstructions)
-      return NextResponse.json({ content, provider: 'groq' })
-    }
-    const content = await generateLessonContent(topic, level, customInstructions)
-    return NextResponse.json({ content, provider: 'gemini' })
+    const { content, provider } = await generateLessonContentAI(topic, level, customInstructions)
+    return NextResponse.json({ content, provider })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[generate-lesson]', msg)
-    if (hasGroq && hasGemini) {
-      try {
-        const content = await generateLessonContent(topic, level, customInstructions)
-        return NextResponse.json({ content, provider: 'gemini-fallback' })
-      } catch (fallbackErr: unknown) {
-        console.error('[generate-lesson] Gemini fallback also failed:', fallbackErr instanceof Error ? fallbackErr.message : fallbackErr)
-      }
+    if (msg.includes('No AI provider configured')) {
+      return NextResponse.json({ error: 'No AI provider configured' }, { status: 503 })
     }
     return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
   }

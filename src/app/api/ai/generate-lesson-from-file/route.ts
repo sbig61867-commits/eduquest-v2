@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import JSZip from 'jszip'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { groqChat } from '@/lib/ai/groq'
+import { aiChat } from '@/lib/ai/chat'
 
 // gemini-2.0-flash caps a single response around 8192 output tokens (~24k
 // chars). Groq's llama-3.3-70b-versatile caps at 4096 — Gemini gives a
@@ -249,25 +249,26 @@ async function composeWithGemini(fullText: string, level: string, customInstruct
   return parts.join('\n\n')
 }
 
-async function composeWithGroq(fullText: string, level: string, customInstructions: string): Promise<string> {
+async function composeWithFallbackChain(fullText: string, level: string, customInstructions: string): Promise<string> {
   const chunks = splitIntoChunks(fullText, GROQ_CHUNK_CHAR_TARGET)
   const system = 'You transcribe source material into Markdown lesson pages faithfully, without adding or omitting content.'
 
   const parts: string[] = []
   for (let i = 0; i < chunks.length; i++) {
     const part = chunks.length > 1 ? { index: i, total: chunks.length } : undefined
-    parts.push(await groqChat(buildPrompt(chunks[i], level, customInstructions, part), system))
+    parts.push(await aiChat(buildPrompt(chunks[i], level, customInstructions, part), system))
   }
   return parts.join('\n\n')
 }
 
 async function composeLesson(fullText: string, level: string, customInstructions: string): Promise<string> {
-  // Gemini first (larger output window), Groq as fallback — e.g. when the
-  // Gemini free-tier quota is exhausted (429) the teacher still gets a lesson.
+  // Gemini first (larger output window), then the aiChat chain
+  // (Groq → Cerebras → OpenRouter) — e.g. when the Gemini free-tier quota
+  // is exhausted (429) the teacher still gets a lesson.
   try {
     return await composeWithGemini(fullText, level, customInstructions)
   } catch (e) {
-    console.error('[composeLesson] Gemini failed, falling back to Groq:', e instanceof Error ? e.message : e)
-    return composeWithGroq(fullText, level, customInstructions)
+    console.error('[composeLesson] Gemini failed, falling back to aiChat chain:', e instanceof Error ? e.message : e)
+    return composeWithFallbackChain(fullText, level, customInstructions)
   }
 }

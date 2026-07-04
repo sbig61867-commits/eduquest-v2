@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import JSZip from 'jszip'
-import { groqChat } from '@/lib/ai/groq'
+import { aiChat } from '@/lib/ai/chat'
 
 // ── Text extractors ──────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ Document content:
 ${truncatedText}`
 
   try {
-    const aiResponse = await groqChat(prompt, 'Return only valid JSON. No markdown. No explanation.')
+    const aiResponse = await aiChat(prompt, 'Return only valid JSON. No markdown. No explanation.')
     const course = parseAiJsonResponse(aiResponse)
 
     if (!course.title || !Array.isArray(course.units) || course.units.length === 0) {

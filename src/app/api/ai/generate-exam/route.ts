@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
-import { groqChat } from '@/lib/ai/groq'
+import { aiChat } from '@/lib/ai/chat'
 
 interface Question {
   id: string
@@ -69,11 +69,6 @@ export async function POST(request: Request) {
   const safeTopic = rawTopic.trim().replace(/[<>{}[\]`\\'"]/g, '').trim()
   if (!safeTopic) return NextResponse.json({ error: 'Topic contains invalid characters' }, { status: 400 })
 
-  const groqKey = process.env.GROQ_API_KEY
-  if (!groqKey || groqKey === 'your_groq_api_key_here') {
-    return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 503 })
-  }
-
   const typeInstructions = type === 'mcq'
     ? 'multiple choice questions with 4 options each'
     : type === 'true_false'
@@ -89,7 +84,7 @@ Return ONLY a valid JSON array, no markdown:
 Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] and 5 points. correct_answer must match an option exactly.`
 
   try {
-    const content = await groqChat(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
+    const content = await aiChat(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
 
     const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
     const jsonMatch = text.match(/\[[\s\S]*\]/)

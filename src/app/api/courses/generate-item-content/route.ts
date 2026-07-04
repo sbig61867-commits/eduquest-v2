@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import { groqChat } from '@/lib/ai/groq'
+import { aiChat } from '@/lib/ai/chat'
 
 function adminClient() {
   return createAdminClient(
@@ -66,7 +66,7 @@ Format the output in clean Markdown.
 ${course.source_text.slice(0, 10000)}`
 
   try {
-    const content = await groqChat(
+    const content = await aiChat(
       prompt,
       'Write lesson content in Markdown strictly from the provided source material. Never add outside knowledge.'
     )
