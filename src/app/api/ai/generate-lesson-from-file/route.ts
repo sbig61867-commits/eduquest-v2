@@ -79,18 +79,19 @@ function buildPrompt(chunk: string, level: string, customInstructions: string, p
     ? `The teacher has provided specific instructions — follow them exactly:\n"""\n${customInstructions}\n"""`
     : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries.
 
-Choose section names that fit the subject and write them in the SAME language as the source:
-- Language-learning material (English, etc.): sections like Vocabulary, Grammar, Idioms & Expressions, Examples — include a section only if the source actually contains that kind of content.
-- Other subjects (science, math, history, …): choose fitting sections such as Key Concepts, Definitions, Explanations, Examples, Formulas.
+First detect the subject and the language of the source, then choose 2-4 content-section names that fit it. ALWAYS write every section name (including the two quiz sections below) in the SAME language as the source:
+- Language-learning material: e.g. Vocabulary, Grammar, Idioms & Expressions, Examples.
+- Science / math / history / other: e.g. Key Concepts, Definitions, Explanations, Examples, Formulas, Laws.
+Include a section only if the source actually has that kind of content, but always produce AT LEAST TWO content sections by splitting the material into logical parts — never collapse everything into a single content tab.
 
 STRICT content-placement rules:
-- Content sections (Vocabulary, Grammar, Examples, …) contain ONLY explanations, rules, definitions, word lists, and WORKED examples (with their solutions shown). The Grammar section must EXPLAIN each rule and show example sentences.
-- NO exercises, drills, fill-in-the-blanks, or questions of any kind in content sections. Every exercise or question found in the source MUST be moved into the Quick Quiz section instead.
+- Content sections contain ONLY explanations, rules, definitions, lists, and WORKED examples (with their solutions shown). A "rules"/"grammar"/"concepts" section must EXPLAIN each point and show example(s).
+- NO exercises, drills, fill-in-the-blanks, or questions of any kind in content sections. Every exercise or question found in the source MUST be moved into the quiz section instead.
 - Do not omit source content and do not add facts that are not in the source.
 
-Then ALWAYS end with exactly these two extra sections (named in the source language — Arabic source → "اختبر نفسك" and "اختبار شامل"):
-1. \`## Quick Quiz\` — all exercises found in the source, plus short questions, totalling at least 5.
-2. \`## Comprehensive Test\` — 8-12 NEW questions covering ALL parts of the material (mix of multiple choice and fill-in-the-blank).
+Then ALWAYS end with exactly these two extra sections. Translate BOTH names into the source language — for an Arabic source they MUST be "اختبر نفسك" and "اختبار شامل"; for English keep "Quick Quiz" and "Comprehensive Test"; for any other language use the natural equivalent:
+1. \`## <Quick Quiz in source language>\` — all exercises found in the source, plus short questions, totalling at least 5.
+2. \`## <Comprehensive Test in source language>\` — 8-12 NEW questions covering ALL parts of the material (mix of multiple choice and fill-in-the-blank).
 
 EVERY question in Quick Quiz and Comprehensive Test MUST use EXACTLY this machine-readable format (the platform turns it into an interactive quiz — deviating breaks it):
 
