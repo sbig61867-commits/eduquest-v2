@@ -1,82 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
-import JSZip from 'jszip'
 import { aiChat } from '@/lib/ai/chat'
-
-// ── Text extractors ──────────────────────────────────────────────
-
-function extractTextFromPptx(xml: string): string {
-  const texts: string[] = []
-  for (const m of xml.matchAll(/<a:t[^>]*>([^<]+)<\/a:t>/g)) {
-    const t = m[1].trim()
-    if (t) texts.push(t)
-  }
-  return texts.join(' ')
-}
-
-function extractTextFromDocx(xml: string): string {
-  const texts: string[] = []
-  for (const m of xml.matchAll(/<w:t[^>]*>([^<]+)<\/w:t>/g)) {
-    const t = m[1].trim()
-    if (t) texts.push(t)
-  }
-  // Join paragraphs with newlines for better readability
-  return texts.join(' ')
-}
-
-async function extractFromPptx(buffer: ArrayBuffer): Promise<string> {
-  const zip = await JSZip.loadAsync(buffer)
-  const slideFiles = Object.keys(zip.files)
-    .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name))
-    .sort((a, b) => {
-      const na = parseInt(a.match(/(\d+)/)?.[1] ?? '0')
-      const nb = parseInt(b.match(/(\d+)/)?.[1] ?? '0')
-      return na - nb
-    })
-
-  const parts: string[] = []
-  for (let i = 0; i < slideFiles.length; i++) {
-    const xml = await zip.files[slideFiles[i]].async('string')
-    const text = extractTextFromPptx(xml)
-    if (text.trim()) parts.push(`[الشريحة ${i + 1}]: ${text}`)
-  }
-  return parts.join('\n')
-}
-
-async function extractFromDocx(buffer: ArrayBuffer): Promise<string> {
-  const zip = await JSZip.loadAsync(buffer)
-  const docFile = zip.files['word/document.xml']
-  if (!docFile) throw new Error('word/document.xml not found in DOCX')
-  const xml = await docFile.async('string')
-  return extractTextFromDocx(xml)
-}
-
-async function extractFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // unpdf bundles a serverless-ready pdfjs build (no DOMMatrix/canvas
-  // dependency), so it works in the Vercel runtime where pdf-parse v2 crashed.
-  try {
-    const { extractText: extractPdfText, getDocumentProxy } = await import('unpdf')
-    const pdf = await getDocumentProxy(new Uint8Array(buffer))
-    const { text } = await extractPdfText(pdf, { mergePages: true })
-    return text
-  } catch (e) {
-    console.error('[generate-course-pptx] unpdf failed:', e)
-    throw new Error('Could not read this PDF (unsupported PDF structure). Try a different export of the file, or use PPTX/DOCX instead.')
-  }
-}
-
-async function extractText(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer()
-  const ext = file.name.toLowerCase().split('.').pop()
-
-  switch (ext) {
-    case 'pptx': return extractFromPptx(buffer)
-    case 'docx': return extractFromDocx(buffer)
-    case 'pdf':  return extractFromPdf(buffer)
-    default: throw new Error(`Unsupported file type: .${ext}`)
-  }
-}
+import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 
 // ── AI response parser ───────────────────────────────────────────
 
@@ -125,25 +51,15 @@ export async function POST(request: Request) {
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  const ext = file.name.toLowerCase().split('.').pop()
-  if (!['pptx', 'docx', 'pdf'].includes(ext ?? '')) {
-    return NextResponse.json({ error: 'Unsupported file type. Please upload a .pptx, .docx, or .pdf file.' }, { status: 400 })
-  }
-
-  if (file.size > 20 * 1024 * 1024) {
-    return NextResponse.json({ error: 'File too large (max 20 MB)' }, { status: 400 })
-  }
-
   let slideText: string
   try {
-    slideText = await extractText(file)
+    // Unified extractor — now with Gemini vision fallback, so scanned PDFs
+    // work here too (previously this route had no vision path).
+    slideText = await extractTextFromFile(file)
   } catch (e) {
     console.error('[generate-course-file] extraction error:', e)
-    return NextResponse.json({ error: 'Failed to read the file. Make sure it is a valid and non-corrupted file.' }, { status: 422 })
-  }
-
-  if (!slideText.trim()) {
-    return NextResponse.json({ error: 'No text could be extracted from this file. It may be image-only or empty.' }, { status: 422 })
+    const { status, error } = extractionErrorResponse(e)
+    return NextResponse.json({ error }, { status })
   }
 
   const truncatedText = slideText.slice(0, 6000)
