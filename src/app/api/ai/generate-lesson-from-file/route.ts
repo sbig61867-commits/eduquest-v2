@@ -76,7 +76,22 @@ export async function POST(request: Request) {
 
 function buildPrompt(chunk: string, level: string, customInstructions: string, part?: { index: number; total: number }): string {
   const structureBlock = customInstructions.trim()
-    ? `The teacher has provided specific instructions — follow them exactly:\n"""\n${customInstructions}\n"""`
+    ? `The teacher has provided specific instructions — follow them exactly (they OVERRIDE the default section choice; if the teacher names specific sections/tabs, use exactly those, in their order and language):
+"""
+${customInstructions}
+"""
+Platform format contract (applies regardless of the instructions above):
+- Every section MUST start with a Markdown H2 heading (\`## Section Name\`) — each H2 renders as a separate tab. Use \`##\` ONLY for section boundaries.
+- Unless the teacher explicitly says otherwise, keep exercises/questions out of content sections and end with a quiz section and a test section named in the source language.
+- EVERY question MUST use this machine-readable format (it becomes an interactive quiz):
+
+### Q1
+Question text (use ________ for fill-in-the-blank)
+- A) option
+- B) option
+**Answer:** B
+
+Fill-in-the-blank questions have no option lines and the Answer is the exact missing word. Never put a combined "Answers" list at the end.`
     : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries.
 
 First detect the subject and the language of the source, then choose 2-4 content-section names that fit it. ALWAYS write every section name (including the two quiz sections below) in the SAME language as the source:

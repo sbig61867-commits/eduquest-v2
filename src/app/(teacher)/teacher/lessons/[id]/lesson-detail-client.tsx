@@ -265,10 +265,10 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">تعليمات إضافية (اختياري)</label>
+                <label className="text-xs text-slate-500">تعليمات إضافية (اختياري) — يمكنك تحديد التبويبات التي تريدها بنفسك</label>
                 <textarea value={aiInstructions} onChange={e => setAiInstructions(e.target.value)} rows={2}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
-                  placeholder='اختياري — مثال: "ركّز على التعريفات وأضف جدولاً ملخصاً في النهاية". اتركه فارغاً للحصول على المحتوى كما هو.' />
+                  placeholder='مثال: "قسّم الدرس إلى: محادثة، استماع وفهم، قواعد، كلمات جديدة" — أو أي توجيه آخر. اتركه فارغاً وسيختار الذكاء الاصطناعي التبويبات المناسبة تلقائياً.' />
               </div>
 
               <AiProgress active={aiLoading} />
