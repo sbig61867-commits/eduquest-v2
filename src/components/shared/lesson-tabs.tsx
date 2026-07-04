@@ -69,14 +69,14 @@ function VocabItem({ term, explanation, translation }: { term: string; explanati
         <span className="text-slate-300">{explanation}</span>
         {translation && (
           showTr
-            ? <span className="ms-2 px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-xs" dir="rtl">{translation}</span>
+            ? <span className="ms-2 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-sm font-semibold" dir="rtl">{translation}</span>
             : (
               <button
                 onClick={() => setShowTr(true)}
                 title="لم أفهم — أظهر الترجمة العربية"
-                className="ms-2 inline-flex items-center gap-1 px-2 py-0.5 rounded border border-slate-600 text-slate-400 hover:text-white hover:border-slate-400 text-xs transition-colors align-middle"
+                className="ms-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-500 text-slate-300 hover:text-white hover:border-violet-400 hover:bg-violet-500/10 text-sm transition-colors align-middle"
               >
-                <Languages className="w-3 h-3" /> ترجمة
+                <Languages className="w-4 h-4" /> ترجمة
               </button>
             )
         )}

@@ -92,7 +92,7 @@ Question text (use ________ for fill-in-the-blank)
 **Answer:** B
 
 Fill-in-the-blank questions have no option lines and the Answer is the exact missing word. Never put a combined "Answers" list at the end.
-- In language lessons, vocabulary/idiom items use \`- **term** — simple English explanation ||الترجمة العربية||\` (explanation in simple English; Arabic ONLY inside ||...||, shown to the student on demand).
+- In language lessons, vocabulary/idiom items use \`- **term** — simple English explanation ||الترجمة العربية||\` (explanation in simple English; Arabic ONLY inside ||...||, shown to the student on demand). If the source pairs words directly with Arabic, write your own simple English explanation and move the Arabic into ||...||. Infer category headings lost by PDF extraction (Kitchen, Bathroom, …) and render them as \`### Heading\` lines grouping their items.
 - Examples in content sections are shown ALREADY SOLVED with the answer wrapped in ==double equals== (highlighted green), e.g. "There ==is== a car." — unsolved exercises belong in quiz sections only.`
     : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries.
 
@@ -101,6 +101,9 @@ First detect the subject and the language of the source, then choose 2-4 content
   In Vocabulary and Idioms sections, write EVERY item on its own line EXACTLY as:
   \`- **term** — simple English explanation ||الترجمة العربية||\`
   (bold term, then a dash, then a SHORT explanation in simple English so the student learns through English, then the Arabic translation inside ||double pipes|| — the platform hides the Arabic behind a "ترجمة" button and adds a pronunciation button to the term. NEVER translate idioms into Arabic in the visible explanation; Arabic goes ONLY inside ||...||.)
+  If the source is a word list that pairs each English word with its Arabic translation directly, do NOT show the Arabic as the explanation — WRITE YOUR OWN simple English explanation for the visible part and put the source's Arabic translation inside ||...||.
+  The same applies to idioms: even if the source translates an idiom straight into Arabic, first explain it in simple English (English-to-simple-English), Arabic only inside ||...||.
+  PDF extraction loses bold/colored formatting, so category headings (e.g. Kitchen, Bathroom, Rooms) arrive flattened into the word stream — infer them from meaning and render each as a \`### Heading\` line, grouping its related vocabulary items beneath it, in the source's order.
 - Science / math / history / other: e.g. Key Concepts, Definitions, Explanations, Examples, Formulas, Laws.
 Include a section only if the source actually has that kind of content, but always produce AT LEAST TWO content sections by splitting the material into logical parts — never collapse everything into a single content tab.
 
