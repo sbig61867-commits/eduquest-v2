@@ -71,6 +71,15 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const [aiHwCount, setAiHwCount] = useState(5)
   const [aiHwLoading, setAiHwLoading] = useState(false)
 
+  // Homework from file
+  const [hwFile, setHwFile] = useState<File | null>(null)
+  const [hwTypes, setHwTypes] = useState<Set<string>>(new Set(['mcq', 'true_false']))
+  const [hwFileCount, setHwFileCount] = useState(10)
+  const [hwFileInstructions, setHwFileInstructions] = useState('')
+  const [hwFileLoading, setHwFileLoading] = useState(false)
+  const [hwFileError, setHwFileError] = useState('')
+  const hwFileRef = useRef<HTMLInputElement>(null)
+
   // New manual question form
   const [newQ, setNewQ] = useState<Partial<Question>>({ type: 'mcq', options: ['', '', '', ''], points: 5 })
   const [showAddQ, setShowAddQ] = useState(false)
@@ -114,6 +123,39 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     const data = await res.json()
     if (data.questions) setQuestions(prev => [...prev, ...data.questions])
     setAiHwLoading(false)
+  }
+
+  // ── AI homework from file ──
+  function toggleHwType(t: string) {
+    setHwTypes(prev => {
+      const next = new Set(prev)
+      if (next.has(t)) next.delete(t)
+      else next.add(t)
+      return next
+    })
+  }
+
+  async function generateHwFromFile() {
+    if (!hwFile || hwTypes.size === 0) return
+    setHwFileLoading(true); setHwFileError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', hwFile)
+      fd.append('types', [...hwTypes].join(','))
+      fd.append('count', String(hwFileCount))
+      fd.append('instructions', hwFileInstructions)
+      const res = await fetch('/api/ai/generate-homework-from-file', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (res.ok && data.questions) {
+        setQuestions(prev => [...prev, ...data.questions])
+        if (!hwForm.title && hwFile) setHwForm(p => ({ ...p, title: `واجب: ${hwFile.name.replace(/\.\w+$/, '')}` }))
+      } else {
+        setHwFileError(data.error ?? 'فشل التوليد')
+      }
+    } catch {
+      setHwFileError('خطأ في الاتصال. حاول مجدداً.')
+    }
+    setHwFileLoading(false)
   }
 
   function addManualQuestion() {
@@ -411,6 +453,49 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                 className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
               <Button onClick={generateHwQuestions} loading={aiHwLoading} variant="secondary" size="sm">توليد</Button>
             </div>
+          </div>
+
+          {/* AI from file */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Upload className="w-4 h-4 text-blue-400" />
+              <span className="text-blue-300 text-sm font-medium">توليد واجب من ملف — الأسئلة من محتوى الملف فقط</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => hwFileRef.current?.click()}
+                className={`px-3 py-2 rounded-lg border text-sm transition-colors ${hwFile ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'}`}>
+                {hwFile ? `📄 ${hwFile.name}` : 'اختر ملفاً (PDF / DOCX / PPTX / صورة)'}
+              </button>
+              <input ref={hwFileRef} type="file" accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                onChange={e => { setHwFile(e.target.files?.[0] ?? null); setHwFileError('') }} />
+              <input type="number" value={hwFileCount} onChange={e => setHwFileCount(Number(e.target.value))} min={1} max={30}
+                title="عدد الأسئلة"
+                className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <span className="text-slate-500 text-xs">سؤال</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {([['mcq', 'اختيار من متعدد'], ['true_false', 'صح / خطأ'], ['essay', 'مقالي']] as const).map(([t, label]) => (
+                <button key={t} type="button" onClick={() => toggleHwType(t)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                    hwTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                  }`}>
+                  {hwTypes.has(t) ? '✓ ' : ''}{label}
+                </button>
+              ))}
+            </div>
+
+            <textarea value={hwFileInstructions} onChange={e => setHwFileInstructions(e.target.value)} rows={2}
+              className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على القسم الثاني من الملف واجعل الأسئلة قصيرة"' />
+
+            <AiProgress active={hwFileLoading} />
+            {hwFileError && <p className="text-red-400 text-sm">{hwFileError}</p>}
+
+            <Button onClick={generateHwFromFile} loading={hwFileLoading} disabled={!hwFile || hwTypes.size === 0} variant="secondary" size="sm">
+              <Sparkles className="w-4 h-4" /> توليد الأسئلة من الملف
+            </Button>
           </div>
 
           {/* Homework title + due date */}

@@ -4,6 +4,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { aiChat } from '@/lib/ai/chat'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
+import { getAiRateLimits } from '@/lib/settings'
 
 // gemini-2.0-flash caps a single response around 8192 output tokens (~24k
 // chars). Groq's llama-3.3-70b-versatile caps at 4096 — Gemini gives a
@@ -34,7 +35,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const rl = await rateLimit(`lesson-file:${user.id}`, { limit: 10, windowSecs: 3600 })
+  // Limit comes from super-admin settings (ai_rate_limits.lesson_per_hour),
+  // same as topic-based lesson generation — no more hardcoded 10.
+  const aiLimits = await getAiRateLimits(supabase)
+  const rl = await rateLimit(`lesson-file:${user.id}`, { limit: aiLimits.lesson_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },
