@@ -19,6 +19,11 @@ interface Props {
 // userId / tenantId remain in Props for the caller's contract, but identity is
 // now derived server-side (from the session) in /api/exam/start and /submit.
 export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Props) {
+  // Homework is untimed: no countdown, no auto-submit — only the due date
+  // (ends_at, enforced server-side) limits it. The student exam feed RPC
+  // doesn't expose `type`, so homework is recognized by its sentinel
+  // duration (43200 = 30 days; legacy rows used 0).
+  const untimed = exam.type === 'homework' || exam.duration_minutes <= 0 || exam.duration_minutes >= 43200
   const [started, setStarted] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [current, setCurrent] = useState(0)
@@ -101,7 +106,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
 
   // Timer — uses ref to avoid stale closure over handleSubmit
   useEffect(() => {
-    if (!started || submitted) return
+    if (!started || submitted || untimed) return
     const interval = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) { handleSubmitRef.current(); return 0 }
@@ -165,7 +170,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     // Resume support: if an attempt was already in progress, compute the real
     // remaining time from the server start timestamp instead of resetting it.
     const { startedAt, resumed } = await res.json()
-    if (resumed && startedAt) {
+    if (resumed && startedAt && !untimed) {
       const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
       const remaining = exam.duration_minutes * 60 - elapsedSecs
       if (remaining <= 0) { handleSubmitRef.current(); return }
@@ -249,12 +254,20 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
         <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">{exam.title}</h2>
-            <p className="text-slate-400">{exam.questions.length} questions · {exam.duration_minutes} minutes</p>
+            <p className="text-slate-400">
+              {exam.questions.length} questions · {untimed
+                ? (exam.ends_at ? `واجب — سلّمه قبل ${new Date(exam.ends_at).toLocaleString('ar')}` : 'واجب — بدون وقت محدد')
+                : `${exam.duration_minutes} minutes`}
+            </p>
           </div>
           <div className="space-y-3">
             {[
-              `You have ${exam.duration_minutes} minutes to complete this exam.`,
-              'Once started, the timer cannot be paused.',
+              untimed
+                ? 'هذا واجب بدون مؤقت — خذ وقتك في الحل.'
+                : `You have ${exam.duration_minutes} minutes to complete this exam.`,
+              untimed
+                ? (exam.ends_at ? `آخر موعد للتسليم: ${new Date(exam.ends_at).toLocaleString('ar')}` : null)
+                : 'Once started, the timer cannot be paused.',
               exam.proctoring_enabled ? 'Camera and microphone access required (proctored exam).' : null,
               exam.proctoring_enabled ? 'Tab switching and exiting fullscreen will be recorded.' : null,
               'Make sure you have a stable internet connection.',
@@ -297,9 +310,11 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
               <AlertTriangle className="w-4 h-4" />{violations.length}
             </span>
           )}
-          <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-400' : 'text-white'}`}>
-            <Clock className="w-4 h-4" />{formatTime(timeLeft)}
-          </span>
+          {!untimed && (
+            <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-400' : 'text-white'}`}>
+              <Clock className="w-4 h-4" />{formatTime(timeLeft)}
+            </span>
+          )}
           {exam.proctoring_enabled && cameraStatus === 'active' && (
             <video ref={videoRef} className="w-20 h-14 rounded-lg object-cover border border-slate-700 bg-slate-800" muted />
           )}
@@ -359,7 +374,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
               </label>
             ))}
 
-            {question.type === 'short_answer' && (
+            {(question.type === 'short_answer' || question.type === 'essay') && (
               <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Type your answer here..." />
             )}
           </div>

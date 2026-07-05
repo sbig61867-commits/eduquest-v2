@@ -92,7 +92,10 @@ export async function POST(request: Request) {
       tenant_id: profile.tenant_id,
       title: title.trim(),
       questions,
-      duration_minutes: 0,
+      // Homework is untimed for the student (timer hidden in the UI); this
+      // large value only satisfies the finalize RPC's deadline check —
+      // the real cutoff is ends_at (the due date).
+      duration_minutes: 43200,
       ends_at: due_date ?? null,
       is_published: true,
     })

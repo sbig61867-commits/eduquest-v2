@@ -48,6 +48,8 @@ export interface Exam {
   group_id: string
   teacher_id: string
   title: string
+  /** 'homework' rows are untimed — the timer UI is hidden and only ends_at (due date) applies. */
+  type?: 'exam' | 'homework'
   duration_minutes: number
   questions: Question[]
   is_published: boolean
@@ -60,7 +62,7 @@ export interface Exam {
 export interface Question {
   id: string
   text: string
-  type: 'mcq' | 'true_false' | 'short_answer'
+  type: 'mcq' | 'true_false' | 'short_answer' | 'essay'
   options?: string[]
   correct_answer: string
   points: number

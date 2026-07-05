@@ -82,7 +82,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
                         {isRetake && <Badge variant="yellow">Retake</Badge>}
                       </div>
                       <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{exam.duration_minutes} min</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{(exam.duration_minutes <= 0 || exam.duration_minutes >= 43200) ? 'بدون مؤقت' : `${exam.duration_minutes} min`}</span>
                         <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{exam.questions.length} questions</span>
                         {exam.proctoring_enabled && (
                           <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="w-3.5 h-3.5" />Proctored</span>
@@ -118,7 +118,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
                         <Badge variant="green"><CheckCircle2 className="w-3 h-3" /> Submitted</Badge>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-slate-500">
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{exam.duration_minutes} min</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{(exam.duration_minutes <= 0 || exam.duration_minutes >= 43200) ? 'بدون مؤقت' : `${exam.duration_minutes} min`}</span>
                         {published && sub?.score != null ? (
                           <span className="text-emerald-400 font-medium">Score: {sub.score}</span>
                         ) : (
