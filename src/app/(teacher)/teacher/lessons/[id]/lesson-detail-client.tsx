@@ -149,6 +149,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       if (res.ok && data.questions) {
         setQuestions(prev => [...prev, ...data.questions])
         if (!hwForm.title && hwFile) setHwForm(p => ({ ...p, title: `واجب: ${hwFile.name.replace(/\.\w+$/, '')}` }))
+        if (data.delivered < data.requested) {
+          setHwFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
+        }
       } else {
         setHwFileError(data.error ?? 'فشل التوليد')
       }

@@ -26,6 +26,12 @@ const TYPE_LABEL: Record<string, string> = {
   essay: 'essay / open answer',
 }
 
+// Near-duplicate detection: same question asked twice is rejected even if
+// wording differs slightly (case/punctuation/whitespace normalized).
+function normalizeQ(text: string): string {
+  return text.toLowerCase().replace(/[.,!؟?،:'"()\-ــ_]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 function validate(raw: unknown, allowed: Set<string>): GeneratedQuestion[] {
   if (!Array.isArray(raw)) throw new Error('AI did not return an array')
   const out: GeneratedQuestion[] = []
@@ -107,12 +113,17 @@ export async function POST(request: Request) {
     ? `\nThe teacher added these instructions — follow them (they may narrow the topic focus or style, but questions must STILL be answerable from the source alone):\n"""\n${customInstructions}\n"""`
     : ''
 
-  const prompt = `You are generating homework questions for university students.
+  function buildPrompt(n: number, avoid: string[]): string {
+    const avoidBlock = avoid.length
+      ? `\n- Do NOT repeat any of these already-generated questions (and do not rephrase them into near-duplicates):\n${avoid.map(t => `  • ${t}`).join('\n')}`
+      : ''
+    return `You are generating homework questions for university students.
 
 STRICT RULES:
 - Every question MUST be answerable using ONLY the source material below. Do not use outside knowledge, do not invent facts.
 - Use the SAME language as the source material.
-- Generate exactly ${count} questions, using ONLY these types: ${typeList}. Mix the allowed types naturally.
+- Generate exactly ${n} questions, using ONLY these types: ${typeList}. Mix the allowed types naturally.
+- EVERY question must be UNIQUE — never ask the same thing twice. If the material is small and you must revisit the same point, change the FORMAT (e.g. ask it as multiple choice once and as true/false or essay the other time) and change the angle.${avoidBlock}
 - Return ONLY a valid JSON array, no markdown, no explanation:
 [
   {"text":"Question?","type":"mcq","options":["A","B","C","D"],"correct_answer":"A"},
@@ -125,15 +136,35 @@ STRICT RULES:
 
 === SOURCE MATERIAL (the only allowed source) ===
 ${sourceText.slice(0, 12000)}`
+  }
 
   try {
-    const content = await aiChat(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
-    const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
-    const match = text.match(/\[[\s\S]*\]/)
-    if (!match) throw new Error('No JSON array in AI response')
-    const questions = validate(JSON.parse(match[0]), allowed)
-    if (questions.length === 0) throw new Error('No valid questions after validation')
-    return NextResponse.json({ questions })
+    // Up to 2 rounds: generate, validate, dedupe — if fewer than requested
+    // survive, ask for exactly the missing amount, excluding what we have.
+    const seen = new Set<string>()
+    const collected: GeneratedQuestion[] = []
+
+    for (let round = 0; round < 2 && collected.length < count; round++) {
+      const need = count - collected.length
+      const content = await aiChat(
+        buildPrompt(need, collected.map(q => q.text)),
+        'Return only valid JSON arrays, no markdown, no explanations.'
+      )
+      const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
+      const match = text.match(/\[[\s\S]*\]/)
+      if (!match) continue
+      for (const q of validate(JSON.parse(match[0]), allowed)) {
+        const key = normalizeQ(q.text)
+        if (seen.has(key)) continue
+        seen.add(key)
+        q.id = `${Date.now()}-${collected.length}`
+        collected.push(q)
+        if (collected.length === count) break
+      }
+    }
+
+    if (collected.length === 0) throw new Error('No valid questions after validation')
+    return NextResponse.json({ questions: collected, requested: count, delivered: collected.length })
   } catch (e) {
     console.error('[generate-homework-from-file] AI:', e)
     return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
