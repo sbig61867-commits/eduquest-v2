@@ -47,6 +47,24 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const [title, setTitle] = useState(lesson.title)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [published, setPublished] = useState(lesson.is_published)
+  const [publishing, setPublishing] = useState(false)
+
+  async function togglePublish() {
+    setPublishing(true)
+    const res = await fetch('/api/lessons', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lesson.id, is_published: !published }),
+    })
+    if (res.ok) {
+      setPublished(p => !p)
+      router.refresh()
+    } else {
+      alert((await res.json().catch(() => ({}))).error ?? 'فشل تغيير حالة النشر')
+    }
+    setPublishing(false)
+  }
 
   // Content preview
   // Default to preview when the lesson already has content, so the teacher
@@ -229,9 +247,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           <h1 className="text-xl font-bold text-white">{lesson.title}</h1>
           <p className="text-slate-400 text-sm">{lesson.groups?.name ?? '—'}</p>
         </div>
-        <Badge variant={lesson.is_published ? 'green' : 'yellow'}>
-          {lesson.is_published ? 'Published' : 'Draft'}
+        <Badge variant={published ? 'green' : 'yellow'}>
+          {published ? 'منشور للطلاب' : 'مسودة — غير ظاهر للطلاب'}
         </Badge>
+        <Button size="sm" variant={published ? 'secondary' : 'primary'} loading={publishing} onClick={togglePublish}>
+          {published ? 'إلغاء النشر' : '📢 نشر للطلاب'}
+        </Button>
       </div>
 
       {/* Tabs */}

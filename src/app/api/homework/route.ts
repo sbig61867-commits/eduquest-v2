@@ -16,10 +16,10 @@ async function getProfile(userId: string) {
   return data
 }
 
-async function ownsLesson(lessonId: string, teacherId: string, tenantId: string) {
+async function getOwnedLesson(lessonId: string, teacherId: string, tenantId: string) {
   const { data } = await adminClient()
-    .from('lessons').select('teacher_id, tenant_id').eq('id', lessonId).single()
-  return data?.teacher_id === teacherId && data?.tenant_id === tenantId
+    .from('lessons').select('teacher_id, tenant_id, title').eq('id', lessonId).single()
+  return data?.teacher_id === teacherId && data?.tenant_id === tenantId ? data : null
 }
 
 async function ownsHomework(hwId: string, teacherId: string, tenantId: string) {
@@ -78,9 +78,18 @@ export async function POST(request: Request) {
   }
 
   // Verify teacher owns the lesson
-  if (!(await ownsLesson(lesson_id, user.id, profile.tenant_id))) {
+  const lesson = await getOwnedLesson(lesson_id, user.id, profile.tenant_id)
+  if (!lesson) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  // Students see homework in lists detached from the lesson (exams page,
+  // grades) — bake the lesson name into the title so it's always clear
+  // which class session the homework belongs to.
+  const cleanTitle = title.trim()
+  const fullTitle = lesson.title && !cleanTitle.includes(lesson.title)
+    ? `${cleanTitle} — درس: ${lesson.title}`
+    : cleanTitle
 
   const row: Record<string, unknown> = {
     type: 'homework',
@@ -88,7 +97,7 @@ export async function POST(request: Request) {
     group_id,
     teacher_id: user.id,
     tenant_id: profile.tenant_id,
-    title: title.trim(),
+    title: fullTitle,
     questions,
     // Homework is untimed for the student (timer hidden in the UI); this
     // large value only satisfies the finalize RPC's deadline check —

@@ -91,6 +91,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
     })
     const data = await res.json()
     if (res.ok) setLessons(prev => prev.map(l => l.id === lesson.id ? data : l))
+    else alert(data.error ?? 'فشل تغيير حالة النشر')
   }
 
   async function deleteLesson(id: string) {

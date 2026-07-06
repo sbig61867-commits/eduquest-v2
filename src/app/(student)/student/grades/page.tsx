@@ -7,37 +7,54 @@ import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import type { Question } from '@/types'
 
-interface ExamRow { title: string; questions: Question[] }
-interface SubmissionRow {
+interface RawSubmission {
   id: string
+  exam_id: string
   score: number
+  max_score: number | null
   submitted_at: string
-  exams: ExamRow | null
 }
-
-function calcMax(questions: Question[] | undefined): number {
-  return questions?.reduce((a, q) => a + q.points, 0) || 1
-}
+interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[] }
 
 export default async function GradesPage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: raw } = await supabase
-    .from('exam_submissions')
-    .select('id, score, submitted_at, exams(title, questions)')
-    .eq('student_id', user.id)
-    .not('score', 'is', null)
-    .order('submitted_at', { ascending: false })
+  // Students have no direct SELECT on exams (answers must never leak), so a
+  // joined `exams(title)` comes back null. Titles/questions come from the
+  // get_student_exams RPC instead (answer-stripped, enrollment-scoped).
+  const [{ data: raw }, { data: rpcExams }] = await Promise.all([
+    supabase
+      .from('exam_submissions')
+      .select('id, exam_id, score, max_score, submitted_at')
+      .eq('student_id', user.id)
+      .not('score', 'is', null)
+      .order('submitted_at', { ascending: false }),
+    supabase.rpc('get_student_exams'),
+  ])
 
-  const submissions = (raw ?? []) as unknown as SubmissionRow[]
+  const examMap = new Map<string, RpcExam>(
+    ((rpcExams ?? []) as RpcExam[]).map(e => [e.id, e])
+  )
+  const isHomework = (e?: RpcExam) => !!e && (e.duration_minutes <= 0 || e.duration_minutes >= 43200)
+
+  const submissions = ((raw ?? []) as RawSubmission[]).map(sub => {
+    const exam = examMap.get(sub.exam_id)
+    const max = sub.max_score
+      ?? exam?.questions?.reduce((a, q) => a + (q.points ?? 0), 0)
+      ?? 1
+    return {
+      ...sub,
+      title: exam?.title ?? '—',
+      homework: isHomework(exam),
+      max,
+      pct: Math.round(((sub.score ?? 0) / (max || 1)) * 100),
+    }
+  })
 
   const avg = submissions.length
-    ? Math.round(submissions.reduce((s, sub) => {
-        const max = calcMax(sub.exams?.questions)
-        return s + ((sub.score ?? 0) / max) * 100
-      }, 0) / submissions.length)
+    ? Math.round(submissions.reduce((s, sub) => s + sub.pct, 0) / submissions.length)
     : null
 
   return (
@@ -60,7 +77,7 @@ export default async function GradesPage() {
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
             <p className="text-slate-400 text-sm mb-1">Passed</p>
             <p className="text-3xl font-bold text-emerald-400">
-              {submissions.filter(s => ((s.score ?? 0) / calcMax(s.exams?.questions)) * 100 >= 60).length}
+              {submissions.filter(s => s.pct >= 60).length}
             </p>
           </div>
         </div>
@@ -84,15 +101,16 @@ export default async function GradesPage() {
             </thead>
             <tbody className="divide-y divide-slate-800">
               {submissions.map(sub => {
-                const max = calcMax(sub.exams?.questions)
-                const pct = Math.round(((sub.score ?? 0) / max) * 100)
-                const passed = pct >= 60
+                const passed = sub.pct >= 60
                 return (
                   <tr key={sub.id} className="hover:bg-slate-800/50 transition-colors">
-                    <td className="px-5 py-4 text-white text-sm font-medium">{sub.exams?.title ?? '—'}</td>
+                    <td className="px-5 py-4 text-white text-sm font-medium">
+                      <Badge variant={sub.homework ? 'blue' : 'gray'}>{sub.homework ? 'واجب' : 'اختبار'}</Badge>
+                      <span className="ms-2">{sub.title}</span>
+                    </td>
                     <td className="px-5 py-4">
                       <span className={`text-sm font-bold ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {sub.score}/{max} ({pct}%)
+                        {sub.score}/{sub.max} ({sub.pct}%)
                       </span>
                     </td>
                     <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(sub.submitted_at)}</td>
