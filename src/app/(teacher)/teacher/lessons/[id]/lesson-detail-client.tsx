@@ -222,8 +222,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   }
 
   async function deleteHomework(id: string) {
-    if (!confirm('Delete this homework?')) return
-    await fetch('/api/homework', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    if (!confirm('حذف هذا الواجب نهائياً؟')) return
+    const res = await fetch('/api/homework', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    if (!res.ok) {
+      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الواجب')
+      return
+    }
     setHomework(prev => prev.filter(h => h.id !== id))
   }
 

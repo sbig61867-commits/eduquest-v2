@@ -173,6 +173,18 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Grades are official records — refuse deletion once students submitted.
+  const { count } = await adminClient()
+    .from('exam_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('exam_id', body.id)
+  if ((count ?? 0) > 0) {
+    return NextResponse.json(
+      { error: `لا يمكن حذف الواجب: يوجد ${count} تسليم بعلامات. ألغِ نشر الواجب لإخفائه عن الطلاب بدلاً من حذفه.` },
+      { status: 409 }
+    )
+  }
+
   await adminClient().from('exams').delete().eq('id', body.id)
   return NextResponse.json({ ok: true })
 }

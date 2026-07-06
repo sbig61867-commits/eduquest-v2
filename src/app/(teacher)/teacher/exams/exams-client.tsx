@@ -62,12 +62,16 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   }
 
   async function deleteExam(id: string) {
-    if (!confirm('Delete this exam?')) return
-    await fetch('/api/exams', {
+    if (!confirm('حذف هذا الاختبار نهائياً؟')) return
+    const res = await fetch('/api/exams', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     })
+    if (!res.ok) {
+      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الاختبار')
+      return
+    }
     setExams(prev => prev.filter(e => e.id !== id))
   }
 

@@ -90,12 +90,16 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   }
 
   async function deleteGroup(id: string) {
-    if (!confirm('Delete this group? All related lessons and exams will be removed.')) return
-    await fetch('/api/groups', {
+    if (!confirm('حذف هذه المجموعة نهائياً؟ ستُحذف دروسها واختباراتها معها.')) return
+    const res = await fetch('/api/groups', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     })
+    if (!res.ok) {
+      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف المجموعة')
+      return
+    }
     setGroups(prev => prev.filter(g => g.id !== id))
   }
 
