@@ -67,6 +67,9 @@ export function TenantsClient({ initialTenants }: Props) {
     const data = await res.json()
     if (!res.ok) { alert(data.error ?? 'Failed to delete university'); return }
     setTenants(prev => prev.filter(t => t.id !== tenant.id))
+    // Invalidate the router cache so revisiting the page doesn't show the
+    // deleted tenant from a stale server render.
+    router.refresh()
   }
 
   // ── Manual add admin ──────────────────────────────────────

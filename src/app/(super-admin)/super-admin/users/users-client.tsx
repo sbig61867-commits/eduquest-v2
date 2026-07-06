@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
@@ -333,19 +334,32 @@ export function SuperUsersClient({ initialUsers, tenants }: Props) {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+  const router = useRouter()
+
   async function toggleUser(u: User) {
     const res = await fetch('/api/admin/toggle-user', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: u.id, isActive: !u.is_active }),
     })
-    if (res.ok) setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_active: !x.is_active } : x))
+    if (res.ok) {
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_active: !x.is_active } : x))
+      // Invalidate Next's client router cache so navigating away and back
+      // doesn't resurrect stale server-rendered data (the "needs refresh" bug).
+      router.refresh()
+    }
   }
 
   async function deleteUser(id: string) {
     if (!confirm('Delete this user permanently?')) return
-    await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error ?? 'فشل الحذف — حاول مجدداً')
+      return
+    }
     setUsers(prev => prev.filter(u => u.id !== id))
+    router.refresh()
   }
 
   function handleUserCreated(user: User, tenantName: string | null) {
