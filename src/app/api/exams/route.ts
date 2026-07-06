@@ -57,6 +57,7 @@ export async function POST(request: Request) {
   const { data, error } = await adminClient()
     .from('exams')
     .insert({
+      type: 'exam',
       title: title.trim(),
       group_id,
       teacher_id: user.id,
