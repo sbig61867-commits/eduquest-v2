@@ -95,12 +95,16 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   }
 
   async function deleteLesson(id: string) {
-    if (!confirm('Delete this lesson?')) return
-    await fetch('/api/lessons', {
+    if (!confirm('حذف هذا الدرس نهائياً؟')) return
+    const res = await fetch('/api/lessons', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     })
+    if (!res.ok) {
+      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الدرس')
+      return
+    }
     setLessons(prev => prev.filter(l => l.id !== id))
   }
 

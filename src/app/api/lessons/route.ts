@@ -123,6 +123,24 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Grades are official records: the DB now detaches homework instead of
+  // cascading (lesson_id SET NULL), and we additionally block deletion when
+  // student submissions exist so it never happens by accident.
+  const admin = adminClient()
+  const { data: hw } = await admin.from('exams').select('id').eq('lesson_id', id)
+  if (hw && hw.length > 0) {
+    const { count } = await admin
+      .from('exam_submissions')
+      .select('id', { count: 'exact', head: true })
+      .in('exam_id', hw.map(h => h.id))
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        { error: `لا يمكن حذف الدرس: يوجد ${count} تسليم بعلامات مرتبطة بواجباته. ألغِ نشر الدرس لإخفائه عن الطلاب بدلاً من حذفه.` },
+        { status: 409 }
+      )
+    }
+  }
+
   const { error } = await adminClient().from('lessons').delete().eq('id', id)
   if (error) {
     console.error('[api/lessons DELETE]', error)
