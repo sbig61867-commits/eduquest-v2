@@ -77,6 +77,8 @@ CREATE TABLE exams (
   questions           JSONB NOT NULL DEFAULT '[]',
   is_published        BOOLEAN DEFAULT FALSE,
   proctoring_enabled  BOOLEAN DEFAULT FALSE,
+  -- homework only: publish auto-graded results to the student immediately on submit
+  auto_publish        BOOLEAN NOT NULL DEFAULT TRUE,
   starts_at           TIMESTAMPTZ,
   ends_at             TIMESTAMPTZ,
   created_at          TIMESTAMPTZ DEFAULT NOW()

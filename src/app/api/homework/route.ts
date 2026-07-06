@@ -64,11 +64,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { lesson_id?: string; group_id?: string; title?: string; questions?: unknown[]; due_date?: string }
+  let body: { lesson_id?: string; group_id?: string; title?: string; questions?: unknown[]; due_date?: string; auto_publish?: boolean }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const { lesson_id, group_id, title, questions, due_date } = body
+  const { lesson_id, group_id, title, questions, due_date, auto_publish } = body
 
   if (!lesson_id || !group_id || !title?.trim()) {
     return NextResponse.json({ error: 'lesson_id, group_id, and title are required' }, { status: 400 })
@@ -82,25 +82,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data, error } = await adminClient()
-    .from('exams')
-    .insert({
-      type: 'homework',
-      lesson_id,
-      group_id,
-      teacher_id: user.id,
-      tenant_id: profile.tenant_id,
-      title: title.trim(),
-      questions,
-      // Homework is untimed for the student (timer hidden in the UI); this
-      // large value only satisfies the finalize RPC's deadline check —
-      // the real cutoff is ends_at (the due date).
-      duration_minutes: 43200,
-      ends_at: due_date ?? null,
-      is_published: true,
-    })
-    .select()
-    .single()
+  const row: Record<string, unknown> = {
+    type: 'homework',
+    lesson_id,
+    group_id,
+    teacher_id: user.id,
+    tenant_id: profile.tenant_id,
+    title: title.trim(),
+    questions,
+    // Homework is untimed for the student (timer hidden in the UI); this
+    // large value only satisfies the finalize RPC's deadline check —
+    // the real cutoff is ends_at (the due date).
+    duration_minutes: 43200,
+    ends_at: due_date ?? null,
+    is_published: true,
+    auto_publish: auto_publish !== false,
+  }
+
+  let { data, error } = await adminClient().from('exams').insert(row).select().single()
+
+  // Graceful fallback while the auto_publish column migration hasn't been
+  // applied — the submit route then treats missing as "enabled".
+  if (error && /auto_publish/.test(error.message ?? '')) {
+    delete row.auto_publish
+    ;({ data, error } = await adminClient().from('exams').insert(row).select().single())
+  }
 
   if (error) {
     console.error('[api/homework POST]', error)

@@ -86,9 +86,8 @@ export async function GET(request: Request) {
         .reduce((s, q) => s + (q.points ?? 0), 0)
       const score = sub?.score ?? null
 
-      const colName = `${exam.type === 'homework' ? '[واجب]' : '[اختبار]'} ${exam.title}`
-      row[colName] = score !== null ? score : '—'
-      row[`${colName} (max)`] = maxScore
+      const colName = `${exam.type === 'homework' ? '[واجب]' : '[اختبار]'} ${exam.title} (من ${maxScore})`
+      row[colName] = score !== null ? `${score}/${maxScore}` : '—'
 
       if (score !== null) { totalScore += Number(score); totalMax += maxScore }
     }
@@ -110,16 +109,25 @@ export async function GET(request: Request) {
   // Generate CSV
   if (rows.length === 0) return NextResponse.json({ error: 'No data' }, { status: 404 })
 
+  const esc = (v: unknown) => {
+    const str = String(v ?? '')
+    return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
+  }
+
+  // Friendly column names — full_name/email keys become Arabic headers.
+  const HEADER_LABEL: Record<string, string> = { full_name: 'اسم الطالب', email: 'البريد الإلكتروني' }
   const headers = Object.keys(rows[0]).filter(k => k !== 'student_id')
+
   const csvLines = [
-    headers.join(','),
-    ...rows.map(row =>
-      headers.map(h => {
-        const val = row[h] ?? ''
-        const str = String(val)
-        return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
-      }).join(',')
-    ),
+    // "sep=," makes Excel split columns correctly in every locale
+    // (many Arabic-region locales default to ';' and dump everything in one column).
+    'sep=,',
+    // Title block so the teacher knows which class this sheet belongs to.
+    esc(`كشف علامات — المجموعة: ${group.name}`),
+    esc(`تاريخ التصدير: ${new Date().toISOString().slice(0, 10)}`),
+    '',
+    headers.map(h => esc(HEADER_LABEL[h] ?? h)).join(','),
+    ...rows.map(row => headers.map(h => esc(row[h] ?? '')).join(',')),
   ]
 
   const csv = '﻿' + csvLines.join('\r\n') // BOM for Arabic in Excel

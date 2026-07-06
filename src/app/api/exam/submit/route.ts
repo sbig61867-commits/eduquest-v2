@@ -48,9 +48,11 @@ export async function POST(request: Request) {
   }
 
   // Verify the student belongs to this exam's group (via group_students)
+  // select('*') so optional columns (type, auto_publish) come through when
+  // they exist without breaking if a migration hasn't been applied yet.
   const { data: exam } = await adminClient()
     .from('exams')
-    .select('id, tenant_id, group_id, questions, proctoring_enabled')
+    .select('*')
     .eq('id', examId)
     .eq('is_published', true)
     .single()
@@ -136,5 +138,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
   }
   const out = result as { score: number; max_score: number }
-  return NextResponse.json({ score: out.score, maxScore: out.max_score })
+
+  // Homework auto-publish: when every question is auto-gradable (mcq /
+  // true_false) and the teacher didn't disable it, the result goes live for
+  // the student immediately — no manual review step needed. Essay-containing
+  // homework always stays 'pending' until the teacher grades and publishes.
+  const fullQuestions: Array<{ type?: string }> = exam.questions ?? []
+  const hasManual = fullQuestions.some(q => q.type === 'essay' || q.type === 'short_answer')
+  const autoPublish = exam.type === 'homework' && !hasManual && exam.auto_publish !== false
+  let published = exam.type !== 'homework' // regular exams keep existing behavior (score shown)
+
+  if (autoPublish) {
+    const { error: pubError } = await adminClient()
+      .from('exam_submissions')
+      .update({ grading_status: 'published' })
+      .eq('exam_id', examId)
+      .eq('student_id', user.id)
+    if (!pubError) published = true
+  }
+
+  return NextResponse.json({ score: out.score, maxScore: out.max_score, published })
 }

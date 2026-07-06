@@ -35,6 +35,13 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
 
   const submissionMap = Object.fromEntries(submissions.map(s => [s.exam_id, s]))
 
+  // Homework is stored in the exams table with a sentinel duration (43200 =
+  // untimed; legacy rows 0) — split it into its own section so students
+  // don't mistake lesson homework for a formal timed exam.
+  const isHomework = (e: ExamWithContext) => e.duration_minutes <= 0 || e.duration_minutes >= 43200
+  const availableHomework = availableExams.filter(isHomework)
+  const availableRealExams = availableExams.filter(e => !isHomework(e))
+
   function contextLabel(exam: ExamWithContext) {
     if (exam.groups?.name) return exam.groups.name
     if (exam.courses?.title) return exam.courses.title
@@ -64,11 +71,14 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
         </div>
       ) : (
         <>
-          {availableExams.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Available</h3>
+          {[
+            { label: '📋 الواجبات', list: availableHomework, homework: true },
+            { label: '🕒 الاختبارات', list: availableRealExams, homework: false },
+          ].filter(s => s.list.length > 0).map(section => (
+            <div key={section.label} className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">{section.label}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {availableExams.map(exam => {
+                {section.list.map(exam => {
                   const isRetake = !!submissionMap[exam.id]
                   return (
                     <div key={exam.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
@@ -89,14 +99,16 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
                         )}
                       </div>
                       <Button className="w-full" onClick={() => setActiveExam(exam)}>
-                        {isRetake ? <><RotateCcw className="w-4 h-4" /> Retake Exam</> : <><Play className="w-4 h-4" /> Start Exam</>}
+                        {isRetake
+                          ? <><RotateCcw className="w-4 h-4" /> {section.homework ? 'إعادة حل الواجب' : 'Retake Exam'}</>
+                          : <><Play className="w-4 h-4" /> {section.homework ? 'حل الواجب' : 'Start Exam'}</>}
                       </Button>
                     </div>
                   )
                 })}
               </div>
             </div>
-          )}
+          ))}
 
           {/* Completed Exams */}
           {completedExams.length > 0 && (

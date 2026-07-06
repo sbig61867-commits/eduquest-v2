@@ -218,7 +218,10 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     }
 
     const data = await res.json()
-    setFinalScore({ score: data.score, maxScore: data.maxScore })
+    // Only show the score when it's final (published). Homework that needs
+    // manual grading shows a "pending review" message instead of a
+    // misleading auto-score that excludes essay questions.
+    setFinalScore(data.published ? { score: data.score, maxScore: data.maxScore } : null)
     setSubmitted(true)
     setSubmitting(false)
   }
@@ -237,9 +240,11 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
           <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
             <Send className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Exam Submitted!</h2>
-          {finalScore && (
+          <h2 className="text-2xl font-bold text-white">{untimed ? 'تم تسليم الواجب!' : 'Exam Submitted!'}</h2>
+          {finalScore ? (
             <p className="text-slate-400">Your score: <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
+          ) : (
+            <p className="text-amber-400 text-sm">تم استلام إجاباتك — ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
           )}
           {violations.length > 0 && <p className="text-amber-400 text-sm">{violations.length} proctoring violation(s) recorded</p>}
           <Button onClick={onFinish} className="mt-4">Back to Exams</Button>

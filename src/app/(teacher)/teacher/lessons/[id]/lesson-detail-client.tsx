@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { LessonTabs } from '@/components/shared/lesson-tabs'
 import { AiProgress } from '@/components/shared/ai-progress'
+import { SubmissionsTab } from './submissions-tab'
 import { Modal } from '@/components/ui/modal'
 
 interface Lesson {
@@ -65,6 +66,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const [homework, setHomework] = useState(initialHomework)
   const [showHwModal, setShowHwModal] = useState(false)
   const [hwForm, setHwForm] = useState({ title: '', due_date: '' })
+  const [autoPublishHw, setAutoPublishHw] = useState(true)
   const [questions, setQuestions] = useState<Question[]>([])
   const [hwLoading, setHwLoading] = useState(false)
   const [aiHwTopic, setAiHwTopic] = useState('')
@@ -190,6 +192,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
         title: hwForm.title,
         questions,
         due_date: hwForm.due_date || null,
+        auto_publish: autoPublishHw,
       }),
     })
     const data = await res.json()
@@ -426,15 +429,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               <Download className="w-4 h-4" /> تصدير Excel
             </Button>
           </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-            <Users className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400 mb-1">عرض تفصيلي للتسليمات</p>
-            <p className="text-slate-500 text-sm">
-              {totalSubmissions > 0
-                ? `${totalSubmissions} تسليم عبر ${homework.length} واجب`
-                : 'لم يسلّم أي طالب بعد'}
-            </p>
-          </div>
+          <SubmissionsTab lessonId={lesson.id} />
         </div>
       )}
 
@@ -513,6 +508,30 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                 className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
+
+          {/* Auto-publish results (auto-gradable questions only) */}
+          {(() => {
+            const hasEssay = questions.some(q => q.type === 'essay')
+            return (
+              <label className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer ${hasEssay ? 'border-slate-800 opacity-60 cursor-not-allowed' : 'border-slate-700 hover:border-slate-500'}`}>
+                <input
+                  type="checkbox"
+                  checked={autoPublishHw && !hasEssay}
+                  disabled={hasEssay}
+                  onChange={e => setAutoPublishHw(e.target.checked)}
+                  className="mt-0.5 accent-blue-500"
+                />
+                <span className="text-sm">
+                  <span className="text-slate-200 font-medium">نشر النتائج تلقائياً فور التسليم</span>
+                  <span className="block text-slate-500 text-xs mt-0.5">
+                    {hasEssay
+                      ? 'غير متاح — الواجب يحتوي أسئلة مقالية تتطلب تصحيحك اليدوي ثم نشر النتائج من تبويب التسليمات.'
+                      : 'أسئلة الاختيار والصح/خطأ تُصحح آلياً — يرى الطالب علامته مباشرة بعد التسليم.'}
+                  </span>
+                </span>
+              </label>
+            )
+          })()}
 
           {/* Questions list */}
           {questions.length > 0 && (
