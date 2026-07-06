@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
-import { Plus, Users, Pencil, Trash2, UserPlus, X, Search } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, UserPlus, X, Search, Archive, ArchiveRestore } from 'lucide-react'
 
 interface Group {
   id: string
   name: string
   description: string | null
   created_at: string
+  is_active: boolean
   group_students: { count: number }[]
 }
 
@@ -87,6 +88,19 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     }
     setShowAdd(false)
     setLoading(false)
+  }
+
+  async function toggleArchive(group: Group) {
+    const archiving = group.is_active
+    if (archiving && !confirm(`أرشفة مجموعة "${group.name}"؟ ستختفي دروسها وواجباتها واختباراتها عن الطلاب، وتبقى كل السجلات والعلامات محفوظة. يمكنك استرجاعها متى شئت.`)) return
+    const res = await fetch('/api/groups', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: group.id, is_active: !group.is_active }),
+    })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error ?? 'فشل تغيير حالة المجموعة'); return }
+    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_active: data.is_active } : g))
   }
 
   async function deleteGroup(id: string) {
@@ -172,10 +186,18 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                 </div>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(group)}><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => toggleArchive(group)}
+                    title={group.is_active ? 'أرشفة — إخفاء عن الطلاب مع حفظ السجلات' : 'استرجاع المجموعة'}
+                    className={group.is_active ? 'hover:text-amber-400 hover:bg-amber-500/10' : 'text-amber-400 hover:text-emerald-400 hover:bg-emerald-500/10'}>
+                    {group.is_active ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteGroup(group.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
-              <h3 className="text-white font-semibold mb-1">{group.name}</h3>
+              <h3 className="text-white font-semibold mb-1">
+                {group.name}
+                {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 align-middle">مؤرشفة</span>}
+              </h3>
               <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || 'No description'}</p>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">{group.group_students?.[0]?.count ?? 0} students</span>

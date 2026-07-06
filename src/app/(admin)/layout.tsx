@@ -6,6 +6,7 @@ const navItems = [
   { label: 'Dashboard',   href: '/admin/dashboard',   icon: 'LayoutDashboard' as const },
   { label: 'Teachers',    href: '/admin/teachers',     icon: 'GraduationCap' as const },
   { label: 'Students',    href: '/admin/students',     icon: 'Users' as const },
+  { label: 'Groups',      href: '/admin/groups',       icon: 'Layers' as const },
   { label: 'Courses',     href: '/admin/courses',      icon: 'BookOpen' as const },
   { label: 'Invitations', href: '/admin/invitations',  icon: 'Mail' as const },
   { label: 'Settings',    href: '/admin/settings',     icon: 'Settings' as const },

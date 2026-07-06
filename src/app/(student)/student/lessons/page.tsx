@@ -19,10 +19,12 @@ export default async function StudentLessonsPage() {
 
   const groupIds = (groupRows ?? []).map(r => r.group_id)
 
+  // groups!inner + is_active filter: lessons of archived groups are hidden.
   const lessons = groupIds.length === 0 ? [] : await supabase
     .from('lessons')
-    .select('*, groups(name)')
+    .select('*, groups!inner(name, is_active)')
     .eq('is_published', true)
+    .eq('groups.is_active', true)
     .in('group_id', groupIds)
     .order('created_at', { ascending: false })
     .then(r => r.data ?? [])

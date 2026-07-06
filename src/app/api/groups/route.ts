@@ -75,12 +75,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { id?: string; name?: string; description?: string }
+  let body: { id?: string; name?: string; description?: string; is_active?: boolean }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const { id, name, description } = body
-  if (!id || !name?.trim()) return NextResponse.json({ error: 'Missing id or name' }, { status: 400 })
+  const { id, name, description, is_active } = body
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (name !== undefined && !name.trim()) return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 })
+  if (name === undefined && is_active === undefined) {
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  }
 
   // ── Ownership check: verify group belongs to this tenant + teacher ──
   const { data: group } = await adminClient()
@@ -97,9 +101,15 @@ export async function PATCH(request: Request) {
   }
 
   // ── Privileged write (admin client, bypasses RLS) ────────────
+  const update: Record<string, unknown> = {}
+  if (name !== undefined) { update.name = name.trim(); update.description = description?.trim() ?? null }
+  // Archive/restore: archived groups keep every record but disappear from
+  // the students' lessons/exams views.
+  if (is_active !== undefined) update.is_active = is_active
+
   const { data, error } = await adminClient()
     .from('groups')
-    .update({ name: name.trim(), description: description?.trim() ?? null })
+    .update(update)
     .eq('id', id)
     .select()
     .single()

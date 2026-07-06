@@ -45,6 +45,8 @@ CREATE TABLE groups (
   teacher_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
   description TEXT,
+  -- archive flag: archived groups keep all records but are hidden from students
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
