@@ -54,6 +54,14 @@ export async function POST(request: Request) {
   const customInstructions = (formData.get('instructions') as string | null)?.slice(0, 1000) ?? ''
   const level = (formData.get('level') as string | null) ?? 'undergraduate'
 
+  // Teacher-selected question types for the quiz/test tabs (toggle chips in
+  // the UI). Sanitized to the known set; empty/absent → auto-gradable pair.
+  const ALLOWED_QTYPES = ['true_false', 'mcq', 'essay'] as const
+  let questionTypes: string[] = []
+  try { questionTypes = JSON.parse((formData.get('question_types') as string | null) ?? '[]') } catch { /* default below */ }
+  questionTypes = questionTypes.filter(t => (ALLOWED_QTYPES as readonly string[]).includes(t))
+  if (questionTypes.length === 0) questionTypes = ['true_false', 'mcq']
+
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
   let fullText: string
@@ -68,7 +76,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const content = await composeLesson(fullText, level, customInstructions)
+    const content = await composeLesson(fullText, level, customInstructions, questionTypes)
     return NextResponse.json({ content })
   } catch (e) {
     console.error('[generate-lesson-from-file] AI:', e)
@@ -78,7 +86,16 @@ export async function POST(request: Request) {
 
 // ── Composition (organized into tabbed sections) ─────────────────
 
-function buildPrompt(chunk: string, level: string, customInstructions: string, part?: { index: number; total: number }): string {
+function questionTypesClause(qTypes: string[]): string {
+  const LABEL: Record<string, string> = {
+    true_false: 'true/false (options exactly: - A) True / - B) False)',
+    mcq: 'multiple choice with 4 options',
+    essay: 'open/essay questions (NO option lines; put a model answer after **Answer:**)',
+  }
+  return `In the quiz and test sections use ONLY these question types, chosen by the teacher: ${qTypes.map(t => LABEL[t]).join(' + ')}. Never use any other type.`
+}
+
+function buildPrompt(chunk: string, level: string, customInstructions: string, qTypes: string[], part?: { index: number; total: number }): string {
   const structureBlock = customInstructions.trim()
     ? `The teacher has provided specific instructions — follow them exactly (they OVERRIDE the default section choice; if the teacher names specific sections/tabs, use exactly those, in their order and language):
 """
@@ -148,7 +165,8 @@ Preserve the source content faithfully — do not invent information that is not
 Keep the same language as the source material.
 
 Level: ${level}
-${structureBlock}${continuationNote}
+${structureBlock}
+${questionTypesClause(qTypes)}${continuationNote}
 
 Format in Markdown.
 
@@ -182,12 +200,12 @@ function splitIntoChunks(text: string, target: number): string[] {
   return chunks
 }
 
-async function composeWithGemini(fullText: string, level: string, customInstructions: string): Promise<string> {
+async function composeWithGemini(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<string> {
   const chunks = splitIntoChunks(fullText, CHUNK_CHAR_TARGET)
   const model = getGeminiModel()
 
   if (chunks.length === 1) {
-    const result = await model.generateContent(buildPrompt(chunks[0], level, customInstructions))
+    const result = await model.generateContent(buildPrompt(chunks[0], level, customInstructions, qTypes))
     return result.response.text()
   }
 
@@ -196,33 +214,33 @@ async function composeWithGemini(fullText: string, level: string, customInstruct
   const parts: string[] = []
   for (let i = 0; i < chunks.length; i++) {
     const result = await model.generateContent(
-      buildPrompt(chunks[i], level, customInstructions, { index: i, total: chunks.length })
+      buildPrompt(chunks[i], level, customInstructions, qTypes, { index: i, total: chunks.length })
     )
     parts.push(result.response.text())
   }
   return parts.join('\n\n')
 }
 
-async function composeWithFallbackChain(fullText: string, level: string, customInstructions: string): Promise<string> {
+async function composeWithFallbackChain(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<string> {
   const chunks = splitIntoChunks(fullText, GROQ_CHUNK_CHAR_TARGET)
   const system = 'You transcribe source material into Markdown lesson pages faithfully, without adding or omitting content.'
 
   const parts: string[] = []
   for (let i = 0; i < chunks.length; i++) {
     const part = chunks.length > 1 ? { index: i, total: chunks.length } : undefined
-    parts.push(await aiChat(buildPrompt(chunks[i], level, customInstructions, part), system))
+    parts.push(await aiChat(buildPrompt(chunks[i], level, customInstructions, qTypes, part), system))
   }
   return parts.join('\n\n')
 }
 
-async function composeLesson(fullText: string, level: string, customInstructions: string): Promise<string> {
+async function composeLesson(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<string> {
   // Gemini first (larger output window), then the aiChat chain
   // (Groq → Cerebras → OpenRouter) — e.g. when the Gemini free-tier quota
   // is exhausted (429) the teacher still gets a lesson.
   try {
-    return await composeWithGemini(fullText, level, customInstructions)
+    return await composeWithGemini(fullText, level, customInstructions, qTypes)
   } catch (e) {
     console.error('[composeLesson] Gemini failed, falling back to aiChat chain:', e instanceof Error ? e.message : e)
-    return composeWithFallbackChain(fullText, level, customInstructions)
+    return composeWithFallbackChain(fullText, level, customInstructions, qTypes)
   }
 }

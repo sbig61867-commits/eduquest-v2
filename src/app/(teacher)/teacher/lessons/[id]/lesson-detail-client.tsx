@@ -117,6 +117,19 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   }
 
   // ── AI from file ──
+  const QTYPE_OPTIONS = [
+    { key: 'true_false', label: 'صح / خطأ' },
+    { key: 'mcq', label: 'اختيار من متعدد' },
+    { key: 'essay', label: 'مقالي' },
+  ] as const
+  const [qTypes, setQTypes] = useState<string[]>(['true_false', 'mcq'])
+
+  function toggleQType(key: string) {
+    setQTypes(prev => prev.includes(key)
+      ? (prev.length > 1 ? prev.filter(t => t !== key) : prev) // keep at least one
+      : [...prev, key])
+  }
+
   async function generateFromFile() {
     if (!uploadedFile) return
     setAiLoading(true); setAiError('')
@@ -124,6 +137,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     fd.append('file', uploadedFile)
     fd.append('level', aiLevel)
     fd.append('instructions', aiInstructions)
+    fd.append('question_types', JSON.stringify(qTypes))
     const res = await fetch('/api/ai/generate-lesson-from-file', { method: 'POST', body: fd })
     const data = await res.json()
     if (res.ok) { setContent(data.content); if (!title) setTitle(uploadedFile.name.replace(/\.\w+$/, '')) }
@@ -335,6 +349,29 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                 <Button onClick={generateFromFile} loading={aiLoading} disabled={!uploadedFile} variant="secondary" size="sm">
                   <Sparkles className="w-4 h-4" /> توليد
                 </Button>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-500">طبيعة أسئلة الكويز والاختبار — فعّل ما تريد (واحد أو أكثر)</label>
+                <div className="flex flex-wrap gap-2">
+                  {QTYPE_OPTIONS.map(opt => {
+                    const on = qTypes.includes(opt.key)
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleQType(opt.key)}
+                        className={`px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                          on
+                            ? 'border-violet-500 bg-violet-500/15 text-violet-300'
+                            : 'border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {on ? '✓ ' : ''}{opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="space-y-1">
