@@ -86,7 +86,9 @@ ${customInstructions}
 """
 Platform format contract (applies regardless of the instructions above):
 - Every section MUST start with a Markdown H2 heading (\`## Section Name\`) — each H2 renders as a separate tab. Use \`##\` ONLY for section boundaries.
-- Unless the teacher explicitly says otherwise, keep exercises/questions out of content sections and end with a quiz section and a test section named in the source language.
+- Keep exercises/questions out of content sections.
+- The lesson MUST ALWAYS end with a quick-quiz section and a comprehensive-test section (named in the source language, e.g. "اختبر نفسك" / "اختبار شامل" for Arabic, "Quick Quiz" / "Comprehensive Test" for English) — these two tabs are mandatory for every subject and CANNOT be dropped, even if the teacher's section list doesn't mention them. The teacher's instructions control the QUESTION TYPES inside them (e.g. "أسئلة صح وخطأ فقط" → true/false only) but never their existence.
+- If the teacher asks for a task/assignment section (مهمة), add a \`## Task\` tab (named in the source language, e.g. "المهمة") BEFORE the quiz sections, containing the assignment exactly as the teacher describes it.
 - EVERY question MUST use this machine-readable format (it becomes an interactive quiz):
 
 ### Q1

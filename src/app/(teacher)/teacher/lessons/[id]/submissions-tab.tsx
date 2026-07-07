@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Send, Save } from 'lucide-react'
+import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Send, Save, EyeOff } from 'lucide-react'
 
 // Teacher grading view for a lesson's homework: who submitted, their
 // answers, manual points for essay questions, and publishing results.
@@ -166,12 +166,17 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                             </Button>
                           </>
                         )}
-                        {sub.grading_status !== 'published' && (
+                        {sub.grading_status !== 'published' ? (
                           <Button size="sm" variant="secondary" loading={busy === sub.id}
                             onClick={() => patchSub(sub.id, hasEssay
                               ? { score: totalFor(hw, sub), grading_status: 'published' }
                               : { grading_status: 'published' })}>
                             <Send className="w-3.5 h-3.5" /> نشر النتيجة للطالب
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" loading={busy === sub.id}
+                            onClick={() => patchSub(sub.id, { grading_status: 'reviewing' })}>
+                            <EyeOff className="w-3.5 h-3.5" /> إخفاء النتيجة عن الطالب
                           </Button>
                         )}
                       </div>
