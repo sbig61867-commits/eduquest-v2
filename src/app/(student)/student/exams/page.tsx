@@ -16,7 +16,7 @@ export default async function StudentExamsPage() {
   // have no direct SELECT on the exams table (see exam_answer_leak_fix_migration.sql).
   const [{ data: rpcExams }, { data: submissions }, { data: retakePermissions }, policies] = await Promise.all([
     supabase.rpc('get_student_exams'),
-    supabase.from('exam_submissions').select('exam_id, score, grading_status').eq('student_id', user.id),
+    supabase.from('exam_submissions').select('exam_id, score, max_score, grading_status').eq('student_id', user.id),
     supabase.from('exam_retake_permissions').select('exam_id').eq('student_id', user.id),
     getExamPolicies(supabase),
   ])

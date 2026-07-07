@@ -15,6 +15,7 @@ type ExamWithContext = Exam & {
 interface Submission {
   exam_id: string
   score: number | null
+  max_score: number | null
   grading_status: string
 }
 
@@ -132,7 +133,9 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
                       <div className="flex items-center gap-4 text-sm text-slate-500">
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{(exam.duration_minutes <= 0 || exam.duration_minutes >= 43200) ? 'بدون مؤقت' : `${exam.duration_minutes} min`}</span>
                         {published && sub?.score != null ? (
-                          <span className="text-emerald-400 font-medium">Score: {sub.score}</span>
+                          <span className="text-emerald-400 font-medium">
+                            العلامة: {sub.score}{sub.max_score ? ` / ${sub.max_score} (${Math.round(((sub.score ?? 0) / sub.max_score) * 100)}%)` : ''}
+                          </span>
                         ) : (
                           <span className="text-amber-400 text-xs">Results pending</span>
                         )}
