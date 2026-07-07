@@ -92,7 +92,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const [aiHwLoading, setAiHwLoading] = useState(false)
 
   // Homework from file
-  const [hwFile, setHwFile] = useState<File | null>(null)
+  const [hwFiles, setHwFiles] = useState<File[]>([])
   const [hwTypes, setHwTypes] = useState<Set<string>>(new Set(['mcq', 'true_false']))
   // Teacher-set default points per question type — applied to every
   // generated question; each question stays individually editable after.
@@ -173,11 +173,11 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   }
 
   async function generateHwFromFile() {
-    if (!hwFile || hwTypes.size === 0) return
+    if (hwFiles.length === 0 || hwTypes.size === 0) return
     setHwFileLoading(true); setHwFileError('')
     try {
       const fd = new FormData()
-      fd.append('file', hwFile)
+      for (const f of hwFiles) fd.append('file', f)
       fd.append('types', [...hwTypes].join(','))
       fd.append('count', String(hwFileCount))
       fd.append('instructions', hwFileInstructions)
@@ -190,7 +190,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           points: typePoints[q.type] ?? q.points,
         }))
         setQuestions(prev => [...prev, ...withPoints])
-        if (!hwForm.title && hwFile) setHwForm(p => ({ ...p, title: `واجب: ${hwFile.name.replace(/\.\w+$/, '')}` }))
+        if (!hwForm.title && hwFiles[0]) setHwForm(p => ({ ...p, title: `واجب: ${hwFiles[0].name.replace(/\.\w+$/, '')}` }))
         if (data.delivered < data.requested) {
           setHwFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
         }
@@ -532,12 +532,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => hwFileRef.current?.click()}
-                className={`px-3 py-2 rounded-lg border text-sm transition-colors ${hwFile ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'}`}>
-                {hwFile ? `📄 ${hwFile.name}` : 'اختر ملفاً (PDF / DOCX / PPTX / صورة)'}
+                className={`px-3 py-2 rounded-lg border text-sm transition-colors ${hwFiles.length ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'}`}>
+                {hwFiles.length ? `📄 ${hwFiles.length === 1 ? hwFiles[0].name : hwFiles.length + ' ملفات محددة'}` : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
               </button>
-              <input ref={hwFileRef} type="file" accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
-                onChange={e => { setHwFile(e.target.files?.[0] ?? null); setHwFileError('') }} />
-              <input type="number" value={hwFileCount} onChange={e => setHwFileCount(Number(e.target.value))} min={1} max={30}
+              <input ref={hwFileRef} type="file" multiple accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                onChange={e => { setHwFiles(Array.from(e.target.files ?? []).slice(0, 10)); setHwFileError('') }} />
+              <input type="number" value={hwFileCount} onChange={e => setHwFileCount(Number(e.target.value))} min={1} max={120}
                 title="عدد الأسئلة"
                 className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <span className="text-slate-500 text-xs">سؤال</span>
@@ -575,7 +575,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
             <AiProgress active={hwFileLoading} />
             {hwFileError && <p className="text-red-400 text-sm">{hwFileError}</p>}
 
-            <Button onClick={generateHwFromFile} loading={hwFileLoading} disabled={!hwFile || hwTypes.size === 0} variant="secondary" size="sm">
+            <Button onClick={generateHwFromFile} loading={hwFileLoading} disabled={hwFiles.length === 0 || hwTypes.size === 0} variant="secondary" size="sm">
               <Sparkles className="w-4 h-4" /> توليد الأسئلة من الملف
             </Button>
           </div>

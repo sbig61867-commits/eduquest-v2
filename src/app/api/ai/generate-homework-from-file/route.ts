@@ -89,19 +89,27 @@ export async function POST(request: Request) {
   try { formData = await request.formData() }
   catch { return NextResponse.json({ error: 'Invalid form data' }, { status: 400 }) }
 
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  // Multiple files supported — a monthly exam can be built from every
+  // session's file at once (up to 10 files).
+  const files = formData.getAll('file').filter((f): f is File => f instanceof File)
+  if (files.length === 0) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  if (files.length > 10) return NextResponse.json({ error: 'بحد أقصى 10 ملفات في المرة الواحدة' }, { status: 400 })
 
   const typesRaw = (formData.get('types') as string | null) ?? 'mcq,true_false'
   const allowed = new Set(typesRaw.split(',').map(t => t.trim()).filter(t => ['mcq', 'true_false', 'essay'].includes(t)))
   if (allowed.size === 0) return NextResponse.json({ error: 'No valid question types selected' }, { status: 400 })
 
-  const count = Math.min(Math.max(parseInt((formData.get('count') as string) ?? '10', 10) || 10, 1), 30)
+  const count = Math.min(Math.max(parseInt((formData.get('count') as string) ?? '10', 10) || 10, 1), 120)
   const customInstructions = ((formData.get('instructions') as string | null) ?? '').slice(0, 1000).trim()
 
   let sourceText: string
   try {
-    sourceText = await extractTextFromFile(file)
+    const parts: string[] = []
+    for (const f of files) {
+      const text = await extractTextFromFile(f)
+      parts.push(files.length > 1 ? `=== FILE: ${f.name} ===\n${text}` : text)
+    }
+    sourceText = parts.join('\n\n')
   } catch (e) {
     console.error('[generate-homework-from-file] extraction:', e)
     const { status, error } = extractionErrorResponse(e)
@@ -114,8 +122,10 @@ export async function POST(request: Request) {
     : ''
 
   function buildPrompt(n: number, avoid: string[]): string {
-    const avoidBlock = avoid.length
-      ? `\n- Do NOT repeat any of these already-generated questions (and do not rephrase them into near-duplicates):\n${avoid.map(t => `  • ${t}`).join('\n')}`
+    // Cap the avoid list so 100+ question runs don't bloat the prompt.
+    const avoidShort = avoid.slice(-60).map(t => t.slice(0, 90))
+    const avoidBlock = avoidShort.length
+      ? `\n- Do NOT repeat any of these already-generated questions (and do not rephrase them into near-duplicates):\n${avoidShort.map(t => `  • ${t}`).join('\n')}`
       : ''
     return `You are generating homework questions for university students.
 
@@ -135,17 +145,20 @@ STRICT RULES:
 - essay: options empty, correct_answer empty.${instructionsBlock}
 
 === SOURCE MATERIAL (the only allowed source) ===
-${sourceText.slice(0, 12000)}`
+${sourceText.slice(0, 30000)}`
   }
 
   try {
-    // Up to 2 rounds: generate, validate, dedupe — if fewer than requested
-    // survive, ask for exactly the missing amount, excluding what we have.
+    // Batched generation: the model's output window fits ~30 JSON questions
+    // per call, so large requests (monthly exam, 100+ questions) run in
+    // batches of ≤30 with dedup across batches, plus retry headroom.
+    const BATCH = 30
+    const maxRounds = Math.ceil(count / BATCH) + 2
     const seen = new Set<string>()
     const collected: GeneratedQuestion[] = []
 
-    for (let round = 0; round < 2 && collected.length < count; round++) {
-      const need = count - collected.length
+    for (let round = 0; round < maxRounds && collected.length < count; round++) {
+      const need = Math.min(count - collected.length, BATCH)
       const content = await aiChat(
         buildPrompt(need, collected.map(q => q.text)),
         'Return only valid JSON arrays, no markdown, no explanations.'
