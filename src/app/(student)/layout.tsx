@@ -18,7 +18,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <Sidebar items={navItems} title="Student" />
       <ContentShell>
         <Header title="Student Portal" />
-        <main className="pt-16 p-4 lg:p-6">{children}</main>
+        <main className="p-4 lg:p-6 !pt-20">{children}</main>
       </ContentShell>
     </div>
   )

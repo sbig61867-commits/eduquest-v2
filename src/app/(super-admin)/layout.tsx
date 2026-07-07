@@ -20,7 +20,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       <Sidebar items={navItems} title="Super Admin" />
       <ContentShell>
         <Header title="Super Admin Panel" />
-        <main className="pt-16 p-4 lg:p-6">{children}</main>
+        <main className="p-4 lg:p-6 !pt-20">{children}</main>
       </ContentShell>
     </div>
   )
