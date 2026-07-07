@@ -181,6 +181,8 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       fd.append('types', [...hwTypes].join(','))
       fd.append('count', String(hwFileCount))
       fd.append('instructions', hwFileInstructions)
+      // Existing questions (from earlier runs/files) — server avoids duplicating them.
+      fd.append('avoid', JSON.stringify(questions.map(q => q.text).slice(-100)))
       const res = await fetch('/api/ai/generate-homework-from-file', { method: 'POST', body: fd })
       const data = await res.json()
       if (res.ok && data.questions) {
@@ -530,17 +532,42 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               <span className="text-blue-300 text-sm font-medium">توليد واجب من ملف — الأسئلة من محتوى الملف فقط</span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => hwFileRef.current?.click()}
-                className={`px-3 py-2 rounded-lg border text-sm transition-colors ${hwFiles.length ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'}`}>
-                {hwFiles.length ? `📄 ${hwFiles.length === 1 ? hwFiles[0].name : hwFiles.length + ' ملفات محددة'}` : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
-              </button>
-              <input ref={hwFileRef} type="file" multiple accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
-                onChange={e => { setHwFiles(Array.from(e.target.files ?? []).slice(0, 10)); setHwFileError('') }} />
-              <input type="number" value={hwFileCount} onChange={e => setHwFileCount(Number(e.target.value))} min={1} max={120}
-                title="عدد الأسئلة"
-                className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <span className="text-slate-500 text-xs">سؤال</span>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => hwFileRef.current?.click()}
+                  className="px-3 py-2 rounded-lg border border-blue-500 bg-blue-500/10 text-blue-300 text-sm hover:bg-blue-500/20 transition-colors">
+                  <Plus className="w-3.5 h-3.5 inline -mt-0.5" /> {hwFiles.length ? 'إضافة ملفات أخرى' : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
+                </button>
+                {/* Appends to the existing selection (dedup by name+size) so the
+                    teacher can pick 10 now and more later without losing anything. */}
+                <input ref={hwFileRef} type="file" multiple accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                  onChange={e => {
+                    const picked = Array.from(e.target.files ?? [])
+                    setHwFiles(prev => {
+                      const seen = new Set(prev.map(f => f.name + f.size))
+                      return [...prev, ...picked.filter(f => !seen.has(f.name + f.size))].slice(0, 10)
+                    })
+                    setHwFileError('')
+                    e.target.value = ''
+                  }} />
+                <input type="number" value={hwFileCount} onChange={e => setHwFileCount(Number(e.target.value))} min={1} max={120}
+                  title="عدد الأسئلة"
+                  className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <span className="text-slate-500 text-xs">سؤال</span>
+              </div>
+              {hwFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {hwFiles.map((f, i) => (
+                    <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs">
+                      📄 {f.name}
+                      <button type="button" title="إزالة هذا الملف"
+                        onClick={() => setHwFiles(prev => prev.filter((_, j) => j !== i))}
+                        className="text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                  <span className="text-slate-600 text-xs self-center">{hwFiles.length}/10</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

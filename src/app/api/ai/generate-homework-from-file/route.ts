@@ -157,10 +157,17 @@ ${sourceText.slice(0, 30000)}`
     const seen = new Set<string>()
     const collected: GeneratedQuestion[] = []
 
+    // Questions already in the teacher's draft (earlier generation runs) —
+    // seed both dedup layers so new runs never repeat them.
+    let priorTexts: string[] = []
+    try { priorTexts = JSON.parse((formData.get('avoid') as string | null) ?? '[]') } catch { /* optional */ }
+    priorTexts = priorTexts.filter((t): t is string => typeof t === 'string').slice(-100)
+    for (const t of priorTexts) seen.add(normalizeQ(t))
+
     for (let round = 0; round < maxRounds && collected.length < count; round++) {
       const need = Math.min(count - collected.length, BATCH)
       const content = await aiChat(
-        buildPrompt(need, collected.map(q => q.text)),
+        buildPrompt(need, [...priorTexts, ...collected.map(q => q.text)]),
         'Return only valid JSON arrays, no markdown, no explanations.'
       )
       const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
