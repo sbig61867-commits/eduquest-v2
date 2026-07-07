@@ -94,6 +94,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   // Homework from file
   const [hwFile, setHwFile] = useState<File | null>(null)
   const [hwTypes, setHwTypes] = useState<Set<string>>(new Set(['mcq', 'true_false']))
+  // Teacher-set default points per question type — applied to every
+  // generated question; each question stays individually editable after.
+  const [typePoints, setTypePoints] = useState<Record<string, number>>({ mcq: 1, true_false: 1, essay: 5 })
   const [hwFileCount, setHwFileCount] = useState(10)
   const [hwFileInstructions, setHwFileInstructions] = useState('')
   const [hwFileLoading, setHwFileLoading] = useState(false)
@@ -181,7 +184,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       const res = await fetch('/api/ai/generate-homework-from-file', { method: 'POST', body: fd })
       const data = await res.json()
       if (res.ok && data.questions) {
-        setQuestions(prev => [...prev, ...data.questions])
+        // Apply the teacher's per-type points (overrides AI defaults).
+        const withPoints = (data.questions as Question[]).map(q => ({
+          ...q,
+          points: typePoints[q.type] ?? q.points,
+        }))
+        setQuestions(prev => [...prev, ...withPoints])
         if (!hwForm.title && hwFile) setHwForm(p => ({ ...p, title: `واجب: ${hwFile.name.replace(/\.\w+$/, '')}` }))
         if (data.delivered < data.requested) {
           setHwFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
@@ -535,15 +543,29 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               <span className="text-slate-500 text-xs">سؤال</span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {([['mcq', 'اختيار من متعدد'], ['true_false', 'صح / خطأ'], ['essay', 'مقالي']] as const).map(([t, label]) => (
-                <button key={t} type="button" onClick={() => toggleHwType(t)}
-                  className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
-                    hwTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
-                  }`}>
-                  {hwTypes.has(t) ? '✓ ' : ''}{label}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {([['mcq', 'اختيار من متعدد'], ['true_false', 'صح / خطأ'], ['essay', 'مقالي']] as const).map(([t, label]) => (
+                  <div key={t} className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => toggleHwType(t)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                        hwTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                      }`}>
+                      {hwTypes.has(t) ? '✓ ' : ''}{label}
+                    </button>
+                    {hwTypes.has(t) && (
+                      <>
+                        <input type="number" min={1} max={100} value={typePoints[t]}
+                          title={`علامة كل سؤال ${label}`}
+                          onChange={e => setTypePoints(p => ({ ...p, [t]: Math.max(1, Number(e.target.value)) }))}
+                          className="w-14 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        <span className="text-slate-500 text-xs">علامة</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-slate-500 text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً.</p>
             </div>
 
             <textarea value={hwFileInstructions} onChange={e => setHwFileInstructions(e.target.value)} rows={2}
@@ -598,7 +620,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           {/* Questions list */}
           {questions.length > 0 && (
             <div className="space-y-2">
-              <p className="text-slate-300 text-sm font-medium">{questions.length} سؤال</p>
+              <p className="text-slate-300 text-sm font-medium">
+                {questions.length} سؤال — العلامة الكاملة: <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
+              </p>
               {questions.map((q, i) => (
                 <div key={q.id} className="flex items-start gap-3 bg-slate-800 rounded-lg p-3">
                   <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
@@ -609,7 +633,16 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'essay' ? 'yellow' : 'gray'}>
                     {q.type === 'mcq' ? 'اختيار' : q.type === 'essay' ? 'مقالي' : 'صح/خطأ'}
                   </Badge>
-                  <span className="text-slate-500 text-xs">{q.points} د</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    <input type="number" min={1} max={100} value={q.points}
+                      title="علامة هذا السؤال"
+                      onChange={e => {
+                        const v = Math.max(1, Number(e.target.value))
+                        setQuestions(p => p.map(x => x.id === q.id ? { ...x, points: v } : x))
+                      }}
+                      className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <span className="text-slate-500 text-xs">د</span>
+                  </span>
                   <button onClick={() => setQuestions(p => p.filter(x => x.id !== q.id))}
                     className="text-slate-500 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
                 </div>
