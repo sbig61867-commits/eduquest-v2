@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { buildXlsx, type Cell } from '@/lib/xlsx'
 
 function adminClient() {
   return createAdminClient(
@@ -106,36 +107,36 @@ export async function GET(request: Request) {
     return NextResponse.json({ group: group.name, rows })
   }
 
-  // Generate CSV
   if (rows.length === 0) return NextResponse.json({ error: 'No data' }, { status: 404 })
 
-  const esc = (v: unknown) => {
-    const str = String(v ?? '')
-    return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
-  }
-
-  // Friendly column names — full_name/email keys become Arabic headers.
+  // Real XLSX (not CSV): native UTF-8 keeps Arabic names intact, columns
+  // always split correctly, numbers stay numeric, and no Excel warning.
   const HEADER_LABEL: Record<string, string> = { full_name: 'اسم الطالب', email: 'البريد الإلكتروني' }
   const headers = Object.keys(rows[0]).filter(k => k !== 'student_id')
+  const today = new Date().toISOString().slice(0, 10)
 
-  const csvLines = [
-    // "sep=," makes Excel split columns correctly in every locale
-    // (many Arabic-region locales default to ';' and dump everything in one column).
-    'sep=,',
-    // Title block so the teacher knows which class this sheet belongs to.
-    esc(`كشف علامات — المجموعة: ${group.name}`),
-    esc(`تاريخ التصدير: ${new Date().toISOString().slice(0, 10)}`),
-    '',
-    headers.map(h => esc(HEADER_LABEL[h] ?? h)).join(','),
-    ...rows.map(row => headers.map(h => esc(row[h] ?? '')).join(',')),
+  const numeric = (v: string | number | null): Cell => {
+    if (v === null || v === '' || v === '—') return v ?? ''
+    const n = Number(v)
+    return Number.isFinite(n) && String(v).trim() !== '' ? n : v
+  }
+
+  const sheet: Cell[][] = [
+    [`كشف علامات — المجموعة: ${group.name}`],
+    [`تاريخ التصدير: ${today}`],
+    [],
+    headers.map(h => HEADER_LABEL[h] ?? h),
+    ...rows.map(row => headers.map(h =>
+      (h === 'full_name' || h === 'email') ? (row[h] ?? '') : numeric(row[h])
+    )),
   ]
 
-  const csv = '﻿' + csvLines.join('\r\n') // BOM for Arabic in Excel
-  const filename = `grades_${group.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`
+  const buf = await buildXlsx(sheet, 'العلامات')
+  const filename = `grades_${group.name.replace(/\s+/g, '_')}_${today}.xlsx`
 
-  return new Response(csv, {
+  return new Response(new Uint8Array(buf), {
     headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,
     },
   })

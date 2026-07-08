@@ -258,7 +258,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   function exportGrades() {
     const groupId = lesson.groups?.id
     if (!groupId) return
-    window.open(`/api/grades/export?group_id=${groupId}&format=csv`, '_blank')
+    window.open(`/api/grades/export?group_id=${groupId}&format=xlsx`, '_blank')
   }
 
   const totalQuestions = homework.reduce((s, h) => s + (h.questions?.length ?? 0), 0)
