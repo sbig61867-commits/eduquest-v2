@@ -5,9 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users } from 'lucide-react'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import type { Question } from '@/types'
+
+interface ResultRow {
+  student_id: string; name: string; email: string; submitted: boolean
+  score: number | null; max_score: number; grading_status: string | null
+  submitted_at: string | null; violations: number
+}
+interface ExamResults {
+  title: string; group_name: string; max_score: number
+  submitted_count: number; roster_count: number; results: ResultRow[]
+}
 
 interface Exam { id: string; title: string; duration_minutes: number; questions: Question[]; is_published: boolean; proctoring_enabled: boolean; created_at: string; groups: { name: string } | null }
 interface Group { id: string; name: string }
@@ -22,6 +32,16 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   const [aiCount, setAiCount] = useState(10)
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState<ExamResults | null>(null)
+  const [resultsLoading, setResultsLoading] = useState(false)
+
+  async function openResults(examId: string) {
+    setResultsLoading(true); setResults(null)
+    const res = await fetch(`/api/exams/results?exam_id=${examId}`)
+    if (res.ok) setResults(await res.json())
+    else alert((await res.json().catch(() => ({}))).error ?? 'Failed to load results')
+    setResultsLoading(false)
+  }
   async function generateQuestions() {
     if (!aiTopic) return
     setAiLoading(true)
@@ -107,9 +127,13 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? 'Published' : 'Draft'}</Badge>
                     {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 mr-1" />Proctored</Badge>}
                   </div>
-                  <p className="text-slate-400 text-sm">{exam.groups?.name ?? '—'} · {exam.duration_minutes} min · {exam.questions.length} questions · {formatDate(exam.created_at)}</p>
+                  <p className="text-slate-400 text-sm flex items-center gap-1.5 flex-wrap">
+                    <Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span>
+                    · {exam.duration_minutes} min · {exam.questions.length} questions · {formatDate(exam.created_at)}
+                  </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> Results</Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                 </div>
@@ -175,6 +199,70 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             </div>
           </form>
         </div>
+      </Modal>
+
+      {/* Results */}
+      <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title="Exam Results" size="xl">
+        {resultsLoading ? (
+          <p className="text-slate-500 text-sm py-8 text-center">Loading results...</p>
+        ) : results ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <p className="text-white font-semibold">{results.title}</p>
+                <p className="text-slate-400 text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {results.group_name}</p>
+              </div>
+              <div className="ms-auto flex gap-4 text-sm">
+                <span className="text-slate-300">{results.submitted_count}/{results.roster_count} submitted</span>
+                <span className="text-slate-500">out of {results.max_score} marks</span>
+              </div>
+            </div>
+
+            {results.results.length === 0 ? (
+              <p className="text-slate-500 text-sm py-6 text-center">No students enrolled in this group yet.</p>
+            ) : (
+              <div className="border border-slate-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                      <th className="text-left px-4 py-2.5">Student</th>
+                      <th className="text-left px-4 py-2.5">Score</th>
+                      <th className="text-left px-4 py-2.5 hidden sm:table-cell">Submitted</th>
+                      <th className="text-left px-4 py-2.5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/70">
+                    {results.results.map(r => {
+                      const pct = r.submitted && r.score != null ? Math.round((r.score / (r.max_score || 1)) * 100) : null
+                      return (
+                        <tr key={r.student_id} className="hover:bg-slate-800/40">
+                          <td className="px-4 py-3">
+                            <p className="text-white">{r.name}</p>
+                            <p className="text-slate-500 text-xs">{r.email}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            {!r.submitted ? <span className="text-slate-600">—</span>
+                              : r.grading_status === 'published' && r.score != null
+                                ? <span className={`font-bold ${pct! >= 60 ? 'text-emerald-400' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
+                                : <span className="text-amber-400 text-xs">pending grading</span>}
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
+                          <td className="px-4 py-3">
+                            {!r.submitted ? <Badge variant="gray">Not taken</Badge>
+                              : <span className="flex items-center gap-2">
+                                  <Badge variant="green">Submitted</Badge>
+                                  {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
+                                </span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : null}
       </Modal>
     </div>
   )
