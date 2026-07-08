@@ -7,6 +7,7 @@ import type { Exam, Question, ProctoringEvent } from '@/types'
 import { useFaceDetection } from '@/hooks/use-face-detection'
 import { useObjectDetection } from '@/hooks/use-object-detection'
 import { useServerProctoring } from '@/hooks/use-server-proctoring'
+import { useLivePublish } from '@/hooks/use-live-publish'
 
 interface Props {
   exam: Exam
@@ -60,6 +61,10 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
   }, [])
 
   const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
+
+  // ── Live layer: publish camera+mic to LiveKit so the teacher watches
+  //    in real time (no-ops when LiveKit isn't configured). ──
+  useLivePublish(exam.id, proctoringActive)
 
   // ── Legacy client-side layer (kept for immediate student alerts) ──
   // MediaPipe: face detection + gaze direction

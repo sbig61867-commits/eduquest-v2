@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users, Radio } from 'lucide-react'
+import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
 import type { ProctoringEvent, Question } from '@/types'
@@ -57,12 +58,41 @@ export default async function ProctoringReportsPage() {
   const flagged = submissions.filter(s => (s.proctoring_events ?? []).length > 0)
   const clean   = submissions.filter(s => (s.proctoring_events ?? []).length === 0)
 
+  // Proctored exams the teacher can watch live right now.
+  const { data: liveExams } = await supabase
+    .from('exams')
+    .select('id, title')
+    .eq('teacher_id', user.id)
+    .eq('type', 'exam')
+    .eq('proctoring_enabled', true)
+    .eq('is_published', true)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Proctoring Reports</h2>
         <p className="text-slate-400 mt-1">Exam integrity monitoring for all proctored exams</p>
       </div>
+
+      {(liveExams ?? []).length > 0 && (
+        <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Radio className="w-4 h-4 text-red-400" />
+            <p className="text-white font-semibold">Live Monitoring</p>
+            <span className="text-slate-500 text-xs">Watch students in real time during a proctored exam</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(liveExams ?? []).map(e => (
+              <Link key={e.id} href={`/teacher/proctoring/live/${e.id}`}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600/15 border border-red-600/40 text-red-300 hover:bg-red-600/25 text-sm font-medium transition-colors">
+                <Radio className="w-3.5 h-3.5" /> {e.title}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
