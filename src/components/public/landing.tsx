@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
 import {
   Sparkles, ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
-  ChevronDown, Users, BookOpen, ClipboardList, BarChart2,
+  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, Radio, Volume2, CheckCircle2, Plus,
 } from 'lucide-react'
 
 const dict = {
@@ -28,6 +28,28 @@ const dict = {
       { icon: 'Building2', title: 'عزل كامل لكل جامعة', desc: 'بيانات كل جامعة معزولة تماماً على مستوى قاعدة البيانات.' },
     ],
     allFeatures: 'استكشف كل المميزات',
+    liveTitle: 'مراقبة حية للاختبارات — كأنك في القاعة',
+    liveDesc: 'أثناء الاختبار، يفتح المعلم جداراً مباشراً يرى فيه كل الطلاب ويسمعهم في آنٍ واحد. عند صدور أي صوت تظهر علامة على إطار صاحبه — ليميّز محاولة الغش من الضجيج المحيط فلا يُظلم أحد.',
+    livePoints: [
+      'فيديو حي لكل طالب في شبكة واحدة',
+      'مؤشر "يتكلم" يحدّد مصدر الصوت فوراً',
+      'اضغط أي طالب لتكبيره بجودة أعلى',
+      'يعمل بثبات حتى على الإنترنت الضعيف',
+    ],
+    stepsTitle: 'كيف تبدأ في 4 خطوات',
+    steps: [
+      { title: 'اطلب اشتراكاً', desc: 'راسلنا عبر النموذج وأخبرنا عن جامعتك.' },
+      { title: 'نجهّز بيئتك', desc: 'ننشئ بيئة معزولة خاصة بجامعتك ونسلّمك لوحة المالك.' },
+      { title: 'ادعُ فريقك', desc: 'أضف المعلمين بروابط دعوة، وهم يدعون طلابهم لمجموعاتهم.' },
+      { title: 'ابدأ التدريس', desc: 'ولّد الدروس والاختبارات، راقب، وصحّح — كله من مكان واحد.' },
+    ],
+    faqTitle: 'أسئلة شائعة',
+    faqs: [
+      { q: 'هل بيانات جامعتنا معزولة عن غيرها؟', a: 'نعم، تماماً. كل جامعة لها بيئتها المعزولة على مستوى قاعدة البيانات — لا يرى أحد بيانات أحد.' },
+      { q: 'كيف تمنعون الغش في الاختبارات عن بُعد؟', a: 'مراقبة مزدوجة: ذكاء اصطناعي يرصد المخالفات ويسجّلها، ومراقبة حية يرى فيها المعلم ويسمع كل الطلاب مباشرة أثناء الاختبار.' },
+      { q: 'هل نحتاج خبرة تقنية لتشغيل المنصة؟', a: 'لا. الواجهة بسيطة لكل الأدوار، ونحن نجهّز بيئتكم ونرافقكم في البداية خطوة بخطوة.' },
+      { q: 'هل يمكن توليد الدروس والاختبارات تلقائياً؟', a: 'نعم، بالذكاء الاصطناعي من ملفاتكم أو من عنوان — وكلها قابلة للمراجعة والتعديل قبل النشر.' },
+    ],
     mock: {
       title: 'حدود الاستخدام للمعلم',
       stats: [
@@ -62,6 +84,28 @@ const dict = {
       { icon: 'Building2', title: 'Full isolation per university', desc: 'Every university’s data is fully isolated at the database level.' },
     ],
     allFeatures: 'Explore all features',
+    liveTitle: 'Live exam monitoring — like being in the room',
+    liveDesc: 'During an exam the teacher opens a live wall seeing and hearing every student at once. When any sound is made, a marker appears on that student’s tile — telling a cheating attempt from ambient noise, so no one is treated unfairly.',
+    livePoints: [
+      'Live video of every student in one grid',
+      'A “speaking” marker pinpoints the sound source instantly',
+      'Click any student to zoom in at higher quality',
+      'Stays stable even on weak internet',
+    ],
+    stepsTitle: 'Get started in 4 steps',
+    steps: [
+      { title: 'Request access', desc: 'Message us through the form and tell us about your university.' },
+      { title: 'We set you up', desc: 'We create your isolated environment and hand you the owner dashboard.' },
+      { title: 'Invite your team', desc: 'Add teachers via invite links; they invite their students into groups.' },
+      { title: 'Start teaching', desc: 'Generate lessons and exams, proctor, and grade — all from one place.' },
+    ],
+    faqTitle: 'Frequently asked questions',
+    faqs: [
+      { q: 'Is our university’s data isolated from others?', a: 'Yes, completely. Each university has its own isolated environment at the database level — no one can see anyone else’s data.' },
+      { q: 'How do you prevent cheating in remote exams?', a: 'Dual proctoring: AI detects and logs violations, plus live monitoring where the teacher sees and hears all students in real time during the exam.' },
+      { q: 'Do we need technical expertise to run it?', a: 'No. The interface is simple for every role, and we set up your environment and guide you step by step at the start.' },
+      { q: 'Can lessons and exams be generated automatically?', a: 'Yes, with AI from your files or from a topic — all reviewable and editable before publishing.' },
+    ],
     mock: {
       title: 'Teacher usage allowances',
       stats: [
@@ -198,6 +242,73 @@ export function Landing() {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-700 hover:border-blue-500 text-slate-200 hover:text-white font-medium transition-colors">
             {t.allFeatures} <Arrow className="w-4 h-4" />
           </Link>
+        </div>
+      </section>
+
+      {/* Live proctoring highlight */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <div className="relative overflow-hidden bg-gradient-to-br from-red-600/10 via-slate-900 to-slate-900 border border-red-500/20 rounded-2xl p-6 sm:p-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold mb-4">
+                <Radio className="w-3.5 h-3.5" /> {lang === 'ar' ? 'مباشر' : 'LIVE'}
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t.liveTitle}</h2>
+              <p className="text-slate-300 leading-relaxed mb-5">{t.liveDesc}</p>
+              <ul className="space-y-2.5">
+                {t.livePoints.map((p, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-slate-200 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /> {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* Mini live-wall mockup (pure CSS) */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className={`relative aspect-video rounded-lg bg-slate-800 border-2 overflow-hidden ${i === 1 ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.25)]' : 'border-slate-700'}`}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-700/40 to-slate-900" />
+                  <Users className="absolute inset-0 m-auto w-6 h-6 text-slate-600" />
+                  {i === 1 && (
+                    <span className="absolute top-1.5 end-1.5 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      <Volume2 className="w-2.5 h-2.5" /> {lang === 'ar' ? 'يتكلم' : 'speaking'}
+                    </span>
+                  )}
+                  <span className="absolute bottom-1 start-1.5 text-white/80 text-[10px]">{lang === 'ar' ? `طالب ${i + 1}` : `Student ${i + 1}`}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.stepsTitle}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {t.steps.map((s, i) => (
+            <div key={i} className="relative bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white font-bold mb-4">{i + 1}</span>
+              <h3 className="text-white font-semibold mb-1.5">{s.title}</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.faqTitle}</h2>
+        <div className="space-y-3">
+          {t.faqs.map((f, i) => (
+            <details key={i} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <summary className="flex items-center justify-between gap-3 p-5 cursor-pointer list-none text-white font-medium">
+                {f.q}
+                <Plus className="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-45" />
+              </summary>
+              <p className="px-5 pb-5 -mt-1 text-slate-400 text-sm leading-relaxed">{f.a}</p>
+            </details>
+          ))}
         </div>
       </section>
 
