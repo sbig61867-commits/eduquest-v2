@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     .eq('lesson_id', lessonId)
     .eq('type', 'homework')
     .eq('teacher_id', user.id) // ownership: only the teacher's own homework
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (!exams?.length) return NextResponse.json({ homework: [] })

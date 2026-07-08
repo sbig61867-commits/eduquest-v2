@@ -62,7 +62,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   }
 
   async function deleteExam(id: string) {
-    if (!confirm('حذف هذا الاختبار نهائياً؟')) return
+    if (!confirm('حذف هذا الاختبار؟\n\nيُنقل إلى الأرشيف مع كل تسليماته وعلاماته — لا شيء يُمحى نهائياً ويمكن الرجوع إليه من أرشيف الجامعة.')) return
     const res = await fetch('/api/exams', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

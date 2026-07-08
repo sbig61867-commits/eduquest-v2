@@ -159,32 +159,16 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Grades are official records — deleting a group cascades through its
-  // exams/homework to student submissions. Refuse when any exist.
-  const { data: groupExams } = await adminClient()
-    .from('exams').select('id').eq('group_id', id)
-  if (groupExams && groupExams.length > 0) {
-    const { count } = await adminClient()
-      .from('exam_submissions')
-      .select('id', { count: 'exact', head: true })
-      .in('exam_id', groupExams.map(e => e.id))
-    if ((count ?? 0) > 0) {
-      return NextResponse.json(
-        { error: `لا يمكن حذف المجموعة: يوجد ${count} تسليم بعلامات لاختباراتها وواجباتها. عطّل المجموعة (إلغاء التفعيل) بدلاً من حذفها للحفاظ على السجلات.` },
-        { status: 409 }
-      )
-    }
-  }
-
-  // ── Privileged write (admin client, bypasses RLS) ────────────
-  const { error } = await adminClient()
-    .from('groups')
-    .delete()
-    .eq('id', id)
+  // Soft delete (archive): the group and its lessons/exams get a
+  // deleted_at stamp, disappearing from every live view while all records
+  // — submissions, grades — stay intact and reachable from the archive.
+  const { error } = await adminClient().rpc('soft_delete_entity', {
+    p_kind: 'group', p_id: id, p_actor: user.id, p_tenant_id: profile.tenant_id,
+  })
 
   if (error) {
     console.error('[api/groups DELETE]', error)
-    return NextResponse.json({ error: 'Failed to delete group' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to archive group' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

@@ -95,7 +95,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   }
 
   async function deleteLesson(id: string) {
-    if (!confirm('حذف هذا الدرس نهائياً؟')) return
+    if (!confirm('حذف هذا الدرس؟\n\nيُنقل هو وواجباته إلى الأرشيف مع كل التسليمات والعلامات — لا شيء يُمحى نهائياً ويمكن الرجوع إليه لاحقاً.')) return
     const res = await fetch('/api/lessons', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

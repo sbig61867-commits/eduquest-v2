@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     .select('id, title, type, questions')
     .eq('group_id', groupId)
     .eq('teacher_id', user.id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (!exams || exams.length === 0) {

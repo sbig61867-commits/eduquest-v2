@@ -47,6 +47,7 @@ export async function GET(request: Request) {
     .eq('lesson_id', lessonId)
     .eq('type', 'homework')
     .eq('teacher_id', user.id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (error) return NextResponse.json({ error: 'Failed to fetch homework' }, { status: 500 })
@@ -173,18 +174,14 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Grades are official records — refuse deletion once students submitted.
-  const { count } = await adminClient()
-    .from('exam_submissions')
-    .select('id', { count: 'exact', head: true })
-    .eq('exam_id', body.id)
-  if ((count ?? 0) > 0) {
-    return NextResponse.json(
-      { error: `لا يمكن حذف الواجب: يوجد ${count} تسليم بعلامات. ألغِ نشر الواجب لإخفائه عن الطلاب بدلاً من حذفه.` },
-      { status: 409 }
-    )
+  // Soft delete (archive): submissions/grades stay intact and reachable
+  // from the archive.
+  const { error } = await adminClient().rpc('soft_delete_entity', {
+    p_kind: 'exam', p_id: body.id, p_actor: user.id, p_tenant_id: profile.tenant_id,
+  })
+  if (error) {
+    console.error('[api/homework DELETE]', error)
+    return NextResponse.json({ error: 'Failed to archive homework' }, { status: 500 })
   }
-
-  await adminClient().from('exams').delete().eq('id', body.id)
   return NextResponse.json({ ok: true })
 }
