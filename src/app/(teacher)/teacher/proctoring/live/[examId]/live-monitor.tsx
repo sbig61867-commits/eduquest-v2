@@ -29,7 +29,10 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   useEffect(() => {
     if (!liveConfigured) return
     let cancelled = false
-    const room = new Room()
+    // adaptiveStream: LiveKit sends each tile only the resolution its size
+    // needs, so a wall of small tiles stays smooth instead of pulling full
+    // streams for every student.
+    const room = new Room({ adaptiveStream: true })
     roomRef.current = room
 
     function upsert(identity: string, patch: Partial<Feed>) {

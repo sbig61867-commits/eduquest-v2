@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Room, RoomEvent } from 'livekit-client'
+import { Room, RoomEvent, VideoPresets } from 'livekit-client'
 
 // Publishes the student's camera + mic to the exam's LiveKit room so the
 // teacher can watch/listen live. Publish-only (student can't see others).
@@ -13,7 +13,21 @@ export function useLivePublish(examId: string, active: boolean) {
   useEffect(() => {
     if (!active) return
     let cancelled = false
-    const room = new Room({ adaptiveStream: true, dynacast: true })
+    // Proctoring only needs a small, steady picture — cap capture at 360p/20fps
+    // and publish simulcast layers so the SFU can drop to a lower layer under
+    // load. This trades HD for stability (no freezing/jitter on the grid).
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      videoCaptureDefaults: {
+        resolution: { width: 640, height: 360, frameRate: 20 },
+      },
+      publishDefaults: {
+        simulcast: true,
+        videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
+        videoCodec: 'vp8',
+      },
+    })
     roomRef.current = room
 
     ;(async () => {
