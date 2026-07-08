@@ -23,9 +23,18 @@ export function useLivePublish(examId: string, active: boolean) {
         resolution: { width: 640, height: 360, frameRate: 20 },
       },
       publishDefaults: {
+        // VP9 + SVC (L3T3): one scalable stream the SFU can peel down to a
+        // lower spatial/temporal layer per subscriber — better quality per
+        // bitrate than VP8 simulcast, and lighter on the student's uplink.
+        videoCodec: 'vp9',
+        backupCodec: { codec: 'vp8' }, // fallback for browsers without VP9 encode
+        scalabilityMode: 'L3T3',
         simulcast: true,
         videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
-        videoCodec: 'vp8',
+        // Audio matters most for proctoring — keep it clean, prioritized, mono.
+        dtx: true,
+        red: true,
+        audioPreset: { maxBitrate: 24_000 },
       },
     })
     roomRef.current = room

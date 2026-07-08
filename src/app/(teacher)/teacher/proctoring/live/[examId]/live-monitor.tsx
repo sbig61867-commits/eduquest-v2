@@ -23,8 +23,12 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   const [feeds, setFeeds] = useState<Record<string, Feed>>({})
   const [status, setStatus] = useState<'connecting' | 'live' | 'error' | 'disabled'>(liveConfigured ? 'connecting' : 'disabled')
   const [muted, setMuted] = useState(true)
+  const [page, setPage] = useState(0)
+  const [zoomed, setZoomed] = useState<string | null>(null)
   const roomRef = useRef<Room | null>(null)
   const mediaEls = useRef<Record<string, { video?: HTMLVideoElement; audio?: HTMLAudioElement }>>({})
+
+  const PAGE_SIZE = 9
 
   useEffect(() => {
     if (!liveConfigured) return
@@ -118,7 +122,15 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     }
   }, [muted, feeds])
 
-  const list = Object.values(feeds)
+  // Speakers first so anyone making noise floats to the visible page.
+  const list = Object.values(feeds).sort((a, b) => Number(b.speaking) - Number(a.speaking))
+  const zoomedFeed = zoomed ? feeds[zoomed] : null
+  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  // Only the current page (or the zoomed student) is rendered → adaptiveStream
+  // pauses every off-page track, so the teacher's bandwidth stays flat no
+  // matter how many students are in the exam.
+  const visible = zoomedFeed ? [zoomedFeed] : list.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
   return (
     <div className="space-y-4">
@@ -154,18 +166,37 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
         </div>
       )}
 
+      {zoomedFeed && (
+        <button onClick={() => setZoomed(null)} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5">
+          <ArrowLeft className="w-4 h-4" /> رجوع للجدار الكامل
+        </button>
+      )}
+
       {list.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {list.map(f => (
-            <StudentTile key={f.identity} feed={f} videoEl={mediaEls.current[f.identity]?.video} />
+        <div className={zoomedFeed ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'}>
+          {visible.map(f => (
+            <StudentTile key={f.identity} feed={f} videoEl={mediaEls.current[f.identity]?.video}
+              zoomed={!!zoomedFeed}
+              onClick={() => setZoomed(z => z === f.identity ? null : f.identity)} />
           ))}
+        </div>
+      )}
+
+      {/* Pagination — only shown when there are more students than one page */}
+      {!zoomedFeed && pageCount > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <button disabled={safePage === 0} onClick={() => setPage(p => Math.max(0, p - 1))}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-sm disabled:opacity-40 hover:bg-slate-700">السابق</button>
+          <span className="text-slate-400 text-sm">صفحة {safePage + 1} / {pageCount}</span>
+          <button disabled={safePage >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-sm disabled:opacity-40 hover:bg-slate-700">التالي</button>
         </div>
       )}
     </div>
   )
 }
 
-function StudentTile({ feed, videoEl }: { feed: Feed; videoEl?: HTMLVideoElement }) {
+function StudentTile({ feed, videoEl, zoomed, onClick }: { feed: Feed; videoEl?: HTMLVideoElement; zoomed?: boolean; onClick?: () => void }) {
   const holder = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = holder.current
@@ -176,7 +207,9 @@ function StudentTile({ feed, videoEl }: { feed: Feed; videoEl?: HTMLVideoElement
   }, [videoEl, feed.hasVideo])
 
   return (
-    <div className={`relative rounded-xl overflow-hidden border-2 bg-slate-950 aspect-video transition-colors ${feed.speaking ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.3)]' : 'border-slate-800'}`}>
+    <div onClick={onClick}
+      title={zoomed ? '' : 'اضغط للتكبير بجودة أعلى'}
+      className={`relative rounded-xl overflow-hidden border-2 bg-slate-950 transition-colors cursor-pointer ${zoomed ? 'aspect-video max-h-[70vh] mx-auto w-full' : 'aspect-video'} ${feed.speaking ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.3)]' : 'border-slate-800 hover:border-slate-600'}`}>
       <div ref={holder} className="absolute inset-0 flex items-center justify-center">
         {!feed.hasVideo && <VideoOff className="w-8 h-8 text-slate-700" />}
       </div>
