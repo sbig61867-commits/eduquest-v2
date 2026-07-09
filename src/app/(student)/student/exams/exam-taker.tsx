@@ -9,6 +9,7 @@ import { useObjectDetection } from '@/hooks/use-object-detection'
 import { useServerProctoring } from '@/hooks/use-server-proctoring'
 import { useLivePublish } from '@/hooks/use-live-publish'
 import { useProctorRecorder } from '@/hooks/use-proctor-recorder'
+import { useEvidenceCapture } from '@/hooks/use-evidence-capture'
 
 interface Props {
   exam: Exam
@@ -51,12 +52,18 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
   //    frame layer, which is now disabled behind NEXT_PUBLIC_SERVER_PROCTORING). ──
   const { record: recordEvent, flush: flushEvents } = useProctorRecorder(exam.id, proctoringActive)
 
+  // ── Evidence capture: one snapshot on SEVERE violations only (no AI, no
+  //    periodic capture, capped + cooldown, private bucket). ──
+  const { onViolation: maybeCaptureEvidence } = useEvidenceCapture(exam.id, videoRef, proctoringActive)
+
   // Define addViolation BEFORE hook calls that reference it. It updates the UI
-  // alert AND buffers the event for the DB recorder above.
+  // alert, buffers the event for the DB recorder, and asks the evidence layer
+  // whether this violation is severe enough to snapshot.
   const addViolation = useCallback((type: string, details?: string) => {
     const event: ProctoringEvent = { type: type as ProctoringEvent['type'], timestamp: new Date().toISOString(), details }
     setViolations(prev => [...prev, event])
     recordEvent(type, details)
+    maybeCaptureEvidence(type)
     const messages: Record<string, string> = {
       tab_switch: '⚠️ Tab switch detected!',
       fullscreen_exit: '⚠️ Please return to fullscreen mode!',
@@ -68,7 +75,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     }
     setViolationAlert(messages[type] ?? '⚠️ Proctoring alert!')
     setTimeout(() => setViolationAlert(''), 4000)
-  }, [recordEvent])
+  }, [recordEvent, maybeCaptureEvidence])
 
   // ── Live layer: publish camera+mic to LiveKit so the teacher watches
   //    in real time (no-ops when LiveKit isn't configured). ──
