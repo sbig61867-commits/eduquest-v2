@@ -8,6 +8,7 @@ import { useFaceDetection } from '@/hooks/use-face-detection'
 import { useObjectDetection } from '@/hooks/use-object-detection'
 import { useServerProctoring } from '@/hooks/use-server-proctoring'
 import { useLivePublish } from '@/hooks/use-live-publish'
+import { useProctorRecorder } from '@/hooks/use-proctor-recorder'
 
 interface Props {
   exam: Exam
@@ -43,10 +44,19 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
   const handleSubmitRef = useRef<() => void>(() => {})
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'active' | 'error'>('idle')
 
-  // Define addViolation BEFORE hook calls that reference it
+  const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
+
+  // ── Event recorder: persists local detections to the DB, batched + deduped,
+  //    with ZERO AI. This is the new primary record path (replaces the Gemini
+  //    frame layer, which is now disabled behind NEXT_PUBLIC_SERVER_PROCTORING). ──
+  const { record: recordEvent, flush: flushEvents } = useProctorRecorder(exam.id, proctoringActive)
+
+  // Define addViolation BEFORE hook calls that reference it. It updates the UI
+  // alert AND buffers the event for the DB recorder above.
   const addViolation = useCallback((type: string, details?: string) => {
     const event: ProctoringEvent = { type: type as ProctoringEvent['type'], timestamp: new Date().toISOString(), details }
     setViolations(prev => [...prev, event])
+    recordEvent(type, details)
     const messages: Record<string, string> = {
       tab_switch: '⚠️ Tab switch detected!',
       fullscreen_exit: '⚠️ Please return to fullscreen mode!',
@@ -58,22 +68,21 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     }
     setViolationAlert(messages[type] ?? '⚠️ Proctoring alert!')
     setTimeout(() => setViolationAlert(''), 4000)
-  }, [])
-
-  const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
+  }, [recordEvent])
 
   // ── Live layer: publish camera+mic to LiveKit so the teacher watches
   //    in real time (no-ops when LiveKit isn't configured). ──
   useLivePublish(exam.id, proctoringActive)
 
-  // ── Legacy client-side layer (kept for immediate student alerts) ──
+  // ── Local detection layers (in-browser, no API) — now the PRIMARY monitors ──
   // MediaPipe: face detection + gaze direction
   useFaceDetection(videoRef, proctoringActive, addViolation)
   // TensorFlow COCO-SSD: phone, book, extra person detection
   useObjectDetection(videoRef, proctoringActive, addViolation)
 
-  // ── New server-side layer (Gemini Vision — tamper-proof) ──
-  // Sends a frame every 30s to /api/proctor/analyze; results written directly to DB
+  // ── Legacy Gemini frame layer — DISABLED behind NEXT_PUBLIC_SERVER_PROCTORING
+  //    (kept intact for rollback). Inert while the flag is off: flushAsync no-ops
+  //    and no frame is ever sent to /api/proctor/analyze. ──
   const { flushAsync } = useServerProctoring(
     videoRef,
     canvasRef,
@@ -196,24 +205,23 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
       audioCtxRef.current = null
     }
 
-    // Flush BEFORE stopping camera tracks — the final frame needs a live feed.
-    // This also awaits any in-flight /api/proctor/analyze write so the DB is
-    // settled before /api/exam/submit reads proctoring_events.
+    // Persist any buffered local proctoring events BEFORE submit — the
+    // append RPC only writes while the attempt is 'in_progress'. This is the
+    // recorder's final flush (no AI). flushAsync() is the legacy Gemini flush,
+    // now a no-op while server proctoring is disabled (kept for rollback).
+    await flushEvents()
     await flushAsync()
 
     // Now safe to stop camera and exit fullscreen
     streamRef.current?.getTracks().forEach(t => t.stop())
     if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
 
-    // Collect client-only violation types (tab_switch, fullscreen_exit, audio_detected).
-    // Score and final merge are computed server-side in /api/exam/submit.
-    const clientOnlyTypes = new Set(['tab_switch', 'fullscreen_exit', 'audio_detected'])
-    const clientViolations = violations.filter(v => clientOnlyTypes.has(v.type))
-
+    // The recorder already persisted every local violation (batched + deduped)
+    // during the exam, so nothing extra is sent here — avoids double-counting.
     const res = await fetch('/api/exam/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ examId: exam.id, answers, clientViolations }),
+      body: JSON.stringify({ examId: exam.id, answers, clientViolations: [] }),
     })
 
     if (!res.ok) {
