@@ -3,8 +3,9 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getRoleLabel } from '@/lib/utils'
-import { Bell, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NotificationBell } from './notification-bell'
 
 interface HeaderProps {
   title: string
@@ -31,9 +32,7 @@ export function Header({ title }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-          <Bell className="w-5 h-5" />
-        </button>
+        <NotificationBell />
 
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
