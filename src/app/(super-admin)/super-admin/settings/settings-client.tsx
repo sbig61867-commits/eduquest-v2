@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatDate } from '@/lib/utils'
-import { User, KeyRound, CheckCircle2, Server, Sparkles, Mail, ShieldCheck, Globe, Eye, Ticket, Gauge, ClipboardCheck } from 'lucide-react'
-import type { InvitationDefaults, AiRateLimits, ExamPolicies } from '@/lib/settings'
+import { User, KeyRound, CheckCircle2, Server, Sparkles, Mail, ShieldCheck, Globe, Eye, Ticket, Gauge, ClipboardCheck, Trash2, AlertTriangle } from 'lucide-react'
+import type { InvitationDefaults, AiRateLimits, ExamPolicies, DeletionPolicy } from '@/lib/settings'
 
 interface Profile {
   id: string
@@ -32,6 +32,7 @@ interface Props {
   invitationDefaults: InvitationDefaults
   aiRateLimits: AiRateLimits
   examPolicies: ExamPolicies
+  deletionPolicy: DeletionPolicy
 }
 
 function StatusPill({ ok, okLabel = 'Configured', badLabel = 'Not configured' }: { ok: boolean; okLabel?: string; badLabel?: string }) {
@@ -45,7 +46,7 @@ function StatusPill({ ok, okLabel = 'Configured', badLabel = 'Not configured' }:
   )
 }
 
-export function SettingsClient({ profile, config, invitationDefaults, aiRateLimits, examPolicies }: Props) {
+export function SettingsClient({ profile, config, invitationDefaults, aiRateLimits, examPolicies, deletionPolicy }: Props) {
   const supabase = createClient()
   const { setUser, user } = useAuthStore()
 
@@ -63,6 +64,21 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
 
   // Exam policies form
   const [exam, setExam] = useState(examPolicies)
+
+  // Deletion policy
+  const [del, setDel] = useState(deletionPolicy)
+  const [savingDel, setSavingDel] = useState(false)
+  const [delSaved, setDelSaved] = useState(false)
+
+  async function saveDeletionPolicy(next: boolean) {
+    setDel({ hard_delete_enabled: next }); setDelSaved(false); setSavingDel(true)
+    const { error } = await supabase
+      .from('platform_settings')
+      .upsert({ key: 'deletion_policy', value: { hard_delete_enabled: next }, updated_at: new Date().toISOString() })
+    if (!error) { setDelSaved(true); setTimeout(() => setDelSaved(false), 3000) }
+    else setDel({ hard_delete_enabled: !next }) // revert on failure
+    setSavingDel(false)
+  }
   const [savingExam, setSavingExam] = useState(false)
   const [examSaved, setExamSaved] = useState(false)
   const [examError, setExamError] = useState('')
@@ -313,6 +329,41 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         <p className="text-xs text-slate-500">The student sees a persistent red warning once their proctoring violations reach this number.</p>
         <Button type="submit" loading={savingExam}>Save Policies</Button>
       </form>
+
+      {/* Deletion policy */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <h3 className="text-white font-semibold flex items-center gap-2">
+          <Trash2 className="w-4 h-4 text-slate-400" /> Deletion Policy
+        </h3>
+        <p className="text-slate-500 text-sm">
+          Controls what happens when a teacher or admin deletes a group, lesson, exam, or homework across the whole platform.
+        </p>
+        {delSaved && (
+          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+            <CheckCircle2 className="w-4 h-4" /> Deletion policy saved
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-slate-300 text-sm font-medium">Allow permanent deletion</p>
+            <p className="text-slate-500 text-xs">
+              {del.hard_delete_enabled
+                ? 'ON — deletes permanently erase data (with all submissions & grades). Irreversible.'
+                : 'OFF — deletes move items to the archive (data preserved, recoverable). Recommended.'}
+            </p>
+          </div>
+          <div onClick={() => !savingDel && saveDeletionPolicy(!del.hard_delete_enabled)}
+            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${del.hard_delete_enabled ? 'bg-red-600' : 'bg-slate-700'} ${savingDel ? 'opacity-60' : ''}`}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${del.hard_delete_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </div>
+        </div>
+        {del.hard_delete_enabled && (
+          <div className="flex items-start gap-2 text-red-300 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Permanent deletion is active. Deleted groups/exams and their students’ submissions and grades will be erased for good and will NOT appear in the archive.</span>
+          </div>
+        )}
+      </div>
 
       {/* Platform configuration health */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">

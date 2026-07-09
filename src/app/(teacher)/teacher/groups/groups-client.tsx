@@ -104,7 +104,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   }
 
   async function deleteGroup(id: string) {
-    if (!confirm('حذف هذه المجموعة؟\n\nستُنقل هي ودروسها واختباراتها وواجباتها إلى الأرشيف وتختفي عن الطلاب. لا شيء يُمحى — كل العلامات والتسليمات تبقى محفوظة ويمكن للجامعة الرجوع إليها لاحقاً.')) return
+    if (!confirm('حذف هذه المجموعة؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فستُمحى هي ودروسها واختباراتها وكل تسليمات وعلامات الطلاب نهائياً (لا رجعة). وإلا فستُنقل إلى الأرشيف مع حفظ كل السجلات.')) return
     const res = await fetch('/api/groups', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

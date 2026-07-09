@@ -46,6 +46,28 @@ export async function getExamPolicies(supabase: SupabaseClient): Promise<ExamPol
   }
 }
 
+export interface DeletionPolicy {
+  // When true, teacher/admin deletes permanently remove data instead of
+  // archiving it. Default false = safe (soft-delete/archive only).
+  hard_delete_enabled: boolean
+}
+
+export const FALLBACK_DELETION_POLICY: DeletionPolicy = {
+  hard_delete_enabled: false,
+}
+
+export async function getDeletionPolicy(supabase: SupabaseClient): Promise<DeletionPolicy> {
+  const { data } = await supabase
+    .from('platform_settings')
+    .select('value')
+    .eq('key', 'deletion_policy')
+    .maybeSingle()
+  const v = (data?.value ?? {}) as Partial<DeletionPolicy>
+  return {
+    hard_delete_enabled: v.hard_delete_enabled ?? FALLBACK_DELETION_POLICY.hard_delete_enabled,
+  }
+}
+
 export interface InvitationDefaults {
   university_admin: number
   teacher: number

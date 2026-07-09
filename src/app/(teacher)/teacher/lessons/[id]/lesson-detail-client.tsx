@@ -246,7 +246,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   }
 
   async function deleteHomework(id: string) {
-    if (!confirm('حذف هذا الواجب؟\n\nيُنقل إلى الأرشيف مع تسليماته وعلاماته — لا شيء يُمحى نهائياً.')) return
+    if (!confirm('حذف هذا الواجب؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى مع تسليماته وعلاماته نهائياً (لا رجعة). وإلا فسيُنقل إلى الأرشيف.')) return
     const res = await fetch('/api/homework', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     if (!res.ok) {
       alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الواجب')

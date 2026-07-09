@@ -3,14 +3,14 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SettingsClient } from './settings-client'
-import { getInvitationDefaults, getAiRateLimits, getExamPolicies } from '@/lib/settings'
+import { getInvitationDefaults, getAiRateLimits, getExamPolicies, getDeletionPolicy } from '@/lib/settings'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const [{ data: profile }, invitationDefaults, aiRateLimits, examPolicies] = await Promise.all([
+  const [{ data: profile }, invitationDefaults, aiRateLimits, examPolicies, deletionPolicy] = await Promise.all([
     supabase
       .from('users')
       .select('id, full_name, email, role, created_at')
@@ -19,6 +19,7 @@ export default async function SettingsPage() {
     getInvitationDefaults(supabase),
     getAiRateLimits(supabase),
     getExamPolicies(supabase),
+    getDeletionPolicy(supabase),
   ])
 
   // Configuration health — checked server-side, only booleans reach the client
@@ -32,5 +33,5 @@ export default async function SettingsPage() {
     serverProctoring: process.env.NEXT_PUBLIC_SERVER_PROCTORING === 'true',
   }
 
-  return <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} />
+  return <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} />
 }

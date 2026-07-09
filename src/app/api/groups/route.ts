@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { deleteEntity } from '@/lib/delete-entity'
 
 // Auth/authz uses the user session (RLS-scoped).
 // Writes use the admin client to bypass RLS — safe because authorization
@@ -159,17 +160,12 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Soft delete (archive): the group and its lessons/exams get a
-  // deleted_at stamp, disappearing from every live view while all records
-  // — submissions, grades — stay intact and reachable from the archive.
-  const { error } = await adminClient().rpc('soft_delete_entity', {
-    p_kind: 'group', p_id: id, p_actor: user.id, p_tenant_id: profile.tenant_id,
-  })
-
+  // Archive by default; permanently delete only if the owner enabled hard
+  // deletion in platform settings.
+  const { error, mode } = await deleteEntity(adminClient(), supabase, 'group', id, user.id, profile.tenant_id)
   if (error) {
     console.error('[api/groups DELETE]', error)
-    return NextResponse.json({ error: 'Failed to archive group' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete group' }, { status: 500 })
   }
-
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, mode })
 }

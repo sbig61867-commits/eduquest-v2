@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { deleteEntity } from '@/lib/delete-entity'
 
 function adminClient() {
   return createAdminClient(
@@ -123,15 +124,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Soft delete (archive): stamps the lesson and its homework as deleted;
-  // submissions/grades stay intact and reachable from the archive.
-  const { error } = await adminClient().rpc('soft_delete_entity', {
-    p_kind: 'lesson', p_id: id, p_actor: user.id, p_tenant_id: profile.tenant_id,
-  })
+  // Archive by default; hard delete only when the owner enabled it.
+  const { error, mode } = await deleteEntity(adminClient(), supabase, 'lesson', id, user.id, profile.tenant_id)
   if (error) {
     console.error('[api/lessons DELETE]', error)
-    return NextResponse.json({ error: 'Failed to archive lesson' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete lesson' }, { status: 500 })
   }
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, mode })
 }
