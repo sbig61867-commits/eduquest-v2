@@ -13,25 +13,25 @@ export function useLivePublish(examId: string, active: boolean) {
   useEffect(() => {
     if (!active) return
     let cancelled = false
-    // Proctoring only needs a small, steady picture — cap capture at 360p/20fps
-    // and publish simulcast layers so the SFU can drop to a lower layer under
-    // load. This trades HD for stability (no freezing/jitter on the grid).
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
       videoCaptureDefaults: {
-        resolution: { width: 640, height: 360, frameRate: 20 },
+        // Front camera — proctoring must see the student's face, not the
+        // room behind them (phones default to the rear/environment camera).
+        facingMode: 'user',
+        // Small steady picture at 15fps — proctoring needs clarity, not
+        // smooth motion; lighter capture means fewer dropped frames.
+        resolution: { width: 640, height: 360, frameRate: 15 },
       },
       publishDefaults: {
-        // VP9 + SVC (L3T3): one scalable stream the SFU can peel down to a
-        // lower spatial/temporal layer per subscriber — better quality per
-        // bitrate than VP8 simulcast, and lighter on the student's uplink.
-        videoCodec: 'vp9',
-        backupCodec: { codec: 'vp8' }, // fallback for browsers without VP9 encode
-        scalabilityMode: 'L3T3',
+        // VP8, NOT VP9: VP8 has near-universal *hardware* encoding on phones,
+        // so it's light on the CPU and doesn't freeze. VP9 software-encodes on
+        // most mobiles → CPU overload → the jitter/freezing seen in testing.
+        videoCodec: 'vp8',
         simulcast: true,
         videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
-        // Audio matters most for proctoring — keep it clean, prioritized, mono.
+        // Audio matters most for proctoring — keep it clean, resilient, mono.
         dtx: true,
         red: true,
         audioPreset: { maxBitrate: 24_000 },
