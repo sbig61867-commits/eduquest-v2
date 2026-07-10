@@ -4,45 +4,49 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-// Watches the current user's university for suspension/deletion in real-time.
-// When the tenant is suspended or deleted, signs out the session immediately
-// rather than waiting for the next JWT refresh (which can be up to ~1 hour).
-// No-ops for super_admin (no tenant_id in app_metadata).
+// Polls /api/session/check every 60s to detect: user disabled/deleted, tenant
+// suspended/deleted. When the check fails, signs out immediately instead of
+// waiting for the JWT to expire (up to ~1h). Also re-checks on tab focus so
+// a user who returns after their tenant was suspended is kicked right away.
+//
+// Not Realtime because Supabase Realtime enforces RLS on postgres_changes,
+// and non-admin users don't have SELECT on the universities row that would
+// change. Polling on a server endpoint (service-role) is simpler and honest.
+const POLL_INTERVAL_MS = 60_000
+
 export function TenantWatcher() {
   const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
-    let channelRef: ReturnType<typeof supabase.channel> | null = null
+    let stopped = false
 
-    ;(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+    async function check() {
+      if (stopped) return
+      try {
+        const res = await fetch('/api/session/check', { cache: 'no-store' })
+        if (res.status === 401) return // no session yet — leave it to the proxy
+        if (!res.ok) return             // transient error — try again next tick
+        const data = await res.json() as { ok: boolean; reason?: string }
+        if (!data.ok) {
+          stopped = true
+          await supabase.auth.signOut()
+          router.replace(`/login?reason=${encodeURIComponent(data.reason ?? 'suspended')}`)
+        }
+      } catch {
+        // network blip — swallow and try next tick
+      }
+    }
 
-      const tenantId = session.user.app_metadata?.tenant_id as string | undefined
-      if (!tenantId) return // super_admin — no tenant to watch
-
-      channelRef = supabase
-        .channel(`tenant-watcher:${tenantId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'universities', filter: `id=eq.${tenantId}` },
-          async (payload) => {
-            const row = payload.new as { subscription_status?: string } | null
-            const kicked =
-              payload.eventType === 'DELETE' ||
-              (row?.subscription_status && row.subscription_status !== 'active')
-            if (kicked) {
-              await supabase.auth.signOut()
-              router.replace('/login?reason=suspended')
-            }
-          }
-        )
-        .subscribe()
-    })()
+    check() // fire once on mount so a page refresh kicks a suspended user immediately
+    const id = window.setInterval(check, POLL_INTERVAL_MS)
+    const onFocus = () => check()
+    window.addEventListener('focus', onFocus)
 
     return () => {
-      if (channelRef) supabase.removeChannel(channelRef)
+      stopped = true
+      window.clearInterval(id)
+      window.removeEventListener('focus', onFocus)
     }
   }, [router])
 
