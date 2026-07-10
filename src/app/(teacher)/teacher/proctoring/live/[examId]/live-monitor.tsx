@@ -72,6 +72,10 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
         if (track.kind === Track.Kind.Video) upsert(id, { hasVideo: false })
         if (track.kind === Track.Kind.Audio) upsert(id, { hasAudio: false })
       })
+      // Show the student card as soon as they join, even before tracks are subscribed.
+      .on(RoomEvent.ParticipantConnected, participant => {
+        upsert(participant.identity, { name: participant.name || participant.identity })
+      })
       .on(RoomEvent.ActiveSpeakersChanged, speakers => {
         const ids = new Set(speakers.map(s => s.identity))
         setFeeds(prev => {
@@ -97,7 +101,19 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
         const { token, url } = await res.json()
         if (cancelled) return
         await room.connect(url, token)
+        if (cancelled) return
         setStatus('live')
+        // Attach tracks from students who were already in the room when we joined.
+        // TrackSubscribed fires for new subscriptions but may be missed for
+        // pre-existing participants during the connect handshake.
+        for (const participant of room.remoteParticipants.values()) {
+          upsert(participant.identity, { name: participant.name || participant.identity })
+          for (const pub of participant.trackPublications.values()) {
+            if (pub.isSubscribed && pub.track) {
+              attach(pub.track as RemoteTrack, participant)
+            }
+          }
+        }
       } catch (e) {
         console.error('[live-monitor]', e)
         if (!cancelled) setStatus('error')

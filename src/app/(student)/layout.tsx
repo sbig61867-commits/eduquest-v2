@@ -1,6 +1,7 @@
 ﻿import { Sidebar } from '@/components/shared/sidebar'
 import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
+import { TenantWatcher } from '@/components/shared/tenant-watcher'
 
 const navItems = [
   { label: 'Dashboard', href: '/student/dashboard', icon: 'LayoutDashboard' as const },
@@ -15,6 +16,7 @@ const navItems = [
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-950">
+      <TenantWatcher />
       <Sidebar items={navItems} title="Student" />
       <ContentShell>
         <Header title="Student Portal" />

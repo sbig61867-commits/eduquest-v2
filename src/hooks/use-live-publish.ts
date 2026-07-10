@@ -40,15 +40,28 @@ export function useLivePublish(examId: string, active: boolean) {
     roomRef.current = room
 
     ;(async () => {
+      // Retry the token fetch up to 3 times (network blips on exam start are common).
+      let token: string | null = null
+      let url: string | null = null
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt))
+          const res = await fetch('/api/proctor/live-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ examId, role: 'student' }),
+          })
+          if (res.status === 503) return // LiveKit not configured — skip silently
+          if (!res.ok) continue          // transient error — retry
+          const json = await res.json()
+          token = json.token; url = json.url
+          break
+        } catch {
+          // network error — retry
+        }
+      }
+      if (!token || !url || cancelled) return
       try {
-        const res = await fetch('/api/proctor/live-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ examId, role: 'student' }),
-        })
-        if (!res.ok) return // 503 not configured, or not enrolled — skip live layer
-        const { token, url } = await res.json()
-        if (cancelled) return
         await room.connect(url, token)
         if (cancelled) { await room.disconnect(); return }
         await room.localParticipant.setCameraEnabled(true)
