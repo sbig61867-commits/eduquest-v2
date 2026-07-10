@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
   const [{ data: subs }, { data: roster }] = await Promise.all([
     admin.from('exam_submissions')
-      .select('student_id, score, max_score, grading_status, submitted_at, proctoring_events, users:student_id(full_name, email)')
+      .select('id, student_id, answers, score, max_score, grading_status, submitted_at, proctoring_events, users:student_id(full_name, email)')
       .eq('exam_id', examId),
     admin.from('group_students')
       .select('student_id, users:student_id(full_name, email)')
@@ -45,16 +45,20 @@ export async function GET(request: Request) {
 
   const subByStudent = new Map((subs ?? []).map(s => [s.student_id, s]))
 
-  // One row per enrolled student — submitted or not.
+  // One row per enrolled student — submitted or not. Includes the submission
+  // id + raw answers so the teacher can review and manually grade (this route
+  // is teacher-owned, so exposing correct answers/answers here is safe).
   const results = (roster ?? []).map(r => {
     const u = r.users as unknown as { full_name: string | null; email: string | null } | null
     const s = subByStudent.get(r.student_id)
     const events = (s?.proctoring_events as unknown[] | null) ?? []
     return {
       student_id: r.student_id,
+      submission_id: s?.id ?? null,
       name: u?.full_name ?? 'غير معروف',
       email: u?.email ?? '',
       submitted: !!s,
+      answers: (s?.answers as Record<string, string> | null) ?? {},
       score: s?.score ?? null,
       max_score: s?.max_score ?? maxScore,
       grading_status: s?.grading_status ?? null,
@@ -69,6 +73,9 @@ export async function GET(request: Request) {
   return NextResponse.json({
     title: exam.title, group_name: groupName, max_score: maxScore,
     submitted_count: subs?.length ?? 0, roster_count: roster?.length ?? 0,
+    // Full questions (incl. correct_answer) so the teacher can view the exam
+    // content and review answers — teacher-owned route only.
+    questions: exam.questions ?? [],
     results,
   })
 }

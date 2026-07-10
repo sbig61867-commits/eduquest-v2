@@ -137,7 +137,12 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     return () => clearInterval(interval)
   }, [started, submitted])
 
-  // Start audio monitoring via Web Audio API
+  // Start audio monitoring via Web Audio API.
+  // Tuned against false positives: a violation needs GENUINELY loud audio
+  // (threshold 48, not 30 — normal typing/breathing/room hum stays below),
+  // SUSTAINED across 2 consecutive samples (~4s, so a cough or chair squeak
+  // doesn't trigger), and a 20s cooldown so one conversation logs once, not
+  // once per 3 seconds.
   const startAudioMonitor = useCallback((stream: MediaStream) => {
     const ctx = new AudioContext()
     const analyzer = ctx.createAnalyser()
@@ -147,11 +152,25 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     audioCtxRef.current = ctx
     analyzerRef.current = analyzer
     const data = new Uint8Array(analyzer.frequencyBinCount)
+    const LOUD_THRESHOLD = 48
+    const COOLDOWN_MS = 20_000
+    let loudStreak = 0
+    let lastViolationAt = 0
     audioIntervalRef.current = setInterval(() => {
       analyzer.getByteFrequencyData(data)
       const avg = data.reduce((a, b) => a + b, 0) / data.length
-      if (avg > 30) addViolation('audio_detected', `Audio level: ${Math.round(avg)}`)
-    }, 3000)
+      if (avg > LOUD_THRESHOLD) {
+        loudStreak += 1
+        const now = Date.now()
+        if (loudStreak >= 2 && now - lastViolationAt > COOLDOWN_MS) {
+          lastViolationAt = now
+          loudStreak = 0
+          addViolation('audio_detected', `Sustained audio level: ${Math.round(avg)}`)
+        }
+      } else {
+        loudStreak = 0
+      }
+    }, 2000)
   }, [addViolation])
 
   async function startExam() {

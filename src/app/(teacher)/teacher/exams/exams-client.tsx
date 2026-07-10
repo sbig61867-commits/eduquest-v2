@@ -5,19 +5,26 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users } from 'lucide-react'
+import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import type { Question } from '@/types'
 
 interface ResultRow {
-  student_id: string; name: string; email: string; submitted: boolean
+  student_id: string; submission_id: string | null; name: string; email: string; submitted: boolean
+  answers: Record<string, string>
   score: number | null; max_score: number; grading_status: string | null
   submitted_at: string | null; violations: number
 }
 interface ExamResults {
   title: string; group_name: string; max_score: number
-  submitted_count: number; roster_count: number; results: ResultRow[]
+  submitted_count: number; roster_count: number
+  questions: Question[]
+  results: ResultRow[]
 }
+
+const isAutoQ = (q: Question) => q.type === 'mcq' || q.type === 'true_false'
+const isAutoCorrect = (q: Question, ans?: string) =>
+  (ans ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()
 
 interface Exam { id: string; title: string; duration_minutes: number; questions: Question[]; is_published: boolean; proctoring_enabled: boolean; created_at: string; groups: { name: string } | null }
 interface Group { id: string; name: string }
@@ -34,13 +41,47 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<ExamResults | null>(null)
   const [resultsLoading, setResultsLoading] = useState(false)
+  const [viewQuestions, setViewQuestions] = useState<Exam | null>(null)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  // manual points per submission: { [submissionId]: { [questionId]: points } }
+  const [manualPts, setManualPts] = useState<Record<string, Record<string, number>>>({})
+  const [gradeBusy, setGradeBusy] = useState('')
+  const [resultsExamId, setResultsExamId] = useState('')
 
   async function openResults(examId: string) {
-    setResultsLoading(true); setResults(null)
+    setResultsLoading(true); setResults(null); setExpandedRow(null); setManualPts({})
+    setResultsExamId(examId)
     const res = await fetch(`/api/exams/results?exam_id=${examId}`)
     if (res.ok) setResults(await res.json())
     else alert((await res.json().catch(() => ({}))).error ?? 'Failed to load results')
     setResultsLoading(false)
+  }
+
+  // Auto-gradable portion of a submission (mcq/true_false), from stored answers.
+  function autoScore(r: ResultRow): number {
+    if (!results) return 0
+    return results.questions.reduce((s, q) =>
+      s + (isAutoQ(q) && isAutoCorrect(q, r.answers[q.id]) ? q.points : 0), 0)
+  }
+  function totalFor(r: ResultRow): number {
+    if (!results || !r.submission_id) return 0
+    const manual = manualPts[r.submission_id] ?? {}
+    const manualSum = results.questions.filter(q => !isAutoQ(q))
+      .reduce((s, q) => s + (manual[q.id] ?? 0), 0)
+    return autoScore(r) + manualSum
+  }
+
+  // Reuses the generic submission PATCH (verifies exams.teacher_id server-side).
+  async function patchSubmission(submissionId: string, patch: { score?: number; grading_status?: string }, examId: string) {
+    setGradeBusy(submissionId)
+    const res = await fetch('/api/homework/submissions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: submissionId, ...patch }),
+    })
+    if (!res.ok) alert((await res.json().catch(() => ({}))).error ?? 'فشل الحفظ')
+    else await openResults(examId) // refresh scores/status
+    setGradeBusy('')
   }
   async function generateQuestions() {
     if (!aiTopic) return
@@ -133,6 +174,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => setViewQuestions(exam)} title="عرض الأسئلة"><FileQuestion className="w-4 h-4" /></Button>
                   <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> Results</Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
@@ -234,27 +276,108 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                   <tbody className="divide-y divide-slate-800/70">
                     {results.results.map(r => {
                       const pct = r.submitted && r.score != null ? Math.round((r.score / (r.max_score || 1)) * 100) : null
+                      const open = expandedRow === r.student_id
+                      const hasManualQ = results.questions.some(q => !isAutoQ(q))
                       return (
-                        <tr key={r.student_id} className="hover:bg-slate-800/40">
-                          <td className="px-4 py-3">
-                            <p className="text-white">{r.name}</p>
-                            <p className="text-slate-500 text-xs">{r.email}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            {!r.submitted ? <span className="text-slate-600">—</span>
-                              : r.grading_status === 'published' && r.score != null
-                                ? <span className={`font-bold ${pct! >= 60 ? 'text-emerald-400' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
-                                : <span className="text-amber-400 text-xs">pending grading</span>}
-                          </td>
-                          <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
-                          <td className="px-4 py-3">
-                            {!r.submitted ? <Badge variant="gray">Not taken</Badge>
-                              : <span className="flex items-center gap-2">
-                                  <Badge variant="green">Submitted</Badge>
-                                  {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
-                                </span>}
-                          </td>
-                        </tr>
+                        <>
+                          <tr key={r.student_id}
+                            onClick={() => r.submitted && setExpandedRow(open ? null : r.student_id)}
+                            className={`hover:bg-slate-800/40 ${r.submitted ? 'cursor-pointer' : ''}`}>
+                            <td className="px-4 py-3">
+                              <p className="text-white flex items-center gap-1.5">
+                                {r.name}
+                                {r.submitted && (open ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />)}
+                              </p>
+                              <p className="text-slate-500 text-xs">{r.email}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              {!r.submitted ? <span className="text-slate-600">—</span>
+                                : r.grading_status === 'published' && r.score != null
+                                  ? <span className={`font-bold ${pct! >= 60 ? 'text-emerald-400' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
+                                  : <span className="text-amber-400 text-xs">pending grading</span>}
+                            </td>
+                            <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
+                            <td className="px-4 py-3">
+                              {!r.submitted ? <Badge variant="gray">Not taken</Badge>
+                                : <span className="flex items-center gap-2">
+                                    <Badge variant="green">Submitted</Badge>
+                                    {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
+                                  </span>}
+                            </td>
+                          </tr>
+
+                          {/* Expanded: answers review + manual grading */}
+                          {open && r.submitted && r.submission_id && (
+                            <tr key={`${r.student_id}-detail`}>
+                              <td colSpan={4} className="px-4 py-4 bg-slate-950/50">
+                                <div className="space-y-3" dir="rtl">
+                                  {results.questions.map((q, qi) => {
+                                    const ans = r.answers[q.id] ?? ''
+                                    const auto = isAutoQ(q)
+                                    const correct = auto && isAutoCorrect(q, ans)
+                                    return (
+                                      <div key={q.id} className="rounded-lg border border-slate-800 p-3 space-y-1.5 text-start">
+                                        <div className="flex items-start gap-2">
+                                          <span className="text-slate-500 text-xs font-mono mt-0.5">{qi + 1}.</span>
+                                          <p className="flex-1 text-slate-200 text-sm">{q.text}</p>
+                                          {auto && (correct
+                                            ? <span className="flex items-center gap-1 text-emerald-400 text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
+                                            : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0/{q.points} د</span>)}
+                                        </div>
+                                        <p className="text-sm ps-6">
+                                          <span className="text-slate-500">إجابة الطالب: </span>
+                                          <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || '— لم يجب —'}</span>
+                                        </p>
+                                        {auto && !correct && <p className="text-xs ps-6 text-emerald-400">الإجابة الصحيحة: {q.correct_answer}</p>}
+                                        {!auto && (
+                                          <div className="flex items-center gap-2 ps-6">
+                                            <label className="text-slate-400 text-xs">درجة هذا السؤال:</label>
+                                            <input type="number" min={0} max={q.points}
+                                              value={manualPts[r.submission_id!]?.[q.id] ?? 0}
+                                              onChange={e => setManualPts(p => ({
+                                                ...p,
+                                                [r.submission_id!]: { ...(p[r.submission_id!] ?? {}), [q.id]: Math.max(0, Math.min(q.points, Number(e.target.value))) },
+                                              }))}
+                                              className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                            <span className="text-slate-500 text-xs">من {q.points}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+
+                                  <div className="flex items-center gap-3 flex-wrap pt-1">
+                                    {hasManualQ && (
+                                      <>
+                                        <span className="text-slate-300 text-sm">
+                                          المجموع النهائي: <span className="text-white font-bold">{totalFor(r)} / {r.max_score}</span>
+                                          <span className="text-slate-500 text-xs"> (آلي {autoScore(r)} + يدوي)</span>
+                                        </span>
+                                        <Button size="sm" loading={gradeBusy === r.submission_id}
+                                          onClick={() => patchSubmission(r.submission_id!, { score: totalFor(r), grading_status: 'reviewing' }, resultsExamId)}>
+                                          <Save className="w-3.5 h-3.5" /> حفظ التصحيح
+                                        </Button>
+                                      </>
+                                    )}
+                                    {r.grading_status !== 'published' ? (
+                                      <Button size="sm" variant="secondary" loading={gradeBusy === r.submission_id}
+                                        onClick={() => patchSubmission(r.submission_id!, hasManualQ
+                                          ? { score: totalFor(r), grading_status: 'published' }
+                                          : { grading_status: 'published' }, resultsExamId)}>
+                                        <Send className="w-3.5 h-3.5" /> نشر النتيجة للطالب
+                                      </Button>
+                                    ) : (
+                                      <Button size="sm" variant="ghost" loading={gradeBusy === r.submission_id}
+                                        onClick={() => patchSubmission(r.submission_id!, { grading_status: 'reviewing' }, resultsExamId)}>
+                                        <EyeOff className="w-3.5 h-3.5" /> إخفاء النتيجة عن الطالب
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       )
                     })}
                   </tbody>
@@ -263,6 +386,37 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             )}
           </div>
         ) : null}
+      </Modal>
+
+      {/* Questions viewer — teacher reviews the exam content after creation */}
+      <Modal open={!!viewQuestions} onClose={() => setViewQuestions(null)} title={viewQuestions ? `أسئلة: ${viewQuestions.title}` : ''} size="xl">
+        {viewQuestions && (
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1" dir="rtl">
+            <p className="text-slate-400 text-sm">{viewQuestions.questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{viewQuestions.questions.reduce((s, q) => s + (q.points || 0), 0)}</span></p>
+            {viewQuestions.questions.map((q, i) => (
+              <div key={q.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2 text-start">
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
+                  <p className="flex-1 text-white text-sm">{q.text}</p>
+                  <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'}>{q.type}</Badge>
+                  <span className="text-slate-500 text-xs shrink-0">{q.points} د</span>
+                </div>
+                {q.options && q.options.length > 0 && (
+                  <ul className="ps-6 space-y-1">
+                    {q.options.map((opt, j) => (
+                      <li key={j} className={`text-sm flex items-center gap-1.5 ${opt === q.correct_answer ? 'text-emerald-400 font-medium' : 'text-slate-400'}`}>
+                        {opt === q.correct_answer && <CheckCircle2 className="w-3.5 h-3.5" />}{opt}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {(!q.options || q.options.length === 0) && q.correct_answer && (
+                  <p className="ps-6 text-emerald-400 text-sm">الإجابة: {q.correct_answer}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
     </div>
   )
