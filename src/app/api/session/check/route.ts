@@ -20,14 +20,19 @@ export async function GET() {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  const { data: profile } = await admin
+  const { data: profile, error: profileErr } = await admin
     .from('users')
-    .select('is_active, deleted_at, tenant_id, role')
+    .select('is_active, tenant_id, role')
     .eq('id', user.id)
     .single()
 
-  if (!profile) return NextResponse.json({ ok: false, reason: 'no_profile' })
-  if (profile.deleted_at) return NextResponse.json({ ok: false, reason: 'user_deleted' })
+  // Distinguish "row really gone" (user hard-deleted → kick) from a transient
+  // query error (→ don't kick anyone; watcher retries next tick).
+  if (profileErr && profileErr.code !== 'PGRST116') {
+    console.error('[session/check] profile query:', profileErr)
+    return NextResponse.json({ ok: true, degraded: true })
+  }
+  if (!profile) return NextResponse.json({ ok: false, reason: 'user_deleted' })
   if (profile.is_active === false) return NextResponse.json({ ok: false, reason: 'user_disabled' })
 
   // super_admin has no tenant to check.
@@ -35,17 +40,18 @@ export async function GET() {
     return NextResponse.json({ ok: true })
   }
 
-  const { data: tenant } = await admin
-    .from('universities')
-    .select('deleted_at, subscription_status')
+  const { data: tenant, error: tenantErr } = await admin
+    .from('tenants')
+    .select('is_active')
     .eq('id', profile.tenant_id)
     .single()
 
-  if (!tenant) return NextResponse.json({ ok: false, reason: 'tenant_missing' })
-  if (tenant.deleted_at) return NextResponse.json({ ok: false, reason: 'tenant_deleted' })
-  if (tenant.subscription_status && tenant.subscription_status !== 'active') {
-    return NextResponse.json({ ok: false, reason: 'tenant_suspended' })
+  if (tenantErr && tenantErr.code !== 'PGRST116') {
+    console.error('[session/check] tenant query:', tenantErr)
+    return NextResponse.json({ ok: true, degraded: true })
   }
+  if (!tenant) return NextResponse.json({ ok: false, reason: 'tenant_deleted' })
+  if (tenant.is_active === false) return NextResponse.json({ ok: false, reason: 'tenant_suspended' })
 
   return NextResponse.json({ ok: true })
 }
