@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion } from 'lucide-react'
+import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
+import { AiProgress } from '@/components/shared/ai-progress'
 import type { Question } from '@/types'
 
 interface ResultRow {
@@ -39,6 +40,58 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   const [aiCount, setAiCount] = useState(10)
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // ── AI from file — questions generated strictly from uploaded material
+  //    (same source-restricted pipeline as homework/lesson generation) ──
+  const [genMode, setGenMode] = useState<'topic' | 'file'>('topic')
+  const [examFiles, setExamFiles] = useState<File[]>([])
+  const examFileRef = useRef<HTMLInputElement>(null)
+  const [examQTypes, setExamQTypes] = useState<Set<string>>(new Set(['mcq', 'true_false']))
+  const [examTypePoints, setExamTypePoints] = useState<Record<string, number>>({ mcq: 1, true_false: 1, essay: 1 })
+  const [examFileCount, setExamFileCount] = useState(10)
+  const [examFileInstructions, setExamFileInstructions] = useState('')
+  const [examFileLoading, setExamFileLoading] = useState(false)
+  const [examFileError, setExamFileError] = useState('')
+
+  function toggleExamQType(t: string) {
+    setExamQTypes(prev => {
+      const next = new Set(prev)
+      if (next.has(t)) next.delete(t)
+      else next.add(t)
+      return next
+    })
+  }
+
+  async function generateExamFromFile() {
+    if (examFiles.length === 0 || examQTypes.size === 0) return
+    setExamFileLoading(true); setExamFileError('')
+    try {
+      const fd = new FormData()
+      for (const f of examFiles) fd.append('file', f)
+      fd.append('types', [...examQTypes].join(','))
+      fd.append('count', String(examFileCount))
+      fd.append('instructions', examFileInstructions)
+      fd.append('avoid', JSON.stringify(questions.map(q => q.text).slice(-100)))
+      const res = await fetch('/api/ai/generate-homework-from-file', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (res.ok && data.questions) {
+        const withPoints = (data.questions as Question[]).map(q => ({
+          ...q,
+          points: examTypePoints[q.type] ?? q.points,
+        }))
+        setQuestions(prev => [...prev, ...withPoints])
+        if (!form.title && examFiles[0]) setForm(p => ({ ...p, title: examFiles[0].name.replace(/\.\w+$/, '') }))
+        if (data.delivered < data.requested) {
+          setExamFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
+        }
+      } else {
+        setExamFileError(data.error ?? 'فشل التوليد')
+      }
+    } catch {
+      setExamFileError('خطأ في الاتصال. حاول مجدداً.')
+    }
+    setExamFileLoading(false)
+  }
   const [selectedQ, setSelectedQ] = useState<Set<string>>(new Set()) // bulk-grade selection
   const [bulkPts, setBulkPts] = useState(1)
   const [results, setResults] = useState<ExamResults | null>(null)
@@ -151,7 +204,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
           <h2 className="text-2xl font-bold text-white">Exams</h2>
           <p className="text-slate-400 mt-1">{exams.length} exams created</p>
         </div>
-        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setShowModal(true) }}>
+        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
           <Plus className="w-4 h-4" /> New Exam
         </Button>
       </div>
@@ -191,18 +244,110 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Create New Exam" size="xl">
         <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
-          {/* AI Generator */}
-          <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-violet-400" />
-              <span className="text-violet-400 text-sm font-medium">AI Question Generator</span>
-            </div>
-            <div className="flex gap-2">
-              <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-              <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
-              <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
-            </div>
+          {/* AI Generator — from a topic, or from the teacher's own files */}
+          <div className="flex rounded-lg border border-slate-700 overflow-hidden w-fit">
+            <button type="button" onClick={() => setGenMode('topic')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'topic' ? 'bg-violet-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+              من عنوان
+            </button>
+            <button type="button" onClick={() => setGenMode('file')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'file' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+              من ملفات
+            </button>
           </div>
+
+          {genMode === 'topic' ? (
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-violet-400" />
+                <span className="text-violet-400 text-sm font-medium">AI Question Generator</span>
+              </div>
+              <div className="flex gap-2">
+                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3" dir="rtl">
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-blue-400" />
+                <span className="text-blue-300 text-sm font-medium">توليد اختبار من ملف — الأسئلة من محتوى الملف فقط</span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => examFileRef.current?.click()}
+                    className="px-3 py-2 rounded-lg border border-blue-500 bg-blue-500/10 text-blue-300 text-sm hover:bg-blue-500/20 transition-colors">
+                    <Plus className="w-3.5 h-3.5 inline -mt-0.5" /> {examFiles.length ? 'إضافة ملفات أخرى' : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
+                  </button>
+                  <input ref={examFileRef} type="file" multiple accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                    onChange={e => {
+                      const picked = Array.from(e.target.files ?? [])
+                      setExamFiles(prev => {
+                        const seen = new Set(prev.map(f => f.name + f.size))
+                        return [...prev, ...picked.filter(f => !seen.has(f.name + f.size))].slice(0, 10)
+                      })
+                      setExamFileError('')
+                      e.target.value = ''
+                    }} />
+                  <input type="number" value={examFileCount} onChange={e => setExamFileCount(Number(e.target.value))} min={1} max={120}
+                    title="عدد الأسئلة"
+                    className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <span className="text-slate-500 text-xs">سؤال</span>
+                </div>
+                {examFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {examFiles.map((f, i) => (
+                      <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs">
+                        📄 {f.name}
+                        <button type="button" title="إزالة هذا الملف"
+                          onClick={() => setExamFiles(prev => prev.filter((_, j) => j !== i))}
+                          className="text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                    <span className="text-slate-600 text-xs self-center">{examFiles.length}/10</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {([['mcq', 'اختيار من متعدد'], ['true_false', 'صح / خطأ'], ['essay', 'مقالي']] as const).map(([t, label]) => (
+                    <div key={t} className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => toggleExamQType(t)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                          examQTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                        }`}>
+                        {examQTypes.has(t) ? '✓ ' : ''}{label}
+                      </button>
+                      {examQTypes.has(t) && (
+                        <>
+                          <input type="number" min={1} max={100} value={examTypePoints[t]}
+                            title={`علامة كل سؤال ${label}`}
+                            onChange={e => setExamTypePoints(p => ({ ...p, [t]: Math.max(1, Number(e.target.value)) }))}
+                            className="w-14 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          <span className="text-slate-500 text-xs">علامة</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-slate-500 text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً أو جماعياً.</p>
+              </div>
+
+              <textarea value={examFileInstructions} onChange={e => setExamFileInstructions(e.target.value)} rows={2}
+                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على الفصلين 3 و4"' />
+
+              <AiProgress active={examFileLoading} />
+              {examFileError && <p className="text-red-400 text-sm">{examFileError}</p>}
+
+              <Button onClick={generateExamFromFile} loading={examFileLoading} disabled={examFiles.length === 0 || examQTypes.size === 0} variant="secondary" size="sm">
+                <Sparkles className="w-4 h-4" /> توليد الأسئلة من الملف
+              </Button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input label="Exam Title" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Midterm Exam - Chapter 1-5" />
