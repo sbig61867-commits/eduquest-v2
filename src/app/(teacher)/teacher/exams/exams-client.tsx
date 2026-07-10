@@ -39,6 +39,8 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   const [aiCount, setAiCount] = useState(10)
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedQ, setSelectedQ] = useState<Set<string>>(new Set()) // bulk-grade selection
+  const [bulkPts, setBulkPts] = useState(1)
   const [results, setResults] = useState<ExamResults | null>(null)
   const [resultsLoading, setResultsLoading] = useState(false)
   const [viewQuestions, setViewQuestions] = useState<Exam | null>(null)
@@ -149,7 +151,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
           <h2 className="text-2xl font-bold text-white">Exams</h2>
           <p className="text-slate-400 mt-1">{exams.length} exams created</p>
         </div>
-        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setShowModal(true) }}>
+        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setShowModal(true) }}>
           <Plus className="w-4 h-4" /> New Exam
         </Button>
       </div>
@@ -224,30 +226,59 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             {questions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-slate-300 text-sm font-medium">{questions.length} Questions Generated</p>
+
+                {/* Bulk-grade bar: set a uniform mark for selected (or all) questions
+                    at once — no need to edit 100 questions one by one. */}
+                <div className="flex flex-wrap items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2" dir="rtl">
+                  <button type="button"
+                    onClick={() => setSelectedQ(selectedQ.size === questions.length ? new Set() : new Set(questions.map(q => q.id)))}
+                    className="text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400">
+                    {selectedQ.size === questions.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
+                  <span className="text-slate-400 text-xs">
+                    {selectedQ.size > 0 ? `${selectedQ.size} محدد` : 'حدّد أسئلة'} — ضع درجة موحّدة:
+                  </span>
+                  <input type="number" min={1} max={100} value={bulkPts}
+                    onChange={e => setBulkPts(Math.max(1, Number(e.target.value)))}
+                    className="w-16 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                  <Button type="button" size="sm" variant="secondary"
+                    onClick={() => {
+                      const target = selectedQ.size > 0 ? selectedQ : new Set(questions.map(q => q.id))
+                      setQuestions(prev => prev.map(x => target.has(x.id) ? { ...x, points: bulkPts } : x))
+                    }}>
+                    تطبيق {selectedQ.size > 0 ? 'على المحدد' : 'على الكل'}
+                  </Button>
+                </div>
+
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {questions.map((q, i) => (
-                    <div key={q.id} className="flex items-start gap-3 bg-slate-800 rounded-lg p-3">
-                      <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
-                      <p className="text-slate-300 text-sm flex-1 line-clamp-2">{q.text}</p>
-                      <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'} className="shrink-0">{q.type}</Badge>
-                      {/* Editable mark for this question (before publishing) */}
-                      <span className="flex items-center gap-1 shrink-0">
-                        <input type="number" min={1} max={100} value={q.points}
-                          title="درجة هذا السؤال"
-                          onChange={e => {
-                            const v = Math.max(1, Number(e.target.value))
-                            setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, points: v } : x))
-                          }}
-                          className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        <span className="text-slate-500 text-xs">د</span>
-                      </span>
-                      <button onClick={() => removeQuestion(q.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
-                    </div>
-                  ))}
+                  {questions.map((q, i) => {
+                    const sel = selectedQ.has(q.id)
+                    return (
+                      <div key={q.id} className={`flex items-start gap-3 rounded-lg p-3 border ${sel ? 'bg-blue-600/10 border-blue-500/40' : 'bg-slate-800 border-transparent'}`}>
+                        <input type="checkbox" checked={sel}
+                          onChange={() => setSelectedQ(prev => { const n = new Set(prev); if (n.has(q.id)) n.delete(q.id); else n.add(q.id); return n })}
+                          className="mt-1 accent-blue-500 shrink-0" />
+                        <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
+                        <p className="text-slate-300 text-sm flex-1 line-clamp-2">{q.text}</p>
+                        <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'} className="shrink-0">{q.type}</Badge>
+                        <span className="flex items-center gap-1 shrink-0">
+                          <input type="number" min={1} max={100} value={q.points}
+                            title="درجة هذا السؤال"
+                            onChange={e => {
+                              const v = Math.max(1, Number(e.target.value))
+                              setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, points: v } : x))
+                            }}
+                            className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          <span className="text-slate-500 text-xs">د</span>
+                        </span>
+                        <button onClick={() => removeQuestion(q.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    )
+                  })}
                 </div>
                 <p className="text-slate-400 text-xs mt-2">
                   {questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
-                  <span className="text-slate-600"> — عدّل درجة أي سؤال قبل الإنشاء</span>
+                  <span className="text-slate-600"> — عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة</span>
                 </p>
               </div>
             )}
@@ -265,7 +296,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
         {resultsLoading ? (
           <p className="text-slate-500 text-sm py-8 text-center">Loading results...</p>
         ) : results ? (
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
             <div className="flex flex-wrap items-center gap-3">
               <div>
                 <p className="text-white font-semibold">{results.title}</p>
@@ -280,7 +311,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             {results.results.length === 0 ? (
               <p className="text-slate-500 text-sm py-6 text-center">No students enrolled in this group yet.</p>
             ) : (
-              <div className="border border-slate-800 rounded-xl overflow-hidden">
+              <div className="border border-slate-800 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
