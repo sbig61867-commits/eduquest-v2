@@ -92,7 +92,9 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       body: JSON.stringify({ topic: aiTopic, count: aiCount, type: 'mixed' }),
     })
     const data = await res.json()
-    if (data.questions) setQuestions(data.questions.map((q: Question, i: number) => ({ ...q, id: String(i + 1) })))
+    // Default every question to 1 point → a natural total = number of questions
+    // (e.g. 30 questions ⇒ out of 30). The teacher can adjust each below.
+    if (data.questions) setQuestions(data.questions.map((q: Question, i: number) => ({ ...q, id: String(i + 1), points: 1 })))
     setAiLoading(false)
   }
 
@@ -228,16 +230,31 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                       <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
                       <p className="text-slate-300 text-sm flex-1 line-clamp-2">{q.text}</p>
                       <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'} className="shrink-0">{q.type}</Badge>
+                      {/* Editable mark for this question (before publishing) */}
+                      <span className="flex items-center gap-1 shrink-0">
+                        <input type="number" min={1} max={100} value={q.points}
+                          title="درجة هذا السؤال"
+                          onChange={e => {
+                            const v = Math.max(1, Number(e.target.value))
+                            setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, points: v } : x))
+                          }}
+                          className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        <span className="text-slate-500 text-xs">د</span>
+                      </span>
                       <button onClick={() => removeQuestion(q.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   ))}
                 </div>
+                <p className="text-slate-400 text-xs mt-2">
+                  {questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
+                  <span className="text-slate-600"> — عدّل درجة أي سؤال قبل الإنشاء</span>
+                </p>
               </div>
             )}
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
-              <Button type="submit" loading={loading} className="flex-1">Create Exam ({questions.length} Q)</Button>
+              <Button type="submit" loading={loading} className="flex-1">Create Exam ({questions.reduce((s, q) => s + (q.points || 0), 0)} د)</Button>
             </div>
           </form>
         </div>
