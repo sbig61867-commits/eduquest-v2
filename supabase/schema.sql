@@ -176,11 +176,28 @@ CREATE POLICY "users_select" ON users FOR SELECT USING (
 CREATE POLICY "users_insert" ON users FOR INSERT WITH CHECK (
   current_user_role() IN ('super_admin','university_admin')
 );
-CREATE POLICY "users_update" ON users FOR UPDATE USING (
-  current_user_role() = 'super_admin' OR
-  (current_user_role() = 'university_admin' AND tenant_id = current_tenant_id()) OR
-  id = auth.uid()
-);
+CREATE POLICY "users_update" ON users FOR UPDATE
+  USING (
+    current_user_role() = 'super_admin'
+    OR (current_user_role() = 'university_admin' AND tenant_id = current_tenant_id())
+    OR id = auth.uid()
+  )
+  WITH CHECK (
+    current_user_role() = 'super_admin'
+    OR (
+      current_user_role() = 'university_admin'
+      AND tenant_id = current_tenant_id()
+      AND role <> 'super_admin'
+      AND id <> auth.uid()
+    )
+    OR (
+      id = auth.uid()
+      AND role      = (SELECT u.role      FROM users u WHERE u.id = auth.uid())
+      AND tenant_id IS NOT DISTINCT FROM
+                      (SELECT u.tenant_id FROM users u WHERE u.id = auth.uid())
+      AND is_active = (SELECT u.is_active FROM users u WHERE u.id = auth.uid())
+    )
+  );
 
 -- GROUPS: scoped to tenant; teacher manages their own
 CREATE POLICY "groups_select" ON groups FOR SELECT USING (
@@ -195,10 +212,23 @@ CREATE POLICY "groups_update" ON groups FOR UPDATE USING (
   (current_user_role() = 'teacher' AND teacher_id = auth.uid())
 );
 
--- LESSONS: published lessons visible to students in same tenant
+-- LESSONS: staff see all in tenant; students see only published lessons in enrolled groups
 CREATE POLICY "lessons_select" ON lessons FOR SELECT USING (
-  current_user_role() = 'super_admin' OR
-  tenant_id = current_tenant_id()
+  deleted_at IS NULL
+  AND (
+    current_user_role() = 'super_admin'
+    OR (
+      current_user_role() IN ('teacher', 'university_admin')
+      AND tenant_id = current_tenant_id()
+    )
+    OR (
+      current_user_role() = 'student'
+      AND is_published = true
+      AND group_id IN (
+        SELECT gs.group_id FROM group_students gs WHERE gs.student_id = auth.uid()
+      )
+    )
+  )
 );
 CREATE POLICY "lessons_insert" ON lessons FOR INSERT WITH CHECK (
   current_user_role() IN ('teacher','university_admin','super_admin') AND
@@ -242,11 +272,14 @@ CREATE POLICY "submissions_insert" ON exam_submissions FOR INSERT WITH CHECK (
   student_id = auth.uid() AND tenant_id = current_tenant_id()
 );
 
--- GRADES
+-- GRADES: students see own; teachers/admins see tenant-wide
 CREATE POLICY "grades_select" ON grades FOR SELECT USING (
-  current_user_role() = 'super_admin' OR
-  student_id = auth.uid() OR
-  tenant_id = current_tenant_id()
+  current_user_role() = 'super_admin'
+  OR student_id = auth.uid()
+  OR (
+    current_user_role() IN ('teacher', 'university_admin')
+    AND tenant_id = current_tenant_id()
+  )
 );
 CREATE POLICY "grades_insert" ON grades FOR INSERT WITH CHECK (
   current_user_role() IN ('teacher','university_admin','super_admin') AND
