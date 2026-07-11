@@ -60,6 +60,16 @@ The schema and all changes live as SQL files in `supabase/`, applied **manually 
 
 Once that migration is applied, RLS-scoped reads work correctly again, so route/page code should read through the **user session client** (`src/lib/supabase/server.ts`), not the service-role admin client — the admin client bypassed RLS as a workaround and is no longer needed for plain reads. Keep manual `.eq('tenant_id', ...)` / `.eq('teacher_id', ...)` filters as defense-in-depth even though RLS now enforces them. The service-role client remains correct for: privileged writes that need cross-tenant verification first (`api/admin/*`, `accept-invitation`), tables with **no** SELECT policy at all (e.g. `group_students` — RLS enabled, zero policies, so admin is the only way to read it), and the rate-limit table.
 
+## Applied migrations (already on live DB — do NOT re-run)
+
+- `fix_helper_search_path.sql` — pins search_path on RLS helper functions
+- `fix_all_search_path_migration.sql` — pins search_path on all SECURITY DEFINER RPCs
+- `soft_delete_archive_migration.sql` — adds deleted_at soft-delete columns + archive RPC
+- `hide_archived_rls_migration.sql` — wraps SELECT policies with deleted_at IS NULL
+- `rls_performance_migration.sql` — performance-optimized RLS policies + hot-path indexes
+- `security_rls_fix_migration.sql` — patches users_update / grades_select / lessons_select vulnerabilities ✅ 2026-07-11
+- `performance_indexes_migration.sql` — idx_lessons_teacher_live, idx_exams_teacher_live, idx_grades_exam_id ✅ 2026-07-11
+
 ## Conventions
 
 - Supabase joined-query results often need typed casts; the codebase uses `as unknown as RowType[]` with explicit interfaces rather than `as any`.
