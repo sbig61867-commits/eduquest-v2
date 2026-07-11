@@ -24,9 +24,11 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
   const unread = messages.filter(m => !m.is_read).length
 
   async function markRead(id: string) {
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read: true } : m))
     const { error } = await supabase.from('contact_messages').update({ is_read: true }).eq('id', id)
-    if (!error) router.refresh()
+    if (!error) {
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read: true } : m))
+      router.refresh()
+    }
   }
 
   async function remove(id: string) {
