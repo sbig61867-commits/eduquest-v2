@@ -21,6 +21,20 @@ const dict = {
       'إعداد الدروس والاختبارات يستهلك ساعات من وقت المعلم',
       'لا خصوصية بين المؤسسات — بيانات الجميع في سلة واحدة',
     ],
+    statsTitle: 'أرقام تتحدث عن المنصة',
+    stats: [
+      { value: '4', label: 'أدوار متكاملة', sub: 'مالك، مدير جامعة، معلم، طالب' },
+      { value: 'ثوانٍ', label: 'لتوليد درس أو اختبار كامل', sub: 'بالذكاء الاصطناعي، قابل للتعديل' },
+      { value: '100%', label: 'عزل البيانات بين الجامعات', sub: 'على مستوى قاعدة البيانات نفسها' },
+      { value: 'مباشر', label: 'مراقبة الاختبارات', sub: 'صوت وصورة لكل الطلاب في آنٍ واحد' },
+    ],
+    trustTitle: 'لماذا EduQuest؟',
+    trust: [
+      { title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً — لا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
+      { title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا — تحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
+      { title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ — كل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
+      { title: 'مرافقة كاملة عند البدء', desc: 'نجهّز بيئة جامعتك بأنفسنا ونرافق فريقك خطوة بخطوة حتى تستقر العملية التعليمية.' },
+    ],
     teaserTitle: 'الحل: منصة واحدة تفعل كل شيء',
     teaser: [
       { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'دروس واختبارات كاملة في ثوانٍ، قابلة للتعديل قبل النشر.' },
@@ -76,6 +90,20 @@ const dict = {
       'Cheating in remote exams with no way to monitor',
       'Preparing lessons and exams eats hours of every teacher’s time',
       'No privacy between institutions — everyone’s data in one basket',
+    ],
+    statsTitle: 'Numbers that speak for the platform',
+    stats: [
+      { value: '4', label: 'Integrated roles', sub: 'Owner, university admin, teacher, student' },
+      { value: 'Seconds', label: 'To generate a full lesson or exam', sub: 'AI-powered, editable before publishing' },
+      { value: '100%', label: 'Data isolation between universities', sub: 'Enforced at the database level itself' },
+      { value: 'Live', label: 'Exam monitoring', sub: 'Audio + video of all students at once' },
+    ],
+    trustTitle: 'Why EduQuest?',
+    trust: [
+      { title: 'Grading on the server, not the browser', desc: 'Correct answers never leave the server — students can’t see or tamper with them, no matter what.' },
+      { title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers — refreshing the page or changing the device clock changes nothing.' },
+      { title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake — every delete goes to an archive the admin can restore anytime.' },
+      { title: 'Full onboarding support', desc: 'We set up your university’s environment ourselves and guide your team step by step until everything runs smoothly.' },
     ],
     teaserTitle: 'The solution: one platform that does it all',
     teaser: [
@@ -220,6 +248,20 @@ export function Landing() {
         </div>
       </section>
 
+      {/* Stats strip */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.statsTitle}</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {t.stats.map((s, i) => (
+            <div key={i} className="bg-gradient-to-b from-slate-900 to-slate-900/50 border border-slate-800 rounded-xl p-5 sm:p-6 text-center hover:border-blue-500/40 transition-colors">
+              <p className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-b from-blue-300 to-blue-500 bg-clip-text text-transparent">{s.value}</p>
+              <p className="text-white text-sm font-semibold mt-2">{s.label}</p>
+              <p className="text-slate-500 text-xs mt-1 leading-relaxed">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Solution teaser */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.teaserTitle}</h2>
@@ -291,6 +333,24 @@ export function Landing() {
               <span className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white font-bold mb-4">{i + 1}</span>
               <h3 className="text-white font-semibold mb-1.5">{s.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Trust / why us */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.trustTitle}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {t.trust.map((item, i) => (
+            <div key={i} className="flex items-start gap-4 bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-emerald-500/30 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold mb-1.5">{item.title}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
+              </div>
             </div>
           ))}
         </div>
