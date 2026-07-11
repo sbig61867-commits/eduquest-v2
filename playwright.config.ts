@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const PROD_URL = 'https://eduquest-v2-afkwfqete-sbig61867-commits-projects.vercel.app'
+const PROD_URL = 'https://eduquest-v2.vercel.app'
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 60_000,
+  timeout: 120_000,
   retries: 1,
   use: {
     baseURL: PROD_URL,

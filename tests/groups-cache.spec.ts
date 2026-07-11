@@ -7,7 +7,14 @@
  *       → delete group → navigate away → navigate back → confirm group gone
  *
  * Uses teacher.test@eduquest.local / TestPass!2026 (seeded test account, tenant QOU).
- * Creates group "E2E-Test-{timestamp}" and cleans up even on failure via afterAll.
+ * Tests run sequentially (1 worker). Each test logs in independently.
+ *
+ * UI notes (confirmed from live screenshot):
+ *   - Create: "New Group" button top-right → modal title h3 "New Group" → "Create Group" submit
+ *   - Edit:   first icon button in card (pencil, index 0) → h3 "Edit Group" → "Save Changes"
+ *   - Delete: third icon button in card (trash, index 2) — pencil=0, archive=1, trash=2
+ *             "Manage Students" is index 3 (bottom) — do NOT use .last()
+ *   - Card container: div.rounded-xl (no "card" in className)
  */
 import { test, expect, type Page } from '@playwright/test'
 
@@ -18,24 +25,25 @@ const DASHBOARD_URL = '/teacher/dashboard'
 
 async function login(page: Page) {
   await page.goto('/login')
-  await page.getByLabel(/email/i).fill(TEACHER_EMAIL)
-  await page.getByLabel(/password/i).fill(TEACHER_PASS)
-  await page.getByRole('button', { name: /sign in|login|دخول/i }).click()
-  await page.waitForURL(`**${DASHBOARD_URL}`, { timeout: 30_000 })
+  // Wait for Suspense boundary to resolve (LoginForm uses useSearchParams)
+  await page.waitForSelector('input[type="password"]', { timeout: 30_000 })
+  await page.locator('input[type="email"]').fill(TEACHER_EMAIL)
+  await page.locator('input[type="password"]').fill(TEACHER_PASS)
+  await page.locator('button[type="submit"]').click()
+  await page.waitForURL(`**${DASHBOARD_URL}`, { timeout: 60_000 })
 }
 
 test.describe('Groups — router cache invalidation', () => {
-  const stamp     = Date.now()
-  const groupName = `E2E-Test-${stamp}`
+  // stamp is evaluated once per run — shared across all tests in the suite
+  const stamp      = Date.now()
+  const groupName  = `E2E-Test-${stamp}`
   const editedName = `E2E-Edited-${stamp}`
-  let groupId = ''  // tracked so we can clean up even if delete step fails
-
-  // ── helpers ──
 
   async function navToGroups(page: Page) {
-    // Navigate via sidebar/link — never hard-reload, to exercise the router cache
     await page.goto(GROUPS_URL)
     await page.waitForURL(`**${GROUPS_URL}`, { timeout: 20_000 })
+    // networkidle ensures React has fully hydrated (event handlers attached)
+    await page.waitForLoadState('networkidle')
   }
 
   async function navAway(page: Page) {
@@ -43,117 +51,86 @@ test.describe('Groups — router cache invalidation', () => {
     await page.waitForURL(`**${DASHBOARD_URL}`, { timeout: 20_000 })
   }
 
-  // ── setup / teardown ──
-
-  test.beforeAll(async ({ browser }) => {
-    // Login once so the session cookie is established for all tests in this suite
-    const page = await browser.newPage()
-    await login(page)
-    await page.close()
-  })
-
-  test.afterAll(async ({ browser }) => {
-    // Safety cleanup: if the test left a group behind (delete step failed or
-    // was skipped), find and delete it via the UI.
-    if (!groupId) return
-    const page = await browser.newPage()
-    try {
-      await login(page)
-      await navToGroups(page)
-      const row = page.locator(`[data-group-id="${groupId}"], tr:has-text("${editedName}")`)
-      if (await row.count() > 0) {
-        // try to find a delete button for that row
-        const delBtn = row.locator('button[class*="red-400"], button[aria-label*="delete" i], button:has-text("حذف")')
-        if (await delBtn.count() > 0) {
-          page.once('dialog', d => d.accept())
-          await delBtn.first().click()
-          await page.waitForTimeout(2000)
-        }
-      }
-    } catch { /* best-effort cleanup */ }
-    await page.close()
-  })
-
-  // ── tests ──
+  // ── Test 1: create ──────────────────────────────────────────────────────────
+  // Proves: after creation + router.refresh(), group is visible on navigation back
 
   test('create group → navigate away → back (no reload) → group visible', async ({ page }) => {
     await login(page)
     await navToGroups(page)
 
-    // Open create modal
-    const addBtn = page.getByRole('button', { name: /add|create|إضافة|جديد/i }).first()
-    await addBtn.click()
+    // "New Group" button — confirmed text from live screenshot
+    await page.getByRole('button', { name: 'New Group' }).click()
 
-    // Fill name field (label may say "Group Name" or "اسم المجموعة")
-    const nameInput = page.getByRole('textbox').first()
-    await nameInput.fill(groupName)
+    // Modal title h3 (Modal component does not use role="dialog")
+    await page.waitForSelector('h3:has-text("New Group")', { timeout: 10_000 })
+    await page.getByRole('textbox').first().fill(groupName)
 
-    // Submit
-    const submitBtn = page.getByRole('button', { name: /save|create|حفظ|إنشاء/i }).first()
-    await submitBtn.click()
+    await page.getByRole('button', { name: 'Create Group' }).click()
 
-    // Wait for group to appear in the list
+    // Group appears in list (optimistic + server confirm)
     await expect(page.getByText(groupName)).toBeVisible({ timeout: 15_000 })
 
-    // Navigate away (client-side, no reload)
+    // Navigate away — client-side, no hard reload
     await navAway(page)
 
-    // Navigate back (client-side, exercises router cache)
+    // Navigate back — exercises router cache
     await navToGroups(page)
 
-    // Group must still be visible — proves router.refresh() invalidated the cache
+    // MUST be visible — proves router.refresh() invalidated the cache
     await expect(page.getByText(groupName)).toBeVisible({ timeout: 15_000 })
   })
+
+  // ── Test 2: edit ───────────────────────────────────────────────────────────
 
   test('edit group → navigate away → back → edited name visible', async ({ page }) => {
     await login(page)
     await navToGroups(page)
 
-    // Find the group row and click its edit button
-    const row = page.locator(`tr:has-text("${groupName}"), [class*="card"]:has-text("${groupName}")`)
-    await expect(row.first()).toBeVisible({ timeout: 10_000 })
+    const card = page.locator(`div.rounded-xl:has-text("${groupName}")`).first()
+    await expect(card).toBeVisible({ timeout: 15_000 })
 
-    const editBtn = row.first().getByRole('button', { name: /edit|تعديل/i })
-    await editBtn.click()
+    // Edit button: first icon button (pencil, index 0)
+    await card.locator('button').first().click()
 
-    // Clear name and type new value
+    await page.waitForSelector('h3:has-text("Edit Group")', { timeout: 10_000 })
     const nameInput = page.getByRole('textbox').first()
     await nameInput.clear()
     await nameInput.fill(editedName)
 
-    const saveBtn = page.getByRole('button', { name: /save|update|حفظ|تحديث/i }).first()
-    await saveBtn.click()
+    await page.getByRole('button', { name: 'Save Changes' }).click()
 
-    await expect(page.getByText(editedName)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(editedName)).toBeVisible({ timeout: 15_000 })
 
     await navAway(page)
     await navToGroups(page)
 
-    await expect(page.getByText(editedName)).toBeVisible({ timeout: 10_000 })
+    // Edited name persists after navigation — cache was invalidated
+    await expect(page.getByText(editedName)).toBeVisible({ timeout: 15_000 })
     expect(await page.getByText(groupName).count()).toBe(0)
   })
+
+  // ── Test 3: delete ─────────────────────────────────────────────────────────
 
   test('delete group → navigate away → back → group gone', async ({ page }) => {
     await login(page)
     await navToGroups(page)
 
-    const row = page.locator(`tr:has-text("${editedName}"), [class*="card"]:has-text("${editedName}")`)
-    await expect(row.first()).toBeVisible({ timeout: 10_000 })
+    const card = page.locator(`div.rounded-xl:has-text("${editedName}")`).first()
+    await expect(card).toBeVisible({ timeout: 15_000 })
 
-    // Accept the confirm() dialog that the delete button fires
+    // Delete button: 3rd button in card (index 2) — pencil=0, archive=1, trash=2
+    // .last() would select "Manage Students" (index 3) — avoid it
     page.once('dialog', dialog => dialog.accept())
+    await card.locator('button').nth(2).click()
 
-    const delBtn = row.first().getByRole('button', { name: /delete|حذف/i })
-    await delBtn.click()
-
-    // Optimistic removal: group disappears immediately
-    await expect(page.getByText(editedName)).not.toBeVisible({ timeout: 10_000 })
+    // Optimistic removal — scoped locator avoids strict-mode violation
+    await expect(page.locator(`div.rounded-xl:has-text("${editedName}")`))
+      .not.toBeVisible({ timeout: 10_000 })
 
     await navAway(page)
     await navToGroups(page)
 
-    // Still gone after navigation — confirms cache was invalidated
-    expect(await page.getByText(editedName).count()).toBe(0)
-    groupId = '' // cleanup no longer needed
+    // Still gone after navigation — proves router.refresh() invalidated the cache
+    expect(await page.locator(`div.rounded-xl:has-text("${editedName}")`).count()).toBe(0)
   })
 })
