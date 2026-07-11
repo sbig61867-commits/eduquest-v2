@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Archive, ArchiveRestore, Users, BookOpen, ClipboardList, GraduationCap, Search } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 
 export interface ArchiveRow {
   kind: 'group' | 'course'
@@ -51,7 +52,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       body: JSON.stringify({ kind: r.kind, id: r.id }),
     })
     if (res.ok) { setItems(prev => prev.map(x => x.id === r.id ? { ...x, is_archived: false, deleted_at: null } : x)); router.refresh() }
-    else alert((await res.json().catch(() => ({}))).error ?? 'Failed to restore')
+    else toast.error((await res.json().catch(() => ({}))).error ?? 'Failed to restore')
     setBusy('')
   }
 

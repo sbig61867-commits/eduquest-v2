@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { toast } from '@/components/ui/toast'
 import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
@@ -110,7 +111,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     setResultsExamId(examId)
     const res = await fetch(`/api/exams/results?exam_id=${examId}`)
     if (res.ok) setResults(await res.json())
-    else alert((await res.json().catch(() => ({}))).error ?? 'Failed to load results')
+    else toast.error((await res.json().catch(() => ({}))).error ?? 'Failed to load results')
     setResultsLoading(false)
   }
 
@@ -136,7 +137,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: submissionId, ...patch }),
     })
-    if (!res.ok) alert((await res.json().catch(() => ({}))).error ?? 'فشل الحفظ')
+    if (!res.ok) toast.error((await res.json().catch(() => ({}))).error ?? 'فشل الحفظ')
     else await openResults(examId) // refresh scores/status
     setGradeBusy('')
   }
@@ -157,7 +158,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (questions.length === 0) { alert('Add at least one question'); return }
+    if (questions.length === 0) { toast.error('Add at least one question'); return }
     setLoading(true)
     const res = await fetch('/api/exams', {
       method: 'POST',
@@ -189,7 +190,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       body: JSON.stringify({ id }),
     })
     if (!res.ok) {
-      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الاختبار')
+      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف الاختبار')
       return
     }
     setExams(prev => prev.filter(e => e.id !== id))

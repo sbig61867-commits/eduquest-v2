@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { toast } from '@/components/ui/toast'
 import {
   ArrowLeft, BookOpen, ClipboardList, Users, Sparkles, Upload,
   FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff
@@ -61,7 +62,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       setPublished(p => !p)
       router.refresh()
     } else {
-      alert((await res.json().catch(() => ({}))).error ?? 'فشل تغيير حالة النشر')
+      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل تغيير حالة النشر')
     }
     setPublishing(false)
   }
@@ -224,7 +225,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     if (!hwForm.title.trim() || questions.length === 0) return
     setHwLoading(true)
     const groupId = lesson.groups?.id
-    if (!groupId) { alert('No group linked to this lesson'); setHwLoading(false); return }
+    if (!groupId) { toast.warning('No group linked to this lesson'); setHwLoading(false); return }
     const res = await fetch('/api/homework', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -241,7 +242,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     if (res.ok) {
       setHomework(prev => [...prev, { ...data, exam_submissions: [{ count: 0 }] }])
       setShowHwModal(false); setQuestions([]); setHwForm({ title: '', due_date: '' })
-    } else alert(data.error ?? 'Failed')
+    } else toast.error(data.error ?? 'Failed')
     setHwLoading(false)
   }
 
@@ -249,7 +250,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     if (!confirm('حذف هذا الواجب؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى مع تسليماته وعلاماته نهائياً (لا رجعة). وإلا فسيُنقل إلى الأرشيف.')) return
     const res = await fetch('/api/homework', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     if (!res.ok) {
-      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الواجب')
+      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف الواجب')
       return
     }
     setHomework(prev => prev.filter(h => h.id !== id))

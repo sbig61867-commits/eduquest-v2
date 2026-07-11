@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { toast } from '@/components/ui/toast'
 import { Plus, BookOpen, Sparkles, Pencil, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
@@ -92,7 +93,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
     })
     const data = await res.json()
     if (res.ok) { setLessons(prev => prev.map(l => l.id === lesson.id ? data : l)); router.refresh() }
-    else alert(data.error ?? 'فشل تغيير حالة النشر')
+    else toast.error(data.error ?? 'فشل تغيير حالة النشر')
   }
 
   async function deleteLesson(id: string) {
@@ -103,7 +104,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       body: JSON.stringify({ id }),
     })
     if (!res.ok) {
-      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف الدرس')
+      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف الدرس')
       return
     }
     setLessons(prev => prev.filter(l => l.id !== id))

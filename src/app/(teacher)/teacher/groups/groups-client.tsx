@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Plus, Users, Pencil, Trash2, UserPlus, X, Search, Archive, ArchiveRestore } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 
 interface Group {
   id: string
@@ -102,7 +103,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       body: JSON.stringify({ id: group.id, is_active: !group.is_active }),
     })
     const data = await res.json()
-    if (!res.ok) { alert(data.error ?? 'فشل تغيير حالة المجموعة'); return }
+    if (!res.ok) { toast.error(data.error ?? 'فشل تغيير حالة المجموعة'); return }
     setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_active: data.is_active } : g))
     router.refresh()
   }
@@ -115,7 +116,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       body: JSON.stringify({ id }),
     })
     if (!res.ok) {
-      alert((await res.json().catch(() => ({}))).error ?? 'فشل حذف المجموعة')
+      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف المجموعة')
       return
     }
     setGroups(prev => prev.filter(g => g.id !== id))

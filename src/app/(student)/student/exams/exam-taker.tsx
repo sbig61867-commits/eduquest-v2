@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic } from 'lucide-react'
 import type { Exam, Question, ProctoringEvent } from '@/types'
 import { useFaceDetection } from '@/hooks/use-face-detection'
@@ -184,7 +185,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
         await document.documentElement.requestFullscreen()
       } catch {
         setCameraStatus('error')
-        alert('Camera and microphone access are required for this proctored exam.')
+        toast.error('Camera and microphone access are required for this proctored exam.')
         return
       }
     }
@@ -203,7 +204,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
       streamRef.current?.getTracks().forEach(t => t.stop())
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
       setCameraStatus('idle')
-      alert(data.error ?? 'Could not start the exam.')
+      toast.error(data.error ?? 'Could not start the exam.')
       return
     }
 
@@ -252,7 +253,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
 
     if (!res.ok) {
       setSubmitting(false)
-      alert('Submission failed. Please try again.')
+      toast.error('Submission failed. Please try again.')
       return
     }
 

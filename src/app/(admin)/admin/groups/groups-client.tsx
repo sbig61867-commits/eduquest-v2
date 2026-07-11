@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Users, Archive, ArchiveRestore } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 import { formatDate } from '@/lib/utils'
 
 // University-admin view over every group in the tenant: see the owning
@@ -35,7 +36,7 @@ export function AdminGroupsClient({ initialGroups }: { initialGroups: GroupRow[]
       body: JSON.stringify({ id: group.id, is_active: !group.is_active }),
     })
     const data = await res.json()
-    if (!res.ok) alert(data.error ?? 'فشل تغيير حالة المجموعة')
+    if (!res.ok) toast.error(data.error ?? 'فشل تغيير حالة المجموعة')
     else {
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_active: data.is_active } : g))
       router.refresh()

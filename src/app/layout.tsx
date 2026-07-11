@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { AuthProvider } from '@/components/shared/auth-provider'
+import { Toaster } from '@/components/ui/toast'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geist.variable} h-full`} suppressHydrationWarning translate="no">
       <body className="h-full bg-slate-950 antialiased">
         <AuthProvider>{children}</AuthProvider>
+        <Toaster />
       </body>
     </html>
   )

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
+import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Building2, Archive, ArchiveRestore, Trash2, UserPlus, Mail } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -57,7 +58,7 @@ export function TenantsClient({ initialTenants }: Props) {
       body: JSON.stringify({ tenant_id: tenant.id, archive }),
     })
     const data = await res.json()
-    if (!res.ok) { alert(data.error ?? 'Failed to update university'); return }
+    if (!res.ok) { toast.error(data.error ?? 'Failed to update university'); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data.tenant : t))
     router.refresh()
   }
@@ -67,7 +68,7 @@ export function TenantsClient({ initialTenants }: Props) {
     if (!confirm(`تأكيد أخير: اكتب نعم في ذهنك — هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`)) return
     const res = await fetch(`/api/admin/delete-tenant?id=${tenant.id}`, { method: 'DELETE' })
     const data = await res.json()
-    if (!res.ok) { alert(data.error ?? 'Failed to delete university'); return }
+    if (!res.ok) { toast.error(data.error ?? 'Failed to delete university'); return }
     setTenants(prev => prev.filter(t => t.id !== tenant.id))
     // Invalidate the router cache so revisiting the page doesn't show the
     // deleted tenant from a stale server render.

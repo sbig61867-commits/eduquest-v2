@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
+import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import {
   ChevronLeft, Plus, Layers, BookOpen,
@@ -156,7 +157,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   // Uses the item Title as the section to write — no outside/internet knowledge.
   async function generateItemContent() {
     const title = itemForm.title.trim() || itemForm.aiTopic.trim()
-    if (!title) { alert('اكتب عنوان القسم أولاً ليُولّد محتواه من ملف الكورس.'); return }
+    if (!title) { toast.warning('اكتب عنوان القسم أولاً ليُولّد محتواه من ملف الكورس.'); return }
     setAiLoading(true)
     const res = await fetch('/api/courses/generate-item-content', {
       method: 'POST',
@@ -167,7 +168,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
     if (res.ok && data.content) {
       setItemForm(p => ({ ...p, body: data.content, title: p.title || title }))
     } else {
-      alert(data.error ?? 'فشل توليد المحتوى')
+      toast.error(data.error ?? 'فشل توليد المحتوى')
     }
     setAiLoading(false)
   }

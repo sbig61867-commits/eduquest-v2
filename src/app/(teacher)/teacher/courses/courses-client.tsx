@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { toast } from '@/components/ui/toast'
 import {
   Plus, BookOpen, Layers, Users, Pencil, Trash2, Eye, EyeOff,
   GraduationCap, Upload, Sparkles, ChevronDown, ChevronUp, FileText, Check
@@ -75,7 +76,7 @@ export function CoursesClient({ initialCourses }: Props) {
       setShowAdd(false)
       router.refresh()
     } else {
-      alert(data.error ?? 'Failed to create course')
+      toast.error(data.error ?? 'Failed to create course')
     }
     setLoading(false)
   }
@@ -186,10 +187,10 @@ export function CoursesClient({ initialCourses }: Props) {
         setGeneratedCourse(null)
         router.refresh()
       } else {
-        alert(data.error ?? 'Failed to create course')
+        toast.error(data.error ?? 'Failed to create course')
       }
     } catch {
-      alert('Network error. Please try again.')
+      toast.error('Network error. Please try again.')
     }
     setCreating(false)
   }

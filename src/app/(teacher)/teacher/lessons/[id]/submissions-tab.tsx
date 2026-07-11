@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { toast } from '@/components/ui/toast'
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Send, Save, EyeOff } from 'lucide-react'
 
 // Teacher grading view for a lesson's homework: who submitted, their
@@ -53,7 +54,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: subId, ...patch }),
     })
-    if (!res.ok) alert((await res.json()).error ?? 'فشل الحفظ')
+    if (!res.ok) toast.error((await res.json()).error ?? 'فشل الحفظ')
     else await load()
     setBusy('')
   }

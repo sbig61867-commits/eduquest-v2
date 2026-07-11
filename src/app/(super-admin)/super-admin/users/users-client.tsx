@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
+import { toast } from '@/components/ui/toast'
 import {
   UserPlus, Search, Trash2, ToggleLeft, Mail,
   Building2, ChevronRight, Users, GraduationCap,
@@ -355,7 +356,7 @@ export function SuperUsersClient({ initialUsers, tenants }: Props) {
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      alert(data.error ?? 'فشل الحذف — حاول مجدداً')
+      toast.error(data.error ?? 'فشل الحذف — حاول مجدداً')
       return
     }
     setUsers(prev => prev.filter(u => u.id !== id))
