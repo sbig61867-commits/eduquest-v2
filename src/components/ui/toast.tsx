@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -11,8 +11,6 @@ interface Toast {
   message: string
   type: ToastType
 }
-
-type ToastFn = (message: string, type?: ToastType) => void
 
 // Global emitter — works across the component tree without a context provider
 const listeners = new Set<(t: Toast) => void>()

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Users, BookOpen, ClipboardList, BarChart2, Eye, EyeOff, Clock } from 'lucide-react'
+import { Users, BookOpen, ClipboardList, Eye, EyeOff, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 

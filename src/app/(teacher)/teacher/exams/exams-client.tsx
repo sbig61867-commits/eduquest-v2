@@ -158,7 +158,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (questions.length === 0) { toast.error('Add at least one question'); return }
+    if (questions.length === 0) { toast.warning('Add at least one question'); return }
     setLoading(true)
     const res = await fetch('/api/exams', {
       method: 'POST',
