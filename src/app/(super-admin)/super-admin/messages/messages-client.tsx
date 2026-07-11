@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { Inbox, MailOpen, Trash2, Copy, Check } from 'lucide-react'
@@ -15,6 +16,7 @@ interface ContactMessage {
 }
 
 export function MessagesClient({ initialMessages }: { initialMessages: ContactMessage[] }) {
+  const router = useRouter()
   const supabase = createClient()
   const [messages, setMessages] = useState(initialMessages)
   const [copiedId, setCopiedId] = useState('')
@@ -23,12 +25,14 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
 
   async function markRead(id: string) {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read: true } : m))
-    await supabase.from('contact_messages').update({ is_read: true }).eq('id', id)
+    const { error } = await supabase.from('contact_messages').update({ is_read: true }).eq('id', id)
+    if (!error) router.refresh()
   }
 
   async function remove(id: string) {
     setMessages(prev => prev.filter(m => m.id !== id))
-    await supabase.from('contact_messages').delete().eq('id', id)
+    const { error } = await supabase.from('contact_messages').delete().eq('id', id)
+    if (!error) router.refresh()
   }
 
   async function copyEmail(id: string, email: string) {

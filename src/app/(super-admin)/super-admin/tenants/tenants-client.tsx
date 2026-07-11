@@ -45,6 +45,7 @@ export function TenantsClient({ initialTenants }: Props) {
     setForm({ name: '', slug: '' })
     setShowAdd(false)
     setLoading(false)
+    router.refresh()
   }
 
   async function toggleTenant(tenant: Tenant) {
@@ -58,6 +59,7 @@ export function TenantsClient({ initialTenants }: Props) {
     const data = await res.json()
     if (!res.ok) { alert(data.error ?? 'Failed to update university'); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data.tenant : t))
+    router.refresh()
   }
 
   async function deleteTenant(tenant: Tenant) {

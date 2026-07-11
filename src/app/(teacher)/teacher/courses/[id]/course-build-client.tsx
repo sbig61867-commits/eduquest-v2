@@ -98,14 +98,14 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       course_id: course.id, tenant_id: course.tenant_id,
       title: levelForm.title, order_index: levels.length,
     }).select('*, course_units(*, unit_items(*))').single()
-    if (data) setLevels(p => [...p, data])
+    if (data) { setLevels(p => [...p, data]); router.refresh() }
     setLevelForm({ title: '' }); setLevelModal(false); setSaving(false)
   }
 
   async function deleteLevel(id: string) {
     if (!confirm('Delete this level and all its units?')) return
-    await supabase.from('course_levels').delete().eq('id', id)
-    setLevels(p => p.filter(l => l.id !== id))
+    const { error } = await supabase.from('course_levels').delete().eq('id', id)
+    if (!error) { setLevels(p => p.filter(l => l.id !== id)); router.refresh() }
   }
 
   // ── Unit CRUD ─────────────────────────────────────────────────────────────
@@ -130,19 +130,23 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
         setFlatUnits(p => [...p, data])
       }
       setExpanded(p => ({ ...p, [levelId ?? 'flat']: true }))
+      router.refresh()
     }
     setUnitForm({ title: '' }); setUnitModal({ open: false, levelId: null }); setSaving(false)
   }
 
   async function deleteUnit(unitId: string, levelId: string | null) {
     if (!confirm('Delete this unit and all its content?')) return
-    await supabase.from('course_units').delete().eq('id', unitId)
-    if (levelId) {
-      setLevels(p => p.map(l => l.id === levelId
-        ? { ...l, course_units: l.course_units.filter(u => u.id !== unitId) }
-        : l))
-    } else {
-      setFlatUnits(p => p.filter(u => u.id !== unitId))
+    const { error } = await supabase.from('course_units').delete().eq('id', unitId)
+    if (!error) {
+      if (levelId) {
+        setLevels(p => p.map(l => l.id === levelId
+          ? { ...l, course_units: l.course_units.filter(u => u.id !== unitId) }
+          : l))
+      } else {
+        setFlatUnits(p => p.filter(u => u.id !== unitId))
+      }
+      router.refresh()
     }
   }
 
@@ -184,19 +188,23 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           : u)
       setLevels(p => p.map(l => ({ ...l, course_units: updateUnit(l.course_units) })))
       setFlatUnits(updateUnit)
+      router.refresh()
     }
     setItemForm({ title: '', type: 'text', body: '', aiTopic: '' })
     setItemModal({ open: false, unitId: null }); setSaving(false)
   }
 
   async function deleteItem(itemId: string, unitId: string) {
-    await supabase.from('unit_items').delete().eq('id', itemId)
-    const removeItem = (units: CourseUnit[]) =>
-      units.map(u => u.id === unitId
-        ? { ...u, unit_items: u.unit_items.filter(i => i.id !== itemId) }
-        : u)
-    setLevels(p => p.map(l => ({ ...l, course_units: removeItem(l.course_units) })))
-    setFlatUnits(removeItem)
+    const { error } = await supabase.from('unit_items').delete().eq('id', itemId)
+    if (!error) {
+      const removeItem = (units: CourseUnit[]) =>
+        units.map(u => u.id === unitId
+          ? { ...u, unit_items: u.unit_items.filter(i => i.id !== itemId) }
+          : u)
+      setLevels(p => p.map(l => ({ ...l, course_units: removeItem(l.course_units) })))
+      setFlatUnits(removeItem)
+      router.refresh()
+    }
   }
 
   // ── Render Helpers ────────────────────────────────────────────────────────

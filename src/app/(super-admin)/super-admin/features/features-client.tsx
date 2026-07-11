@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -20,6 +21,7 @@ const GLOBAL_FEATURES = [
 ]
 
 export function FeaturesClient({ initialFlags, tenants }: Props) {
+  const router = useRouter()
   const [flags, setFlags] = useState(initialFlags)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', tenant_id: '' })
@@ -28,21 +30,21 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
 
   async function toggleFlag(flag: FeatureFlag) {
     const { data } = await supabase.from('feature_flags').update({ is_enabled: !flag.is_enabled }).eq('id', flag.id).select().single()
-    if (data) setFlags(prev => prev.map(f => f.id === flag.id ? data : f))
+    if (data) { setFlags(prev => prev.map(f => f.id === flag.id ? data : f)); router.refresh() }
   }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     const { data } = await supabase.from('feature_flags').insert({ name: form.name, tenant_id: form.tenant_id || null, is_enabled: true }).select().single()
-    if (data) setFlags(prev => [...prev, data])
+    if (data) { setFlags(prev => [...prev, data]); router.refresh() }
     setShowAdd(false)
     setLoading(false)
   }
 
   async function deleteFlag(id: string) {
-    await supabase.from('feature_flags').delete().eq('id', id)
-    setFlags(prev => prev.filter(f => f.id !== id))
+    const { error } = await supabase.from('feature_flags').delete().eq('id', id)
+    if (!error) { setFlags(prev => prev.filter(f => f.id !== id)); router.refresh() }
   }
 
   return (
@@ -71,7 +73,7 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
                   onClick={async () => {
                     if (flag) { toggleFlag(flag) } else {
                       const { data } = await supabase.from('feature_flags').insert({ name: feat.name, is_enabled: true }).select().single()
-                      if (data) setFlags(prev => [...prev, data])
+                      if (data) { setFlags(prev => [...prev, data]); router.refresh() }
                     }
                   }}
                   className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${flag?.is_enabled !== false ? 'bg-blue-600' : 'bg-slate-700'}`}
