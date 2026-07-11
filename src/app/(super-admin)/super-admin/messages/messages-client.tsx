@@ -30,9 +30,11 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
   }
 
   async function remove(id: string) {
-    setMessages(prev => prev.filter(m => m.id !== id))
     const { error } = await supabase.from('contact_messages').delete().eq('id', id)
-    if (!error) router.refresh()
+    if (!error) {
+      setMessages(prev => prev.filter(m => m.id !== id))
+      router.refresh()
+    }
   }
 
   async function copyEmail(id: string, email: string) {

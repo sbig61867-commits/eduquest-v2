@@ -344,17 +344,14 @@ describe('MessagesClient — remove', () => {
     })
   })
 
-  it('failure → router.refresh NOT called (remove is optimistic, no state revert)', async () => {
-    // remove() does optimistic setMessages before the DB call, so the item
-    // disappears either way. The invariant: router.refresh() must NOT be called
-    // on failure (cache is not invalidated — stale data is not a bigger lie than
-    // what the optimistic update already showed).
+  it('failure → message stays + router.refresh NOT called', async () => {
     mockFrom.mockReturnValue(supaChain({ error: { message: 'db err' } }))
     render(<MessagesClient initialMessages={[MESSAGE]} />)
     const buttons = screen.getAllByRole('button')
     await userEvent.click(buttons[buttons.length - 1])
     await waitFor(() => expect(mockFrom).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
+    expect(screen.getByText('Bob')).toBeInTheDocument()
   })
 })
 
