@@ -9,16 +9,13 @@ export default async function StudentsPage() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users').select('tenant_id, role').eq('id', user.id).single()
-
-  if (!profile?.tenant_id) redirect('/login')
+  if (!user.tenant_id) redirect('/login')
 
   const { data: students } = await supabase
     .from('users')
-    .select('*')
+    .select('id, email, full_name, avatar_url, role, is_active, created_at, tenant_id, can_create_courses')
     .eq('role', 'student')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', user.tenant_id)
     .order('created_at', { ascending: false })
 
   return <StudentsClient initialStudents={students ?? []} />

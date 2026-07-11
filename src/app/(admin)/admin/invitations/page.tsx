@@ -9,14 +9,12 @@ export default async function AdminInvitationsPage() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users').select('tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) redirect('/login')
+  if (!user.tenant_id) redirect('/login')
 
   const { data: groups } = await supabase
     .from('groups')
     .select('id, name')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', user.tenant_id)
     .order('name')
 
   return (

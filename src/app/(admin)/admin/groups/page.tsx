@@ -9,14 +9,12 @@ export default async function AdminGroupsPage() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users').select('tenant_id, role').eq('id', user.id).single()
-  if (!profile?.tenant_id) redirect('/login')
+  if (!user.tenant_id) redirect('/login')
 
   const { data: groups } = await supabase
     .from('groups')
     .select('id, name, description, is_active, created_at, users:teacher_id(full_name), group_students(count)')
-    .eq('tenant_id', profile.tenant_id)
+    .eq('tenant_id', user.tenant_id)
     .order('created_at', { ascending: false })
 
   return <AdminGroupsClient initialGroups={(groups ?? []) as never} />

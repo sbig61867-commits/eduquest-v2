@@ -9,15 +9,13 @@ export default async function AdminArchivePage() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users').select('tenant_id, role').eq('id', user.id).single()
-  if (!profile?.tenant_id || !['university_admin', 'super_admin'].includes(profile.role ?? '')) {
+  if (!user.tenant_id || !['university_admin', 'super_admin'].includes(user.role ?? '')) {
     redirect('/login')
   }
 
   // Full history — live + archived — via the SECURITY DEFINER function.
   const { data } = await supabase.rpc('get_tenant_archive', {
-    p_tenant_id: profile.tenant_id,
+    p_tenant_id: user.tenant_id,
     p_year: null,
   })
 

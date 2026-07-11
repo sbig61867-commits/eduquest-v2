@@ -23,10 +23,7 @@ export default async function AdminCoursesPage() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: adminUser } = await supabase
-    .from('users').select('tenant_id').eq('id', user.id).single()
-
-  if (!adminUser?.tenant_id) redirect('/login')
+  if (!user.tenant_id) redirect('/login')
 
   const { data: raw } = await supabase
     .from('groups')
@@ -37,7 +34,7 @@ export default async function AdminCoursesPage() {
       lessons(count),
       exams(count)
     `)
-    .eq('tenant_id', adminUser.tenant_id)
+    .eq('tenant_id', user.tenant_id)
     .order('created_at', { ascending: false })
 
   const groups = (raw ?? []) as unknown as GroupRow[]
