@@ -49,7 +49,7 @@ export function StudentProfileClient({ profile, groups }: Props) {
       .from('users')
       .update({ full_name: fullName.trim() })
       .eq('id', profile.id)
-      .select('*, tenants(*)')
+      .select('id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, created_at')
       .single()
 
     if (err) {

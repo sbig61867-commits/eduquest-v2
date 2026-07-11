@@ -11,7 +11,7 @@ export default async function StudentProfilePage() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('*, tenants(name, slug)')
+    .select('id, full_name, email, role, is_active, created_at, tenants(name, slug)')
     .eq('id', user.id)
     .single()
 
@@ -29,5 +29,5 @@ export default async function StudentProfilePage() {
     return { id: g.id, name: g.name, description: g.description, teacher: teacher ? { full_name: teacher.full_name } : null }
   }).filter((g): g is NonNullable<typeof g> => g !== null)
 
-  return <StudentProfileClient profile={profile} groups={myGroups} />
+  return <StudentProfileClient profile={profile as unknown as Parameters<typeof StudentProfileClient>[0]['profile']} groups={myGroups} />
 }
