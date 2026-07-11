@@ -24,7 +24,10 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Notif[]>([])
   const [loading, setLoading] = useState(false)
-  const [seenAt, setSeenAt] = useState<number>(0)
+  // Lazy init reads localStorage client-side (SSR returns 0 — avoids setState-in-effect)
+  const [seenAt, setSeenAt] = useState<number>(() =>
+    typeof window !== 'undefined' ? Number(localStorage.getItem(SEEN_KEY) ?? 0) : 0
+  )
   const ref = useRef<HTMLDivElement>(null)
 
   async function load() {
@@ -36,10 +39,10 @@ export function NotificationBell() {
     setLoading(false)
   }
 
-  // Initial fetch (for the unread badge) + read the last-seen timestamp.
+  // Initial fetch (for the unread badge). seenAt is initialised via useState lazy
+  // init above — no need to set it here.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading localStorage must happen client-side (no SSR value); synchronous setState here is intentional
-    setSeenAt(Number(localStorage.getItem(SEEN_KEY) ?? 0))
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() is a fetch helper; setState fires after await, not synchronously on mount
     load()
     const t = setInterval(load, 60_000) // refresh badge every minute
     return () => clearInterval(t)
