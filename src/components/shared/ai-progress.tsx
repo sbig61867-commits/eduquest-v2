@@ -23,6 +23,7 @@ export function AiProgress({ active }: { active: boolean }) {
   useEffect(() => {
     if (active) {
       wasActive.current = true
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- progress animation initialises synchronously when upload starts; batched by React 19
       setVisible(true)
       setProgress(3)
       const t = setInterval(() => {

@@ -190,11 +190,17 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
 
       {list.length > 0 && (
         <div className={zoomedFeed ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'}>
-          {visible.map(f => (
-            <StudentTile key={f.identity} feed={f} videoEl={mediaEls.current[f.identity]?.video}
-              zoomed={!!zoomedFeed}
-              onClick={() => setZoomed(z => z === f.identity ? null : f.identity)} />
-          ))}
+          {
+            // eslint-disable-next-line react-hooks/refs -- mediaEls holds imperative video DOM elements; reading .current during render is the correct pattern here (StudentTile receives the element as a prop and appends it via effect)
+            visible.map(f => {
+              const videoEl = mediaEls.current[f.identity]?.video
+              return (
+                <StudentTile key={f.identity} feed={f} videoEl={videoEl}
+                  zoomed={!!zoomedFeed}
+                  onClick={() => setZoomed(z => z === f.identity ? null : f.identity)} />
+              )
+            })
+          }
         </div>
       )}
 

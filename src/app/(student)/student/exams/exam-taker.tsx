@@ -135,7 +135,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [started, submitted])
+  }, [started, submitted, untimed])
 
   // Start audio monitoring via Web Audio API.
   // Tuned against false positives: a violation needs GENUINELY loud audio

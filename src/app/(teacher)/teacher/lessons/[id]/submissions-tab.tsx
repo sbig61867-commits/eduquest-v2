@@ -43,6 +43,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
     setLoading(false)
   }, [lessonId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() is a useCallback fetch handler; setLoading(true) fires before the first await, which is intentional
   useEffect(() => { load() }, [load])
 
   async function patchSub(subId: string, patch: { score?: number; grading_status?: string }) {

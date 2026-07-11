@@ -38,6 +38,7 @@ export function NotificationBell() {
 
   // Initial fetch (for the unread badge) + read the last-seen timestamp.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading localStorage must happen client-side (no SSR value); synchronous setState here is intentional
     setSeenAt(Number(localStorage.getItem(SEEN_KEY) ?? 0))
     load()
     const t = setInterval(load, 60_000) // refresh badge every minute
