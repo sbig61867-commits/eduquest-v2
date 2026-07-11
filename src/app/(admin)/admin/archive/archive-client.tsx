@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Archive, ArchiveRestore, Users, BookOpen, ClipboardList, GraduationCap, Search } from 'lucide-react'
@@ -21,6 +22,7 @@ export interface ArchiveRow {
 }
 
 export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
+  const router = useRouter()
   const [items, setItems] = useState(rows)
   const [year, setYear] = useState<string>('all')
   const [status, setStatus] = useState<'all' | 'archived' | 'live'>('all')
@@ -48,7 +50,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ kind: r.kind, id: r.id }),
     })
-    if (res.ok) setItems(prev => prev.map(x => x.id === r.id ? { ...x, is_archived: false, deleted_at: null } : x))
+    if (res.ok) { setItems(prev => prev.map(x => x.id === r.id ? { ...x, is_archived: false, deleted_at: null } : x)); router.refresh() }
     else alert((await res.json().catch(() => ({}))).error ?? 'Failed to restore')
     setBusy('')
   }

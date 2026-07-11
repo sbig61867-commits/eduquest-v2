@@ -77,6 +77,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
         setLessons(prev => [data, ...prev])
       }
       setShowModal(false)
+      router.refresh()
     } catch {
       setFormError('Network error. Please try again.')
     }
@@ -90,7 +91,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       body: JSON.stringify({ id: lesson.id, is_published: !lesson.is_published }),
     })
     const data = await res.json()
-    if (res.ok) setLessons(prev => prev.map(l => l.id === lesson.id ? data : l))
+    if (res.ok) { setLessons(prev => prev.map(l => l.id === lesson.id ? data : l)); router.refresh() }
     else alert(data.error ?? 'فشل تغيير حالة النشر')
   }
 
@@ -106,6 +107,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       return
     }
     setLessons(prev => prev.filter(l => l.id !== id))
+    router.refresh()
   }
 
   return (

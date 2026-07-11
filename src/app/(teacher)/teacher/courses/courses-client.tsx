@@ -73,6 +73,7 @@ export function CoursesClient({ initialCourses }: Props) {
       setCourses(prev => [data, ...prev])
       setForm({ title: '', description: '', language: '', has_levels: true })
       setShowAdd(false)
+      router.refresh()
     } else {
       alert(data.error ?? 'Failed to create course')
     }
@@ -86,17 +87,17 @@ export function CoursesClient({ initialCourses }: Props) {
       body: JSON.stringify({ id: course.id, is_published: !course.is_published }),
     })
     const data = await res.json()
-    if (res.ok) setCourses(prev => prev.map(c => c.id === course.id ? data : c))
+    if (res.ok) { setCourses(prev => prev.map(c => c.id === course.id ? data : c)); router.refresh() }
   }
 
   async function deleteCourse(id: string) {
     if (!confirm('Delete this course? All levels, units, and content will be permanently removed.')) return
-    await fetch('/api/courses', {
+    const res = await fetch('/api/courses', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     })
-    setCourses(prev => prev.filter(c => c.id !== id))
+    if (res.ok) { setCourses(prev => prev.filter(c => c.id !== id)); router.refresh() }
   }
 
   // ── PPTX flow ──
@@ -183,6 +184,7 @@ export function CoursesClient({ initialCourses }: Props) {
         setShowPptx(false)
         setPptxStep('upload')
         setGeneratedCourse(null)
+        router.refresh()
       } else {
         alert(data.error ?? 'Failed to create course')
       }

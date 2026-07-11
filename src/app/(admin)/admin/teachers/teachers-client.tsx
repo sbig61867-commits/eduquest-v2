@@ -27,8 +27,10 @@ export function TeachersClient({ initialTeachers }: Props) {
       .from('users')
       .update({ is_active: !teacher.is_active })
       .eq('id', teacher.id)
-    if (!error)
+    if (!error) {
       setTeachers(prev => prev.map(t => t.id === teacher.id ? { ...t, is_active: !t.is_active } : t))
+      router.refresh()
+    }
   }
 
   async function toggleCoursePermission(teacher: User) {
@@ -38,14 +40,19 @@ export function TeachersClient({ initialTeachers }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ teacher_id: teacher.id, can_create_courses: next }),
     })
-    if (res.ok)
+    if (res.ok) {
       setTeachers(prev => prev.map(t => t.id === teacher.id ? { ...t, can_create_courses: next } : t))
+      router.refresh()
+    }
   }
 
   async function deleteTeacher(id: string) {
     if (!confirm('Are you sure? This will remove the teacher and all their data.')) return
-    await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
-    setTeachers(prev => prev.filter(t => t.id !== id))
+    const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setTeachers(prev => prev.filter(t => t.id !== id))
+      router.refresh()
+    }
   }
 
   return (

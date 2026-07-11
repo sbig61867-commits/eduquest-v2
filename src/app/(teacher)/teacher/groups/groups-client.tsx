@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function GroupsClient({ initialGroups, tenantStudents }: Props) {
+  const router = useRouter()
   const [groups, setGroups] = useState(initialGroups)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Group | null>(null)
@@ -88,6 +90,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     }
     setShowAdd(false)
     setLoading(false)
+    router.refresh()
   }
 
   async function toggleArchive(group: Group) {
@@ -101,6 +104,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     const data = await res.json()
     if (!res.ok) { alert(data.error ?? 'فشل تغيير حالة المجموعة'); return }
     setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_active: data.is_active } : g))
+    router.refresh()
   }
 
   async function deleteGroup(id: string) {
@@ -115,6 +119,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       return
     }
     setGroups(prev => prev.filter(g => g.id !== id))
+    router.refresh()
   }
 
   async function addStudentToGroup(student: Student) {

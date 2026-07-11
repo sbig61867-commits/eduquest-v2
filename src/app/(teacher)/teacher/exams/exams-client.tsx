@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -32,6 +33,7 @@ interface Group { id: string; name: string }
 interface Props { initialExams: Exam[]; groups: Group[]; proctoringDefault?: boolean }
 
 export function ExamsClient({ initialExams, groups, proctoringDefault = false }: Props) {
+  const router = useRouter()
   const [exams, setExams] = useState(initialExams)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault })
@@ -163,7 +165,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       body: JSON.stringify({ ...form, questions }),
     })
     const data = await res.json()
-    if (res.ok) setExams(prev => [data, ...prev])
+    if (res.ok) { setExams(prev => [data, ...prev]); router.refresh() }
     setShowModal(false)
     setQuestions([])
     setLoading(false)
@@ -176,7 +178,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       body: JSON.stringify({ id: exam.id, is_published: !exam.is_published }),
     })
     const data = await res.json()
-    if (res.ok) setExams(prev => prev.map(e => e.id === exam.id ? data : e))
+    if (res.ok) { setExams(prev => prev.map(e => e.id === exam.id ? data : e)); router.refresh() }
   }
 
   async function deleteExam(id: string) {
@@ -191,6 +193,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       return
     }
     setExams(prev => prev.filter(e => e.id !== id))
+    router.refresh()
   }
 
   function removeQuestion(id: string) {

@@ -26,13 +26,13 @@ export function StudentsClient({ initialStudents }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: student.id, isActive: !student.is_active }),
     })
-    if (res.ok) setStudents(prev => prev.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s))
+    if (res.ok) { setStudents(prev => prev.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s)); router.refresh() }
   }
 
   async function deleteStudent(id: string) {
     if (!confirm('Remove this student?')) return
-    await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
-    setStudents(prev => prev.filter(s => s.id !== id))
+    const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
+    if (res.ok) { setStudents(prev => prev.filter(s => s.id !== id)); router.refresh() }
   }
 
   return (
