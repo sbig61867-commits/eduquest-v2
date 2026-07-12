@@ -66,6 +66,12 @@ function LoginForm() {
           </div>
         )}
 
+        {searchParams.get('reset') === 'success' && (
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+            Password updated successfully. Please sign in with your new password.
+          </div>
+        )}
+
         {(error || errorMsg) && (
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
             {error || (
@@ -98,6 +104,14 @@ function LoginForm() {
               className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder="••••••••"
             />
+          </div>
+          <div className="flex justify-end">
+            <a
+              href="/forgot-password"
+              className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
+            >
+              Forgot password?
+            </a>
           </div>
           <button
             type="submit"

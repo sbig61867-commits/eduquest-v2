@@ -3,13 +3,13 @@ import { updateSession } from '@/lib/supabase/middleware'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/contact'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/contact', '/forgot-password', '/reset-password'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
 // yet (they're creating their account), so gating it would 307-redirect the
 // POST to /login and the client would see a non-JSON body as "Registration failed".
-const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitation', '/api/contact']
+const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true

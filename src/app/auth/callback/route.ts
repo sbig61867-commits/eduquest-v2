@@ -15,6 +15,13 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
+      // If a specific destination was requested (e.g. /reset-password after a
+      // password-recovery code), honour it directly — don't override with the
+      // role dashboard. This is safe: `next` is already validated above.
+      if (next !== '/') {
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase
