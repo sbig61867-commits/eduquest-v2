@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
+import { resetPasswordRedirectTo } from '@/lib/auth-urls'
 
 // Generic message — identical whether email exists or not (prevents enumeration)
 const SENT_MSG = 'If that email is registered, you will receive a reset link shortly.'
@@ -11,12 +12,6 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-}
-
-function appUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return 'http://localhost:3000'
 }
 
 export async function POST(request: Request) {
@@ -46,8 +41,12 @@ export async function POST(request: Request) {
   }
 
   // Use admin client so we can call resetPasswordForEmail without a session.
-  // redirectTo points to our callback which validates the `next` param — no open redirect.
-  const redirectTo = `${appUrl()}/auth/callback?next=/reset-password`
+  // redirectTo points to our callback which validates the `next` param — no open
+  // redirect. Base URL resolution never trusts a stale/localhost env in prod
+  // (see src/lib/auth-urls.ts). NOTE: this exact URL (with ?next=) must match
+  // the Supabase Redirect URLs allow list — the `?**` wildcard entries cover it;
+  // otherwise Supabase silently falls back to the Site URL.
+  const redirectTo = resetPasswordRedirectTo(request.url, process.env.NEXT_PUBLIC_APP_URL)
 
   // We don't check whether the email exists — always attempt and always return the
   // same message. Supabase itself is a no-op for unknown emails so this is safe.
