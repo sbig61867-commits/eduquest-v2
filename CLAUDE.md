@@ -69,10 +69,7 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - `rls_performance_migration.sql` — performance-optimized RLS policies + hot-path indexes
 - `security_rls_fix_migration.sql` — patches users_update / grades_select / lessons_select vulnerabilities ✅ 2026-07-11
 - `performance_indexes_migration.sql` — idx_lessons_teacher_live, idx_exams_teacher_live, idx_grades_exam_id ✅ 2026-07-11
-
-## Pending migrations (NOT yet applied — run manually before using the feature)
-
-- `survey_migration.sql` — adds `surveys` / `survey_responses` tables + RLS for the in-platform pilot feedback survey (teacher creates per group, students answer once). Required before the "pilot" report scope or the student SurveyCard will show real data.
+- `survey_migration.sql` — surveys / survey_responses tables + RLS for the in-platform pilot feedback survey (feeds the "pilot" report scope) ✅ 2026-07-12
 
 ## Conventions
 
