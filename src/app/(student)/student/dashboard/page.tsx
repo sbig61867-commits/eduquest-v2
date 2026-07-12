@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, BarChart2, Bell } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { SurveyCard } from '@/components/student/survey-card'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
 interface GradeRow { id: string; score: number; max_score: number; exams: { title: string } | null }
@@ -52,6 +53,8 @@ export default async function StudentDashboard() {
         <h2 className="text-2xl font-bold text-white">My Dashboard</h2>
         <p className="text-slate-400 mt-1">Track your progress and upcoming activities</p>
       </div>
+
+      <SurveyCard />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => {

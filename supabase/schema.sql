@@ -336,3 +336,33 @@ CREATE POLICY "settings_write_super_admin" ON platform_settings
   FOR ALL TO authenticated
   USING (public.current_user_role() = 'super_admin')
   WITH CHECK (public.current_user_role() = 'super_admin');
+
+-- ============================================================
+-- Pilot feedback survey (see supabase/survey_migration.sql for the
+-- full migration with RLS policies — applied separately on live DB)
+-- ============================================================
+CREATE TABLE surveys (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  teacher_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL DEFAULT 'تقييم تجربة المنصة',
+  is_open     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(group_id)
+);
+
+CREATE TABLE survey_responses (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  survey_id       UUID NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  ease_rating     SMALLINT NOT NULL CHECK (ease_rating BETWEEN 1 AND 5),
+  prefer_platform BOOLEAN NOT NULL,
+  best_feature    TEXT,
+  problem_faced   TEXT,
+  recommend       BOOLEAN NOT NULL,
+  comment         TEXT,
+  submitted_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(survey_id, student_id)
+);

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
-import { Plus, Users, Pencil, Trash2, UserPlus, X, Search, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, Users, Pencil, Trash2, UserPlus, X, Search, Archive, ArchiveRestore, ClipboardList } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 
 interface Group {
@@ -45,6 +45,51 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   const [groupStudents, setGroupStudents] = useState<Student[]>([])
   const [studentSearch, setStudentSearch] = useState('')
   const [loadingStudents, setLoadingStudents] = useState(false)
+
+  // Survey modal
+  const [surveyGroup, setSurveyGroup] = useState<Group | null>(null)
+  const [surveyData, setSurveyData] = useState<{ id: string; title: string; is_open: boolean; created_at: string } | null>(null)
+  const [surveyStats, setSurveyStats] = useState({ responseCount: 0, memberCount: 0 })
+  const [surveyLoading, setSurveyLoading] = useState(false)
+
+  async function openSurvey(group: Group) {
+    setSurveyGroup(group)
+    setSurveyLoading(true)
+    const res = await fetch(`/api/surveys?group_id=${group.id}`)
+    const json = await res.json()
+    if (res.ok) {
+      setSurveyData(json.survey)
+      setSurveyStats({ responseCount: json.responseCount, memberCount: json.memberCount })
+    }
+    setSurveyLoading(false)
+  }
+
+  async function createSurvey() {
+    if (!surveyGroup) return
+    setSurveyLoading(true)
+    const res = await fetch('/api/surveys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: surveyGroup.id }),
+    })
+    const json = await res.json()
+    if (!res.ok) { toast.error(json.error ?? 'فشل إنشاء الاستبيان'); setSurveyLoading(false); return }
+    setSurveyData(json.survey)
+    setSurveyLoading(false)
+  }
+
+  async function toggleSurveyOpen() {
+    if (!surveyGroup || !surveyData) return
+    const nextOpen = !surveyData.is_open
+    const res = await fetch('/api/surveys', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group_id: surveyGroup.id, is_open: nextOpen }),
+    })
+    const json = await res.json()
+    if (!res.ok) { toast.error(json.error ?? 'فشل تحديث الاستبيان'); return }
+    setSurveyData(json.survey)
+  }
 
   function openAdd() { setForm({ name: '', description: '' }); setEditing(null); setFormError(''); setShowAdd(true) }
   function openEdit(g: Group) { setForm({ name: g.name, description: g.description ?? '' }); setEditing(g); setFormError(''); setShowAdd(true) }
@@ -206,11 +251,16 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                 {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 align-middle">مؤرشفة</span>}
               </h3>
               <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || 'No description'}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">{group.group_students?.[0]?.count ?? 0} students</span>
-                <Button variant="secondary" size="sm" onClick={() => openManage(group)}>
-                  <UserPlus className="w-3.5 h-3.5" /> Manage Students
-                </Button>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500 shrink-0">{group.group_students?.[0]?.count ?? 0} students</span>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => openSurvey(group)} title="استبيان تقييم التجربة">
+                    <ClipboardList className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => openManage(group)}>
+                    <UserPlus className="w-3.5 h-3.5" /> Manage Students
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -313,6 +363,39 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
           </div>
 
           <Button variant="secondary" onClick={() => setManagingGroup(null)} className="w-full">Done</Button>
+        </div>
+      </Modal>
+
+      {/* Survey Modal */}
+      <Modal open={!!surveyGroup} onClose={() => setSurveyGroup(null)} title={`استبيان التجربة — ${surveyGroup?.name ?? ''}`}>
+        <div className="space-y-4">
+          {surveyLoading ? (
+            <p className="text-slate-400 text-sm py-4 text-center">جارٍ التحميل...</p>
+          ) : !surveyData ? (
+            <div className="text-center py-4 space-y-3">
+              <p className="text-slate-400 text-sm">لا يوجد استبيان لهذه المجموعة بعد. أنشئه ليتمكن الطلاب من تقييم تجربتهم مع المنصة.</p>
+              <Button onClick={createSurvey} loading={surveyLoading}>
+                <ClipboardList className="w-4 h-4" /> إنشاء استبيان
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <div>
+                  <p className="text-white font-medium">{surveyData.title}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    أجاب {surveyStats.responseCount} من {surveyStats.memberCount} طالب
+                  </p>
+                </div>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${surveyData.is_open ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
+                  {surveyData.is_open ? 'مفتوح' : 'مغلق'}
+                </span>
+              </div>
+              <Button variant="secondary" onClick={toggleSurveyOpen} className="w-full">
+                {surveyData.is_open ? 'إغلاق استقبال الإجابات' : 'إعادة فتح الاستبيان'}
+              </Button>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

@@ -19,7 +19,7 @@ export interface Report {
   tables: ReportTable[]
 }
 
-export type ReportScope = 'university' | 'teacher' | 'group' | 'student'
+export type ReportScope = 'university' | 'teacher' | 'group' | 'student' | 'pilot'
 export type ReportLang = 'ar' | 'en'
 
 export interface CallerProfile { role: string; tenant_id: string | null }
@@ -70,6 +70,14 @@ const STR = {
     trendCol: 'التقييم', improved: 'تحسّن ↑', declined: 'تراجع ↓', stable: 'ثابت',
     integrity: 'نزاهة الاختبارات', flaggedOf: 'تسليمات عليها مخالفات', outOf: 'من أصل',
     teacherPrefix: 'المعلم',
+    pilotReport: 'تقرير تجربة', execSummaryPilot: 'ملخص التجربة',
+    weeklyActivity: 'النشاط الأسبوعي', week: 'الأسبوع', weekNewAssessments: 'تقييمات جديدة', weekSubmissions: 'تسليمات',
+    hoursSaved: 'ساعات التصحيح الموفَّرة (تقديرية)',
+    proctoredExams: 'اختبارات مراقَبة',
+    studentFeedback: 'رأي الطلاب', respondents: 'عدد المجيبين', avgEase: 'متوسط سهولة الاستخدام (من 5)',
+    prefersPlatform: 'يفضلون المنصة', wouldRecommend: 'ينصحون بها',
+    quotes: 'اقتباسات الطلاب', quoteFeature: 'أفضل ميزة', quoteProblem: 'مشكلة واجهها', quoteComment: 'تعليق',
+    noResponses: 'لا توجد إجابات بعد',
   },
   en: {
     universityReport: 'University Report', teacherReport: 'Teacher Report', groupReport: 'Group Report', studentReport: 'Student Report',
@@ -100,6 +108,14 @@ const STR = {
     trendCol: 'Assessment', improved: 'Improved ↑', declined: 'Declined ↓', stable: 'Stable',
     integrity: 'Exam Integrity', flaggedOf: 'Flagged Submissions', outOf: 'Out Of',
     teacherPrefix: 'Teacher',
+    pilotReport: 'Pilot Report', execSummaryPilot: 'Pilot Summary',
+    weeklyActivity: 'Weekly Activity', week: 'Week', weekNewAssessments: 'New Assessments', weekSubmissions: 'Submissions',
+    hoursSaved: 'Grading Hours Saved (estimated)',
+    proctoredExams: 'Proctored Exams',
+    studentFeedback: 'Student Feedback', respondents: 'Respondents', avgEase: 'Avg. Ease of Use (out of 5)',
+    prefersPlatform: 'Prefer the Platform', wouldRecommend: 'Would Recommend',
+    quotes: 'Student Quotes', quoteFeature: 'Best Feature', quoteProblem: 'Problem Faced', quoteComment: 'Comment',
+    noResponses: 'No responses yet',
   },
 } as const
 type Dict = { [K in keyof typeof STR.ar]: string }
@@ -421,6 +437,133 @@ export async function buildGroupReport(admin: SupabaseClient, groupId: string, l
     generatedAt: new Date().toISOString(),
     lang,
     tables: [{ heading: d.studentGrades, columns, rows }],
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Pilot report — everything measurable for a trial period on one group:
+// exec summary (incl. estimated grading hours saved), weekly activity,
+// grade matrix + distribution, exam integrity, and student survey results.
+// ══════════════════════════════════════════════════════════════════
+const MINUTES_SAVED_PER_AUTO_GRADED = 5
+
+export async function buildPilotReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+  const d = STR[lang]
+  const { data: group } = await admin
+    .from('groups').select('id, name, tenant_id, created_at, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
+  if (!group) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const universityName = ((group as any).tenants?.name as string | undefined) ?? undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const teacherName = (group as any).users?.full_name ?? '—'
+
+  const [{ data: exams }, { data: members }, { count: lessonCount }, { data: survey }] = await Promise.all([
+    admin.from('exams').select('id, title, type, group_id, teacher_id, questions, created_at, proctoring_enabled, is_published').eq('group_id', groupId).is('deleted_at', null).order('created_at', { ascending: true }),
+    admin.from('group_students').select('student_id, users(full_name, email)').eq('group_id', groupId),
+    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('group_id', groupId).eq('is_published', true).is('deleted_at', null),
+    admin.from('surveys').select('id, title').eq('group_id', groupId).maybeSingle(),
+  ])
+  const examRows = (exams ?? []) as ExamRow[]
+  const examIds = examRows.map(e => e.id)
+  const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
+
+  const { data: subs } = examIds.length
+    ? await admin.from('exam_submissions').select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at').in('exam_id', examIds)
+    : { data: [] as SubRow[] }
+  const subRows = (subs ?? []) as SubRow[]
+  const overall = sumScores(subRows, maxByExam)
+
+  // 1. Executive summary
+  const autoGraded = subRows.filter(s => s.is_graded).length
+  const hoursSaved = Math.round((autoGraded * MINUTES_SAVED_PER_AUTO_GRADED / 60) * 10) / 10
+  const expected = (members ?? []).length * examRows.length
+  const summary: ReportTable = {
+    heading: d.execSummaryPilot,
+    columns: [d.students, d.lessonsPublished, d.assessments, d.submissions, d.submissionRate, d.avgOverall, d.hoursSaved],
+    rows: [[(members ?? []).length, lessonCount ?? 0, examRows.length, subRows.length,
+      expected ? `${Math.round((subRows.length / expected) * 100)}%` : '—',
+      overall.totalMax ? `${pct(overall.total, overall.totalMax)}%` : '—',
+      hoursSaved]],
+  }
+
+  // 2. Weekly activity since group creation
+  const startTime = new Date(group.created_at).getTime()
+  const weekMs = 7 * 24 * 60 * 60 * 1000
+  const weekCount = Math.max(1, Math.ceil((Date.now() - startTime) / weekMs))
+  const weeklyRows: (string | number)[][] = []
+  for (let w = 0; w < weekCount; w++) {
+    const from = startTime + w * weekMs, to = from + weekMs
+    const newExams = examRows.filter(e => { const t = new Date(e.created_at).getTime(); return t >= from && t < to }).length
+    const weekSubs = subRows.filter(s => s.submitted_at && (() => { const t = new Date(s.submitted_at!).getTime(); return t >= from && t < to })()).length
+    weeklyRows.push([`${d.week} ${w + 1}`, newExams, weekSubs])
+  }
+  const weekly: ReportTable = { heading: d.weeklyActivity, columns: [d.week, d.weekNewAssessments, d.weekSubmissions], rows: weeklyRows }
+
+  // 3. Grade matrix (per-student, per-assessment) — same shape as group report
+  const gradeColumns = [d.student, d.email, ...examRows.map(e => `${e.type === 'homework' ? d.homeworkTag : ''}${e.title}`), d.total, d.pctCol]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const gradeRows = (members as any[] ?? []).map((m: any) => {
+    let total = 0, totalMax = 0
+    const cells = examRows.map(e => {
+      const sub = subRows.find(s => s.exam_id === e.id && s.student_id === m.student_id)
+      const max = maxByExam.get(e.id) ?? 0
+      if (sub?.score != null) { total += Number(sub.score); totalMax += max; return `${sub.score}/${max}` }
+      return '—'
+    })
+    return [m.users?.full_name ?? '—', m.users?.email ?? '', ...cells, totalMax ? `${total}/${totalMax}` : '—', totalMax ? String(pct(total, totalMax)) : '—']
+  })
+  const gradeMatrix: ReportTable = { heading: d.studentGrades, columns: gradeColumns, rows: gradeRows }
+
+  const distribution = distributionTable(subRows, maxByExam, d)
+
+  // 4. Integrity
+  const proctoredCount = examRows.filter(e => e.proctoring_enabled).length
+  const flaggedCount = subRows.filter(s => s.is_flagged).length
+  const integrity: ReportTable = {
+    heading: d.integrity,
+    columns: [d.proctoredExams, d.flaggedOf, d.outOf],
+    rows: [[proctoredCount, flaggedCount, subRows.length]],
+  }
+
+  // 5. Student feedback (survey)
+  let feedbackRows: (string | number)[][] = [[0, '—', '—', '—']]
+  const quoteRows: (string | number)[][] = []
+  if (survey) {
+    const { data: responses } = await admin
+      .from('survey_responses')
+      .select('ease_rating, prefer_platform, recommend, best_feature, problem_faced, comment')
+      .eq('survey_id', survey.id)
+    const r = responses ?? []
+    if (r.length) {
+      const avgEase = Math.round((r.reduce((s, x) => s + x.ease_rating, 0) / r.length) * 10) / 10
+      const preferPct = Math.round((r.filter(x => x.prefer_platform).length / r.length) * 100)
+      const recommendPct = Math.round((r.filter(x => x.recommend).length / r.length) * 100)
+      feedbackRows = [[r.length, avgEase, `${preferPct}%`, `${recommendPct}%`]]
+      for (const resp of r) {
+        if (resp.best_feature || resp.problem_faced || resp.comment) {
+          quoteRows.push([resp.best_feature || '—', resp.problem_faced || '—', resp.comment || '—'])
+        }
+      }
+    }
+  }
+  const feedback: ReportTable = {
+    heading: d.studentFeedback,
+    columns: [d.respondents, d.avgEase, d.prefersPlatform, d.wouldRecommend],
+    rows: feedbackRows,
+  }
+  const quotes: ReportTable = {
+    heading: d.quotes,
+    columns: [d.quoteFeature, d.quoteProblem, d.quoteComment],
+    rows: quoteRows.slice(0, 10),
+  }
+
+  return {
+    title: `${d.pilotReport}: ${group.name}`,
+    subtitle: `${d.teacherPrefix}: ${teacherName} · ${(members ?? []).length} ${d.uStudent} · ${examRows.length} ${d.uAssessment}`,
+    university: universityName,
+    generatedAt: new Date().toISOString(),
+    lang,
+    tables: [summary, weekly, gradeMatrix, distribution, integrity, feedback, quotes],
   }
 }
 

@@ -11,7 +11,7 @@ interface Group { id: string; name: string; tenant_id: string | null }
 interface ReportTable { heading: string; columns: string[]; rows: (string | number)[][] }
 interface Report { title: string; subtitle: string; university?: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[] }
 
-type Scope = 'university' | 'teacher' | 'group' | 'student'
+type Scope = 'university' | 'teacher' | 'group' | 'student' | 'pilot'
 type Lang = 'ar' | 'en'
 
 // UI chrome strings (letterhead / signature / footer) per report language
@@ -41,6 +41,7 @@ const SCOPE_LABEL: Record<Scope, string> = {
   teacher: 'معلم',
   group: 'مجموعة',
   student: 'طالب',
+  pilot: 'تجربة (مجموعة)',
 }
 
 export function ReportsClient({ tenants, teachers, groups, students }: Props) {
@@ -55,6 +56,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
     if (scope === 'university') return tenants.map(t => ({ id: t.id, label: t.name }))
     if (scope === 'teacher') return teachers.map(t => ({ id: t.id, label: `${t.full_name} — ${t.email}` }))
     if (scope === 'student') return students.map(s => ({ id: s.id, label: `${s.full_name} — ${s.email}` }))
+    // 'group' and 'pilot' both select from the same groups list.
     return groups.map(g => ({ id: g.id, label: g.name }))
   }, [scope, tenants, teachers, groups, students])
 
