@@ -11,7 +11,7 @@
  *  7. Successful password update (updateUser called)
  *  8. open-redirect: next param with //evil.com blocked by callback
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,6 +123,67 @@ describe('reset-password form validation', () => {
   it('7c. 7 characters → invalid', () => {
     const err = validateNewPassword('1234567', '1234567')
     expect(err).not.toBeNull()
+  })
+})
+
+// Simulate the submit flow of the reset-password page (mirrors handleSubmit)
+async function runResetSubmit(deps: {
+  updateUser: () => Promise<{ error: { message: string } | null }>
+  signOut: (opts?: { scope?: string }) => Promise<{ error: { message: string } | null }>
+}) {
+  const result = { signOutCalledWith: undefined as undefined | { scope?: string }, redirected: false, error: '' }
+
+  const { error: updateErr } = await deps.updateUser()
+  if (updateErr) {
+    result.error = updateErr.message
+    return result
+  }
+
+  const signOut = async (opts?: { scope?: string }) => {
+    result.signOutCalledWith = opts
+    return deps.signOut(opts)
+  }
+  const { error: signOutErr } = await signOut({ scope: 'global' })
+  if (signOutErr) {
+    result.error = 'Your password was changed, but signing out failed.'
+    return result
+  }
+
+  result.redirected = true
+  return result
+}
+
+describe('reset-password submit flow', () => {
+  const ok = async () => ({ error: null })
+
+  it('9. updateUser succeeds → signOut called with scope global', async () => {
+    const r = await runResetSubmit({ updateUser: ok, signOut: ok })
+    expect(r.signOutCalledWith).toEqual({ scope: 'global' })
+  })
+
+  it('10. successful flow → redirect to login happens', async () => {
+    const r = await runResetSubmit({ updateUser: ok, signOut: ok })
+    expect(r.redirected).toBe(true)
+    expect(r.error).toBe('')
+  })
+
+  it('11. updateUser fails → NO signOut and NO redirect', async () => {
+    const r = await runResetSubmit({
+      updateUser: async () => ({ error: { message: 'weak password' } }),
+      signOut: ok,
+    })
+    expect(r.signOutCalledWith).toBeUndefined()
+    expect(r.redirected).toBe(false)
+    expect(r.error).toBe('weak password')
+  })
+
+  it('12. signOut fails after password change → error shown, no redirect', async () => {
+    const r = await runResetSubmit({
+      updateUser: ok,
+      signOut: async () => ({ error: { message: 'network' } }),
+    })
+    expect(r.redirected).toBe(false)
+    expect(r.error).toMatch(/password was changed/)
   })
 })
 

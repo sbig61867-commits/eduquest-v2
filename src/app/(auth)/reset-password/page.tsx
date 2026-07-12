@@ -53,11 +53,21 @@ export default function ResetPasswordPage() {
       return
     }
 
-    // Sign out the current session so the proxy doesn't intercept the redirect
-    // to /login and bounce the user back to the dashboard.
-    // Other sessions will be invalidated by Supabase automatically on their
-    // next token refresh (password change rotates the refresh token secret).
-    await supabase.auth.signOut()
+    // Deliberate security choice: end ALL of the user's sessions on every
+    // device after a password change (they likely reset because the password
+    // was forgotten or the account was suspected compromised). This also ends
+    // the current recovery session so the proxy doesn't bounce /login back to
+    // the dashboard. Note: signOut() with no scope already defaults to
+    // 'global' — the explicit scope documents the intent.
+    const { error: signOutErr } = await supabase.auth.signOut({ scope: 'global' })
+    if (signOutErr) {
+      // Password DID change; only the sign-out failed. Don't redirect into a
+      // half-signed-in state — tell the user and let them sign in manually.
+      console.error('post-reset signOut failed:', signOutErr.message)
+      setError('Your password was changed, but signing out failed. Please close this tab and sign in again with your new password.')
+      setLoading(false)
+      return
+    }
 
     setDone(true)
     setLoading(false)
@@ -107,7 +117,8 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-xl font-bold text-white">Password updated</h1>
           <p className="text-slate-400 text-sm">
-            Your password has been changed. Redirecting you to sign in…
+            Your password has been changed and you were signed out of all
+            devices. Please sign in again with your new password. Redirecting…
           </p>
         </div>
       </div>
