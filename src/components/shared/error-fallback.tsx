@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { RefreshCw, Home } from 'lucide-react'
 
 interface ErrorFallbackProps {
@@ -19,6 +20,7 @@ interface ErrorFallbackProps {
 export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'Go to dashboard' }: ErrorFallbackProps) {
   useEffect(() => {
     console.error('[error-boundary]', error.digest ?? '', error)
+    Sentry.captureException(error)
   }, [error])
 
   return (

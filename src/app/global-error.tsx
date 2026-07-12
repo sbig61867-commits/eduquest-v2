@@ -1,9 +1,16 @@
 'use client'
 
+import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
+
 // Catches errors thrown by the root layout itself. Must render its own
 // <html>/<body> because the root layout is what failed. Kept dependency-free
 // (no Tailwind classes are guaranteed here if globals.css failed to load).
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    Sentry.captureException(error)
+  }, [error])
+
   return (
     <html lang="en">
       <body style={{ margin: 0, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
