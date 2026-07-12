@@ -5,23 +5,24 @@ import { Button } from '@/components/ui/button'
 import { BarChart2, Download, Printer, FileText } from 'lucide-react'
 
 interface Tenant { id: string; name: string }
-interface Teacher { id: string; full_name: string; email: string; tenant_id: string | null }
+interface Person { id: string; full_name: string; email: string; tenant_id: string | null }
 interface Group { id: string; name: string; tenant_id: string | null }
 
 interface ReportTable { heading: string; columns: string[]; rows: (string | number)[][] }
 interface Report { title: string; subtitle: string; generatedAt: string; tables: ReportTable[] }
 
-type Scope = 'university' | 'teacher' | 'group'
+type Scope = 'university' | 'teacher' | 'group' | 'student'
 
-interface Props { tenants: Tenant[]; teachers: Teacher[]; groups: Group[] }
+interface Props { tenants: Tenant[]; teachers: Person[]; groups: Group[]; students: Person[] }
 
 const SCOPE_LABEL: Record<Scope, string> = {
   university: 'جامعة كاملة',
   teacher: 'معلم',
   group: 'مجموعة',
+  student: 'طالب',
 }
 
-export function ReportsClient({ tenants, teachers, groups }: Props) {
+export function ReportsClient({ tenants, teachers, groups, students }: Props) {
   const [scope, setScope] = useState<Scope>('university')
   const [entityId, setEntityId] = useState('')
   const [report, setReport] = useState<Report | null>(null)
@@ -31,8 +32,9 @@ export function ReportsClient({ tenants, teachers, groups }: Props) {
   const entities = useMemo(() => {
     if (scope === 'university') return tenants.map(t => ({ id: t.id, label: t.name }))
     if (scope === 'teacher') return teachers.map(t => ({ id: t.id, label: `${t.full_name} — ${t.email}` }))
+    if (scope === 'student') return students.map(s => ({ id: s.id, label: `${s.full_name} — ${s.email}` }))
     return groups.map(g => ({ id: g.id, label: g.name }))
-  }, [scope, tenants, teachers, groups])
+  }, [scope, tenants, teachers, groups, students])
 
   async function generate() {
     if (!entityId) { setError('اختر العنصر أولاً'); return }
@@ -68,7 +70,7 @@ export function ReportsClient({ tenants, teachers, groups }: Props) {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">التقارير</h2>
-            <p className="text-slate-400 text-sm">استخرج تقريراً تفصيلياً لأي جامعة أو معلم أو مجموعة</p>
+            <p className="text-slate-400 text-sm">استخرج تقريراً تفصيلياً لأي جامعة أو معلم أو مجموعة أو طالب</p>
           </div>
         </div>
       </div>

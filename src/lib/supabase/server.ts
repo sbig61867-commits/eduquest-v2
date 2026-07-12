@@ -13,10 +13,14 @@ export async function getAuthUser(supabase: SupabaseClient): Promise<AuthUser | 
   const claims = data?.claims
   if (!claims?.sub) return null
   const meta = (claims.app_metadata ?? {}) as Record<string, unknown>
+  // The sync_user_claims trigger writes the role under `user_role` (see
+  // supabase/fix_auth_flow.sql) — reading `meta.role` here silently yielded
+  // undefined and every role check downstream returned 403.
+  const role = meta.user_role ?? meta.role
   return {
     id: claims.sub,
     email: typeof claims.email === 'string' ? claims.email : undefined,
-    role: typeof meta.role === 'string' ? meta.role : undefined,
+    role: typeof role === 'string' ? role : undefined,
     tenant_id: typeof meta.tenant_id === 'string' ? meta.tenant_id : null,
   }
 }
