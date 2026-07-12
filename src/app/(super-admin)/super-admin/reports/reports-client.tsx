@@ -9,7 +9,7 @@ interface Person { id: string; full_name: string; email: string; tenant_id: stri
 interface Group { id: string; name: string; tenant_id: string | null }
 
 interface ReportTable { heading: string; columns: string[]; rows: (string | number)[][] }
-interface Report { title: string; subtitle: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[] }
+interface Report { title: string; subtitle: string; university?: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[] }
 
 type Scope = 'university' | 'teacher' | 'group' | 'student'
 type Lang = 'ar' | 'en'
@@ -19,6 +19,7 @@ const UI = {
   ar: {
     tagline: 'منصة التعليم الرقمية متعددة الجامعات',
     refLabel: 'الرقم المرجعي', dateLabel: 'التاريخ', timeLabel: 'وقت الإصدار',
+    uniLabel: 'الجامعة',
     sigTitle: 'الاعتماد', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
     footerAuto: 'وثيقة صادرة آلياً من منصة EduQuest', footerConf: 'سري — للاستخدام الإداري فقط',
     locale: 'ar',
@@ -26,6 +27,7 @@ const UI = {
   en: {
     tagline: 'Multi-University Digital Learning Platform',
     refLabel: 'Reference No.', dateLabel: 'Date', timeLabel: 'Issued At',
+    uniLabel: 'University',
     sigTitle: 'Approval', sigName: 'Name', sigSignature: 'Signature', sigDate: 'Date',
     footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
     locale: 'en-GB',
@@ -210,6 +212,11 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
 
           {/* ── Report title block ── */}
           <div className="text-center py-2">
+            {report.university && (
+              <p className="text-sm font-semibold text-blue-800 mb-1">
+                {ui.uniLabel}: {report.university}
+              </p>
+            )}
             <h1 className="text-2xl font-bold text-slate-900">{report.title}</h1>
             <p className="text-slate-600 text-sm mt-1.5">{report.subtitle}</p>
             <div className="print-color w-24 h-0.5 bg-blue-700 mx-auto mt-3" />

@@ -12,6 +12,8 @@ export interface ReportTable {
 export interface Report {
   title: string
   subtitle: string
+  /** Tenant (university) the subject belongs to — shown under the title. */
+  university?: string
   generatedAt: string
   lang: ReportLang
   tables: ReportTable[]
@@ -259,8 +261,10 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
 // ══════════════════════════════════════════════════════════════════
 export async function buildTeacherReport(admin: SupabaseClient, teacherId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const { data: teacher } = await admin.from('users').select('id, full_name, email').eq('id', teacherId).single()
+  const { data: teacher } = await admin.from('users').select('id, full_name, email, tenant_id, tenants(name)').eq('id', teacherId).single()
   if (!teacher) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const universityName = ((teacher as any).tenants?.name as string | undefined) ?? undefined
 
   const [{ data: groups }, { data: exams }, { count: lessonCount }] = await Promise.all([
     admin.from('groups').select('id, name').eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }),
@@ -368,6 +372,7 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
   return {
     title: `${d.teacherReport}: ${teacher.full_name}`,
     subtitle: `${teacher.email} · ${(groups ?? []).length} ${d.uGroup} · ${totalStudents} ${d.uStudent}`,
+    university: universityName,
     generatedAt: new Date().toISOString(),
     lang,
     tables: [summary, groupTable, assessmentTable, struggling, discipline],
@@ -380,8 +385,10 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
 export async function buildGroupReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
   const { data: group } = await admin
-    .from('groups').select('id, name, tenant_id, users:teacher_id(full_name)').eq('id', groupId).single()
+    .from('groups').select('id, name, tenant_id, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
   if (!group) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const universityName = ((group as any).tenants?.name as string | undefined) ?? undefined
 
   const [{ data: exams }, { data: members }] = await Promise.all([
     admin.from('exams').select('id, title, type, questions').eq('group_id', groupId).is('deleted_at', null).order('created_at', { ascending: true }),
@@ -410,6 +417,7 @@ export async function buildGroupReport(admin: SupabaseClient, groupId: string, l
   return {
     title: `${d.groupReport}: ${group.name}`,
     subtitle: `${d.teacherPrefix}: ${teacherName} · ${(members ?? []).length} ${d.uStudent} · ${(exams ?? []).length} ${d.uAssessment}`,
+    university: universityName,
     generatedAt: new Date().toISOString(),
     lang,
     tables: [{ heading: d.studentGrades, columns, rows }],
@@ -422,8 +430,10 @@ export async function buildGroupReport(admin: SupabaseClient, groupId: string, l
 export async function buildStudentReport(admin: SupabaseClient, studentId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
   const { data: student } = await admin
-    .from('users').select('id, full_name, email, created_at').eq('id', studentId).single()
+    .from('users').select('id, full_name, email, created_at, tenant_id, tenants(name)').eq('id', studentId).single()
   if (!student) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const universityName = ((student as any).tenants?.name as string | undefined) ?? undefined
 
   const { data: memberships } = await admin
     .from('group_students')
@@ -523,6 +533,7 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
   return {
     title: `${d.studentReport}: ${student.full_name}`,
     subtitle: `${student.email} · ${activeGroups.length} ${d.uGroup} · ${examRows.length} ${d.uAssessmentDue}`,
+    university: universityName,
     generatedAt: new Date().toISOString(),
     lang,
     tables: [card, gradeSheet, summary, missing, trend, integrity],
@@ -535,7 +546,7 @@ export function reportToCsv(report: Report): string {
     const s = String(v)
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const lines: string[] = [report.title, report.subtitle, '']
+  const lines: string[] = [report.title, ...(report.university ? [report.university] : []), report.subtitle, '']
   for (const t of report.tables) {
     lines.push(t.heading)
     lines.push(t.columns.map(esc).join(','))
