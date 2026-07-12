@@ -195,7 +195,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                 <p>
                   <span className="text-slate-400">{ui.refLabel}:</span>{' '}
                   <span className="font-mono font-semibold" dir="ltr">
-                    RPT-{new Date(report.generatedAt).toISOString().slice(0, 10).replace(/-/g, '')}-{scope.slice(0, 3).toUpperCase()}
+                    RPT-{report.generatedAt.slice(0, 19).replace(/[-:T]/g, '').slice(0, 14)}-{scope.slice(0, 3).toUpperCase()}
                   </span>
                 </p>
                 <p>
