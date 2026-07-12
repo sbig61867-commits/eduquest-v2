@@ -1,4 +1,5 @@
 'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -47,7 +48,7 @@ export function TeachersClient({ initialTeachers }: Props) {
   }
 
   async function deleteTeacher(id: string) {
-    if (!confirm('Are you sure? This will remove the teacher and all their data.')) return
+    if (!(await confirmDialog('Are you sure? This will remove the teacher and all their data.'))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
       setTeachers(prev => prev.filter(t => t.id !== id))

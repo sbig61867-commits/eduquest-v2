@@ -1,4 +1,5 @@
 'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -104,7 +105,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   }
 
   async function deleteLevel(id: string) {
-    if (!confirm('Delete this level and all its units?')) return
+    if (!(await confirmDialog('Delete this level and all its units?'))) return
     const { error } = await supabase.from('course_levels').delete().eq('id', id)
     if (!error) { setLevels(p => p.filter(l => l.id !== id)); router.refresh() }
   }
@@ -137,7 +138,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   }
 
   async function deleteUnit(unitId: string, levelId: string | null) {
-    if (!confirm('Delete this unit and all its content?')) return
+    if (!(await confirmDialog('Delete this unit and all its content?'))) return
     const { error } = await supabase.from('course_units').delete().eq('id', unitId)
     if (!error) {
       if (levelId) {

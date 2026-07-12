@@ -1,4 +1,5 @@
 ﻿'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -97,7 +98,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   }
 
   async function deleteLesson(id: string) {
-    if (!confirm('حذف هذا الدرس؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى هو وواجباته وكل تسليماتها وعلاماتها نهائياً (لا رجعة). وإلا فسيُنقل إلى الأرشيف مع حفظ كل السجلات.')) return
+    if (!(await confirmDialog('حذف هذا الدرس؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى هو وواجباته وكل تسليماتها وعلاماتها نهائياً (لا رجعة). وإلا فسيُنقل إلى الأرشيف مع حفظ كل السجلات.'))) return
     const res = await fetch('/api/lessons', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

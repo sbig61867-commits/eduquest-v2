@@ -1,4 +1,5 @@
 'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -44,7 +45,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
   })
 
   async function restore(r: ArchiveRow) {
-    if (!confirm(`Restore "${r.title}" from the archive? It will become visible on the platform again.`)) return
+    if (!(await confirmDialog(`Restore "${r.title}" from the archive? It will become visible on the platform again.`))) return
     setBusy(r.id)
     const res = await fetch('/api/admin/restore', {
       method: 'POST',

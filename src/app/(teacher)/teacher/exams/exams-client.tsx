@@ -1,4 +1,5 @@
 ﻿'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -183,7 +184,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   }
 
   async function deleteExam(id: string) {
-    if (!confirm('حذف هذا الاختبار؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى نهائياً مع كل تسليماته وعلاماته (لا رجعة). وإلا فسيُنقل إلى الأرشيف مع حفظ كل السجلات.')) return
+    if (!(await confirmDialog('حذف هذا الاختبار؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى نهائياً مع كل تسليماته وعلاماته (لا رجعة). وإلا فسيُنقل إلى الأرشيف مع حفظ كل السجلات.'))) return
     const res = await fetch('/api/exams', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

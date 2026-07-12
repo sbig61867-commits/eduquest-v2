@@ -1,4 +1,5 @@
 'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -284,7 +285,7 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
   }
 
   async function deleteUser(id: string) {
-    if (!confirm('Delete this user permanently?')) return
+    if (!(await confirmDialog('Delete this user permanently?'))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error((await res.json().catch(() => ({}))).error ?? 'فشل الحذف'); return }
     setUsers(prev => prev.filter(u => u.id !== id))
@@ -412,7 +413,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
   }
 
   async function deleteSuperAdmin(id: string) {
-    if (!confirm('Delete this user permanently?')) return
+    if (!(await confirmDialog('Delete this user permanently?'))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error((await res.json().catch(() => ({}))).error ?? 'فشل الحذف'); return }
     setLocalSuperAdmins(prev => prev.filter(u => u.id !== id))

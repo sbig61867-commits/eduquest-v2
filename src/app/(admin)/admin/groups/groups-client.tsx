@@ -1,4 +1,5 @@
 'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -28,7 +29,7 @@ export function AdminGroupsClient({ initialGroups }: { initialGroups: GroupRow[]
 
   async function toggleArchive(group: GroupRow) {
     const archiving = group.is_active
-    if (archiving && !confirm(`أرشفة مجموعة "${group.name}"؟ ستختفي عن الطلاب وتبقى كل السجلات والعلامات محفوظة.`)) return
+    if (archiving && !(await confirmDialog(`أرشفة مجموعة "${group.name}"؟ ستختفي عن الطلاب وتبقى كل السجلات والعلامات محفوظة.`))) return
     setBusy(group.id)
     const res = await fetch('/api/groups', {
       method: 'PATCH',

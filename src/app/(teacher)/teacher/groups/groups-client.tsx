@@ -1,4 +1,5 @@
 ﻿'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -96,7 +97,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
 
   async function toggleArchive(group: Group) {
     const archiving = group.is_active
-    if (archiving && !confirm(`أرشفة مجموعة "${group.name}"؟ ستختفي دروسها وواجباتها واختباراتها عن الطلاب، وتبقى كل السجلات والعلامات محفوظة. يمكنك استرجاعها متى شئت.`)) return
+    if (archiving && !(await confirmDialog(`أرشفة مجموعة "${group.name}"؟ ستختفي دروسها وواجباتها واختباراتها عن الطلاب، وتبقى كل السجلات والعلامات محفوظة. يمكنك استرجاعها متى شئت.`))) return
     const res = await fetch('/api/groups', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -109,7 +110,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   }
 
   async function deleteGroup(id: string) {
-    if (!confirm('حذف هذه المجموعة؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فستُمحى هي ودروسها واختباراتها وكل تسليمات وعلامات الطلاب نهائياً (لا رجعة). وإلا فستُنقل إلى الأرشيف مع حفظ كل السجلات.')) return
+    if (!(await confirmDialog('حذف هذه المجموعة؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فستُمحى هي ودروسها واختباراتها وكل تسليمات وعلامات الطلاب نهائياً (لا رجعة). وإلا فستُنقل إلى الأرشيف مع حفظ كل السجلات.'))) return
     const res = await fetch('/api/groups', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

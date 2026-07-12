@@ -1,4 +1,5 @@
 ﻿'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -51,7 +52,7 @@ export function TenantsClient({ initialTenants }: Props) {
 
   async function toggleTenant(tenant: Tenant) {
     const archive = tenant.is_active // active -> archive (suspend); suspended -> restore
-    if (archive && !confirm(`أرشفة جامعة "${tenant.name}"؟ سيُمنع كل مستخدميها من الدخول. البيانات تبقى محفوظة ويمكن استرجاعها لاحقاً.`)) return
+    if (archive && !(await confirmDialog(`أرشفة جامعة "${tenant.name}"؟ سيُمنع كل مستخدميها من الدخول. البيانات تبقى محفوظة ويمكن استرجاعها لاحقاً.`))) return
     const res = await fetch('/api/admin/archive-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,8 +65,8 @@ export function TenantsClient({ initialTenants }: Props) {
   }
 
   async function deleteTenant(tenant: Tenant) {
-    if (!confirm(`حذف نهائي لجامعة "${tenant.name}"؟\n\nسيُمحى كل شيء للأبد: المستخدمون وحساباتهم، المجموعات، الدروس، الاختبارات، والعلامات. لا يمكن التراجع.\n\nللإيقاف المؤقت استخدم "أرشفة" بدلاً من ذلك.`)) return
-    if (!confirm(`تأكيد أخير: اكتب نعم في ذهنك — هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`)) return
+    if (!(await confirmDialog(`حذف نهائي لجامعة "${tenant.name}"؟\n\nسيُمحى كل شيء للأبد: المستخدمون وحساباتهم، المجموعات، الدروس، الاختبارات، والعلامات. لا يمكن التراجع.\n\nللإيقاف المؤقت استخدم "أرشفة" بدلاً من ذلك.`))) return
+    if (!(await confirmDialog(`تأكيد أخير: اكتب نعم في ذهنك — هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`))) return
     const res = await fetch(`/api/admin/delete-tenant?id=${tenant.id}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) { toast.error(data.error ?? 'Failed to delete university'); return }

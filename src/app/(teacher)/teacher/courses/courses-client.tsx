@@ -1,4 +1,5 @@
 ﻿'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -92,7 +93,7 @@ export function CoursesClient({ initialCourses }: Props) {
   }
 
   async function deleteCourse(id: string) {
-    if (!confirm('Delete this course? All levels, units, and content will be permanently removed.')) return
+    if (!(await confirmDialog('Delete this course? All levels, units, and content will be permanently removed.'))) return
     const res = await fetch('/api/courses', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },

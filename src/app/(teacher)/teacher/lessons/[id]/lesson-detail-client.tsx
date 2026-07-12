@@ -1,4 +1,5 @@
 'use client'
+import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -247,7 +248,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   }
 
   async function deleteHomework(id: string) {
-    if (!confirm('حذف هذا الواجب؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى مع تسليماته وعلاماته نهائياً (لا رجعة). وإلا فسيُنقل إلى الأرشيف.')) return
+    if (!(await confirmDialog('حذف هذا الواجب؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى مع تسليماته وعلاماته نهائياً (لا رجعة). وإلا فسيُنقل إلى الأرشيف.'))) return
     const res = await fetch('/api/homework', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     if (!res.ok) {
       toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف الواجب')
