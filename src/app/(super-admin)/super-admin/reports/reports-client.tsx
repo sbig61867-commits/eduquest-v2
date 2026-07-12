@@ -9,9 +9,28 @@ interface Person { id: string; full_name: string; email: string; tenant_id: stri
 interface Group { id: string; name: string; tenant_id: string | null }
 
 interface ReportTable { heading: string; columns: string[]; rows: (string | number)[][] }
-interface Report { title: string; subtitle: string; generatedAt: string; tables: ReportTable[] }
+interface Report { title: string; subtitle: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[] }
 
 type Scope = 'university' | 'teacher' | 'group' | 'student'
+type Lang = 'ar' | 'en'
+
+// UI chrome strings (letterhead / signature / footer) per report language
+const UI = {
+  ar: {
+    tagline: 'منصة التعليم الرقمية متعددة الجامعات',
+    refLabel: 'الرقم المرجعي', dateLabel: 'التاريخ', timeLabel: 'وقت الإصدار',
+    sigTitle: 'الاعتماد', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
+    footerAuto: 'وثيقة صادرة آلياً من منصة EduQuest', footerConf: 'سري — للاستخدام الإداري فقط',
+    locale: 'ar',
+  },
+  en: {
+    tagline: 'Multi-University Digital Learning Platform',
+    refLabel: 'Reference No.', dateLabel: 'Date', timeLabel: 'Issued At',
+    sigTitle: 'Approval', sigName: 'Name', sigSignature: 'Signature', sigDate: 'Date',
+    footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
+    locale: 'en-GB',
+  },
+} as const
 
 interface Props { tenants: Tenant[]; teachers: Person[]; groups: Group[]; students: Person[] }
 
@@ -24,6 +43,7 @@ const SCOPE_LABEL: Record<Scope, string> = {
 
 export function ReportsClient({ tenants, teachers, groups, students }: Props) {
   const [scope, setScope] = useState<Scope>('university')
+  const [lang, setLang] = useState<Lang>('ar')
   const [entityId, setEntityId] = useState('')
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(false)
@@ -39,7 +59,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
   async function generate() {
     if (!entityId) { setError('اختر العنصر أولاً'); return }
     setLoading(true); setError(''); setReport(null)
-    const res = await fetch(`/api/reports?scope=${scope}&id=${entityId}&format=json`)
+    const res = await fetch(`/api/reports?scope=${scope}&id=${entityId}&format=json&lang=${lang}`)
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'فشل توليد التقرير'); setLoading(false); return }
     setReport(data)
@@ -48,7 +68,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
 
   function downloadCsv() {
     if (!entityId) return
-    window.open(`/api/reports?scope=${scope}&id=${entityId}&format=csv`, '_blank')
+    window.open(`/api/reports?scope=${scope}&id=${entityId}&format=csv&lang=${lang}`, '_blank')
   }
 
   return (
@@ -99,6 +119,23 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
         </div>
 
         <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">لغة التقرير</label>
+          <div className="flex gap-2">
+            {([['ar', 'العربية'], ['en', 'English']] as [Lang, string][]).map(([l, label]) => (
+              <button
+                key={l}
+                onClick={() => { setLang(l); setReport(null) }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  lang === l ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">اختر {SCOPE_LABEL[scope]}</label>
           <select
             value={entityId}
@@ -130,8 +167,13 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
       </div>
 
       {/* Report view (also the print area) */}
-      {report && (
-        <div id="report-print" className="bg-white text-slate-900 rounded-xl p-8 space-y-5" dir="rtl">
+      {report && (() => {
+        const rlang: Lang = report.lang ?? 'ar'
+        const ui = UI[rlang]
+        const rtl = rlang === 'ar'
+        const cellAlign = rtl ? 'text-right' : 'text-left'
+        return (
+        <div id="report-print" className="bg-white text-slate-900 rounded-xl p-8 space-y-5" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Official letterhead ── */}
           <div className="border-b-4 border-blue-700 pb-4">
             <div className="flex items-start justify-between gap-4">
@@ -142,25 +184,25 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                 </div>
                 <div>
                   <p className="text-xl font-bold text-blue-900 leading-tight">EduQuest</p>
-                  <p className="text-slate-600 text-xs">منصة التعليم الرقمية متعددة الجامعات</p>
+                  <p className="text-slate-600 text-xs">{ui.tagline}</p>
                   <p className="text-slate-400 text-[10px] mt-0.5" dir="ltr">eduquest-v2.vercel.app</p>
                 </div>
               </div>
               {/* Document metadata */}
-              <div className="text-left text-xs text-slate-600 space-y-1 shrink-0" dir="ltr">
+              <div className="text-xs text-slate-600 space-y-1 shrink-0">
                 <p>
-                  <span className="text-slate-400">: الرقم المرجعي</span>{' '}
-                  <span className="font-mono font-semibold">
+                  <span className="text-slate-400">{ui.refLabel}:</span>{' '}
+                  <span className="font-mono font-semibold" dir="ltr">
                     RPT-{new Date(report.generatedAt).toISOString().slice(0, 10).replace(/-/g, '')}-{scope.slice(0, 3).toUpperCase()}
                   </span>
                 </p>
                 <p>
-                  <span className="text-slate-400">: التاريخ</span>{' '}
-                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleDateString('ar', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span className="text-slate-400">{ui.dateLabel}:</span>{' '}
+                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleDateString(ui.locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </p>
                 <p>
-                  <span className="text-slate-400">: وقت الإصدار</span>{' '}
-                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-slate-400">{ui.timeLabel}:</span>{' '}
+                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleTimeString(ui.locale, { hour: '2-digit', minute: '2-digit' })}</span>
                 </p>
               </div>
             </div>
@@ -177,14 +219,14 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <div key={i} className="space-y-2">
               <h3 className="font-semibold text-slate-800">{t.heading}</h3>
               {t.rows.length === 0 ? (
-                <p className="text-slate-400 text-sm">لا توجد بيانات.</p>
+                <p className="text-slate-400 text-sm">{rtl ? 'لا توجد بيانات.' : 'No data.'}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr>
                         {t.columns.map((c, j) => (
-                          <th key={j} className="border border-slate-300 bg-slate-100 px-3 py-2 text-right font-semibold">{c}</th>
+                          <th key={j} className={`border border-slate-300 bg-slate-100 px-3 py-2 ${cellAlign} font-semibold`}>{c}</th>
                         ))}
                       </tr>
                     </thead>
@@ -192,7 +234,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                       {t.rows.map((row, r) => (
                         <tr key={r} className={r % 2 ? 'bg-slate-50' : ''}>
                           {row.map((cell, c) => (
-                            <td key={c} className="border border-slate-300 px-3 py-2 text-right">{cell}</td>
+                            <td key={c} className={`border border-slate-300 px-3 py-2 ${cellAlign}`}>{cell}</td>
                           ))}
                         </tr>
                       ))}
@@ -203,13 +245,33 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             </div>
           ))}
 
+          {/* ── Signature block ── */}
+          <div className="pt-8">
+            <p className="text-sm font-semibold text-slate-700 mb-6">{ui.sigTitle}</p>
+            <div className="flex items-end justify-between gap-8 max-w-2xl">
+              <div className="flex-1">
+                <div className="border-b border-slate-400 h-8" />
+                <p className="text-xs text-slate-500 mt-1.5">{ui.sigName}</p>
+              </div>
+              <div className="flex-1">
+                <div className="border-b border-slate-400 h-8" />
+                <p className="text-xs text-slate-500 mt-1.5">{ui.sigSignature}</p>
+              </div>
+              <div className="flex-1">
+                <div className="border-b border-slate-400 h-8" />
+                <p className="text-xs text-slate-500 mt-1.5">{ui.sigDate}</p>
+              </div>
+            </div>
+          </div>
+
           {/* ── Official footer ── */}
           <div className="border-t-2 border-slate-300 pt-3 mt-6 flex items-center justify-between text-[11px] text-slate-500">
-            <p>وثيقة صادرة آلياً من منصة EduQuest — لا تتطلب توقيعاً</p>
-            <p>سري — للاستخدام الإداري فقط</p>
+            <p>{ui.footerAuto}</p>
+            <p>{ui.footerConf}</p>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

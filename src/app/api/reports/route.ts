@@ -3,10 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import {
   canAccessReport, reportsAdminClient, reportToCsv,
   buildUniversityReport, buildTeacherReport, buildGroupReport, buildStudentReport,
-  type ReportScope,
+  type ReportScope, type ReportLang,
 } from '@/lib/reports'
 
-// GET /api/reports?scope=university|teacher|group|student&id=<uuid>&format=json|csv
+// GET /api/reports?scope=university|teacher|group|student&id=<uuid>&format=json|csv&lang=ar|en
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const scope = searchParams.get('scope') as ReportScope | null
   const id = searchParams.get('id')
   const format = searchParams.get('format') ?? 'json'
+  const lang: ReportLang = searchParams.get('lang') === 'en' ? 'en' : 'ar'
 
   if (!scope || !['university', 'teacher', 'group', 'student'].includes(scope)) {
     return NextResponse.json({ error: 'scope must be university, teacher, group, or student' }, { status: 400 })
@@ -31,10 +32,10 @@ export async function GET(request: Request) {
 
   const admin = reportsAdminClient()
   const report =
-    scope === 'university' ? await buildUniversityReport(admin, id) :
-    scope === 'teacher'    ? await buildTeacherReport(admin, id) :
-    scope === 'student'    ? await buildStudentReport(admin, id) :
-                             await buildGroupReport(admin, id)
+    scope === 'university' ? await buildUniversityReport(admin, id, lang) :
+    scope === 'teacher'    ? await buildTeacherReport(admin, id, lang) :
+    scope === 'student'    ? await buildStudentReport(admin, id, lang) :
+                             await buildGroupReport(admin, id, lang)
 
   if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

@@ -13,17 +13,16 @@ export interface Report {
   title: string
   subtitle: string
   generatedAt: string
+  lang: ReportLang
   tables: ReportTable[]
 }
 
 export type ReportScope = 'university' | 'teacher' | 'group' | 'student'
+export type ReportLang = 'ar' | 'en'
 
 export interface CallerProfile { role: string; tenant_id: string | null }
 
 // ── Authorization (future-ready) ──────────────────────────────────
-// Today only super_admin may pull reports. The structure below is where
-// per-role scoping goes later (university_admin → own tenant, teacher →
-// own groups). Returning a reason keeps the API messages clear.
 export function canAccessReport(profile: CallerProfile): { ok: boolean; reason?: string } {
   if (profile.role === 'super_admin') return { ok: true }
   return { ok: false, reason: 'Reports are currently restricted to the platform owner.' }
@@ -36,6 +35,72 @@ export function reportsAdminClient(): SupabaseClient {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 }
+
+// ── Bilingual strings ─────────────────────────────────────────────
+// Server-side dictionary: every heading/column/status the builders emit.
+const STR = {
+  ar: {
+    universityReport: 'تقرير جامعة', teacherReport: 'تقرير معلم', groupReport: 'تقرير مجموعة', studentReport: 'تقرير طالب',
+    uTeacher: 'معلم', uStudent: 'طالب', uGroup: 'مجموعة', uAssessment: 'تقييم', uAssessmentDue: 'تقييم مستحق',
+    execSummary: 'الملخص التنفيذي',
+    teachers: 'المعلمون', students: 'الطلاب', groups: 'المجموعات', assessments: 'التقييمات',
+    lessonsPublished: 'الدروس المنشورة', submissions: 'التسليمات', avgOverall: 'متوسط الأداء العام',
+    teacher: 'المعلم', email: 'البريد', avgTheirStudents: 'متوسط أداء طلابه',
+    group: 'المجموعة', avgPerf: 'متوسط الأداء',
+    distribution: 'توزيع الدرجات', bucket: 'الشريحة', subCount: 'عدد التسليمات', pctOfGraded: 'النسبة من المصحح',
+    bExcellent: 'ممتاز (90–100%)', bVGood: 'جيد جداً (80–89%)', bGood: 'جيد (70–79%)', bPass: 'مقبول (50–69%)', bWeak: 'ضعيف (أقل من 50%)',
+    activity30: 'النشاط (آخر 30 يوماً)', newExams: 'تقييمات جديدة', studentSubs: 'تسليمات الطلاب',
+    integrityUni: 'نزاهة الاختبارات (تسليمات عليها مخالفات)', exam: 'الاختبار', flaggedSubs: 'تسليمات مخالِفة',
+    summary: 'الملخص', submissionRate: 'نسبة التسليم',
+    assessmentsDetail: 'تفصيل التقييمات', assessment: 'التقييم', type: 'النوع', submittedOf: 'سلّم / المطلوب',
+    avg: 'المتوسط', highest: 'الأعلى', lowest: 'الأدنى', pendingGrading: 'بانتظار تصحيح',
+    struggling: 'طلاب متعثرون (أقل من 50%)', student: 'الطالب',
+    pendingTable: 'تسليمات بانتظار التصحيح', ungradedCount: 'عدد غير المصحح',
+    studentGrades: 'درجات الطلاب', total: 'المجموع', pctCol: 'النسبة %',
+    homeworkTag: '[واجب] ', homework: 'واجب', examType: 'اختبار',
+    card: 'بطاقة الطالب', name: 'الاسم', joinDate: 'تاريخ الانضمام',
+    gradeSheet: 'كشف الدرجات', grade: 'الدرجة', pct: 'النسبة', submitDate: 'تاريخ التسليم', status: 'الحالة',
+    notSubmitted: 'لم يسلّم', awaitingGrading: 'بانتظار التصحيح', graded: 'مصحح',
+    overallSummary: 'الملخص العام', totalScores: 'مجموع الدرجات', gpa: 'المعدل العام',
+    peersAvg: 'متوسط المجموعات', position: 'الموقع', above: 'فوق المتوسط', below: 'تحت المتوسط',
+    missing: 'تقييمات لم تُسلَّم', createdAt: 'تاريخ الإنشاء',
+    trend: 'الاتجاه الزمني', firstHalf: 'النصف الأول', secondHalf: 'النصف الأخير',
+    trendCol: 'التقييم', improved: 'تحسّن ↑', declined: 'تراجع ↓', stable: 'ثابت',
+    integrity: 'نزاهة الاختبارات', flaggedOf: 'تسليمات عليها مخالفات', outOf: 'من أصل',
+    teacherPrefix: 'المعلم',
+  },
+  en: {
+    universityReport: 'University Report', teacherReport: 'Teacher Report', groupReport: 'Group Report', studentReport: 'Student Report',
+    uTeacher: 'teacher(s)', uStudent: 'student(s)', uGroup: 'group(s)', uAssessment: 'assessment(s)', uAssessmentDue: 'assessment(s) due',
+    execSummary: 'Executive Summary',
+    teachers: 'Teachers', students: 'Students', groups: 'Groups', assessments: 'Assessments',
+    lessonsPublished: 'Published Lessons', submissions: 'Submissions', avgOverall: 'Overall Average',
+    teacher: 'Teacher', email: 'Email', avgTheirStudents: 'Students\' Average',
+    group: 'Group', avgPerf: 'Average Performance',
+    distribution: 'Grade Distribution', bucket: 'Band', subCount: 'Submissions', pctOfGraded: '% of Graded',
+    bExcellent: 'Excellent (90–100%)', bVGood: 'Very Good (80–89%)', bGood: 'Good (70–79%)', bPass: 'Pass (50–69%)', bWeak: 'Weak (below 50%)',
+    activity30: 'Activity (Last 30 Days)', newExams: 'New Assessments', studentSubs: 'Student Submissions',
+    integrityUni: 'Exam Integrity (Flagged Submissions)', exam: 'Exam', flaggedSubs: 'Flagged Submissions',
+    summary: 'Summary', submissionRate: 'Submission Rate',
+    assessmentsDetail: 'Assessment Details', assessment: 'Assessment', type: 'Type', submittedOf: 'Submitted / Expected',
+    avg: 'Average', highest: 'Highest', lowest: 'Lowest', pendingGrading: 'Pending Grading',
+    struggling: 'Struggling Students (below 50%)', student: 'Student',
+    pendingTable: 'Submissions Awaiting Grading', ungradedCount: 'Ungraded Count',
+    studentGrades: 'Student Grades', total: 'Total', pctCol: 'Percentage %',
+    homeworkTag: '[HW] ', homework: 'Homework', examType: 'Exam',
+    card: 'Student Card', name: 'Name', joinDate: 'Joined',
+    gradeSheet: 'Grade Sheet', grade: 'Score', pct: 'Percentage', submitDate: 'Submitted On', status: 'Status',
+    notSubmitted: 'Not submitted', awaitingGrading: 'Awaiting grading', graded: 'Graded',
+    overallSummary: 'Overall Summary', totalScores: 'Total Score', gpa: 'Overall Average',
+    peersAvg: 'Peer Average', position: 'Standing', above: 'Above average', below: 'Below average',
+    missing: 'Assessments Not Submitted', createdAt: 'Created On',
+    trend: 'Performance Trend', firstHalf: 'First Half', secondHalf: 'Second Half',
+    trendCol: 'Assessment', improved: 'Improved ↑', declined: 'Declined ↓', stable: 'Stable',
+    integrity: 'Exam Integrity', flaggedOf: 'Flagged Submissions', outOf: 'Out Of',
+    teacherPrefix: 'Teacher',
+  },
+} as const
+type Dict = { [K in keyof typeof STR.ar]: string }
 
 // ── Shared row shapes (batched queries, computed in memory) ───────
 interface ExamRow {
@@ -53,10 +118,10 @@ function examMax(questions: unknown): number {
   return (questions as Array<{ points?: number }>).reduce((s, q) => s + (q.points ?? 0), 0)
 }
 const pct = (score: number, max: number) => (max > 0 ? Math.round((score / max) * 100) : 0)
-const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('ar') : '—')
-const typeLabel = (t: string) => (t === 'homework' ? 'واجب' : 'اختبار')
+const fmtDate = (iso: string | null, lang: ReportLang) =>
+  iso ? new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB') : '—'
+const typeLabel = (t: string, d: Dict) => (t === 'homework' ? d.homework : d.examType)
 
-/** Sum graded submission scores; max falls back to the exam's question points. */
 function sumScores(subs: SubRow[], maxByExam: Map<string, number>) {
   let total = 0, totalMax = 0
   for (const s of subs) {
@@ -67,14 +132,13 @@ function sumScores(subs: SubRow[], maxByExam: Map<string, number>) {
   return { total, totalMax }
 }
 
-/** Grade distribution buckets over graded submissions. */
-function distributionTable(subs: SubRow[], maxByExam: Map<string, number>): ReportTable {
+function distributionTable(subs: SubRow[], maxByExam: Map<string, number>, d: Dict): ReportTable {
   const buckets = [
-    { label: 'ممتاز (90–100%)', min: 90, count: 0 },
-    { label: 'جيد جداً (80–89%)', min: 80, count: 0 },
-    { label: 'جيد (70–79%)', min: 70, count: 0 },
-    { label: 'مقبول (50–69%)', min: 50, count: 0 },
-    { label: 'ضعيف (أقل من 50%)', min: 0, count: 0 },
+    { label: d.bExcellent, min: 90, count: 0 },
+    { label: d.bVGood, min: 80, count: 0 },
+    { label: d.bGood, min: 70, count: 0 },
+    { label: d.bPass, min: 50, count: 0 },
+    { label: d.bWeak, min: 0, count: 0 },
   ]
   let graded = 0
   for (const s of subs) {
@@ -86,17 +150,17 @@ function distributionTable(subs: SubRow[], maxByExam: Map<string, number>): Repo
     for (const b of buckets) { if (p >= b.min) { b.count++; break } }
   }
   return {
-    heading: 'توزيع الدرجات',
-    columns: ['الشريحة', 'عدد التسليمات', 'النسبة من المصحح'],
+    heading: d.distribution,
+    columns: [d.bucket, d.subCount, d.pctOfGraded],
     rows: buckets.map(b => [b.label, b.count, graded ? `${Math.round((b.count / graded) * 100)}%` : '—']),
   }
 }
 
 // ══════════════════════════════════════════════════════════════════
-// University report — executive summary, teachers, groups,
-// grade distribution, 30-day activity, exam integrity.
+// University report
 // ══════════════════════════════════════════════════════════════════
-export async function buildUniversityReport(admin: SupabaseClient, tenantId: string): Promise<Report | null> {
+export async function buildUniversityReport(admin: SupabaseClient, tenantId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+  const d = STR[lang]
   const { data: tenant } = await admin.from('tenants').select('id, name').eq('id', tenantId).single()
   if (!tenant) return null
 
@@ -114,7 +178,6 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
   const subRows = (subs ?? []) as SubRow[]
   const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
 
-  // Group membership counts (one batched query)
   const groupIds = (groups ?? []).map(g => g.id)
   const { data: memberships } = groupIds.length
     ? await admin.from('group_students').select('group_id, student_id').in('group_id', groupIds)
@@ -125,18 +188,16 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
   const teacherName = new Map(teachers.map(t => [t.id, t.full_name]))
   const overall = sumScores(subRows, maxByExam)
 
-  // 1. Executive summary
   const summary: ReportTable = {
-    heading: 'الملخص التنفيذي',
-    columns: ['المعلمون', 'الطلاب', 'المجموعات', 'التقييمات', 'الدروس المنشورة', 'التسليمات', 'متوسط الأداء العام'],
+    heading: d.execSummary,
+    columns: [d.teachers, d.students, d.groups, d.assessments, d.lessonsPublished, d.submissions, d.avgOverall],
     rows: [[teachers.length, students.length, (groups ?? []).length, examRows.length, lessonCount ?? 0, subRows.length,
       overall.totalMax ? `${pct(overall.total, overall.totalMax)}%` : '—']],
   }
 
-  // 2. Teachers
   const teacherTable: ReportTable = {
-    heading: 'المعلمون',
-    columns: ['المعلم', 'البريد', 'المجموعات', 'الطلاب', 'التقييمات', 'متوسط أداء طلابه'],
+    heading: d.teachers,
+    columns: [d.teacher, d.email, d.groups, d.students, d.assessments, d.avgTheirStudents],
     rows: teachers.map(t => {
       const tGroups = (groups ?? []).filter(g => g.teacher_id === t.id)
       const tStudents = tGroups.reduce((s, g) => s + (membersByGroup.get(g.id) ?? 0), 0)
@@ -148,10 +209,9 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
     }),
   }
 
-  // 3. Groups
   const groupTable: ReportTable = {
-    heading: 'المجموعات',
-    columns: ['المجموعة', 'المعلم', 'الطلاب', 'التقييمات', 'متوسط الأداء'],
+    heading: d.groups,
+    columns: [d.group, d.teacher, d.students, d.assessments, d.avgPerf],
     rows: (groups ?? []).map(g => {
       const gExamIds = new Set(examRows.filter(e => e.group_id === g.id).map(e => e.id))
       const gSubs = subRows.filter(s => gExamIds.has(s.exam_id))
@@ -161,25 +221,22 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
     }),
   }
 
-  // 4. Grade distribution
-  const distribution = distributionTable(subRows, maxByExam)
+  const distribution = distributionTable(subRows, maxByExam, d)
 
-  // 5. 30-day activity
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
   const recentExams = examRows.filter(e => new Date(e.created_at).getTime() >= cutoff).length
   const recentSubs = subRows.filter(s => s.submitted_at && new Date(s.submitted_at).getTime() >= cutoff).length
   const activity: ReportTable = {
-    heading: 'النشاط (آخر 30 يوماً)',
-    columns: ['تقييمات جديدة', 'تسليمات الطلاب'],
+    heading: d.activity30,
+    columns: [d.newExams, d.studentSubs],
     rows: [[recentExams, recentSubs]],
   }
 
-  // 6. Exam integrity — flagged submissions per exam (top offenders first)
   const flaggedByExam = new Map<string, number>()
   for (const s of subRows) if (s.is_flagged) flaggedByExam.set(s.exam_id, (flaggedByExam.get(s.exam_id) ?? 0) + 1)
   const integrity: ReportTable = {
-    heading: 'نزاهة الاختبارات (تسليمات عليها مخالفات)',
-    columns: ['الاختبار', 'المعلم', 'تسليمات مخالِفة'],
+    heading: d.integrityUni,
+    columns: [d.exam, d.teacher, d.flaggedSubs],
     rows: [...flaggedByExam.entries()]
       .sort((a, b) => b[1] - a[1]).slice(0, 10)
       .map(([examId, n]) => {
@@ -189,18 +246,19 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
   }
 
   return {
-    title: `تقرير جامعة: ${tenant.name}`,
-    subtitle: `${teachers.length} معلم · ${students.length} طالب · ${(groups ?? []).length} مجموعة`,
+    title: `${d.universityReport}: ${tenant.name}`,
+    subtitle: `${teachers.length} ${d.uTeacher} · ${students.length} ${d.uStudent} · ${(groups ?? []).length} ${d.uGroup}`,
     generatedAt: new Date().toISOString(),
+    lang,
     tables: [summary, teacherTable, groupTable, distribution, activity, integrity],
   }
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Teacher report — summary, groups, per-assessment detail,
-// struggling students, grading discipline.
+// Teacher report
 // ══════════════════════════════════════════════════════════════════
-export async function buildTeacherReport(admin: SupabaseClient, teacherId: string): Promise<Report | null> {
+export async function buildTeacherReport(admin: SupabaseClient, teacherId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+  const d = STR[lang]
   const { data: teacher } = await admin.from('users').select('id, full_name, email').eq('id', teacherId).single()
   if (!teacher) return null
 
@@ -233,20 +291,18 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
     membersByGroup.set(m.group_id, arr)
   }
 
-  // 1. Summary
   const totalStudents = new Set(memberRows.map(m => m.student_id)).size
   const overall = sumScores(subRows, maxByExam)
   const summary: ReportTable = {
-    heading: 'الملخص',
-    columns: ['المجموعات', 'الطلاب', 'الدروس المنشورة', 'التقييمات', 'متوسط أداء الطلاب'],
+    heading: d.summary,
+    columns: [d.groups, d.students, d.lessonsPublished, d.assessments, d.avgTheirStudents],
     rows: [[(groups ?? []).length, totalStudents, lessonCount ?? 0, examRows.length,
       overall.totalMax ? `${pct(overall.total, overall.totalMax)}%` : '—']],
   }
 
-  // 2. Groups with submission rate
   const groupTable: ReportTable = {
-    heading: 'المجموعات',
-    columns: ['المجموعة', 'الطلاب', 'التقييمات', 'نسبة التسليم', 'متوسط الأداء'],
+    heading: d.groups,
+    columns: [d.group, d.students, d.assessments, d.submissionRate, d.avgPerf],
     rows: (groups ?? []).map(g => {
       const gMembers = membersByGroup.get(g.id) ?? []
       const gExams = examRows.filter(e => e.group_id === g.id)
@@ -260,17 +316,16 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
     }),
   }
 
-  // 3. Per-assessment detail
   const assessmentTable: ReportTable = {
-    heading: 'تفصيل التقييمات',
-    columns: ['التقييم', 'النوع', 'المجموعة', 'سلّم / المطلوب', 'المتوسط', 'الأعلى', 'الأدنى', 'بانتظار تصحيح'],
+    heading: d.assessmentsDetail,
+    columns: [d.assessment, d.type, d.group, d.submittedOf, d.avg, d.highest, d.lowest, d.pendingGrading],
     rows: examRows.map(e => {
       const eSubs = subRows.filter(s => s.exam_id === e.id)
       const graded = eSubs.filter(s => s.score != null)
       const max = maxByExam.get(e.id) ?? 0
       const pcts = graded.map(s => pct(Number(s.score), s.max_score != null ? Number(s.max_score) : max))
       const expected = (membersByGroup.get(e.group_id) ?? []).length
-      return [e.title, typeLabel(e.type), groupName.get(e.group_id) ?? '—',
+      return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '—',
         `${eSubs.length} / ${expected}`,
         pcts.length ? `${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}%` : '—',
         pcts.length ? `${Math.max(...pcts)}%` : '—',
@@ -279,7 +334,6 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
     }),
   }
 
-  // 4. Struggling students (avg < 50% across this teacher's assessments)
   const byStudent = new Map<string, SubRow[]>()
   for (const s of subRows) {
     const arr = byStudent.get(s.student_id) ?? []
@@ -296,38 +350,35 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
     }
   }
   const struggling: ReportTable = {
-    heading: 'طلاب متعثرون (أقل من 50%)',
-    columns: ['الطالب', 'البريد', 'المتوسط', 'عدد التسليمات'],
+    heading: d.struggling,
+    columns: [d.student, d.email, d.avg, d.subCount],
     rows: strugglingRows.sort((a, b) => parseInt(String(a[2])) - parseInt(String(b[2]))),
   }
 
-  // 5. Grading discipline — assessments with pending grading
   const pendingRows = examRows
-    .map(e => {
-      const pending = subRows.filter(s => s.exam_id === e.id && !s.is_graded).length
-      return { e, pending }
-    })
+    .map(e => ({ e, pending: subRows.filter(s => s.exam_id === e.id && !s.is_graded).length }))
     .filter(x => x.pending > 0)
     .map(x => [x.e.title, groupName.get(x.e.group_id) ?? '—', x.pending] as (string | number)[])
   const discipline: ReportTable = {
-    heading: 'تسليمات بانتظار التصحيح',
-    columns: ['التقييم', 'المجموعة', 'عدد غير المصحح'],
+    heading: d.pendingTable,
+    columns: [d.assessment, d.group, d.ungradedCount],
     rows: pendingRows,
   }
 
   return {
-    title: `تقرير معلم: ${teacher.full_name}`,
-    subtitle: `${teacher.email} · ${(groups ?? []).length} مجموعة · ${totalStudents} طالب`,
+    title: `${d.teacherReport}: ${teacher.full_name}`,
+    subtitle: `${teacher.email} · ${(groups ?? []).length} ${d.uGroup} · ${totalStudents} ${d.uStudent}`,
     generatedAt: new Date().toISOString(),
+    lang,
     tables: [summary, groupTable, assessmentTable, struggling, discipline],
   }
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Group report — the per-student grade matrix (unchanged behaviour,
-// now soft-delete aware) plus a summary header.
+// Group report
 // ══════════════════════════════════════════════════════════════════
-export async function buildGroupReport(admin: SupabaseClient, groupId: string): Promise<Report | null> {
+export async function buildGroupReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+  const d = STR[lang]
   const { data: group } = await admin
     .from('groups').select('id, name, tenant_id, users:teacher_id(full_name)').eq('id', groupId).single()
   if (!group) return null
@@ -341,7 +392,7 @@ export async function buildGroupReport(admin: SupabaseClient, groupId: string): 
     ? await admin.from('exam_submissions').select('exam_id, student_id, score').in('exam_id', examIds)
     : { data: [] as Array<{ exam_id: string; student_id: string; score: number | null }> }
 
-  const columns = ['الطالب', 'البريد', ...(exams ?? []).map(e => `${e.type === 'homework' ? '[واجب] ' : ''}${e.title}`), 'المجموع', 'النسبة %']
+  const columns = [d.student, d.email, ...(exams ?? []).map(e => `${e.type === 'homework' ? d.homeworkTag : ''}${e.title}`), d.total, d.pctCol]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (members as any[] ?? []).map((m: any) => {
     let total = 0, totalMax = 0
@@ -357,19 +408,19 @@ export async function buildGroupReport(admin: SupabaseClient, groupId: string): 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const teacherName = (group as any).users?.full_name ?? '—'
   return {
-    title: `تقرير مجموعة: ${group.name}`,
-    subtitle: `المعلم: ${teacherName} · ${(members ?? []).length} طالب · ${(exams ?? []).length} تقييم`,
+    title: `${d.groupReport}: ${group.name}`,
+    subtitle: `${d.teacherPrefix}: ${teacherName} · ${(members ?? []).length} ${d.uStudent} · ${(exams ?? []).length} ${d.uAssessment}`,
     generatedAt: new Date().toISOString(),
-    tables: [{ heading: 'درجات الطلاب', columns, rows }],
+    lang,
+    tables: [{ heading: d.studentGrades, columns, rows }],
   }
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Student report — printable transcript for a parent/administration:
-// profile card, full grade sheet, overall vs group average,
-// missing submissions, performance trend, integrity.
+// Student report
 // ══════════════════════════════════════════════════════════════════
-export async function buildStudentReport(admin: SupabaseClient, studentId: string): Promise<Report | null> {
+export async function buildStudentReport(admin: SupabaseClient, studentId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+  const d = STR[lang]
   const { data: student } = await admin
     .from('users').select('id, full_name, email, created_at').eq('id', studentId).single()
   if (!student) return null
@@ -401,31 +452,27 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
   const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
   const groupName = new Map(activeGroups.map(m => [m.groups.id, m.groups.name]))
 
-  // 1. Profile card
   const card: ReportTable = {
-    heading: 'بطاقة الطالب',
-    columns: ['الاسم', 'البريد', 'تاريخ الانضمام', 'المجموعات'],
-    rows: [[student.full_name, student.email, fmtDate(student.created_at),
-      activeGroups.map(m => `${m.groups.name} (${m.groups.users?.full_name ?? '—'})`).join('، ') || '—']],
+    heading: d.card,
+    columns: [d.name, d.email, d.joinDate, d.groups],
+    rows: [[student.full_name, student.email, fmtDate(student.created_at, lang),
+      activeGroups.map(m => `${m.groups.name} (${m.groups.users?.full_name ?? '—'})`).join(lang === 'ar' ? '، ' : ', ') || '—']],
   }
 
-  // 2. Full grade sheet
   const gradeSheet: ReportTable = {
-    heading: 'كشف الدرجات',
-    columns: ['التقييم', 'النوع', 'المجموعة', 'الدرجة', 'النسبة', 'تاريخ التسليم', 'الحالة'],
+    heading: d.gradeSheet,
+    columns: [d.assessment, d.type, d.group, d.grade, d.pct, d.submitDate, d.status],
     rows: examRows.map(e => {
       const sub = subByExam.get(e.id)
       const max = sub?.max_score != null ? Number(sub.max_score) : (maxByExam.get(e.id) ?? 0)
-      if (!sub) return [e.title, typeLabel(e.type), groupName.get(e.group_id) ?? '—', '—', '—', '—', 'لم يسلّم']
-      if (sub.score == null) return [e.title, typeLabel(e.type), groupName.get(e.group_id) ?? '—', '—', '—', fmtDate(sub.submitted_at), 'بانتظار التصحيح']
-      return [e.title, typeLabel(e.type), groupName.get(e.group_id) ?? '—',
-        `${sub.score}/${max}`, max ? `${pct(Number(sub.score), max)}%` : '—', fmtDate(sub.submitted_at), 'مصحح']
+      if (!sub) return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '—', '—', '—', '—', d.notSubmitted]
+      if (sub.score == null) return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '—', '—', '—', fmtDate(sub.submitted_at, lang), d.awaitingGrading]
+      return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '—',
+        `${sub.score}/${max}`, max ? `${pct(Number(sub.score), max)}%` : '—', fmtDate(sub.submitted_at, lang), d.graded]
     }),
   }
 
-  // 3. Overall summary vs group average
   const own = sumScores(subRows, maxByExam)
-  // Group average: all submissions on the same exams (one batched query)
   const { data: peerSubs } = examIds.length
     ? await admin.from('exam_submissions').select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at').in('exam_id', examIds)
     : { data: [] }
@@ -433,23 +480,21 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
   const ownPct = own.totalMax ? pct(own.total, own.totalMax) : null
   const peerPct = peers.totalMax ? pct(peers.total, peers.totalMax) : null
   const summary: ReportTable = {
-    heading: 'الملخص العام',
-    columns: ['مجموع الدرجات', 'المعدل العام', 'متوسط المجموعات', 'الموقع'],
+    heading: d.overallSummary,
+    columns: [d.totalScores, d.gpa, d.peersAvg, d.position],
     rows: [[own.totalMax ? `${own.total}/${own.totalMax}` : '—',
       ownPct != null ? `${ownPct}%` : '—',
       peerPct != null ? `${peerPct}%` : '—',
-      ownPct != null && peerPct != null ? (ownPct >= peerPct ? 'فوق المتوسط' : 'تحت المتوسط') : '—']],
+      ownPct != null && peerPct != null ? (ownPct >= peerPct ? d.above : d.below) : '—']],
   }
 
-  // 4. Missing submissions — the most important lines for a parent
   const missing: ReportTable = {
-    heading: 'تقييمات لم تُسلَّم',
-    columns: ['التقييم', 'النوع', 'المجموعة', 'تاريخ الإنشاء'],
+    heading: d.missing,
+    columns: [d.assessment, d.type, d.group, d.createdAt],
     rows: examRows.filter(e => !subByExam.has(e.id))
-      .map(e => [e.title, typeLabel(e.type), groupName.get(e.group_id) ?? '—', fmtDate(e.created_at)]),
+      .map(e => [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '—', fmtDate(e.created_at, lang)]),
   }
 
-  // 5. Trend — first half vs second half of graded submissions (chronological)
   const graded = subRows
     .filter(s => s.score != null && s.submitted_at)
     .sort((a, b) => new Date(a.submitted_at!).getTime() - new Date(b.submitted_at!).getTime())
@@ -460,26 +505,26 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
     const second = sumScores(graded.slice(half), maxByExam)
     const p1 = first.totalMax ? pct(first.total, first.totalMax) : 0
     const p2 = second.totalMax ? pct(second.total, second.totalMax) : 0
-    trendRows = [[`${p1}%`, `${p2}%`, p2 > p1 ? 'تحسّن ↑' : p2 < p1 ? 'تراجع ↓' : 'ثابت']]
+    trendRows = [[`${p1}%`, `${p2}%`, p2 > p1 ? d.improved : p2 < p1 ? d.declined : d.stable]]
   }
   const trend: ReportTable = {
-    heading: 'الاتجاه الزمني',
-    columns: ['النصف الأول', 'النصف الأخير', 'التقييم'],
+    heading: d.trend,
+    columns: [d.firstHalf, d.secondHalf, d.trendCol],
     rows: trendRows,
   }
 
-  // 6. Integrity
   const flagged = subRows.filter(s => s.is_flagged)
   const integrity: ReportTable = {
-    heading: 'نزاهة الاختبارات',
-    columns: ['تسليمات عليها مخالفات', 'من أصل'],
+    heading: d.integrity,
+    columns: [d.flaggedOf, d.outOf],
     rows: [[flagged.length, subRows.length]],
   }
 
   return {
-    title: `تقرير طالب: ${student.full_name}`,
-    subtitle: `${student.email} · ${activeGroups.length} مجموعة · ${examRows.length} تقييم مستحق`,
+    title: `${d.studentReport}: ${student.full_name}`,
+    subtitle: `${student.email} · ${activeGroups.length} ${d.uGroup} · ${examRows.length} ${d.uAssessmentDue}`,
     generatedAt: new Date().toISOString(),
+    lang,
     tables: [card, gradeSheet, summary, missing, trend, integrity],
   }
 }
