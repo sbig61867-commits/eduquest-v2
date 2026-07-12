@@ -34,7 +34,7 @@ export function confirmDialog(message: string, opts: ConfirmOptions = {}): Promi
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         onClick={e => { if (e.target === e.currentTarget) close(false) }}
       >
-        <div dir="rtl" className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-5">
+        <div dir={/[0600-06FF]/.test(message) ? 'rtl' : 'ltr'} className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-5">
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${danger ? 'bg-red-600/20' : 'bg-blue-600/20'}`}>
               <span className={`text-xl font-bold ${danger ? 'text-red-400' : 'text-blue-400'}`}>!</span>
