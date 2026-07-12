@@ -53,9 +53,11 @@ export default function ResetPasswordPage() {
       return
     }
 
-    // Sign out all other sessions after password change so stale sessions
-    // (e.g. on a shared device) can no longer access the account.
-    await supabase.auth.signOut({ scope: 'others' })
+    // Sign out the current session so the proxy doesn't intercept the redirect
+    // to /login and bounce the user back to the dashboard.
+    // Other sessions will be invalidated by Supabase automatically on their
+    // next token refresh (password change rotates the refresh token secret).
+    await supabase.auth.signOut()
 
     setDone(true)
     setLoading(false)
