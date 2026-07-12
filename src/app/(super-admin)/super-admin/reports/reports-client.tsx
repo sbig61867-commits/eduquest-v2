@@ -54,12 +54,16 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
   return (
     <div className="space-y-6">
       <style>{`@media print {
+        @page { size: A4; margin: 14mm 12mm; }
         body * { visibility: hidden; }
         #report-print, #report-print * { visibility: visible; }
-        #report-print { position: absolute; inset: 0; padding: 24px; color: #000; }
+        #report-print { position: absolute; inset: 0; padding: 0; color: #000; border-radius: 0; }
         #report-print table { width: 100%; border-collapse: collapse; }
         #report-print th, #report-print td { border: 1px solid #999; padding: 6px 8px; font-size: 12px; }
-        #report-print th { background: #f0f0f0; }
+        #report-print th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        #report-print .print-color { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        #report-print h3 { break-after: avoid; }
+        #report-print table, #report-print tr { break-inside: avoid; }
         .no-print { display: none !important; }
       }`}</style>
 
@@ -127,13 +131,46 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
 
       {/* Report view (also the print area) */}
       {report && (
-        <div id="report-print" className="bg-white text-slate-900 rounded-xl p-6 space-y-5" dir="rtl">
-          <div className="border-b border-slate-300 pb-3">
-            <h1 className="text-xl font-bold">{report.title}</h1>
-            <p className="text-slate-600 text-sm mt-1">{report.subtitle}</p>
-            <p className="text-slate-400 text-xs mt-1">
-              تاريخ التوليد: {new Date(report.generatedAt).toLocaleString('ar')}
-            </p>
+        <div id="report-print" className="bg-white text-slate-900 rounded-xl p-8 space-y-5" dir="rtl">
+          {/* ── Official letterhead ── */}
+          <div className="border-b-4 border-blue-700 pb-4">
+            <div className="flex items-start justify-between gap-4">
+              {/* Platform identity */}
+              <div className="flex items-center gap-3">
+                <div className="print-color w-14 h-14 rounded-xl bg-blue-700 flex items-center justify-center shrink-0">
+                  <span className="text-white text-3xl font-bold">E</span>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-blue-900 leading-tight">EduQuest</p>
+                  <p className="text-slate-600 text-xs">منصة التعليم الرقمية متعددة الجامعات</p>
+                  <p className="text-slate-400 text-[10px] mt-0.5" dir="ltr">eduquest-v2.vercel.app</p>
+                </div>
+              </div>
+              {/* Document metadata */}
+              <div className="text-left text-xs text-slate-600 space-y-1 shrink-0" dir="ltr">
+                <p>
+                  <span className="text-slate-400">: الرقم المرجعي</span>{' '}
+                  <span className="font-mono font-semibold">
+                    RPT-{new Date(report.generatedAt).toISOString().slice(0, 10).replace(/-/g, '')}-{scope.slice(0, 3).toUpperCase()}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-slate-400">: التاريخ</span>{' '}
+                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleDateString('ar', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                </p>
+                <p>
+                  <span className="text-slate-400">: وقت الإصدار</span>{' '}
+                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Report title block ── */}
+          <div className="text-center py-2">
+            <h1 className="text-2xl font-bold text-slate-900">{report.title}</h1>
+            <p className="text-slate-600 text-sm mt-1.5">{report.subtitle}</p>
+            <div className="print-color w-24 h-0.5 bg-blue-700 mx-auto mt-3" />
           </div>
 
           {report.tables.map((t, i) => (
@@ -165,6 +202,12 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
               )}
             </div>
           ))}
+
+          {/* ── Official footer ── */}
+          <div className="border-t-2 border-slate-300 pt-3 mt-6 flex items-center justify-between text-[11px] text-slate-500">
+            <p>وثيقة صادرة آلياً من منصة EduQuest — لا تتطلب توقيعاً</p>
+            <p>سري — للاستخدام الإداري فقط</p>
+          </div>
         </div>
       )}
     </div>
