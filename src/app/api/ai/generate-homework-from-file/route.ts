@@ -2,14 +2,22 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
-import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
-// Generates homework questions STRICTLY from a teacher-uploaded file.
+export const maxDuration = 60
+
+// Generates homework questions STRICTLY from teacher-uploaded material.
 // The teacher picks the question types (mcq / true_false / essay), the
 // count, and can add free-form instructions. Output matches the Question
 // shape used by the homework builder so the teacher reviews/edits before
 // publishing.
+//
+// Takes already-extracted text (`sourceText`), not raw files — the client
+// extracts each file individually via /api/ai/extract-file first (see
+// src/lib/ai/extract-client.ts). Routing up to 10 raw files through one
+// request routinely exceeded Vercel's ~4.5MB serverless body limit even
+// though each file was small on its own; extracted text is a fraction of
+// the size and easily fits.
 
 interface GeneratedQuestion {
   id: string
@@ -89,11 +97,8 @@ export async function POST(request: Request) {
   try { formData = await request.formData() }
   catch { return NextResponse.json({ error: 'Invalid form data' }, { status: 400 }) }
 
-  // Multiple files supported — a monthly exam can be built from every
-  // session's file at once (up to 10 files).
-  const files = formData.getAll('file').filter((f): f is File => f instanceof File)
-  if (files.length === 0) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-  if (files.length > 10) return NextResponse.json({ error: 'بحد أقصى 10 ملفات في المرة الواحدة' }, { status: 400 })
+  const sourceText = ((formData.get('sourceText') as string | null) ?? '').trim()
+  if (!sourceText) return NextResponse.json({ error: 'No source text provided' }, { status: 400 })
 
   const typesRaw = (formData.get('types') as string | null) ?? 'mcq,true_false'
   const allowed = new Set(typesRaw.split(',').map(t => t.trim()).filter(t => ['mcq', 'true_false', 'essay'].includes(t)))
@@ -101,20 +106,6 @@ export async function POST(request: Request) {
 
   const count = Math.min(Math.max(parseInt((formData.get('count') as string) ?? '10', 10) || 10, 1), 120)
   const customInstructions = ((formData.get('instructions') as string | null) ?? '').slice(0, 1000).trim()
-
-  let sourceText: string
-  try {
-    const parts: string[] = []
-    for (const f of files) {
-      const text = await extractTextFromFile(f)
-      parts.push(files.length > 1 ? `=== FILE: ${f.name} ===\n${text}` : text)
-    }
-    sourceText = parts.join('\n\n')
-  } catch (e) {
-    console.error('[generate-homework-from-file] extraction:', e)
-    const { status, error } = extractionErrorResponse(e)
-    return NextResponse.json({ error }, { status })
-  }
 
   const typeList = [...allowed].map(t => TYPE_LABEL[t]).join(', ')
   const instructionsBlock = customInstructions

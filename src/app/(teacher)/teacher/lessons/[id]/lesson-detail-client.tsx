@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { LessonTabs } from '@/components/shared/lesson-tabs'
 import { AiProgress } from '@/components/shared/ai-progress'
+import { extractFilesText } from '@/lib/ai/extract-client'
 import { SubmissionsTab } from './submissions-tab'
 import { Modal } from '@/components/ui/modal'
 
@@ -178,8 +179,10 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     if (hwFiles.length === 0 || hwTypes.size === 0) return
     setHwFileLoading(true); setHwFileError('')
     try {
+      const extracted = await extractFilesText(hwFiles)
+      if ('error' in extracted) { setHwFileError(extracted.error); setHwFileLoading(false); return }
       const fd = new FormData()
-      for (const f of hwFiles) fd.append('file', f)
+      fd.append('sourceText', extracted.combined)
       fd.append('types', [...hwTypes].join(','))
       fd.append('count', String(hwFileCount))
       fd.append('instructions', hwFileInstructions)

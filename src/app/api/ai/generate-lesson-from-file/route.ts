@@ -6,6 +6,8 @@ import { aiChat } from '@/lib/ai/chat'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
+export const maxDuration = 60
+
 // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
 // current stable free-tier model, verified live. It caps a single response
 // around 8192 output tokens (~24k chars). Groq's gpt-oss-120b caps at 4096 —

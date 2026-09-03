@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/toast'
 import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
+import { extractFilesText } from '@/lib/ai/extract-client'
 import type { Question } from '@/types'
 
 interface ResultRow {
@@ -70,8 +71,10 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     if (examFiles.length === 0 || examQTypes.size === 0) return
     setExamFileLoading(true); setExamFileError('')
     try {
+      const extracted = await extractFilesText(examFiles)
+      if ('error' in extracted) { setExamFileError(extracted.error); setExamFileLoading(false); return }
       const fd = new FormData()
-      for (const f of examFiles) fd.append('file', f)
+      fd.append('sourceText', extracted.combined)
       fd.append('types', [...examQTypes].join(','))
       fd.append('count', String(examFileCount))
       fd.append('instructions', examFileInstructions)
