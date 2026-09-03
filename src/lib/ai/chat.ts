@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs'
 import { groqChat } from './groq'
 
 // ── Unified AI chat with provider fallback ────────────────────────
@@ -65,14 +66,16 @@ function openRouterChat(prompt: string, systemPrompt?: string): Promise<string> 
   return openAiCompatChat({
     url: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: process.env.OPENROUTER_API_KEY!,
-    // Free models get congested individually (429 upstream), so let
-    // OpenRouter route across several — verified live 2026-07-04.
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    // Free models get congested/retired individually, so let OpenRouter
+    // route across several — OpenRouter now caps `models` at 3 entries
+    // (previously 4). meta-llama/llama-3.3-70b-instruct:free and
+    // openai/gpt-oss-120b:free were dropped from OpenRouter's free tier —
+    // this list re-verified live against /api/v1/models 2026-09-03.
+    model: 'z-ai/glm-5.2:free',
     models: [
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'openai/gpt-oss-120b:free',
-      'qwen/qwen3-next-80b-a3b-instruct:free',
+      'z-ai/glm-5.2:free',
       'nvidia/nemotron-3-super-120b-a12b:free',
+      'minimax/minimax-m3:free',
     ],
     prompt, systemPrompt,
     headers: { 'X-Title': 'EduQuest' },
@@ -81,8 +84,10 @@ function openRouterChat(prompt: string, systemPrompt?: string): Promise<string> 
 
 async function geminiChat(prompt: string, systemPrompt?: string): Promise<string> {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
+  // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
+  // current stable free-tier model, verified live.
   const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!).getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
   })
   const result = await model.generateContent(prompt)
@@ -104,14 +109,25 @@ export async function aiChatDetailed(
   if (legs.length === 0) throw new Error('No AI provider configured')
 
   let lastError: unknown
+  const failed: string[] = []
   for (const [provider, run] of legs) {
     try {
       return { content: await run(), provider }
     } catch (e) {
       console.error(`[aiChat] ${provider} failed:`, e instanceof Error ? e.message : e)
+      failed.push(provider)
       lastError = e
     }
   }
+
+  // Every configured provider failed — this is the "all AI quota exhausted"
+  // case that previously only showed up as a generic 500 to the end user
+  // with nothing surfaced to an operator. Report it so it pages someone
+  // instead of waiting for a user complaint.
+  Sentry.captureException(lastError, {
+    tags: { feature: 'ai-provider-chain' },
+    extra: { attemptedProviders: failed },
+  })
   throw lastError
 }
 

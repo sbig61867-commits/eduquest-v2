@@ -6,11 +6,12 @@ import { aiChat } from '@/lib/ai/chat'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
-// gemini-2.0-flash caps a single response around 8192 output tokens (~24k
-// chars). Groq's llama-3.3-70b-versatile caps at 4096 — Gemini gives a
-// materially larger single-pass ceiling, which is why composition (not just
-// vision extraction) now runs through it.
-const GEMINI_MODEL = 'gemini-2.0-flash'
+// gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
+// current stable free-tier model, verified live. It caps a single response
+// around 8192 output tokens (~24k chars). Groq's gpt-oss-120b caps at 4096 —
+// Gemini gives a materially larger single-pass ceiling, which is why
+// composition (not just vision extraction) now runs through it.
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const MAX_OUTPUT_TOKENS = 8192
 
 function getGeminiModel() {

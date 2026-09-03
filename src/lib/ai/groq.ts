@@ -13,7 +13,9 @@ export async function groqChat(prompt: string, systemPrompt?: string): Promise<s
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      // llama-3.3-70b-versatile was retired from Groq's catalog (404
+      // model_not_found) — gpt-oss-120b is free-tier and verified live.
+      model: 'openai/gpt-oss-120b',
       messages: [
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
         { role: 'user', content: prompt },

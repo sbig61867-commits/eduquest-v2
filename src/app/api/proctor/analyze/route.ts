@@ -74,7 +74,9 @@ export async function POST(request: Request) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
+    // current stable free-tier model, verified live.
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const prompt = `Analyze this exam proctoring image and respond with ONLY a JSON object (no markdown):
 {
