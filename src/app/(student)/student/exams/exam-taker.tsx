@@ -20,9 +20,10 @@ interface Props {
   onFinish: () => void
 }
 
-// userId / tenantId remain in Props for the caller's contract, but identity is
+// tenantId remains in Props for the caller's contract, but identity is
 // now derived server-side (from the session) in /api/exam/start and /submit.
-export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Props) {
+// userId is used locally only to namespace the answer-draft autosave key.
+export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinish }: Props) {
   // Homework is untimed: no countdown, no auto-submit — only the due date
   // (ends_at, enforced server-side) limits it. The student exam feed RPC
   // doesn't expose `type`, so homework is recognized by its sentinel
@@ -47,6 +48,43 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'active' | 'error'>('idle')
 
   const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
+
+  // ── Answer draft autosave (localStorage only — survives refresh/crash on
+  //    the same device/browser; not synced server-side). Namespaced per
+  //    exam+student so a shared device doesn't leak drafts across accounts. ──
+  const draftKey = `examDraft:${exam.id}:${userId}`
+
+  // Restore a saved draft once the attempt actually starts. Called imperatively
+  // from startExam() (a user action, not a synchronization) rather than an
+  // effect on `started` — a one-time read tied to that click, not a value
+  // React needs to keep in sync with anything.
+  function restoreDraft() {
+    try {
+      const saved = localStorage.getItem(draftKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          setAnswers(prev => ({ ...parsed, ...prev }))
+        }
+      }
+    } catch {
+      // Private-browsing/quota errors — draft restore is best-effort only.
+    }
+  }
+
+  // Debounced autosave of in-progress answers, so a crash/refresh doesn't
+  // wipe answered questions (answers otherwise live only in React state).
+  useEffect(() => {
+    if (!started || submitted) return
+    const timeout = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(answers))
+      } catch {
+        // Best-effort — never block the exam on a storage failure.
+      }
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [answers, started, submitted, draftKey])
 
   // ── Event recorder: persists local detections to the DB, batched + deduped,
   //    with ZERO AI. This is the new primary record path (replaces the Gemini
@@ -97,7 +135,7 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
     exam.id,
     proctoringActive,
     (types, description) => {
-      types.forEach(t => addViolation(t, `[Server] ${description}`))
+      types.forEach(violationType => addViolation(violationType, `[Server] ${description}`))
     }
   )
 
@@ -192,33 +230,43 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
 
     // Register the attempt server-side. The server records the authoritative
     // start time and enforces the window — the client cannot fake either.
-    const res = await fetch('/api/exam/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ examId: exam.id }),
-    })
+    try {
+      const res = await fetch('/api/exam/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examId: exam.id }),
+      })
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      // Stop any camera we just opened and surface the reason
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        // Stop any camera we just opened and surface the reason
+        streamRef.current?.getTracks().forEach(t => t.stop())
+        if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+        setCameraStatus('idle')
+        toast.error(data.error ?? 'Could not start the exam.')
+        return
+      }
+
+      // Resume support: if an attempt was already in progress, compute the real
+      // remaining time from the server start timestamp instead of resetting it.
+      const { startedAt, resumed } = await res.json()
+      if (resumed && startedAt && !untimed) {
+        const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+        const remaining = exam.duration_minutes * 60 - elapsedSecs
+        if (remaining <= 0) { handleSubmitRef.current(); return }
+        setTimeLeft(remaining)
+      }
+
+      restoreDraft()
+      setStarted(true)
+    } catch {
+      // fetch() itself threw (offline/DNS/CORS) rather than resolving with a
+      // non-OK response — same cleanup as the !res.ok branch above.
       streamRef.current?.getTracks().forEach(t => t.stop())
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
       setCameraStatus('idle')
-      toast.error(data.error ?? 'Could not start the exam.')
-      return
+      toast.error('Network error. Could not start the exam.')
     }
-
-    // Resume support: if an attempt was already in progress, compute the real
-    // remaining time from the server start timestamp instead of resetting it.
-    const { startedAt, resumed } = await res.json()
-    if (resumed && startedAt && !untimed) {
-      const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
-      const remaining = exam.duration_minutes * 60 - elapsedSecs
-      if (remaining <= 0) { handleSubmitRef.current(); return }
-      setTimeLeft(remaining)
-    }
-
-    setStarted(true)
   }
 
   async function handleSubmit() {
@@ -245,25 +293,37 @@ export function ExamTaker({ exam, violationWarningThreshold = 5, onFinish }: Pro
 
     // The recorder already persisted every local violation (batched + deduped)
     // during the exam, so nothing extra is sent here — avoids double-counting.
-    const res = await fetch('/api/exam/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ examId: exam.id, answers, clientViolations: [] }),
-    })
+    // answers stay in React state until we know the submit succeeded, so a
+    // failed attempt here can simply be retried by pressing Submit again —
+    // finalize_exam_submission is safe to call more than once before the
+    // attempt is actually marked 'submitted'.
+    try {
+      const res = await fetch('/api/exam/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examId: exam.id, answers, clientViolations: [] }),
+      })
 
-    if (!res.ok) {
+      if (!res.ok) {
+        setSubmitting(false)
+        toast.error('Submission failed. Please try again.')
+        return
+      }
+
+      const data = await res.json()
+      // Only show the score when it's final (published). Homework that needs
+      // manual grading shows a "pending review" message instead of a
+      // misleading auto-score that excludes essay questions.
+      setFinalScore(data.published ? { score: data.score, maxScore: data.maxScore } : null)
+      try { localStorage.removeItem(draftKey) } catch {}
+      setSubmitted(true)
       setSubmitting(false)
-      toast.error('Submission failed. Please try again.')
-      return
+    } catch {
+      // fetch() itself threw (offline/DNS/CORS) — answers are untouched in
+      // state, so the student can just press Submit again once reconnected.
+      setSubmitting(false)
+      toast.error('Network error. Please try again.')
     }
-
-    const data = await res.json()
-    // Only show the score when it's final (published). Homework that needs
-    // manual grading shows a "pending review" message instead of a
-    // misleading auto-score that excludes essay questions.
-    setFinalScore(data.published ? { score: data.score, maxScore: data.maxScore } : null)
-    setSubmitted(true)
-    setSubmitting(false)
   }
 
   // Keep ref in sync so the timer callback always calls the latest version

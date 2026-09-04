@@ -57,9 +57,17 @@ export function Sidebar({ items, title }: SidebarProps) {
 
   async function handleSignOut() {
     setSigningOut(true)
-    await supabase.auth.signOut()
-    reset()
-    router.push('/login')
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      console.error('[signOut]', e)
+    } finally {
+      // Always clear local state and leave, even if the network call itself
+      // failed — otherwise the button is left permanently disabled with no
+      // way to retry (setSigningOut(true) never gets undone).
+      reset()
+      router.push('/login')
+    }
   }
 
   return (
