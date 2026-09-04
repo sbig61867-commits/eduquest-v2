@@ -49,27 +49,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Exam not found or not available for proctoring' }, { status: 404 })
   }
 
-  const now = Date.now()
-  if (exam.starts_at && now < new Date(exam.starts_at).getTime()) {
-    return NextResponse.json({ error: 'This exam is not open yet.' }, { status: 403 })
-  }
-  if (exam.ends_at && now > new Date(exam.ends_at).getTime()) {
-    return NextResponse.json({ error: 'The exam window has closed.' }, { status: 403 })
-  }
-
   const { data: profile } = await admin
     .from('users').select('full_name, role').eq('id', user.id).single()
-
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
 
   if (role === 'teacher') {
+    // Teachers/super admins may enter the published room before the window so
+    // they can verify camera routing and have the monitor ready. They never
+    // publish media to the room.
     if (exam.teacher_id !== user.id && profile.role !== 'super_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   } else {
+    // Students must be inside the teacher-defined exam window.
+    const now = Date.now()
+    if (exam.starts_at && now < new Date(exam.starts_at).getTime()) {
+      return NextResponse.json({ error: 'This exam is not open yet.' }, { status: 403 })
+    }
+    if (exam.ends_at && now > new Date(exam.ends_at).getTime()) {
+      return NextResponse.json({ error: 'The exam window has closed.' }, { status: 403 })
+    }
+
     // A student may only receive a room token after the server has created the
-    // in-progress attempt. This prevents joining/publishing to a proctoring
-    // room before the exam has actually started.
+    // in-progress attempt. This prevents joining/publishing before the exam
+    // has actually started.
     const { data: enrollment } = await admin
       .from('group_students')
       .select('student_id')
