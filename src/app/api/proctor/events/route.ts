@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { rateLimit } from '@/lib/rate-limit'
 
 // Records LOCAL proctoring detections (from the in-browser MediaPipe/TF/audio
 // layers) into the exam submission. NO AI is used here — this endpoint never
@@ -32,6 +33,17 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // The recorder normally flushes every ~15s. 600 batches/hour is generous for
+  // a legitimate exam while preventing an authenticated student from turning
+  // the JSONB proctoring log into an unbounded write/DB-growth endpoint.
+  const rl = await rateLimit(`proctor-events:${user.id}`, { limit: 600, windowSecs: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Proctoring event rate limit exceeded.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
   let body: { examId?: string; events?: IncomingEvent[] }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
@@ -44,15 +56,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Too many events in one batch' }, { status: 413 })
   }
 
-  // Sanitize + whitelist. Anything unknown is dropped silently.
+  // Sanitize + whitelist. Anything unknown is dropped silently. Client-supplied
+  // timestamps are retained only as metadata; the authoritative event timestamp
+  // is always the server receive time, because browser clocks can be manipulated.
   const nowIso = new Date().toISOString()
   const clean = events
     .filter(e => e && ALLOWED_TYPES.has(e.type))
     .slice(0, 50)
     .map(e => ({
       type: e.type,
-      timestamp: typeof e.timestamp === 'string' ? e.timestamp : nowIso,
-      first_at: typeof e.first_at === 'string' ? e.first_at : undefined,
+      timestamp: nowIso,
+      client_timestamp: typeof e.timestamp === 'string' && e.timestamp.length <= 40 ? e.timestamp : undefined,
+      first_at: typeof e.first_at === 'string' && e.first_at.length <= 40 ? e.first_at : undefined,
       count: Number.isFinite(e.count) && (e.count as number) > 0 ? Math.min(Math.floor(e.count as number), 10_000) : 1,
       details: typeof e.details === 'string' ? e.details.slice(0, 200) : undefined,
     }))
@@ -74,11 +89,8 @@ export async function POST(request: Request) {
 
   // Verify the student is enrolled in the exam's group before writing.
   const { data: enrollment } = await supabase
-    .from('group_students')
-    .select('student_id')
-    .eq('group_id', exam.group_id)
-    .eq('student_id', user.id)
-    .single()
+    .from('group_students').select('student_id')
+    .eq('group_id', exam.group_id).eq('student_id', user.id).single()
   if (!enrollment) {
     return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
   }
