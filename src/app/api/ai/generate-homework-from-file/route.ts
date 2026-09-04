@@ -164,7 +164,16 @@ ${sourceText.slice(0, 30000)}`
       const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
       const match = text.match(/\[[\s\S]*\]/)
       if (!match) continue
-      for (const q of validate(JSON.parse(match[0]), allowed)) {
+      // A single malformed/truncated batch (the model hit its output cap
+      // mid-array, or added a stray character) must not discard every
+      // question already collected from earlier successful rounds — skip
+      // the round and let the remaining rounds' retry headroom cover it.
+      let parsed: unknown
+      try { parsed = JSON.parse(match[0]) } catch (e) {
+        console.error('[generate-homework-from-file] bad JSON batch:', e instanceof Error ? e.message : e)
+        continue
+      }
+      for (const q of validate(parsed, allowed)) {
         const key = normalizeQ(q.text)
         if (seen.has(key)) continue
         seen.add(key)
