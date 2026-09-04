@@ -41,34 +41,58 @@ export async function POST(request: Request) {
   const admin = adminClient()
   const { data: exam } = await admin
     .from('exams')
-    .select('id, teacher_id, group_id, proctoring_enabled')
+    .select('id, teacher_id, group_id, proctoring_enabled, is_published, starts_at, ends_at')
     .eq('id', examId)
+    .is('deleted_at', null)
     .single()
-  if (!exam || !exam.proctoring_enabled) {
-    return NextResponse.json({ error: 'Exam not found or not proctored' }, { status: 404 })
+  if (!exam || !exam.proctoring_enabled || !exam.is_published) {
+    return NextResponse.json({ error: 'Exam not found or not available for proctoring' }, { status: 404 })
+  }
+
+  const now = Date.now()
+  if (exam.starts_at && now < new Date(exam.starts_at).getTime()) {
+    return NextResponse.json({ error: 'This exam is not open yet.' }, { status: 403 })
+  }
+  if (exam.ends_at && now > new Date(exam.ends_at).getTime()) {
+    return NextResponse.json({ error: 'The exam window has closed.' }, { status: 403 })
   }
 
   const { data: profile } = await admin
     .from('users').select('full_name, role').eq('id', user.id).single()
 
+  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+
   if (role === 'teacher') {
-    if (exam.teacher_id !== user.id && profile?.role !== 'super_admin') {
+    if (exam.teacher_id !== user.id && profile.role !== 'super_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   } else {
-    // Student must be enrolled in the exam's group.
-    const { count } = await admin
+    // A student may only receive a room token after the server has created the
+    // in-progress attempt. This prevents joining/publishing to a proctoring
+    // room before the exam has actually started.
+    const { data: enrollment } = await admin
       .from('group_students')
-      .select('student_id', { count: 'exact', head: true })
+      .select('student_id')
       .eq('group_id', exam.group_id)
       .eq('student_id', user.id)
-    if (!count) return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
+      .maybeSingle()
+    if (!enrollment) return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
+
+    const { data: attempt } = await admin
+      .from('exam_submissions')
+      .select('status')
+      .eq('exam_id', examId)
+      .eq('student_id', user.id)
+      .maybeSingle()
+    if (!attempt || attempt.status !== 'in_progress') {
+      return NextResponse.json({ error: 'Start the exam before joining live proctoring.' }, { status: 409 })
+    }
   }
 
   const isTeacher = role === 'teacher'
   const at = new AccessToken(key, secret, {
     identity: user.id,
-    name: profile?.full_name ?? user.email ?? 'user',
+    name: profile.full_name ?? user.email ?? 'user',
     ttl: '3h',
   })
   at.addGrant({
