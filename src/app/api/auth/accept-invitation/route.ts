@@ -12,7 +12,9 @@ function getAdminClient() {
 
 export async function POST(request: Request) {
  try {
-  // Rate-limit by IP: 5 registration attempts per hour per IP to prevent bulk account creation
+  // Rate-limit by IP: 5 registration attempts per hour to prevent bulk account creation.
+  // The application should ideally obtain the real client IP from trusted platform
+  // headers rather than accepting an arbitrary x-forwarded-for value.
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
@@ -34,14 +36,21 @@ export async function POST(request: Request) {
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
   }
-  if (fullName.trim().length < 2) {
-    return NextResponse.json({ error: 'Full name must be at least 2 characters' }, { status: 400 })
+  if (fullName.trim().length < 2 || fullName.trim().length > 120) {
+    return NextResponse.json({ error: 'Full name must be between 2 and 120 characters' }, { status: 400 })
+  }
+  if (token.length > 200) {
+    return NextResponse.json({ error: 'Invalid invitation token' }, { status: 400 })
   }
 
   const cleanEmail = email.trim().toLowerCase()
+  if (cleanEmail.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+  }
+
   const admin = getAdminClient()
 
-  // ── Step 1: validate & lock invitation ───────────────────────
+  // ── Step 1: validate invitation ────────────────────────────────
   const { data: inv, error: invErr } = await admin
     .from('invitations')
     .select('id, role, tenant_id, email, group_id, course_id, is_public, max_uses, use_count, status, expires_at')
@@ -57,25 +66,15 @@ export async function POST(request: Request) {
     )
   }
 
-  // Check max_uses for public links
-  if (inv.is_public && inv.max_uses != null && inv.use_count >= inv.max_uses) {
+  // Private invitations bind the account to the invited email.
+  if (!inv.is_public && (!inv.email || inv.email.toLowerCase() !== cleanEmail)) {
     return NextResponse.json(
-      { error: 'This invitation link has reached its maximum number of uses.' },
-      { status: 410 }
+      { error: 'The email address does not match this invitation.' },
+      { status: 403 }
     )
   }
 
-  // ── Step 2: verify email for private invitations ──────────────
-  if (!inv.is_public) {
-    if (!inv.email || inv.email.toLowerCase() !== cleanEmail) {
-      return NextResponse.json(
-        { error: 'The email address does not match this invitation.' },
-        { status: 403 }
-      )
-    }
-  }
-
-  // ── Step 3: create auth user ──────────────────────────────────
+  // ── Step 2: create auth user ──────────────────────────────────
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: cleanEmail,
     password,
@@ -85,8 +84,6 @@ export async function POST(request: Request) {
 
   if (authError) {
     const m = (authError.message ?? '').toLowerCase()
-    // Supabase signals a duplicate via several shapes depending on version:
-    // message contains "already"/"registered"/"exists", code 'email_exists', or HTTP 422.
     const isDuplicate =
       m.includes('already') || m.includes('registered') || m.includes('exists') ||
       authError.code === 'email_exists' || authError.status === 422
@@ -97,13 +94,13 @@ export async function POST(request: Request) {
       )
     }
     console.error('[accept-invitation] createUser error:', authError)
-    return NextResponse.json({ error: authError.message || 'Could not create account.' }, { status: 400 })
+    return NextResponse.json({ error: 'Could not create account. Please try again.' }, { status: 400 })
   }
 
   const userId = authData.user.id
 
   try {
-    // ── Step 4: create user profile ───────────────────────────
+    // ── Step 3: create user profile ─────────────────────────────
     const { error: profileErr } = await admin.from('users').upsert({
       id:        userId,
       email:     cleanEmail,
@@ -115,58 +112,73 @@ export async function POST(request: Request) {
 
     if (profileErr) throw new Error(`Profile: ${profileErr.message}`)
 
-    // ── Step 5: mark invitation as used ──────────────────────
+    // ── Step 4: consume public invitation atomically ────────────
+    // The previous check-then-increment sequence allowed two concurrent
+    // registrations to consume the same final public-link slot. The RPC locks
+    // the invitation row and increments use_count in one database statement.
     if (inv.is_public) {
-      const newCount = (inv.use_count ?? 0) + 1
-      const newStatus = inv.max_uses != null && newCount >= inv.max_uses ? 'revoked' : 'pending'
-      await admin.from('invitations').update({
-        use_count: newCount,
-        status: newStatus,
-      }).eq('id', inv.id)
+      const { error: redeemErr } = await admin.rpc('redeem_public_invitation', {
+        p_invitation_id: inv.id,
+      })
+      if (redeemErr) {
+        if (redeemErr.message?.includes('INVITATION_UNAVAILABLE')) {
+          throw new Error('INVITATION_UNAVAILABLE')
+        }
+        throw new Error(`Invitation redemption: ${redeemErr.message}`)
+      }
     } else {
-      await admin.from('invitations').update({
+      // Private links are single-use and remain email-bound.
+      const { error: invitationUpdateError } = await admin.from('invitations').update({
         status:      'accepted',
         accepted_at: new Date().toISOString(),
         accepted_by: userId,
-      }).eq('id', inv.id)
+      }).eq('id', inv.id).eq('status', 'pending')
+
+      if (invitationUpdateError) throw new Error(`Invitation: ${invitationUpdateError.message}`)
     }
 
-    // ── Step 6: enroll in group (student only) ───────────────
+    // ── Step 5: enroll in group (student only) ─────────────────
     if (inv.group_id && inv.role === 'student') {
-      await admin.from('group_students')
+      const { error } = await admin.from('group_students')
         .upsert({ group_id: inv.group_id, student_id: userId }, { onConflict: 'group_id,student_id', ignoreDuplicates: true })
+      if (error) throw new Error(`Group enrollment: ${error.message}`)
     }
 
-    // ── Step 7: enroll in course (student only) ──────────────
+    // ── Step 6: enroll in course (student only) ────────────────
     if (inv.course_id && inv.role === 'student') {
-      await admin.from('course_enrollments')
+      const { error } = await admin.from('course_enrollments')
         .upsert({
           course_id: inv.course_id,
           student_id: userId,
           tenant_id: inv.tenant_id,
         }, { onConflict: 'course_id,student_id', ignoreDuplicates: true })
+      if (error) throw new Error(`Course enrollment: ${error.message}`)
     }
 
     return NextResponse.json({ email: cleanEmail })
 
   } catch (err) {
-    // Rollback: delete the auth user so the email can be used again
+    // Rollback: delete the auth user so the email can be used again.
+    // If a public slot was consumed before a later enrollment failed, the slot
+    // remains consumed rather than risking over-redemption; the invitation's
+    // configured cap is a security boundary, not a best-effort counter.
     await admin.auth.admin.deleteUser(userId).catch(e =>
       console.error('[accept-invitation] ROLLBACK FAILED — orphaned user:', userId, e)
     )
-    const detail = err instanceof Error ? err.message : String(err)
-    console.error('[accept-invitation] error after auth user created:', detail)
+    if (err instanceof Error && err.message === 'INVITATION_UNAVAILABLE') {
+      return NextResponse.json(
+        { error: 'This invitation link has reached its maximum number of uses or has expired.' },
+        { status: 410 }
+      )
+    }
+    console.error('[accept-invitation] error after auth user created:', err)
     return NextResponse.json(
       { error: 'Registration failed. Please try again or contact support.' },
       { status: 500 }
     )
   }
  } catch (outer) {
-    // Any unhandled error in steps 1-3 (before the auth user is created) lands here.
-    // Without this, the route would return a 500 HTML page and the client would
-    // show its generic "Registration failed" fallback, hiding the real cause.
-    const detail = outer instanceof Error ? outer.message : String(outer)
-    console.error('[accept-invitation] unhandled error:', detail)
+    console.error('[accept-invitation] unhandled error:', outer)
     return NextResponse.json(
       { error: 'Registration failed due to a server error. Please try again or contact support.' },
       { status: 500 }
