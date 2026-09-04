@@ -4,7 +4,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
 import { getAiRateLimits } from '@/lib/settings'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 // Generates homework questions STRICTLY from teacher-uploaded material.
 // The teacher picks the question types (mcq / true_false / essay), the
