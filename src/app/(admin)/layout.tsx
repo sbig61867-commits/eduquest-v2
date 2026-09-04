@@ -9,6 +9,8 @@ const navItems = [
   { label: 'Students',    href: '/admin/students',     icon: 'Users' as const },
   { label: 'Groups',      href: '/admin/groups',       icon: 'Layers' as const },
   { label: 'Courses',     href: '/admin/courses',      icon: 'BookOpen' as const },
+  { label: 'Lessons',     href: '/admin/lessons',      icon: 'BookOpen' as const },
+  { label: 'Exams',       href: '/admin/exams',        icon: 'ClipboardList' as const },
   { label: 'Archive',     href: '/admin/archive',      icon: 'Archive' as const },
   { label: 'Invitations', href: '/admin/invitations',  icon: 'Mail' as const },
   { label: 'Settings',    href: '/admin/settings',     icon: 'Settings' as const },
