@@ -10,10 +10,10 @@
 --    other users' rate-limit keys and windows.
 -- 4. Public invitation max_uses was check-then-increment, allowing concurrent
 --    redemptions to exceed the configured cap.
+-- 5. Legacy public tables in the connected Supabase project were left with
+--    permissive `true` policies while RLS was disabled.
 
 -- ── 1. Lock down admin-only archive RPCs ──────────────────────────
--- The application invokes these with the service-role client after doing the
--- ownership check in the API route. They do not need to be Data API-callable.
 REVOKE EXECUTE ON FUNCTION public.soft_delete_entity(TEXT, UUID, UUID, UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.soft_delete_entity(TEXT, UUID, UUID, UUID) TO service_role;
 
@@ -95,15 +95,10 @@ REVOKE EXECUTE ON FUNCTION public.get_tenant_archive(UUID, INTEGER) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_tenant_archive(UUID, INTEGER) TO authenticated;
 
 -- ── 2. Rate limiter is server-only ────────────────────────────────
--- rateLimit() always uses the service-role client. Exposing the primitive RPC
--- to browser sessions lets users manipulate arbitrary limiter keys.
 REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INT, INT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INT, INT) TO service_role;
 
 -- ── 3. Atomic public-invitation redemption ─────────────────────────
--- A public invitation's use_count must be incremented under a row lock, before
--- the account is created. This prevents two concurrent requests from both
--- consuming the final available slot.
 CREATE OR REPLACE FUNCTION public.redeem_public_invitation(p_invitation_id UUID)
 RETURNS TABLE (
   id UUID,
@@ -141,5 +136,50 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.redeem_public_invitation(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.redeem_public_invitation(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.redeem_public_invitation(UUID) TO service_role;
+
+-- ── 4. Quarantine legacy tables in the connected Supabase project ──
+-- These tables are not referenced by the current eduquest-v2 codebase. They
+-- currently contain historical rows and had permissive `USING (true)` policies
+-- while RLS was disabled, making them directly readable/writable via PostgREST.
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'attendance', 'feature_flags', 'grades', 'messages',
+    'questions', 'security_events', 'system_logs'
+  ] LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC, anon, authenticated', t);
+    EXECUTE format('GRANT ALL ON TABLE public.%I TO service_role', t);
+  END LOOP;
+END;
+$$;
+
+-- Remove the old catch-all policies. RLS remains enabled with no browser policy;
+-- server-side service_role access is preserved for the current application.
+DO $$
+DECLARE
+  p RECORD;
+BEGIN
+  FOR p IN
+    SELECT schemaname, tablename, policyname
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename IN ('attendance', 'feature_flags', 'grades', 'messages', 'questions', 'security_events', 'system_logs')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', p.policyname, p.tablename);
+  END LOOP;
+END;
+$$;
+
+-- Legacy SECURITY DEFINER helpers are not used by eduquest-v2. Keep them out of
+-- the Data API while retaining service_role access for any controlled migration.
+REVOKE EXECUTE ON FUNCTION public.current_profile() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.current_profile() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.is_platform_admin() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_platform_admin() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.same_institution(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.same_institution(UUID) TO service_role;
