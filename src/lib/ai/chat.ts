@@ -4,7 +4,7 @@ import { groqChat } from './groq'
 // ── Unified AI chat with provider fallback ────────────────────────
 // Tries providers in order and moves to the next on any error (quota
 // exhausted, outage, etc.), so no single free tier is a point of failure:
-//   Groq → Cerebras → Gemini → OpenRouter
+//   Groq → Cohere → Gemini → OpenRouter
 // A provider is skipped when its key is missing or still a placeholder,
 // so new providers activate simply by adding their env var.
 
@@ -25,6 +25,7 @@ async function openAiCompatChat(opts: {
   prompt: string
   systemPrompt?: string
   headers?: Record<string, string>
+  temperature?: number
 }): Promise<string> {
   const res = await fetch(opts.url, {
     method: 'POST',
@@ -40,7 +41,7 @@ async function openAiCompatChat(opts: {
         ...(opts.systemPrompt ? [{ role: 'system', content: opts.systemPrompt }] : []),
         { role: 'user', content: opts.prompt },
       ],
-      temperature: 0.7,
+      temperature: opts.temperature ?? 0.7,
       max_tokens: 4096,
     }),
   })
@@ -51,18 +52,23 @@ async function openAiCompatChat(opts: {
   return content
 }
 
-function cerebrasChat(prompt: string, systemPrompt?: string): Promise<string> {
+// Cerebras dropped from the chain 2026-09-04 — free trial credit ran out and
+// the account now returns 402 "Payment required", which the owner does not
+// want to fix by adding billing (every provider here must stay free). See
+// [[ai-provider-chain]] memory. Replaced by Cohere below, in the same slot.
+function cohereChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   return openAiCompatChat({
-    url: 'https://api.cerebras.ai/v1/chat/completions',
-    apiKey: process.env.CEREBRAS_API_KEY!,
-    // Cerebras free tier no longer serves Llama 3.3; gpt-oss-120b is the
-    // strongest model on offer (verified live 2026-07-04).
-    model: 'gpt-oss-120b',
-    prompt, systemPrompt,
+    url: 'https://api.cohere.com/compatibility/v1/chat/completions',
+    apiKey: process.env.COHERE_API_KEY!,
+    // Cohere's flagship general-purpose model, OpenAI-compatible endpoint —
+    // verified live 2026-09-04 (command-r-plus was retired by Cohere
+    // 2025-09-15; the /v1/models list is the source of truth if this drifts).
+    model: 'command-a-03-2025',
+    prompt, systemPrompt, temperature,
   })
 }
 
-function openRouterChat(prompt: string, systemPrompt?: string): Promise<string> {
+function openRouterChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   return openAiCompatChat({
     url: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: process.env.OPENROUTER_API_KEY!,
@@ -77,18 +83,19 @@ function openRouterChat(prompt: string, systemPrompt?: string): Promise<string> 
       'nvidia/nemotron-3-super-120b-a12b:free',
       'minimax/minimax-m3:free',
     ],
-    prompt, systemPrompt,
+    prompt, systemPrompt, temperature,
     headers: { 'X-Title': 'EduQuest' },
   })
 }
 
-async function geminiChat(prompt: string, systemPrompt?: string): Promise<string> {
+async function geminiChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
   // current stable free-tier model, verified live.
   const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!).getGenerativeModel({
     model: 'gemini-2.5-flash',
     ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
+    ...(temperature != null ? { generationConfig: { temperature } } : {}),
   })
   const result = await model.generateContent(prompt)
   const text = result.response.text()
@@ -96,15 +103,24 @@ async function geminiChat(prompt: string, systemPrompt?: string): Promise<string
   return text
 }
 
+export interface AiChatOptions {
+  /** Lower (e.g. 0.2-0.3) for strict source-grounded generation where
+   * hallucination/invention is unacceptable; omit for the 0.7 default
+   * (creative prose like lesson content). */
+  temperature?: number
+}
+
 export async function aiChatDetailed(
   prompt: string,
-  systemPrompt?: string
+  systemPrompt?: string,
+  options?: AiChatOptions
 ): Promise<{ content: string; provider: string }> {
+  const temperature = options?.temperature
   const legs: Array<[string, () => Promise<string>]> = []
-  if (hasKey('GROQ_API_KEY')) legs.push(['groq', () => groqChat(prompt, systemPrompt)])
-  if (hasKey('CEREBRAS_API_KEY')) legs.push(['cerebras', () => cerebrasChat(prompt, systemPrompt)])
-  if (hasKey('GEMINI_API_KEY')) legs.push(['gemini', () => geminiChat(prompt, systemPrompt)])
-  if (hasKey('OPENROUTER_API_KEY')) legs.push(['openrouter', () => openRouterChat(prompt, systemPrompt)])
+  if (hasKey('GROQ_API_KEY')) legs.push(['groq', () => groqChat(prompt, systemPrompt, temperature ?? 0.7)])
+  if (hasKey('COHERE_API_KEY')) legs.push(['cohere', () => cohereChat(prompt, systemPrompt, temperature)])
+  if (hasKey('GEMINI_API_KEY')) legs.push(['gemini', () => geminiChat(prompt, systemPrompt, temperature)])
+  if (hasKey('OPENROUTER_API_KEY')) legs.push(['openrouter', () => openRouterChat(prompt, systemPrompt, temperature)])
 
   if (legs.length === 0) throw new Error('No AI provider configured')
 
@@ -131,8 +147,8 @@ export async function aiChatDetailed(
   throw lastError
 }
 
-export async function aiChat(prompt: string, systemPrompt?: string): Promise<string> {
-  return (await aiChatDetailed(prompt, systemPrompt)).content
+export async function aiChat(prompt: string, systemPrompt?: string, options?: AiChatOptions): Promise<string> {
+  return (await aiChatDetailed(prompt, systemPrompt, options)).content
 }
 
 // ── Shared lesson prompt (single source — was duplicated per provider) ──

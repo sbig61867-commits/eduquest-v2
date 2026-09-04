@@ -1,6 +1,6 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
-export async function groqChat(prompt: string, systemPrompt?: string): Promise<string> {
+export async function groqChat(prompt: string, systemPrompt?: string, temperature = 0.7): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey || apiKey === 'your_groq_api_key_here') {
     throw new Error('GROQ_API_KEY not configured')
@@ -20,7 +20,7 @@ export async function groqChat(prompt: string, systemPrompt?: string): Promise<s
         ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
         { role: 'user', content: prompt },
       ],
-      temperature: 0.7,
+      temperature,
       max_tokens: 4096,
     }),
   })

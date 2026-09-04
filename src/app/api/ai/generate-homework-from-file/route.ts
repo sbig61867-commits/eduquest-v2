@@ -40,6 +40,41 @@ function normalizeQ(text: string): string {
   return text.toLowerCase().replace(/[.,!؟?،:'"()\-ــ_]/g, '').replace(/\s+/g, ' ').trim()
 }
 
+// ── Grounding safety net ──────────────────────────────────────────
+// A free-tier model occasionally ignores the "source only" instruction
+// entirely and answers from its own training data instead — observed live:
+// 10 files of an English-language course produced biology/physics trivia
+// questions with zero connection to the uploaded material. The strict-JSON
+// validation above only checks question SHAPE, not whether its CONTENT
+// actually came from the source, so a fully-formed but hallucinated
+// question sailed straight through. This is a cheap, non-AI heuristic
+// safety net: a question genuinely written from the source material must
+// share at least a couple of its distinctive words with it — one that
+// shares none almost certainly wasn't.
+const STOPWORDS = new Set([
+  'this', 'that', 'these', 'those', 'with', 'from', 'what', 'which', 'when',
+  'where', 'true', 'false', 'about', 'have', 'their', 'there', 'would',
+  'could', 'should', 'into', 'your', 'they', 'them', 'then', 'than',
+  'هذا', 'هذه', 'ذلك', 'التي', 'الذي', 'الذين', 'كان', 'كانت', 'وهو',
+  'وهي', 'على', 'الى', 'إلى', 'من', 'في', 'عن', 'مع', 'بين', 'كل',
+])
+
+function significantWords(text: string): Set<string> {
+  const words = text.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? []
+  return new Set(words.filter(w => !STOPWORDS.has(w)))
+}
+
+function isGrounded(question: GeneratedQuestion, sourceVocab: Set<string>): boolean {
+  const qWords = significantWords([question.text, ...question.options].join(' '))
+  if (qWords.size === 0) return true // too short to judge either way (e.g. "True or false?")
+  let shared = 0
+  for (const w of qWords) if (sourceVocab.has(w)) shared++
+  // Short/rephrased questions can legitimately share only one distinctive
+  // term (e.g. a single vocabulary word being tested) — require just 1,
+  // but reject the zero-overlap case that catches full hallucination.
+  return shared >= 1
+}
+
 function validate(raw: unknown, allowed: Set<string>): GeneratedQuestion[] {
   if (!Array.isArray(raw)) throw new Error('AI did not return an array')
   const out: GeneratedQuestion[] = []
@@ -122,6 +157,8 @@ export async function POST(request: Request) {
 
 STRICT RULES:
 - Every question MUST be answerable using ONLY the source material below. Do not use outside knowledge, do not invent facts.
+- Read the source material's actual subject first. Every question must be about THAT subject — e.g. if the source is an English-language course, do not write questions about biology, physics, history, or any other unrelated subject. If you find yourself writing a question that does not quote or directly reference something literally present in the source text below, do not write it.
+- If the source material is too short or repetitive to produce ${n} truly unique questions from, generate FEWER questions instead of inventing unrelated content to reach the count.
 - Use the SAME language as the source material.
 - Generate exactly ${n} questions, using ONLY these types: ${typeList}. Mix the allowed types naturally.
 - EVERY question must be UNIQUE — never ask the same thing twice. If the material is small and you must revisit the same point, change the FORMAT (e.g. ask it as multiple choice once and as true/false or essay the other time) and change the angle.${avoidBlock}
@@ -139,9 +176,11 @@ STRICT RULES:
 ${sourceText.slice(0, 30000)}`
   }
 
+  const sourceVocab = significantWords(sourceText)
+
   try {
     // Batched generation, run through the generic aiChat() fallback chain —
-    // Groq/Cerebras/OpenRouter are all capped at max_tokens=4096 in chat.ts.
+    // Groq/Cohere/OpenRouter are all capped at max_tokens=4096 in chat.ts.
     // A batch of 30 full MCQ/JSON questions routinely exceeds that (verified
     // live: most rounds returned a 200 with the array truncated mid-object),
     // which silently produced 0 usable questions per round while still
@@ -165,7 +204,8 @@ ${sourceText.slice(0, 30000)}`
       const need = Math.min(count - collected.length, BATCH)
       const content = await aiChat(
         buildPrompt(need, [...priorTexts, ...collected.map(q => q.text)]),
-        'Return only valid JSON arrays, no markdown, no explanations.'
+        'Return only valid JSON arrays, no markdown, no explanations.',
+        { temperature: 0.3 } // strict source-grounding, not creative writing
       )
       const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
       const match = text.match(/\[[\s\S]*\]/)
@@ -182,6 +222,10 @@ ${sourceText.slice(0, 30000)}`
       for (const q of validate(parsed, allowed)) {
         const key = normalizeQ(q.text)
         if (seen.has(key)) continue
+        if (!isGrounded(q, sourceVocab)) {
+          console.error('[generate-homework-from-file] rejected ungrounded question:', q.text.slice(0, 120))
+          continue
+        }
         seen.add(key)
         q.id = `${Date.now()}-${collected.length}`
         collected.push(q)
