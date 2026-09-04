@@ -140,10 +140,16 @@ ${sourceText.slice(0, 30000)}`
   }
 
   try {
-    // Batched generation: the model's output window fits ~30 JSON questions
-    // per call, so large requests (monthly exam, 100+ questions) run in
-    // batches of ≤30 with dedup across batches, plus retry headroom.
-    const BATCH = 30
+    // Batched generation, run through the generic aiChat() fallback chain —
+    // Groq/Cerebras/OpenRouter are all capped at max_tokens=4096 in chat.ts.
+    // A batch of 30 full MCQ/JSON questions routinely exceeds that (verified
+    // live: most rounds returned a 200 with the array truncated mid-object),
+    // which silently produced 0 usable questions per round while still
+    // burning the per-minute token budget and the per-hour request quota —
+    // surfacing to teachers as "generated way fewer than requested" and,
+    // after a couple of retries, "rate limit exceeded". 15 reliably fits
+    // under 4096 tokens even for verbose questions.
+    const BATCH = 15
     const maxRounds = Math.ceil(count / BATCH) + 2
     const seen = new Set<string>()
     const collected: GeneratedQuestion[] = []
