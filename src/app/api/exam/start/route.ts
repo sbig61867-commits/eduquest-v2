@@ -65,7 +65,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The exam window has closed.' }, { status: 403 })
   }
 
-  const { data: result, error } = await supabase.rpc('start_exam_attempt', {
+  // Via the service-role client so EXECUTE can be revoked from anon/authenticated
+  // (see supabase migration): a student cannot start/spoof an attempt for another
+  // student_id or an arbitrary tenant_id by calling the RPC directly.
+  const { data: result, error } = await adminClient().rpc('start_exam_attempt', {
     p_exam_id: examId,
     p_student_id: user.id,
     p_tenant_id: exam.tenant_id,

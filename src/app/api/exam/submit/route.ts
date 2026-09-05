@@ -73,7 +73,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
   }
 
-  // Grade server-side using correct_answer from DB — never from client
+  // Grade server-side using correct_answer from DB — never from client.
+  // NOTE: finalize_exam_submission recomputes this same score in-DB and IGNORES
+  // p_score (see supabase/rpc_execute_lockdown_migration.sql) — the DB is the
+  // authority. This stays as graceful degradation: if that migration were ever
+  // rolled back, the RPC would fall back to trusting p_score and would still
+  // receive a correct, server-computed value rather than a forgeable one.
   const questions: Array<{ id: string; correct_answer: string; points: number }> =
     exam.questions ?? []
 
@@ -101,9 +106,17 @@ export async function POST(request: Request) {
   // Finalize atomically in the DB: this enforces the exam window + per-attempt
   // duration (from the server-recorded start time), locks against re-submission,
   // merges server + client proctoring events, and writes the authoritative grade —
-  // all in one transaction. Grading itself stays server-side (above); the RPC only
-  // persists the already-computed score so the client can never forge it.
-  const { data: result, error: rpcError } = await supabase.rpc('finalize_exam_submission', {
+  // all in one transaction.
+  //
+  // Grade forgery is closed by two independent layers (defence in depth):
+  //   1. The RPC recomputes the score in-DB from the stored correct_answer and
+  //      ignores p_score entirely — forging a score is structurally impossible,
+  //      regardless of who calls the function or how grants are configured.
+  //   2. EXECUTE is revoked from anon/authenticated, so the RPC is reachable only
+  //      through this service-role call from trusted server code — closing the
+  //      direct POST /rest/v1/rpc/finalize_exam_submission path.
+  // Both layers live in supabase/rpc_execute_lockdown_migration.sql.
+  const { data: result, error: rpcError } = await adminClient().rpc('finalize_exam_submission', {
     p_exam_id: examId,
     p_student_id: user.id,
     p_answers: answers,

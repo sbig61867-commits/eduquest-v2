@@ -80,7 +80,8 @@ export async function POST(request: Request) {
   }
 
   // Link the stored image to a proctoring event (in_progress attempts only).
-  await supabase.rpc('append_proctoring_events', {
+  // Service-role client so EXECUTE can be revoked from anon/authenticated (see migration).
+  await admin.rpc('append_proctoring_events', {
     p_exam_id: examId,
     p_student_id: user.id,
     p_events: [{
