@@ -50,6 +50,13 @@ export async function POST(request: Request) {
   const title = String(body.title ?? '').trim()
   if (!title) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
 
+  if (body.link_url) {
+    const scheme = String(body.link_url).trim().toLowerCase()
+    if (!scheme.startsWith('https://') && !scheme.startsWith('http://')) {
+      return NextResponse.json({ error: 'رابط الزر يجب أن يبدأ بـ https:// أو http://' }, { status: 400 })
+    }
+  }
+
   const audience = body.audience === 'groups' ? 'groups' : 'all'
   const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : []
 
@@ -112,6 +119,12 @@ export async function PATCH(request: Request) {
     const t = String(body.title).trim()
     if (!t) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
     update.title = t
+  }
+  if (body.link_url !== undefined && body.link_url) {
+    const scheme = String(body.link_url).trim().toLowerCase()
+    if (!scheme.startsWith('https://') && !scheme.startsWith('http://')) {
+      return NextResponse.json({ error: 'رابط الزر يجب أن يبدأ بـ https:// أو http://' }, { status: 400 })
+    }
   }
   for (const f of ['body', 'image_url', 'link_url', 'cta_label'] as const) {
     if (body[f] !== undefined) update[f] = body[f] ? String(body[f]) : null

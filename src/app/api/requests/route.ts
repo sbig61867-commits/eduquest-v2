@@ -16,6 +16,16 @@ function adminClient() {
 const REQUEST_TYPES = ['grade_sheet', 'report', 'general'] as const
 const STATUSES = ['pending', 'accepted', 'rejected', 'completed', 'cancelled'] as const
 
+// State machine: which transitions are valid and who may make them.
+// sender  = from_user_id  (teacher who opened the request)
+// recipient = to_user_id  (admin)
+const ALLOWED_TRANSITIONS: Record<string, { allowedBy: 'sender' | 'recipient' | 'either'; from: string[] }> = {
+  cancelled:  { allowedBy: 'sender',    from: ['pending', 'accepted'] },
+  accepted:   { allowedBy: 'recipient', from: ['pending'] },
+  rejected:   { allowedBy: 'recipient', from: ['pending'] },
+  completed:  { allowedBy: 'either',    from: ['accepted'] },
+}
+
 async function getProfile(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase.from('users').select('role, tenant_id').eq('id', userId).single()
   return data
@@ -117,13 +127,33 @@ export async function PATCH(request: Request) {
 
   const admin = adminClient()
   const { data: req } = await admin
-    .from('staff_requests').select('id, tenant_id, from_user_id, to_user_id').eq('id', id).single()
+    .from('staff_requests').select('id, tenant_id, from_user_id, to_user_id, status').eq('id', id).single()
   if (!req || req.tenant_id !== profile.tenant_id) {
     return NextResponse.json({ error: 'الطلب غير موجود' }, { status: 404 })
   }
   const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
   if (!isParticipant && profile.role !== 'university_admin' && profile.role !== 'super_admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Validate state machine: check valid from-state and who may make this transition.
+  const transition = ALLOWED_TRANSITIONS[status]
+  if (!transition) {
+    return NextResponse.json({ error: 'الانتقال إلى هذه الحالة غير مسموح' }, { status: 400 })
+  }
+  if (!transition.from.includes(req.status)) {
+    return NextResponse.json({ error: `لا يمكن تغيير حالة الطلب من ${req.status} إلى ${status}` }, { status: 409 })
+  }
+  const isSender    = req.from_user_id === user.id
+  const isRecipient = req.to_user_id   === user.id
+  const isSuperAdmin = profile.role === 'super_admin'
+  if (
+    !isSuperAdmin &&
+    transition.allowedBy === 'sender'    && !isSender    ||
+    !isSuperAdmin &&
+    transition.allowedBy === 'recipient' && !isRecipient
+  ) {
+    return NextResponse.json({ error: 'ليس لديك صلاحية هذا الإجراء على الطلب' }, { status: 403 })
   }
 
   const { error } = await admin
