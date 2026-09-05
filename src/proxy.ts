@@ -19,6 +19,7 @@ function isPublicRoute(pathname: string): boolean {
 const ROLE_ROUTES: Record<string, Role[]> = {
   '/super-admin': ['super_admin'],
   '/admin': ['university_admin'],
+  '/center': ['center_manager'],
   '/teacher': ['teacher'],
   '/student': ['student'],
 }
@@ -26,6 +27,7 @@ const ROLE_ROUTES: Record<string, Role[]> = {
 const ROLE_DASHBOARDS: Record<Role, string> = {
   super_admin: '/super-admin/dashboard',
   university_admin: '/admin/dashboard',
+  center_manager: '/center/dashboard',
   teacher: '/teacher/dashboard',
   student: '/student/dashboard',
 }

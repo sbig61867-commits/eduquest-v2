@@ -17,9 +17,9 @@ interface ExamRow {
   is_published: boolean
   proctoring_enabled: boolean
   created_at: string
-  teacher: { full_name: string | null } | null
-  groups: { name: string } | null
-  exam_submissions: { count: number }[]
+  teacher_name: string | null
+  group_name: string | null
+  submission_count: number
 }
 
 const isHomework = (e: ExamRow) =>
@@ -62,13 +62,13 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{exam.teacher?.full_name ?? '—'}</td>
+              <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{exam.teacher_name ?? '—'}</td>
               <td className="px-5 py-4 hidden lg:table-cell">
                 <span className="text-slate-300 text-sm flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-slate-500" />{exam.groups?.name ?? '—'}
+                  <Users className="w-3.5 h-3.5 text-slate-500" />{exam.group_name ?? '—'}
                 </span>
               </td>
-              <td className="px-5 py-4 text-slate-300 text-sm">{exam.exam_submissions?.[0]?.count ?? 0}</td>
+              <td className="px-5 py-4 text-slate-300 text-sm">{exam.submission_count ?? 0}</td>
               <td className="px-5 py-4">
                 {exam.is_published ? (
                   <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
@@ -94,22 +94,12 @@ export default async function AdminExamsPage() {
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { data: raw } = await supabase
-    .from('exams')
-    .select(`
-      id, title, type, duration_minutes, is_published, proctoring_enabled, created_at,
-      teacher:users!exams_teacher_id_fkey(full_name),
-      groups(name),
-      exam_submissions(count)
-    `)
-    .eq('tenant_id', user.tenant_id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  const { data: raw } = await supabase.rpc('get_admin_exams')
 
   const all = (raw ?? []) as unknown as ExamRow[]
   const homework = all.filter(isHomework)
   const exams = all.filter(e => !isHomework(e))
-  const submissions = all.reduce((s, e) => s + (e.exam_submissions?.[0]?.count ?? 0), 0)
+  const submissions = all.reduce((s, e) => s + (e.submission_count ?? 0), 0)
 
   return (
     <div className="space-y-6">

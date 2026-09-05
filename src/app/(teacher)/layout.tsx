@@ -11,6 +11,8 @@ const navItems = [
   { label: 'Exams',       href: '/teacher/exams',       icon: 'ClipboardList' as const },
   { label: 'Grades',      href: '/teacher/grades',      icon: 'BarChart2' as const },
   { label: 'Proctoring',  href: '/teacher/proctoring',  icon: 'ShieldCheck' as const },
+  { label: 'Schedule',    href: '/teacher/schedule',    icon: 'CalendarDays' as const },
+  { label: 'Requests',    href: '/teacher/requests',    icon: 'Inbox' as const },
   { label: 'Invitations', href: '/teacher/invitations', icon: 'Mail' as const },
 ]
 

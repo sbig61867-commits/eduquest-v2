@@ -103,48 +103,34 @@ export async function POST(request: Request) {
   const userId = authData.user.id
 
   try {
-    // ── Step 4: create user profile ───────────────────────────
-    const { error: profileErr } = await admin.from('users').upsert({
-      id:        userId,
-      email:     cleanEmail,
-      full_name: fullName.trim(),
-      role:      inv.role,
-      tenant_id: inv.tenant_id,
-      is_active: true,
-    }, { onConflict: 'id' })
+    // ── Steps 4-7, atomically: the earlier SELECT (above) was only a
+    // fail-fast/email-match check and is NOT race-safe on its own — two
+    // concurrent accepts of a multi-use link could both pass it before
+    // either write happened. `accept_invitation` re-validates status/expiry/
+    // max_uses under `SELECT ... FOR UPDATE` in one transaction, then sets
+    // role/tenant/full_name on the (trigger-created) profile row, marks the
+    // invitation used, and enrolls the student in the group/course — so a
+    // link capped at N uses can never admit more than N under concurrency.
+    const { error: rpcErr } = await admin.rpc('accept_invitation', {
+      p_token: token,
+      p_user_id: userId,
+      p_full_name: fullName.trim(),
+    })
 
-    if (profileErr) throw new Error(`Profile: ${profileErr.message}`)
-
-    // ── Step 5: mark invitation as used ──────────────────────
-    if (inv.is_public) {
-      const newCount = (inv.use_count ?? 0) + 1
-      const newStatus = inv.max_uses != null && newCount >= inv.max_uses ? 'revoked' : 'pending'
-      await admin.from('invitations').update({
-        use_count: newCount,
-        status: newStatus,
-      }).eq('id', inv.id)
-    } else {
-      await admin.from('invitations').update({
-        status:      'accepted',
-        accepted_at: new Date().toISOString(),
-        accepted_by: userId,
-      }).eq('id', inv.id)
-    }
-
-    // ── Step 6: enroll in group (student only) ───────────────
-    if (inv.group_id && inv.role === 'student') {
-      await admin.from('group_students')
-        .upsert({ group_id: inv.group_id, student_id: userId }, { onConflict: 'group_id,student_id', ignoreDuplicates: true })
-    }
-
-    // ── Step 7: enroll in course (student only) ──────────────
-    if (inv.course_id && inv.role === 'student') {
-      await admin.from('course_enrollments')
-        .upsert({
-          course_id: inv.course_id,
-          student_id: userId,
-          tenant_id: inv.tenant_id,
-        }, { onConflict: 'course_id,student_id', ignoreDuplicates: true })
+    if (rpcErr) {
+      const code = rpcErr.message ?? ''
+      if (code.includes('INVITATION_INVALID_OR_EXPIRED')) {
+        // Someone else consumed the last use (or it expired) between our
+        // fail-fast check and this atomic accept — not a server error.
+        await admin.auth.admin.deleteUser(userId).catch(e =>
+          console.error('[accept-invitation] ROLLBACK FAILED — orphaned user:', userId, e)
+        )
+        return NextResponse.json(
+          { error: 'This invitation link is invalid, expired, or has reached its maximum number of uses.' },
+          { status: 410 }
+        )
+      }
+      throw new Error(`accept_invitation: ${rpcErr.message}`)
     }
 
     return NextResponse.json({ email: cleanEmail })

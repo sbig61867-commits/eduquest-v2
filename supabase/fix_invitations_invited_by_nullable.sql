@@ -1,0 +1,31 @@
+-- ============================================================
+-- Fix: invitations.invited_by NOT NULL conflicts with its own FK action
+-- ============================================================
+-- Discovered 2026-09-03 while deleting test users: deleting any user who
+-- had ever created an invitation threw
+--   ERROR 23502: null value in column "invited_by" of relation
+--   "invitations" violates not-null constraint
+--
+-- Root cause: the FK on invited_by is `ON DELETE SET NULL`, added
+-- specifically to preserve the invitation as an audit record after the
+-- inviter's account is gone (see fixes_migration.sql: "invited_by CASCADE
+-- -> SET NULL (audit record preservation)"). But the column itself is
+-- NOT NULL on production, which makes that SET NULL action impossible to
+-- ever complete — the two constraints directly contradict each other, and
+-- ANY deletion of a user who created an invitation fails, not just this
+-- one-off cleanup.
+--
+-- Fix: drop the NOT NULL constraint so the FK's documented intent (keep
+-- the invitation row, blank the audit field) can actually happen. This does
+-- NOT weaken who is allowed to create an invitation with a null invited_by
+-- — invitations_insert_hardening_migration.sql's WITH CHECK clause already
+-- forces `invited_by = auth.uid()` on every INSERT, so it is only ever null
+-- after-the-fact, via this exact ON DELETE SET NULL path.
+--
+-- Idempotent — safe to re-run.
+
+ALTER TABLE invitations ALTER COLUMN invited_by DROP NOT NULL;
+
+-- Verify:
+-- SELECT column_name, is_nullable FROM information_schema.columns
+-- WHERE table_name = 'invitations' AND column_name = 'invited_by';

@@ -50,3 +50,8 @@ next-env.d.ts
 backups/
 
 .env*
+
+# Local scratch/debug scripts. These read SUPABASE_SERVICE_ROLE_KEY from
+# .env.local and may embed test credentials — never commit or deploy them.
+_tmp_*
+*.local.mjs

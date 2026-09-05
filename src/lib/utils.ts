@@ -10,6 +10,7 @@ export function getRoleDashboardPath(role: Role): string {
   const paths: Record<Role, string> = {
     super_admin: '/super-admin/dashboard',
     university_admin: '/admin/dashboard',
+    center_manager: '/center/dashboard',
     teacher: '/teacher/dashboard',
     student: '/student/dashboard',
   }
@@ -20,6 +21,7 @@ export function getRoleLabel(role: Role): string {
   const labels: Record<Role, string> = {
     super_admin: 'Super Admin',
     university_admin: 'University Admin',
+    center_manager: 'Centre Manager',
     teacher: 'Teacher',
     student: 'Student',
   }

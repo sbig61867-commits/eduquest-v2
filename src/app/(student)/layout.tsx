@@ -8,6 +8,7 @@ const navItems = [
   { label: 'My Lessons', href: '/student/lessons',  icon: 'BookOpen' as const },
   { label: 'My Courses', href: '/student/courses',  icon: 'Layers' as const },
   { label: 'Exams',      href: '/student/exams',    icon: 'ClipboardList' as const },
+  { label: 'Schedule',   href: '/student/schedule', icon: 'CalendarDays' as const },
   { label: 'Grades', href: '/student/grades', icon: 'BarChart2' as const },
   { label: 'Notifications', href: '/student/notifications', icon: 'Bell' as const },
   { label: 'Profile', href: '/student/profile', icon: 'GraduationCap' as const },

@@ -6,15 +6,17 @@ import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatDate } from '@/lib/utils'
 
-async function getStats(supabase: SupabaseClient, tenantId: string) {
-  const [{ count: teachers }, { count: students }, { count: lessons }, { count: exams }] =
-    await Promise.all([
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
-      supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-      supabase.from('exams').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-    ])
-  return { teachers: teachers ?? 0, students: students ?? 0, lessons: lessons ?? 0, exams: exams ?? 0 }
+// Lesson/exam figures come from the metadata-only admin feeds (the admin
+// has no direct RLS read on lessons/exams — that would expose content and
+// questions). Teacher/student counts stay on `users`, which the admin can read.
+interface AdminLessonMeta { id: string; title: string; created_at: string; is_published: boolean; teacher_name: string | null }
+
+async function getStats(supabase: SupabaseClient, tenantId: string, lessons: number, exams: number) {
+  const [{ count: teachers }, { count: students }] = await Promise.all([
+    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
+    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
+  ])
+  return { teachers: teachers ?? 0, students: students ?? 0, lessons, exams }
 }
 
 export default async function AdminDashboard() {
@@ -26,17 +28,15 @@ export default async function AdminDashboard() {
   const tenantId = user.tenant_id
   if (!tenantId) redirect('/login?error=no_tenant')
 
-  // Recent lessons stand in as the activity feed until a dedicated audit table exists
-  const [stats, { data: recentLessons }] = await Promise.all([
-    getStats(supabase, tenantId),
-    supabase
-      .from('lessons')
-      .select('id, title, created_at, is_published, users:teacher_id(full_name)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false })
-      .limit(5),
+  // Metadata-only admin feeds (no content / no questions). Recent lessons
+  // stand in as the activity feed until a dedicated audit table exists.
+  const [{ data: lessonRows }, { data: examRows }] = await Promise.all([
+    supabase.rpc('get_admin_lessons'),
+    supabase.rpc('get_admin_exams'),
   ])
-  const activity = (recentLessons ?? []) as unknown as Array<{ id: string; title: string; created_at: string; is_published: boolean; users: { full_name: string } | null }>
+  const allLessons = (lessonRows ?? []) as unknown as AdminLessonMeta[]
+  const stats = await getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length)
+  const activity = allLessons.slice(0, 5)
 
   const cards = [
     { label: 'Teachers', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -82,7 +82,7 @@ export default async function AdminDashboard() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-medium truncate">
-                    {a.users?.full_name ?? 'Teacher'} {a.is_published ? 'published' : 'created'} lesson “{a.title}”
+                    {a.teacher_name ?? 'Teacher'} {a.is_published ? 'published' : 'created'} lesson “{a.title}”
                   </p>
                   <p className="text-slate-500 text-xs">{formatDate(a.created_at)}</p>
                 </div>

@@ -5,17 +5,18 @@ import { redirect } from 'next/navigation'
 import { BookOpen, Eye, EyeOff, Users } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
-// Institution-wide lesson browser for university_admin. RLS already scopes
-// this to the admin's own tenant (lessons_select grants university_admin
-// their whole institution), and the explicit tenant_id filter is kept as
-// defence in depth.
+// Institution-wide lesson browser for university_admin. The admin is a
+// pure administrator: RLS no longer grants them direct row access to
+// lessons (that would expose lessons.content). Instead we read the
+// get_admin_lessons() SECURITY DEFINER feed, which returns metadata only
+// (title / teacher / group / status / date) — never the lesson body.
 interface LessonRow {
   id: string
   title: string
   is_published: boolean
   created_at: string
-  teacher: { full_name: string | null } | null
-  groups: { name: string } | null
+  teacher_name: string | null
+  group_name: string | null
 }
 
 export default async function AdminLessonsPage() {
@@ -23,12 +24,7 @@ export default async function AdminLessonsPage() {
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { data: raw } = await supabase
-    .from('lessons')
-    .select('id, title, is_published, created_at, teacher:users!lessons_teacher_id_fkey(full_name), groups(name)')
-    .eq('tenant_id', user.tenant_id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  const { data: raw } = await supabase.rpc('get_admin_lessons')
 
   const lessons = (raw ?? []) as unknown as LessonRow[]
   const published = lessons.filter(l => l.is_published).length
@@ -71,10 +67,10 @@ export default async function AdminLessonsPage() {
                       <p className="text-white text-sm font-medium">{lesson.title}</p>
                     </div>
                   </td>
-                  <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{lesson.teacher?.full_name ?? '—'}</td>
+                  <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{lesson.teacher_name ?? '—'}</td>
                   <td className="px-5 py-4 hidden lg:table-cell">
                     <span className="text-slate-300 text-sm flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-slate-500" />{lesson.groups?.name ?? '—'}
+                      <Users className="w-3.5 h-3.5 text-slate-500" />{lesson.group_name ?? '—'}
                     </span>
                   </td>
                   <td className="px-5 py-4">

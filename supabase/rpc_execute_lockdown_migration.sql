@@ -36,10 +36,6 @@
 --        evidence}). Running PART B before that deploy would break live exam
 --        submit/start/proctoring (old code calls them as `authenticated`).
 --
--- STATUS: both parts applied to the production project (ubngpsdzjoeqfxfbdtxc)
--- on 2026-09-05. Verified afterwards by impersonating `anon` and attempting the
--- original forged-score call — denied at the grant layer.
---
 -- Idempotent & re-runnable.
 -- ============================================================
 
@@ -248,46 +244,20 @@ REVOKE ALL ON FUNCTION public.get_course_progress(uuid, uuid)   FROM anon, PUBLI
 
 
 -- ════════════════════════════════════════════════════════════════════════════
---  PART B — requires the service-role-client code to be deployed FIRST
---
---  Applied to production 2026-09-05, after merge commit 3c4c9f9 (which routes
---  finalize / start / append through the service-role client) finished
---  deploying. On a FRESH environment this is safe to run together with PART A,
---  because the code that ships with this repo already calls all three RPCs via
---  the service-role client. Only an environment still running pre-3c4c9f9 code
---  must hold this back — there, these RPCs are still called as `authenticated`
---  and revoking would break exam start/submit/proctoring.
+--  PART B — apply ONLY AFTER the service-role-client code is deployed
+--  (Uncomment and run once the app change for these three is live in prod.)
 -- ════════════════════════════════════════════════════════════════════════════
-DO $$
-DECLARE
-  fn text;
-  server_only text[] := ARRAY[
-    'finalize_exam_submission(uuid, uuid, jsonb, jsonb, numeric, numeric)',
-    'start_exam_attempt(uuid, uuid, uuid)',
-    'append_proctoring_events(uuid, uuid, jsonb)'
-  ];
-BEGIN
-  FOREACH fn IN ARRAY server_only LOOP
-    EXECUTE format('REVOKE ALL ON FUNCTION public.%s FROM PUBLIC, anon, authenticated', fn);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO service_role', fn);
-  END LOOP;
-END $$;
-
-
--- ════════════════════════════════════════════════════════════════════════════
---  VERIFICATION — expected end state (run after applying)
--- ════════════════════════════════════════════════════════════════════════════
--- select p.proname,
---        has_function_privilege('anon',          p.oid, 'EXECUTE') as anon_can,
---        has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_can,
---        has_function_privilege('service_role',  p.oid, 'EXECUTE') as service_role_can
--- from pg_proc p join pg_namespace n on n.oid = p.pronamespace
--- where n.nspname = 'public' and p.proname in (
---   'finalize_exam_submission','start_exam_attempt','append_proctoring_events',
---   'soft_delete_entity','restore_entity','accept_invitation','get_invitation_by_token',
---   'check_rate_limit','check_email_in_auth','cleanup_expired_invitations',
---   'get_student_exams','get_tenant_archive','get_course_progress');
---
--- Expected: anon_can = false for ALL of them; authenticated_can = true ONLY for
--- get_student_exams / get_tenant_archive / get_course_progress (each of which
--- carries its own in-function authorization guard); service_role_can = true for all.
+-- DO $$
+-- DECLARE
+--   fn text;
+--   server_only text[] := ARRAY[
+--     'finalize_exam_submission(uuid, uuid, jsonb, jsonb, numeric, numeric)',
+--     'start_exam_attempt(uuid, uuid, uuid)',
+--     'append_proctoring_events(uuid, uuid, jsonb)'
+--   ];
+-- BEGIN
+--   FOREACH fn IN ARRAY server_only LOOP
+--     EXECUTE format('REVOKE ALL ON FUNCTION public.%s FROM PUBLIC, anon, authenticated', fn);
+--     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO service_role', fn);
+--   END LOOP;
+-- END $$;

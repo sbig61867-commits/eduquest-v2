@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { BookOpen, ClipboardList, BarChart2, Bell } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { SurveyCard } from '@/components/student/survey-card'
+import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
 interface GradeRow { id: string; score: number; max_score: number; exams: { title: string } | null }
@@ -20,7 +21,7 @@ export default async function StudentDashboard() {
     .eq('student_id', user?.id ?? '')
   const groupIds = (groupRows ?? []).map(r => r.group_id)
 
-  const [{ data: recentLessons, count: lessonCount }, { data: examRows }, { count: submissions }, { data: grades }] = await Promise.all([
+  const [{ data: recentLessons, count: lessonCount }, { data: examRows }, { count: submissions }, { data: grades }, { data: announcementRows }] = await Promise.all([
     groupIds.length === 0
       ? Promise.resolve({ data: [], count: 0 } as { data: LessonRow[]; count: number })
       : supabase
@@ -34,8 +35,12 @@ export default async function StudentDashboard() {
     supabase.rpc('get_student_exams'),
     supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''),
     supabase.from('grades').select('id, score, max_score, exams(title)').eq('student_id', user?.id ?? '').order('graded_at', { ascending: false }).limit(5),
+    // Students have no direct announcements SELECT; the RPC applies publication
+    // state, the date window and audience targeting server-side.
+    supabase.rpc('get_student_announcements'),
   ])
   const exams = (examRows ?? []).length
+  const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
 
   const cards = [
     { label: 'Available Lessons', value: lessonCount ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -53,6 +58,8 @@ export default async function StudentDashboard() {
         <h2 className="text-2xl font-bold text-white">My Dashboard</h2>
         <p className="text-slate-400 mt-1">Track your progress and upcoming activities</p>
       </div>
+
+      <AnnouncementsBanner announcements={announcements} />
 
       <SurveyCard />
 

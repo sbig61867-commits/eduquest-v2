@@ -15,10 +15,13 @@ function getAdminClient() {
 
 // Role ceiling: what roles each caller can invite
 const ROLE_CEILING: Record<string, string[]> = {
-  super_admin:      ['university_admin', 'teacher', 'student'],
-  university_admin: ['teacher', 'student'],
+  super_admin:      ['university_admin', 'center_manager', 'teacher', 'student'],
+  university_admin: ['center_manager', 'teacher', 'student'],
   teacher:          ['student'],
 }
+
+// Staff seats are never handed out as a shareable public link.
+const PRIVATE_ONLY_INVITE_ROLES = new Set(['university_admin', 'center_manager'])
 
 // Default expiry durations come from platform_settings ('invitation_defaults'),
 // editable by the super admin in /super-admin/settings, with hard-coded
@@ -114,10 +117,12 @@ export async function POST(request: Request) {
   }
 
   // ── Public link rules ────────────────────────────────────
-  // super_admin → university_admin must ALWAYS be email-specific (high privilege)
-  if (isPublic && caller.role === 'super_admin' && role === 'university_admin') {
+  // High-privilege staff roles must ALWAYS be email-specific, whoever invites:
+  // a shareable public link to an admin/centre-manager seat would let anyone
+  // holding the URL claim staff access to the tenant.
+  if (isPublic && PRIVATE_ONLY_INVITE_ROLES.has(role)) {
     return NextResponse.json(
-      { error: 'University Admin invitations must always be email-specific for security.' },
+      { error: 'Staff invitations (University Admin / Centre Manager) must always be email-specific for security.' },
       { status: 400 }
     )
   }

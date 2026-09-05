@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { GraduationCap, Layers, Users, Eye, EyeOff, BookOpen } from 'lucide-react'
+import { GraduationCap, Layers, Eye, EyeOff, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 // Structured courses (levels → units → items), which is a different thing

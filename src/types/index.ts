@@ -1,4 +1,4 @@
-export type Role = 'super_admin' | 'university_admin' | 'teacher' | 'student'
+export type Role = 'super_admin' | 'university_admin' | 'center_manager' | 'teacher' | 'student'
 
 export interface Tenant {
   id: string
@@ -18,6 +18,8 @@ export interface User {
   tenant_id: string | null
   is_active: boolean
   can_create_courses: boolean
+  /** Per-user capability flags — see src/lib/permissions.ts */
+  permissions?: Record<string, boolean>
   created_at: string
 }
 
@@ -98,7 +100,7 @@ export interface Invitation {
   id: string
   token: string
   email: string
-  role: 'university_admin' | 'teacher' | 'student'
+  role: 'university_admin' | 'center_manager' | 'teacher' | 'student'
   tenant_id: string
   group_id: string | null
   invited_by: string

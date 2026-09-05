@@ -13,10 +13,12 @@ interface Props {
 const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   super_admin:      [
     { value: 'university_admin', label: 'University Admin' },
+    { value: 'center_manager',   label: 'Centre Manager' },
     { value: 'teacher',          label: 'Teacher' },
     { value: 'student',          label: 'Student' },
   ],
   university_admin: [
+    { value: 'center_manager', label: 'Centre Manager' },
     { value: 'teacher', label: 'Teacher' },
     { value: 'student', label: 'Student' },
   ],
@@ -25,8 +27,9 @@ const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
-// Roles that MUST always use a private (email-specific) invitation
-const PRIVATE_ONLY_ROLES = new Set(['university_admin'])
+// Roles that MUST always use a private (email-specific) invitation.
+// Staff roles are never handed out as a shareable public link.
+const PRIVATE_ONLY_ROLES = new Set(['university_admin', 'center_manager'])
 
 const STATUS_COLORS: Record<string, string> = {
   pending:   'text-amber-400 bg-amber-400/10',

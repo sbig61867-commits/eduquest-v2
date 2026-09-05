@@ -6,6 +6,7 @@ const navItems = [
   { label: 'Dashboard',    href: '/super-admin/dashboard',    icon: 'LayoutDashboard' as const },
   { label: 'Tenants',      href: '/super-admin/tenants',      icon: 'Building2' as const },
   { label: 'All Users',    href: '/super-admin/users',        icon: 'Users' as const },
+  { label: 'Permissions',  href: '/super-admin/permissions',  icon: 'ShieldCheck' as const },
   { label: 'Invitations',  href: '/super-admin/invitations',  icon: 'Mail' as const },
   { label: 'Messages',     href: '/super-admin/messages',     icon: 'Inbox' as const },
   { label: 'Reports',      href: '/super-admin/reports',      icon: 'BarChart2' as const },

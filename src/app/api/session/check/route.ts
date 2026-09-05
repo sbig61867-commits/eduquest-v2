@@ -35,6 +35,16 @@ export async function GET() {
   if (!profile) return NextResponse.json({ ok: false, reason: 'user_deleted' })
   if (profile.is_active === false) return NextResponse.json({ ok: false, reason: 'user_disabled' })
 
+  // Catch a role change (e.g. teacher demoted to student): the JWT's
+  // app_metadata claim is stale until the access token naturally expires
+  // (~1h), which would otherwise let a demoted user keep acting under their
+  // old role for up to that long. Force a sign-out here instead so the next
+  // login mints a fresh JWT with the current role.
+  const claimedRole = (user.app_metadata?.user_role ?? user.app_metadata?.role) as string | undefined
+  if (claimedRole && claimedRole !== profile.role) {
+    return NextResponse.json({ ok: false, reason: 'role_changed' })
+  }
+
   // super_admin has no tenant to check.
   if (profile.role === 'super_admin' || !profile.tenant_id) {
     return NextResponse.json({ ok: true })
