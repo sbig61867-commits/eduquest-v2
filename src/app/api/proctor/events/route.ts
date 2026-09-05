@@ -85,7 +85,10 @@ export async function POST(request: Request) {
 
   // Reuse the existing atomic appender (jsonb concat, SECURITY DEFINER). It only
   // writes while status = 'in_progress', so post-submit batches are ignored.
-  const { error } = await supabase.rpc('append_proctoring_events', {
+  // Service-role client so EXECUTE can be revoked from anon/authenticated (see
+  // migration): the appender must not be reachable directly, or any user could
+  // inject fabricated proctoring events against another student's attempt.
+  const { error } = await adminClient().rpc('append_proctoring_events', {
     p_exam_id: examId,
     p_student_id: user.id,
     p_events: clean,

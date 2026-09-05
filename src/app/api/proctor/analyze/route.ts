@@ -119,7 +119,9 @@ faceVisible=false if no face. lookingAway=true if eyes not facing camera. multip
         details: analysis.description,
       }))
 
-      await supabase.rpc('append_proctoring_events', {
+      // Service-role client so EXECUTE can be revoked from anon/authenticated
+      // (see migration) — keeps the appender reachable only from trusted server code.
+      await adminClient().rpc('append_proctoring_events', {
         p_exam_id: examId,
         p_student_id: user.id,
         p_events: newEvents,
