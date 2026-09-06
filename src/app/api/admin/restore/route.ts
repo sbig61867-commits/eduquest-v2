@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   const { error } = await adminClient().rpc('restore_entity', {
-    p_kind: body.kind, p_id: body.id, p_tenant_id: profile.tenant_id,
+    p_kind: body.kind, p_id: body.id, p_tenant_id: profile.tenant_id, p_actor: user.id,
   })
   if (error) {
     console.error('[api/admin/restore]', error)
