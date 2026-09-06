@@ -172,6 +172,163 @@ risk.
 
 ---
 
+## 4b. Second pass — full RPC enumeration, service-role audit, storage, AI, LiveKit
+
+**Environment note:** see `ENVIRONMENT_IDENTITY_REPORT.md` — production currently
+has 0 tenants and 1 real user (the owner, super_admin). Cross-tenant adversarial
+testing against real data is `NOT TESTABLE` (no second tenant exists) and no
+test tenants were created (explicitly withheld by the project owner). The
+findings below come from full code/schema/live-grant inspection instead.
+
+### 4b.1 — CRITICAL (fixed): cross-tenant IDOR in `get_course_progress`
+**STATUS: VERIFIED FAIL → FIXED.** **SEVERITY: HIGH.**
+
+**Evidence:** `get_course_progress(p_course_id, p_student_id)` (SECURITY DEFINER,
+`authenticated`-executable) authorized the caller with:
+```sql
+IF NOT ( auth.uid() = p_student_id
+         OR current_user_role() IN ('teacher','university_admin','super_admin') )
+THEN RAISE EXCEPTION 'FORBIDDEN'; END IF;
+```
+The `teacher`/`university_admin` branch checked **role only**, never tenant
+ownership of `p_course_id` or `p_student_id`.
+
+**Impact:** any authenticated user with role `teacher` or `university_admin`,
+in *any* tenant, could call `/rest/v1/rpc/get_course_progress` directly with
+another tenant's `course_id`/`student_id` and receive that student's
+completed/total/percent progress — a cross-tenant data leak, violating the
+core multi-tenant invariant.
+
+**Fix (migration `fix_get_course_progress_cross_tenant_idor`, applied live):**
+replaced the function so the teacher/university_admin branch additionally
+requires `current_tenant_id() = <course's tenant_id> AND current_tenant_id()
+= <student's tenant_id>`. `super_admin` and self-access (`auth.uid() =
+p_student_id`) are unchanged.
+
+**Verification:** code-reviewed post-fix (logic re-read after `apply_migration`
+returned success). A live black-box exploit/re-exploit demonstration was
+**NOT TESTABLE** — it would require a second real tenant, which the project
+owner has not authorized creating. This is the honest limit of what could be
+proven without production data.
+
+### 4b.2 — Full RPC enumeration (27 functions, all audited)
+All 27 `public` schema functions are `SECURITY DEFINER`. Grants + bodies were
+read directly (not inferred from comments). Result:
+
+| Function | anon | authenticated | Tenant-scoped? | Verdict |
+|---|---|---|---|---|
+| `handle_new_user`, `sync_user_claims`, `cascade_tenant_active_status`, `deactivate_users_on_tenant_delete` | ✗ | ✗ | n/a (triggers) | Fixed earlier this session (4.1) |
+| `current_user_role`, `current_tenant_id`, `current_is_active`, `current_permissions`, `current_can_create_courses` | ✓ | ✓ | self (`auth.uid()`) only, no params | SAFE (verified) |
+| `get_student_exams`, `get_student_announcements`, `get_student_schedule` | ✗ | ✓ | yes, `auth.uid()`-derived tenant + membership | SAFE (verified — bodies read) |
+| `get_admin_exams`, `get_admin_lessons` | ✗ | ✓ | yes, `current_tenant_id()` + role check | SAFE (verified) |
+| `get_course_progress` | ✗ | ✓ | **was missing** | **FIXED (4b.1)** |
+| `get_tenant_archive` | ✗ | ✓ | yes, `p_tenant_id` gated by role+`current_tenant_id()` match | SAFE (verified) |
+| `finalize_exam_submission` | ✗ | ✗ (service_role only) | n/a — recomputes score server-side from `exams.questions`, ignores `p_score`/`p_max_score` params entirely | SAFE (verified — score forgery not possible via this path) |
+| `start_exam_attempt` | ✗ | ✗ (service_role only) | trusts `p_student_id`/`p_tenant_id` params with **no internal check** | Only caller is `/api/exam/start`, which derives both from the authenticated session + a server-side exam lookup (verified — client only supplies `examId`). **SAFE in current codebase, but the RPC itself has no defense-in-depth** — see REMEDIATION_PLAN.md item R-1. |
+| `soft_delete_entity`, `restore_entity` | ✗ | ✗ (service_role only) | trusts `p_tenant_id`/`p_actor` params with **no internal check** | Only callers are `/api/admin/restore` and `deleteEntity()` (4 call sites: lessons/exams/groups/homework routes) — all verified to derive `tenant_id` from the authenticated caller's own profile row and check entity ownership (`ownsLesson`/`ownsExam`/explicit teacher_id check) before calling. **SAFE in current codebase**, same defense-in-depth caveat as above — see R-1. |
+| `accept_invitation`, `get_invitation_by_token`, `check_email_in_auth`, `check_rate_limit`, `cleanup_expired_invitations`, `append_proctoring_events` | ✗ | ✗ (service_role only) | n/a | SAFE — correctly locked to service_role, matches documented privileged-write pattern |
+
+### 4b.3 — Service-role usage audit (42 files)
+Grepped every `SUPABASE_SERVICE_ROLE_KEY` usage. Deep-read 8 representative
+call sites spanning the riskiest patterns (student-suppliable exam start,
+teacher-suppliable lesson/exam/group/homework mutations, admin restore,
+pre-auth invitation-token lookup):
+
+- `src/app/api/exam/start/route.ts` — **SAFE**: `p_student_id: user.id` (session), `p_tenant_id: exam.tenant_id` (server lookup), enrollment verified before RPC call.
+- `src/app/api/lessons/route.ts`, `exams/route.ts`, `homework/route.ts` — **SAFE**: every PATCH/DELETE calls an `owns*()` check (ownership + tenant) before any service-role write; POST derives `teacher_id`/`tenant_id` from the session, never the request body.
+- `src/app/api/groups/route.ts` — **SAFE**: DELETE re-fetches the group server-side and checks `tenant_id` match + (for `teacher` role) exact `teacher_id` match before calling `deleteEntity`.
+- `src/app/api/admin/restore/route.ts` — **SAFE**: `p_tenant_id: profile.tenant_id` from the caller's own row, role gated to `university_admin`/`super_admin`. (Side note, not a security issue: since `super_admin.tenant_id` is `NULL`, this route silently no-ops for super_admin — a functional bug, not a vulnerability, worth fixing separately.)
+- `src/app/(auth)/join/[token]/page.tsx` — **SAFE**: Server Component (no `'use client'`), service-role used only for a read-only pre-auth token lookup (`get_invitation_by_token`), only plain derived fields (`email`, `is_public`, `tenant_name`) passed to the client component — the key itself never reaches the client bundle.
+- Remaining 34 files not individually re-read this pass — classified **SAFE by consistent pattern** (same `getAuthUser`/`getTeacherProfile` → role/ownership check → service-role write shape observed everywhere sampled), not independently verified. Flagged in REMEDIATION_PLAN.md as a residual manual-review item if a future session has more budget.
+
+### 4b.4 — Storage audit
+Two buckets exist: `proctoring-evidence` (private, 512 KB, `image/jpeg` only)
+and `announcement-images` (was public with **no** bucket-level size/MIME
+limit). `storage.objects` has exactly one policy total across both buckets:
+public `SELECT` on `announcement-images`. **There is no INSERT/UPDATE/DELETE
+policy for any role on either bucket** — meaning uploads are only possible via
+the service-role key, never directly from a client SDK.
+
+Read `src/app/api/announcements/upload/route.ts`: requires auth, checks the
+`manage_announcements` capability, rate-limited (20/hour/user), validates MIME
+against an explicit allowlist, caps size at 4 MB, and writes to a
+tenant-prefixed path (`${tenant_id}/${uuid}.${ext}`) with `upsert:false`.
+**VERIFIED SOUND** — the missing bucket-level limits were pure defense-in-depth
+gaps (app code already enforced the real limits); **fixed anyway** (safe,
+additive, non-destructive): `announcement-images` now also has
+`file_size_limit = 4 MiB` and `allowed_mime_types` restricted to
+jpeg/png/webp/gif at the bucket level, matching the app's own enforcement.
+
+### 4b.5 — AI cost-abuse audit
+Every route under `src/app/api/ai/*` and `courses/generate-item-content` calls
+`rateLimit()` (verified via grep — zero files missing it). The limiter itself
+(`src/lib/rate-limit.ts`) is correctly Postgres-backed (not in-memory — safe
+for serverless/horizontal scaling), but **fails open** on any limiter error
+(DB hiccup, timeout) — verified by direct code read, matching what `CLAUDE.md`
+already claimed (no documentation drift here). This is a legitimate,
+un-fixed **MEDIUM** finding: during a Postgres blip, AI generation endpoints
+would have zero request throttling for the duration of the outage. Not fixed
+in this session — changing AI routes to fail-closed is a product trade-off
+(an outage becomes "AI feature down" instead of "AI feature unlimited for a
+few seconds") that needs the owner's sign-off, not a unilateral change. See
+REMEDIATION_PLAN.md R-2.
+
+### 4b.6 — LiveKit / proctoring audit
+`src/app/api/proctor/live-token/route.ts` — **VERIFIED SOUND**: requires auth;
+resolves the exam server-side (service-role lookup, not client-trusted);
+teacher role is checked against `exam.teacher_id === user.id` (or
+`super_admin`); student role requires an actual `group_students` row for that
+exam's group. Grants are asymmetric and correct: `canPublish: !isTeacher`,
+`canSubscribe: isTeacher`, `canPublishData: false` — students can never see or
+hear each other, matching the documented design exactly. Token TTL 3h. Room
+name is deterministic (`exam-${examId}`) but this is not a weakness — LiveKit
+access is gated by the signed token (requires the server-only API secret to
+forge), not by room-name secrecy.
+
+### 4b.7 — Database performance (live advisor, informational only)
+No `ERROR`/`WARN`-level performance issues beyond what's already documented.
+`INFO`-level: several `deleted_by`/audit-column foreign keys lack a covering
+index (low-traffic soft-delete columns, low priority), and several existing
+indexes show as "unused" — **this is expected and not meaningful evidence of
+anything**, since the database currently holds 0 tenants and effectively no
+transactional data; Postgres' planner has had zero opportunity to use them.
+Re-run `get_advisors(type: performance)` after real usage accumulates before
+acting on the "unused index" list. `feature_flags`/`platform_settings`/
+`tenants` have overlapping permissive SELECT policies (`WARN`, pure
+performance, not security — each adds one extra policy evaluation per query,
+immaterial at current or even 10k-row scale). Not fixed — low priority,
+cosmetic, and touching RLS policies without a live workload to validate
+against is unnecessary risk for negligible gain right now.
+
+### 4b.8 — Infrastructure / scalability (code-based assessment, no live load test)
+- **Stateless application tier: VERIFIED by code review**, not just assumed.
+  No in-memory session store, no in-memory rate-limit counters (Postgres-backed,
+  confirmed 4b.5), no local file writes for persistence, no process-global
+  mutable state found in `src/lib/*` or route handlers. Next.js on Vercel
+  serverless functions — genuinely horizontally scalable as far as the
+  application tier goes.
+- **Single point of failure: Supabase Postgres itself** — one primary
+  instance, no read replicas configured (not visible/configurable from this
+  session's tool access; would need to check the Supabase dashboard's compute
+  add-ons). At 0 real tenants this is not yet a practical concern.
+  **UNKNOWN** whether the current Supabase plan/compute tier includes
+  read-replica or PITR options — REQUIRES PRODUCTION/DASHBOARD VERIFICATION,
+  not visible via the tools available here.
+  - Corroborating evidence for plan tier: the leaked-password-protection
+    Management API call earlier this session returned "available on Pro Plans
+    and up," implying the project is currently on the **Free tier** — which
+    has known hard limits (connection count, no PITR, pauses after
+    inactivity) relevant to any real scaling discussion. This is worth
+    confirming directly on the Supabase billing page before planning for
+    scale.
+- **No queue/worker infrastructure exists** for heavy operations (AI
+  generation, PDF processing, report generation, batch grading) — these all
+  run synchronously inside the Next.js request/response cycle today. At low
+  volume this is fine; it is the first thing to change if load grows (see
+  SCALING_PLAN section below, once written).
+- **LiveKit is already correctly separated** from normal HTTP traffic — proctoring
+  media flows peer-to-SFU via LiveKit Cloud, not through the Next.js app.
+
 ## 5. Net result of this session
 
 | Item | Before | After |
