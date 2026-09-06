@@ -12,7 +12,7 @@ interface HeaderProps {
 }
 
 export function Header({ title }: HeaderProps) {
-  const { user } = useAuthStore()
+  const { user, tenant } = useAuthStore()
   const { sidebarOpen, setMobileNavOpen } = useUIStore()
 
   return (
@@ -42,7 +42,12 @@ export function Header({ title }: HeaderProps) {
           </div>
           <div className="hidden sm:block">
             <p className="text-white text-sm font-medium leading-none">{user?.full_name ?? 'User'}</p>
-            <p className="text-slate-400 text-xs mt-0.5">{user?.role ? getRoleLabel(user.role) : ''}</p>
+            <p className="text-slate-400 text-xs mt-0.5">
+              {user?.role ? getRoleLabel(user.role) : ''}
+              {tenant?.name && (
+                <span className="text-slate-500"> · {tenant.name}</span>
+              )}
+            </p>
           </div>
         </div>
       </div>

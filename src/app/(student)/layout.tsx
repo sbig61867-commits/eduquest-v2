@@ -2,6 +2,7 @@
 import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
+import { StudentQuickAccessPanel } from '@/components/student/quick-access-panel'
 
 const navItems = [
   { label: 'Dashboard', href: '/student/dashboard', icon: 'LayoutDashboard' as const },
@@ -23,6 +24,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <Header title="Student Portal" />
         <main className="p-4 lg:p-6 !pt-20">{children}</main>
       </ContentShell>
+      <StudentQuickAccessPanel />
     </div>
   )
 }
