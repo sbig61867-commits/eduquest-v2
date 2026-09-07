@@ -1,5 +1,21 @@
 # EduQuest Security & Architecture Audit
 
+## 🚨 CRITICAL INCIDENT (2026-09-07) — Production DB credential exposed in Git history
+
+Found by `gitleaks` (full 190-commit history scan): a hardcoded Postgres
+`postgres`-role password in `scripts/run-migration.mjs:65`, committed
+2026-06-22 (`f21ff18`), present on all 4 branches, on a **PUBLIC** GitHub
+repository (0 forks, 0 tags). Working-tree fixed (now reads a required
+`SUPABASE_DB_PASSWORD` env var, no fallback). **Rotation pending — the user
+will rotate via Supabase Dashboard and confirm before further steps.** Full
+incident detail, evidence, and status tracking lives in
+`FINAL_AUDIT_STATUS.md`'s incident section (not duplicated here to avoid
+drift between two copies of the same live-status record). No secret value
+appears in any report.
+
+---
+
+
 **Date:** 2026-09-06
 **Scope note:** This audit was performed by inspecting the live Supabase project
 (via Management API + SQL introspection — real grants, real RLS policies, real

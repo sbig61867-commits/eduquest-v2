@@ -1,5 +1,18 @@
 # Remediation Plan
 
+## 🚨 ACTIVE INCIDENT — highest priority, blocks everything else below
+
+**CRITICAL — Production database credential exposed in Git history**
+(`scripts/run-migration.mjs`, hardcoded since 2026-06-22, public repo, all 4
+branches). Working-tree fix applied (env-var-only now). **Waiting on: user
+rotates the `postgres` password via Supabase Dashboard and confirms.** Once
+confirmed: re-verify connectivity/tests/build, then plan (not yet execute)
+a git-history rewrite. Full detail in `FINAL_AUDIT_STATUS.md`. No item below
+this should be treated as higher priority until this is closed.
+
+---
+
+
 Prioritized by severity. Items marked **DONE** were fixed in this audit
 session (live migrations/config, already applied). Items marked **PENDING**
 need either the owner's decision (trade-off/plan/cost) or a second real

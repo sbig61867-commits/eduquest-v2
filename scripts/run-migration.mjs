@@ -57,12 +57,21 @@ function splitStatements(sql) {
 }
 
 async function run() {
+  // SECURITY: never hardcode the DB password here — it previously was,
+  // committed in plaintext to git history (found by gitleaks). Rotate the
+  // password in Supabase (Project Settings > Database) and set it via env
+  // var before running this script.
+  const password = process.env.SUPABASE_DB_PASSWORD
+  if (!password) {
+    console.error('❌ Set SUPABASE_DB_PASSWORD before running this script.')
+    process.exit(1)
+  }
   const client = new Client({
     host:     'db.ubngpsdzjoeqfxfbdtxc.supabase.co',
     port:     5432,
     database: 'postgres',
     user:     'postgres',
-    password: 'AmHholGYju6zYQec',
+    password,
     ssl:      { rejectUnauthorized: false },
   })
 

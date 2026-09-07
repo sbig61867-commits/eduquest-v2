@@ -1,5 +1,46 @@
 # Final Audit Status
 
+## 🚨 INCIDENT — CRITICAL — Production database credential exposed in Git history
+
+**Status: MITIGATION IN PROGRESS. Password rotation pending user confirmation.**
+
+- **Discovery method:** `gitleaks` (v8.21.2, official binary release), full
+  git-history scan (190 commits), run twice this session (before and after
+  the code fix below)
+- **Affected file:** `scripts/run-migration.mjs`, line 65 (a hardcoded
+  Postgres connection `password` field for the `postgres` superuser role)
+- **First known commit:** `f21ff18286f42e6b97ca678329842eb92175336b`,
+  2026-06-22, present in exactly 1 commit (never rotated/re-added since)
+- **Current exposure status:** **Confirmed present on all 4 branches**
+  (`main`, `chore/part-b-applied`, `security/rpc-execute-lockdown`,
+  `security/users-capability-pin`) on the remote. **The GitHub repository is
+  PUBLIC** (`gh repo view` confirmed `"visibility":"PUBLIC"`) — this
+  credential has been publicly readable on the internet for approximately
+  2.5 months. 0 forks, 0 tags, 3 merged/open PRs (all from branches that
+  already share the same history — no additional exposure surface beyond
+  the 4 branches above).
+- **Working-tree status:** **FIXED** — the hardcoded password has been
+  removed from the current file and replaced with a required
+  `SUPABASE_DB_PASSWORD` environment variable read (script now exits with an
+  error if unset, rather than falling back to any default).
+- **Rotation status:** **NOT YET ROTATED.** Per explicit user instruction,
+  Claude does not rotate this credential via the Management API or any
+  other means — the user will rotate it directly via Supabase Dashboard
+  (Database → Settings) and provide explicit confirmation before any
+  further dependent step proceeds.
+- **Git-history cleanup status:** **NOT YET PLANNED FOR EXECUTION.** A
+  history-rewrite plan will be prepared (commits affected, rewrite method,
+  expected impact on the 4 branches and 3 PRs) once rotation is confirmed —
+  no `force-push` will be executed without presenting that plan first.
+- **Other secrets found in the same scan:** **None.** The full 190-commit
+  history scan found exactly one leak (the item above). No other API keys,
+  service-role keys, OAuth secrets, or webhook secrets were found by
+  gitleaks in git history. (This is a `gitleaks`-pattern-based scan, not a
+  proof of absence — see `SECURITY_AUDIT.md`'s incident section for the
+  full classification of every credential-shaped string checked.)
+- **No secret value appears anywhere in this document or any other report.**
+
+
 **Date:** 2026-09-07
 **Scope:** Application-security audit + targeted remediation of EduQuest,
 performed by live database introspection (Supabase Management API + SQL),
