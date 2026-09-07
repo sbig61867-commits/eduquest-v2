@@ -13,7 +13,7 @@ npm test         # vitest run — unit/component specs (src/__tests__/**)
 npm run test:watch
 ```
 
-Vitest + Testing Library + Playwright are configured (`vitest.config.ts`, `src/__tests__/**`, `tests/*.spec.ts`) — coverage is still thin, but this is no longer a zero-test repo. Broader verification is still done by running the app against a live Supabase project.
+Vitest + Testing Library + Playwright are configured (`vitest.config.ts`, `src/__tests__/**`, `tests/*.spec.ts`) — coverage is still thin, but this is no longer a zero-test repo. As of 2026-09-07: 63 Vitest unit/component tests, plus `tests/security-auth.spec.ts` (17 Playwright tests, run live against production — auth redirects, role isolation with a real test account, API-route access control, security headers). `npx vitest run --pool=threads` avoids a fork-pool sandbox flake seen in this environment; `npm test`'s default pool can intermittently fail to start a worker. Broader verification is still done by running the app against a live Supabase project — see `SECURITY_TEST_MATRIX.md` for exactly what each test does and does not prove (e.g. none of the current tests exercise cross-tenant isolation, since only one real tenant exists in production).
 
 ## Stack
 
@@ -94,6 +94,9 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - `rpc_execute_lockdown_migration.sql` — **PART A + PART B both applied** ✅ 2026-09-05. Part A gives authoritative in-DB grading (kills grade forgery) and completes the `get_student_exams` revoke (the original `REVOKE ... FROM anon` was ineffective — anon inherits EXECUTE via PUBLIC). Part B revoked EXECUTE on `finalize_exam_submission` / `start_exam_attempt` / `append_proctoring_events` after the service-role-client code shipped. Verified grant matrix: `anon` false everywhere; `authenticated` true only for the internally-guarded read feeds.
 - `rls_initplan_optimization_migration.sql` — wraps `auth.uid()` / `current_user_role()` / `current_tenant_id()` in `(SELECT …)` across 16 policies so they evaluate once per query instead of once per row (`auth_rls_initplan`: 16 → 0). Semantics proven unchanged by stripping the wrappers and diffing against a pre-change snapshot (16/16 identical). ✅ 2026-09-05
 - `phase3_schedules_migration.sql` — weekly timetables: `schedules` (one per group, or one private per teacher) + `schedule_slots` over a 7-day week, RLS for staff/teachers, and the `get_student_schedule()` feed (published + enrolled only, `anon` revoked). ✅ 2026-09-05
+- `revoke_trigger_function_public_execute_migration.sql` — revokes EXECUTE on 4 trigger-only SECURITY DEFINER functions from PUBLIC/anon/authenticated (defense-in-depth; Postgres already blocks direct invocation of trigger functions). ✅ 2026-09-06
+- `fix_get_course_progress_cross_tenant_idor_migration.sql` — fixes a real cross-tenant IDOR: `get_course_progress` authorized any teacher/university_admin globally with no tenant check on the target course/student. ✅ 2026-09-06
+- `r1_defense_in_depth_service_role_rpcs_migration.sql` — `start_exam_attempt`, `soft_delete_entity`, `restore_entity` (gains a new required `p_actor` param), `append_proctoring_events` no longer trust caller-supplied tenant_id/actor/student_id at face value; each re-derives the real fact from `public.users`/`public.exams`/the target entity and rejects on mismatch. `restore_entity`'s old 3-arg signature is dropped. ✅ 2026-09-06 — see `SECURITY_DEFINER_PROOF.md` for the full per-function proof.
 
 ## Conventions
 
