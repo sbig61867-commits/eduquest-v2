@@ -20,11 +20,11 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id || !['university_admin', 'super_admin'].includes(profile.role ?? '')) {
+  if (!profile || !['university_admin', 'super_admin'].includes(profile.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { kind?: string; id?: string }
+  let body: { kind?: string; id?: string; tenant_id?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
@@ -32,8 +32,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing or invalid kind/id' }, { status: 400 })
   }
 
+  // super_admin has no tenant_id of their own (legitimately NULL — they are
+  // cross-tenant), so they must explicitly say which tenant's entity to
+  // restore, same pattern as /api/admin/create-user. university_admin is
+  // always scoped to their own tenant — a client-supplied tenant_id in the
+  // body is ignored for that role, not honored, so they can never target
+  // another tenant by tampering with the request.
+  const tenant_id = profile.role === 'super_admin'
+    ? (body.tenant_id ?? null)
+    : profile.tenant_id
+
+  if (!tenant_id) {
+    return NextResponse.json({ error: 'tenant_id is required' }, { status: 400 })
+  }
+
   const { error } = await adminClient().rpc('restore_entity', {
-    p_kind: body.kind, p_id: body.id, p_tenant_id: profile.tenant_id, p_actor: user.id,
+    p_kind: body.kind, p_id: body.id, p_tenant_id: tenant_id, p_actor: user.id,
   })
   if (error) {
     console.error('[api/admin/restore]', error)

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { AI_TIMEOUT_MS } from './timeout'
 
 function getModel() {
   const key = process.env.GEMINI_API_KEY
@@ -7,7 +8,10 @@ function getModel() {
   }
   // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
   // current stable free-tier model, verified live.
-  return new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-2.5-flash' })
+  return new GoogleGenerativeAI(key).getGenerativeModel(
+    { model: 'gemini-2.5-flash' },
+    { timeout: AI_TIMEOUT_MS }
+  )
 }
 
 export async function generateLessonContent(

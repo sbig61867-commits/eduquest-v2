@@ -1,3 +1,5 @@
+import { aiTimeoutSignal, isAbortError } from './timeout'
+
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
 export async function groqChat(prompt: string, systemPrompt?: string, temperature = 0.7): Promise<string> {
@@ -6,24 +8,35 @@ export async function groqChat(prompt: string, systemPrompt?: string, temperatur
     throw new Error('GROQ_API_KEY not configured')
   }
 
-  const res = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      // llama-3.3-70b-versatile was retired from Groq's catalog (404
-      // model_not_found) — gpt-oss-120b is free-tier and verified live.
-      model: 'openai/gpt-oss-120b',
-      messages: [
-        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-        { role: 'user', content: prompt },
-      ],
-      temperature,
-      max_tokens: 4096,
-    }),
-  })
+  let res: Response
+  try {
+    res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        // llama-3.3-70b-versatile was retired from Groq's catalog (404
+        // model_not_found) — gpt-oss-120b is free-tier and verified live.
+        model: 'openai/gpt-oss-120b',
+        messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+          { role: 'user', content: prompt },
+        ],
+        temperature,
+        max_tokens: 4096,
+      }),
+      // Prevents a hung Groq request from holding the invocation open for
+      // the full serverless function timeout. No retry on timeout — the
+      // caller's own error handling decides what to do (e.g. fall back to
+      // another provider), so a timeout can never turn into a retry storm.
+      signal: aiTimeoutSignal(),
+    })
+  } catch (err) {
+    if (isAbortError(err)) throw new Error('Groq API error: request timed out')
+    throw err
+  }
 
   if (!res.ok) {
     const err = await res.text()

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { rateLimit } from '@/lib/rate-limit'
+import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
 
 // Students no longer have direct SELECT on exams (answer-leak fix); read exam
 // metadata with the service-role client. The user is already authenticated above.
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     const genAI = new GoogleGenerativeAI(apiKey)
     // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
     // current stable free-tier model, verified live.
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }, { timeout: AI_TIMEOUT_MS })
 
     const prompt = `Analyze this exam proctoring image and respond with ONLY a JSON object (no markdown):
 {

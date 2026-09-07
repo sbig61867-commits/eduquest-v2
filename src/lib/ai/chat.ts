@@ -90,13 +90,14 @@ function openRouterChat(prompt: string, systemPrompt?: string, temperature?: num
 
 async function geminiChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
+  const { AI_TIMEOUT_MS } = await import('./timeout')
   // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
   // current stable free-tier model, verified live.
   const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!).getGenerativeModel({
     model: 'gemini-2.5-flash',
     ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
     ...(temperature != null ? { generationConfig: { temperature } } : {}),
-  })
+  }, { timeout: AI_TIMEOUT_MS })
   const result = await model.generateContent(prompt)
   const text = result.response.text()
   if (!text) throw new Error('Gemini returned no content')

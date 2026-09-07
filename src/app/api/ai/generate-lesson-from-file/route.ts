@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { aiChat } from '@/lib/ai/chat'
+import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
@@ -22,7 +23,7 @@ function getGeminiModel() {
   return new GoogleGenerativeAI(key).getGenerativeModel({
     model: GEMINI_MODEL,
     generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
-  })
+  }, { timeout: AI_TIMEOUT_MS })
 }
 
 // ── Route ────────────────────────────────────────────────────────

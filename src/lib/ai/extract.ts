@@ -43,12 +43,13 @@ async function extractWithGeminiVision(buffer: ArrayBuffer, mimeType: string): P
     throw new ExtractionError('vision_quota', 'Vision extraction unavailable (GEMINI_API_KEY not configured)')
   }
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
+  const { AI_TIMEOUT_MS } = await import('./timeout')
   // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
   // current stable free-tier model, verified live.
   const model = new GoogleGenerativeAI(key).getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: { maxOutputTokens: 8192 },
-  })
+  }, { timeout: AI_TIMEOUT_MS })
 
   const prompt = `Transcribe ALL text visible in this document exactly as written, in the original language and order.
 Do not summarize, translate, explain, or add any commentary. Do not skip any page or section.
