@@ -74,20 +74,20 @@ export function ContactForm({ lang }: { lang: Lang }) {
           <label className="block text-sm font-medium text-slate-300">{t.name}</label>
           <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
             required maxLength={100}
-            className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+            className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-accent transition-colors" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-slate-300">{t.email}</label>
           <input type="email" dir="ltr" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
             required maxLength={200}
-            className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+            className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-accent transition-colors" />
         </div>
       </div>
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-slate-300">{t.message}</label>
         <textarea value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
           required maxLength={2000} rows={6} placeholder={t.messagePh}
-          className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors resize-y" />
+          className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-accent transition-colors resize-y" />
       </div>
       <button type="submit" disabled={sending}
         className="w-full px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold transition-colors flex items-center justify-center gap-2">

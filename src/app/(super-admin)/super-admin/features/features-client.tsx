@@ -51,23 +51,23 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Feature Flags</h2>
-          <p className="text-slate-400 mt-1">Kill-switch control for platform features</p>
+          <h2 className="text-2xl font-bold text-fg">Feature Flags</h2>
+          <p className="text-fg-secondary mt-1">Kill-switch control for platform features</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> Add Flag</Button>
       </div>
 
       {/* Predefined global features */}
       <div>
-        <h3 className="text-slate-400 text-xs uppercase tracking-wider font-medium mb-3">Platform-wide Features</h3>
+        <h3 className="text-fg-secondary text-xs uppercase tracking-wider font-medium mb-3">Platform-wide Features</h3>
         <div className="space-y-2">
           {GLOBAL_FEATURES.map(feat => {
             const flag = flags.find(f => f.name === feat.name && !f.tenant_id)
             return (
-              <div key={feat.name} className="bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+              <div key={feat.name} className="bg-surface border border-border rounded-lg px-5 py-4 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-white font-medium">{feat.label}</p>
-                  <p className="text-slate-400 text-sm">{feat.desc}</p>
+                  <p className="text-fg font-medium">{feat.label}</p>
+                  <p className="text-fg-secondary text-sm">{feat.desc}</p>
                 </div>
                 <button
                   onClick={async () => {
@@ -76,7 +76,7 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
                       if (data) { setFlags(prev => [...prev, data]); router.refresh() }
                     }
                   }}
-                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${flag?.is_enabled !== false ? 'bg-blue-600' : 'bg-slate-700'}`}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${flag?.is_enabled !== false ? 'bg-accent' : 'bg-border-strong'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${flag?.is_enabled !== false ? 'translate-x-7' : 'translate-x-1'}`} />
                 </button>
@@ -89,17 +89,17 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
       {/* Custom flags */}
       {flags.filter(f => !GLOBAL_FEATURES.find(gf => gf.name === f.name)).length > 0 && (
         <div>
-          <h3 className="text-slate-400 text-xs uppercase tracking-wider font-medium mb-3">Custom Flags</h3>
+          <h3 className="text-fg-secondary text-xs uppercase tracking-wider font-medium mb-3">Custom Flags</h3>
           <div className="space-y-2">
             {flags.filter(f => !GLOBAL_FEATURES.find(gf => gf.name === f.name)).map(flag => (
-              <div key={flag.id} className="bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+              <div key={flag.id} className="bg-surface border border-border rounded-lg px-5 py-4 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-white font-medium font-mono text-sm">{flag.name}</p>
-                  {flag.tenant_id && <p className="text-slate-500 text-xs">Tenant: {tenants.find(t => t.id === flag.tenant_id)?.name ?? flag.tenant_id}</p>}
+                  <p className="text-fg font-medium font-mono text-sm">{flag.name}</p>
+                  {flag.tenant_id && <p className="text-fg-muted text-xs">Tenant: {tenants.find(t => t.id === flag.tenant_id)?.name ?? flag.tenant_id}</p>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={flag.is_enabled ? 'green' : 'red'}>{flag.is_enabled ? 'ON' : 'OFF'}</Badge>
-                  <button onClick={() => toggleFlag(flag)} className={`relative w-12 h-6 rounded-full transition-colors ${flag.is_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
+                  <Badge variant={flag.is_enabled ? 'success' : 'error'}>{flag.is_enabled ? 'ON' : 'OFF'}</Badge>
+                  <button onClick={() => toggleFlag(flag)} className={`relative w-12 h-6 rounded-full transition-colors ${flag.is_enabled ? 'bg-accent' : 'bg-border-strong'}`}>
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${flag.is_enabled ? 'translate-x-7' : 'translate-x-1'}`} />
                   </button>
                   <Button variant="ghost" size="sm" onClick={() => deleteFlag(flag.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
@@ -114,8 +114,8 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
         <form onSubmit={handleAdd} className="space-y-4">
           <Input label="Flag Name (snake_case)" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="custom_feature_name" />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Tenant (leave empty for global)</label>
-            <select value={form.tenant_id} onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label className="block text-sm font-medium text-fg-secondary">Tenant (leave empty for global)</label>
+            <select value={form.tenant_id} onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent">
               <option value="">Global (all tenants)</option>
               {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>

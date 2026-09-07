@@ -43,44 +43,44 @@ export default async function StudentLessonsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">My Lessons</h2>
-        <p className="text-slate-400 mt-1">
+        <h2 className="text-2xl font-bold text-fg">My Lessons</h2>
+        <p className="text-fg-secondary mt-1">
           {lessons.length} lessons available
           {bySubject.size > 1 && ` · ${bySubject.size} مواد`}
         </p>
       </div>
 
       {lessons.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No lessons available yet.</p>
-          <p className="text-slate-500 text-sm mt-1">Your teacher will publish lessons as the course progresses.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <BookOpen className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">No lessons available yet.</p>
+          <p className="text-fg-muted text-sm mt-1">Your teacher will publish lessons as the course progresses.</p>
         </div>
       ) : (
         [...bySubject.entries()].map(([subject, subjectLessons]) => (
-        <section key={subject} className="border border-slate-800 rounded-2xl overflow-hidden">
-          <header className="flex items-center gap-2.5 px-5 py-3.5 bg-slate-900/80 border-b border-slate-800" dir="rtl">
-            <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
-            <h3 className="text-white font-semibold truncate">{subject}</h3>
-            <span className="text-slate-500 text-xs mr-auto shrink-0">{subjectLessons.length} درس</span>
+        <section key={subject} className="border border-border rounded-lg overflow-hidden">
+          <header className="flex items-center gap-2.5 px-5 py-3.5 bg-surface/80 border-b border-border" dir="rtl">
+            <BookOpen className="w-4 h-4 text-accent shrink-0" />
+            <h3 className="text-fg font-semibold truncate">{subject}</h3>
+            <span className="text-fg-muted text-xs mr-auto shrink-0">{subjectLessons.length} درس</span>
           </header>
           <div className="p-5 space-y-3">
           {subjectLessons.map((lesson) => (
-            <details key={lesson.id} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-colors">
+            <details key={lesson.id} className="group bg-surface border border-border rounded-lg overflow-hidden hover:border-border-strong transition-colors">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
-                    <BookOpen className="w-4 h-4 text-blue-400" />
+                  <div className="w-9 h-9 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-accent" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">{lesson.title}</h3>
+                    <h3 className="text-fg font-semibold">{lesson.title}</h3>
                     {/* subject name lives in the section header now */}
-                    <p className="text-slate-400 text-sm">{formatDate(lesson.created_at)}</p>
+                    <p className="text-fg-secondary text-sm">{formatDate(lesson.created_at)}</p>
                   </div>
                 </div>
-                <span className="text-slate-500 text-sm group-open:rotate-180 transition-transform">▼</span>
+                <span className="text-fg-muted text-sm group-open:rotate-180 transition-transform">▼</span>
               </summary>
-              <div className="px-5 pb-5 border-t border-slate-800 pt-4">
+              <div className="px-5 pb-5 border-t border-border pt-4">
                 <LessonTabs content={lesson.content ?? ''} />
               </div>
             </details>

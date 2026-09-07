@@ -48,40 +48,40 @@ export function AdminGroupsClient({ initialGroups }: { initialGroups: GroupRow[]
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">المجموعات (الفصول)</h2>
-        <p className="text-slate-400 mt-1">{groups.length} مجموعة · {groups.filter(g => !g.is_active).length} مؤرشفة</p>
+        <h2 className="text-2xl font-bold text-fg">المجموعات (الفصول)</h2>
+        <p className="text-fg-secondary mt-1">{groups.length} مجموعة · {groups.filter(g => !g.is_active).length} مؤرشفة</p>
       </div>
 
       {groups.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد مجموعات بعد — ينشئها المعلمون من لوحاتهم.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <Users className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">لا توجد مجموعات بعد — ينشئها المعلمون من لوحاتهم.</p>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-800 text-start">
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">المجموعة</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden md:table-cell">المعلم</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">الطلاب</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden md:table-cell">أنشئت</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">الحالة</th>
+              <tr className="border-b border-border text-start">
+                <th className="text-start text-xs font-medium text-fg-secondary uppercase px-5 py-3">المجموعة</th>
+                <th className="text-start text-xs font-medium text-fg-secondary uppercase px-5 py-3 hidden md:table-cell">المعلم</th>
+                <th className="text-start text-xs font-medium text-fg-secondary uppercase px-5 py-3">الطلاب</th>
+                <th className="text-start text-xs font-medium text-fg-secondary uppercase px-5 py-3 hidden md:table-cell">أنشئت</th>
+                <th className="text-start text-xs font-medium text-fg-secondary uppercase px-5 py-3">الحالة</th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-border">
               {groups.map(group => (
-                <tr key={group.id} className={`hover:bg-slate-800/50 transition-colors ${!group.is_active ? 'opacity-60' : ''}`}>
+                <tr key={group.id} className={`hover:bg-surface/50 transition-colors ${!group.is_active ? 'opacity-60' : ''}`}>
                   <td className="px-5 py-4">
-                    <p className="text-white text-sm font-medium">{group.name}</p>
-                    {group.description && <p className="text-slate-500 text-xs truncate max-w-[200px]">{group.description}</p>}
+                    <p className="text-fg text-sm font-medium">{group.name}</p>
+                    {group.description && <p className="text-fg-muted text-xs truncate max-w-[200px]">{group.description}</p>}
                   </td>
-                  <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{group.users?.full_name ?? '—'}</td>
-                  <td className="px-5 py-4 text-slate-300 text-sm">{group.group_students?.[0]?.count ?? 0}</td>
-                  <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(group.created_at)}</td>
+                  <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{group.users?.full_name ?? '—'}</td>
+                  <td className="px-5 py-4 text-fg-secondary text-sm">{group.group_students?.[0]?.count ?? 0}</td>
+                  <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{formatDate(group.created_at)}</td>
                   <td className="px-5 py-4">
-                    <Badge variant={group.is_active ? 'green' : 'yellow'}>{group.is_active ? 'نشطة' : 'مؤرشفة'}</Badge>
+                    <Badge variant={group.is_active ? 'success' : 'warning'}>{group.is_active ? 'نشطة' : 'مؤرشفة'}</Badge>
                   </td>
                   <td className="px-5 py-4 text-end">
                     <Button variant="ghost" size="sm" loading={busy === group.id} onClick={() => toggleArchive(group)}

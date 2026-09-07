@@ -102,7 +102,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
 
   return (
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-      <h2 className="text-lg font-semibold text-white mb-5">Create your account</h2>
+      <h2 className="text-lg font-semibold text-fg mb-5">Create your account</h2>
 
       {error && (
         <div className="mb-4 space-y-2">
@@ -110,11 +110,11 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
             {error}
           </div>
           {isDev && debugInfo && (
-            <details className="rounded-lg bg-slate-800 border border-slate-700 text-xs">
+            <details className="rounded-lg bg-elevated border border-border-strong text-xs">
               <summary className="px-3 py-2 text-amber-400 cursor-pointer select-none font-mono">
                 🛠 Dev — تفاصيل الخطأ
               </summary>
-              <pre className="px-3 pb-3 text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
+              <pre className="px-3 pb-3 text-fg-secondary overflow-x-auto whitespace-pre-wrap break-all">
                 {debugInfo}
               </pre>
             </details>
@@ -125,7 +125,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Email — editable for public links, read-only for private */}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+          <label className="block text-sm font-medium text-fg-secondary mb-1.5">Email</label>
           {isPublic ? (
             <input
               type="email"
@@ -133,7 +133,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
               onChange={e => setEmail(e.target.value)}
               required
               placeholder="your@email.com"
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
             />
           ) : (
             <>
@@ -141,9 +141,9 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
                 type="email"
                 value={invitedEmail}
                 readOnly
-                className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed select-none"
+                className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-fg-secondary cursor-not-allowed select-none"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-fg-muted mt-1">
                 This invitation is locked to this email address.
               </p>
             </>
@@ -151,7 +151,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
+          <label className="block text-sm font-medium text-fg-secondary mb-1.5">Full Name</label>
           <input
             type="text"
             value={fullName}
@@ -159,12 +159,12 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
             required
             minLength={2}
             placeholder="Your full name"
-            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+          <label className="block text-sm font-medium text-fg-secondary mb-1.5">Password</label>
           <input
             type="password"
             value={password}
@@ -172,29 +172,29 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
             required
             minLength={8}
             placeholder="Min. 8 characters"
-            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm Password</label>
+          <label className="block text-sm font-medium text-fg-secondary mb-1.5">Confirm Password</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             required
             placeholder="Repeat your password"
-            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent transition"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className={`w-full py-2.5 px-4 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors mt-2 ${
+          className={`w-full py-2.5 px-4 disabled:opacity-60 disabled:cursor-not-allowed text-fg font-medium rounded-lg transition-colors mt-2 ${
             isPublic
               ? 'bg-purple-600 hover:bg-purple-500'
-              : 'bg-blue-600 hover:bg-blue-500'
+              : 'bg-accent hover:bg-blue-500'
           }`}
         >
           {loading ? 'Creating account…' : 'Join EduQuest'}
@@ -203,7 +203,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
 
       <div className="flex items-center gap-3 mt-5">
         <div className="flex-1 h-px bg-white/10" />
-        <span className="text-xs text-slate-500">أو</span>
+        <span className="text-xs text-fg-muted">أو</span>
         <div className="flex-1 h-px bg-white/10" />
       </div>
 

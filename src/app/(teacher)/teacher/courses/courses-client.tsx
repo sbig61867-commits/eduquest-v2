@@ -201,8 +201,8 @@ export function CoursesClient({ initialCourses }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">My Courses</h2>
-          <p className="text-slate-400 mt-1">{courses.length} courses · Continuing Education Center</p>
+          <h2 className="text-2xl font-bold text-fg">My Courses</h2>
+          <p className="text-fg-secondary mt-1">{courses.length} courses · Continuing Education Center</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={openPptxModal}>
@@ -216,28 +216,28 @@ export function CoursesClient({ initialCourses }: Props) {
 
       {/* Course grid */}
       {courses.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <GraduationCap className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 mb-1">No courses yet.</p>
-          <p className="text-slate-500 text-sm">Create manually or import from a PowerPoint file.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <GraduationCap className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary mb-1">No courses yet.</p>
+          <p className="text-fg-muted text-sm">Create manually or import from a PowerPoint file.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {courses.map(course => (
-            <div key={course.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+            <div key={course.id} className="bg-surface border border-border rounded-lg p-5 hover:border-border-strong transition-colors">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center shrink-0">
-                  <GraduationCap className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+                  <GraduationCap className="w-5 h-5 text-accent" />
                 </div>
-                <Badge variant={course.is_published ? 'green' : 'yellow'}>
+                <Badge variant={course.is_published ? 'success' : 'warning'}>
                   {course.is_published ? 'Published' : 'Draft'}
                 </Badge>
               </div>
-              <h3 className="text-white font-semibold mb-1">{course.title}</h3>
+              <h3 className="text-fg font-semibold mb-1">{course.title}</h3>
               {course.description && (
-                <p className="text-slate-400 text-sm mb-2 line-clamp-2">{course.description}</p>
+                <p className="text-fg-secondary text-sm mb-2 line-clamp-2">{course.description}</p>
               )}
-              <div className="flex items-center gap-3 mb-4 text-xs text-slate-500">
+              <div className="flex items-center gap-3 mb-4 text-xs text-fg-muted">
                 {course.language && (
                   <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{course.language}</span>
                 )}
@@ -250,8 +250,8 @@ export function CoursesClient({ initialCourses }: Props) {
                   {course.course_enrollments?.[0]?.count ?? 0} enrolled
                 </span>
               </div>
-              <p className="text-slate-600 text-xs mb-4">Created {formatDate(course.created_at)}</p>
-              <div className="space-y-2 pt-3 border-t border-slate-800">
+              <p className="text-fg-muted text-xs mb-4">Created {formatDate(course.created_at)}</p>
+              <div className="space-y-2 pt-3 border-t border-border">
                 <Button className="w-full" onClick={() => router.push(`/teacher/courses/${course.id}`)}>
                   <Pencil className="w-4 h-4" /> Build Course
                 </Button>
@@ -282,12 +282,12 @@ export function CoursesClient({ initialCourses }: Props) {
             placeholder="e.g. English for Beginners"
           />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Description (optional)</label>
+            <label className="block text-sm font-medium text-fg-secondary">Description (optional)</label>
             <textarea
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               rows={3}
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+              className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm resize-none"
               placeholder="Brief description of this course..."
             />
           </div>
@@ -298,25 +298,25 @@ export function CoursesClient({ initialCourses }: Props) {
             placeholder="e.g. English, Arabic, Python..."
           />
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-300">Course Structure</label>
+            <label className="block text-sm font-medium text-fg-secondary">Course Structure</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setForm(p => ({ ...p, has_levels: true }))}
-                className={`p-3 rounded-lg border text-left transition-colors ${form.has_levels ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
+                className={`p-3 rounded-lg border text-left transition-colors ${form.has_levels ? 'border-accent bg-accent-subtle text-fg' : 'border-border-strong bg-surface text-fg-secondary hover:border-border-strong'}`}
               >
-                <Layers className="w-4 h-4 mb-1.5 text-violet-400" />
+                <Layers className="w-4 h-4 mb-1.5 text-accent" />
                 <p className="text-sm font-medium">Leveled</p>
-                <p className="text-xs text-slate-500 mt-0.5">Course → Levels → Units → Content</p>
+                <p className="text-xs text-fg-muted mt-0.5">Course → Levels → Units → Content</p>
               </button>
               <button
                 type="button"
                 onClick={() => setForm(p => ({ ...p, has_levels: false }))}
-                className={`p-3 rounded-lg border text-left transition-colors ${!form.has_levels ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
+                className={`p-3 rounded-lg border text-left transition-colors ${!form.has_levels ? 'border-accent bg-accent-subtle text-fg' : 'border-border-strong bg-surface text-fg-secondary hover:border-border-strong'}`}
               >
-                <BookOpen className="w-4 h-4 mb-1.5 text-blue-400" />
+                <BookOpen className="w-4 h-4 mb-1.5 text-accent" />
                 <p className="text-sm font-medium">Flat</p>
-                <p className="text-xs text-slate-500 mt-0.5">Course → Units → Content</p>
+                <p className="text-xs text-fg-muted mt-0.5">Course → Units → Content</p>
               </button>
             </div>
           </div>
@@ -334,16 +334,16 @@ export function CoursesClient({ initialCourses }: Props) {
           {(['upload', 'preview', 'confirm'] as const).map((step, i) => (
             <div key={step} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                pptxStep === step ? 'bg-violet-600 text-white' :
-                (['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? 'bg-green-600 text-white' :
-                'bg-slate-800 text-slate-500'
+                pptxStep === step ? 'bg-accent text-accent-fg' :
+                (['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? 'bg-green-600 text-fg' :
+                'bg-surface text-fg-muted'
               }`}>
                 {(['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? <Check className="w-3.5 h-3.5" /> : i + 1}
               </div>
-              <span className={`text-xs ${pptxStep === step ? 'text-white font-medium' : 'text-slate-500'}`}>
+              <span className={`text-xs ${pptxStep === step ? 'text-fg font-medium' : 'text-fg-muted'}`}>
                 {step === 'upload' ? 'رفع الملف' : step === 'preview' ? 'مراجعة الهيكل' : 'إنشاء الكورس'}
               </span>
-              {i < 2 && <div className="w-8 h-px bg-slate-700" />}
+              {i < 2 && <div className="w-8 h-px bg-border-strong" />}
             </div>
           ))}
         </div>
@@ -353,21 +353,21 @@ export function CoursesClient({ initialCourses }: Props) {
           <div className="space-y-4">
             <div
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
-                pptxFile ? 'border-violet-500 bg-violet-500/5' : 'border-slate-700 hover:border-slate-600'
+              className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+                pptxFile ? 'border-accent bg-accent-subtle' : 'border-border-strong hover:border-border-strong'
               }`}
             >
               {pptxFile ? (
                 <div className="flex flex-col items-center gap-2">
-                  <FileText className="w-10 h-10 text-violet-400" />
-                  <p className="text-white font-medium">{pptxFile.name}</p>
-                  <p className="text-slate-500 text-sm">{(pptxFile.size / 1024 / 1024).toFixed(1)} MB · Click to change</p>
+                  <FileText className="w-10 h-10 text-accent" />
+                  <p className="text-fg font-medium">{pptxFile.name}</p>
+                  <p className="text-fg-muted text-sm">{(pptxFile.size / 1024 / 1024).toFixed(1)} MB · Click to change</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
-                  <Upload className="w-10 h-10 text-slate-500" />
-                  <p className="text-slate-300 font-medium">Click to select a file</p>
-                  <p className="text-slate-500 text-sm">PPTX · DOCX · PDF — Maximum 20 MB</p>
+                  <Upload className="w-10 h-10 text-fg-muted" />
+                  <p className="text-fg-secondary font-medium">Click to select a file</p>
+                  <p className="text-fg-muted text-sm">PPTX · DOCX · PDF — Maximum 20 MB</p>
                 </div>
               )}
             </div>
@@ -387,9 +387,9 @@ export function CoursesClient({ initialCourses }: Props) {
 
             <AiProgress active={pptxLoading} />
 
-            <div className="bg-slate-800/60 rounded-lg px-4 py-3 flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
-              <p className="text-slate-400 text-sm">
+            <div className="bg-surface/60 rounded-lg px-4 py-3 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+              <p className="text-fg-secondary text-sm">
                 الذكاء الاصطناعي سيستخرج نص الشرائح تلقائياً ويولد هيكل الكورس (وحدات + دروس) بناءً على المحتوى.
               </p>
             </div>
@@ -425,15 +425,15 @@ export function CoursesClient({ initialCourses }: Props) {
                 onChange={e => setGeneratedCourse({ ...generatedCourse, title: e.target.value })}
               />
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">الوصف</label>
+                <label className="block text-sm font-medium text-fg-secondary">الوصف</label>
                 <textarea
                   value={generatedCourse.description}
                   onChange={e => setGeneratedCourse({ ...generatedCourse, description: e.target.value })}
                   rows={2}
-                  className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
-              <div className="flex gap-3 text-sm text-slate-400">
+              <div className="flex gap-3 text-sm text-fg-secondary">
                 <span className="flex items-center gap-1.5">
                   <BookOpen className="w-3.5 h-3.5" /> {generatedCourse.language}
                 </span>
@@ -445,26 +445,26 @@ export function CoursesClient({ initialCourses }: Props) {
 
             {/* Units */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-300">الوحدات والدروس</p>
+              <p className="text-sm font-medium text-fg-secondary">الوحدات والدروس</p>
               {generatedCourse.units.map((unit, ui) => (
-                <div key={ui} className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
+                <div key={ui} className="bg-surface/50 border border-border-strong rounded-lg overflow-hidden">
                   <button
                     type="button"
                     onClick={() => toggleUnit(ui)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-800 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface transition-colors"
                   >
-                    <span className="w-6 h-6 rounded-full bg-violet-600/20 text-violet-400 text-xs flex items-center justify-center font-bold shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-accent-subtle text-accent text-xs flex items-center justify-center font-bold shrink-0">
                       {ui + 1}
                     </span>
-                    <span className="text-white text-sm font-medium flex-1">{unit.name}</span>
-                    <span className="text-slate-500 text-xs">{unit.lessons.length} دروس</span>
-                    {expandedUnits.has(ui) ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                    <span className="text-fg text-sm font-medium flex-1">{unit.name}</span>
+                    <span className="text-fg-muted text-xs">{unit.lessons.length} دروس</span>
+                    {expandedUnits.has(ui) ? <ChevronUp className="w-4 h-4 text-fg-muted" /> : <ChevronDown className="w-4 h-4 text-fg-muted" />}
                   </button>
 
                   {expandedUnits.has(ui) && (
-                    <div className="px-4 pb-3 space-y-2 border-t border-slate-700 pt-3">
+                    <div className="px-4 pb-3 space-y-2 border-t border-border-strong pt-3">
                       <input
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        className="w-full px-3 py-1.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                         value={unit.name}
                         onChange={e => updateUnitName(ui, e.target.value)}
                         placeholder="اسم الوحدة"
@@ -472,7 +472,7 @@ export function CoursesClient({ initialCourses }: Props) {
                       {unit.lessons.map((lesson, li) => (
                         <input
                           key={li}
-                          className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-3 py-1.5 rounded-lg bg-surface border border-border-strong text-fg-secondary text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                           value={lesson.title}
                           onChange={e => updateLessonTitle(ui, li, e.target.value)}
                           placeholder={`درس ${li + 1}`}
@@ -484,7 +484,7 @@ export function CoursesClient({ initialCourses }: Props) {
               ))}
             </div>
 
-            <div className="flex gap-3 pt-2 sticky bottom-0 bg-slate-900 pb-1">
+            <div className="flex gap-3 pt-2 sticky bottom-0 bg-surface pb-1">
               <Button variant="secondary" onClick={() => setPptxStep('upload')} className="flex-1">رجوع</Button>
               <Button onClick={() => setPptxStep('confirm')} className="flex-1">
                 <Check className="w-4 h-4" /> تأكيد وإنشاء
@@ -496,22 +496,22 @@ export function CoursesClient({ initialCourses }: Props) {
         {/* Step 3: Confirm */}
         {pptxStep === 'confirm' && generatedCourse && (
           <div className="space-y-5">
-            <div className="bg-slate-800 rounded-xl p-5 space-y-3">
-              <h3 className="text-white font-bold text-lg">{generatedCourse.title}</h3>
-              <p className="text-slate-400 text-sm">{generatedCourse.description}</p>
+            <div className="bg-surface rounded-lg p-5 space-y-3">
+              <h3 className="text-fg font-bold text-lg">{generatedCourse.title}</h3>
+              <p className="text-fg-secondary text-sm">{generatedCourse.description}</p>
               <div className="flex gap-4 text-sm">
-                <span className="text-slate-400 flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-violet-400" />
+                <span className="text-fg-secondary flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-accent" />
                   {generatedCourse.units.length} وحدة
                 </span>
-                <span className="text-slate-400 flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-blue-400" />
+                <span className="text-fg-secondary flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-accent" />
                   {generatedCourse.units.reduce((s, u) => s + u.lessons.length, 0)} درس
                 </span>
               </div>
             </div>
 
-            <p className="text-slate-400 text-sm text-center">
+            <p className="text-fg-secondary text-sm text-center">
               سيتم إنشاء الكورس مع جميع الوحدات والدروس. يمكنك إضافة المحتوى لاحقاً.
             </p>
 

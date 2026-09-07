@@ -38,9 +38,9 @@ interface Props {
 function StatusPill({ ok, okLabel = 'Configured', badLabel = 'Not configured' }: { ok: boolean; okLabel?: string; badLabel?: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-      ok ? 'text-emerald-400 bg-emerald-400/10' : 'text-amber-400 bg-amber-400/10'
+      ok ? 'text-accent bg-accent/10' : 'text-accent bg-warning/10'
     }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-accent' : 'bg-warning'}`} />
       {ok ? okLabel : badLabel}
     </span>
   )
@@ -200,41 +200,41 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h2 className="text-2xl font-bold text-white">Platform Settings</h2>
-        <p className="text-slate-400 mt-1">Your account and platform configuration</p>
+        <h2 className="text-2xl font-bold text-fg">Platform Settings</h2>
+        <p className="text-fg-secondary mt-1">Your account and platform configuration</p>
       </div>
 
       {/* Account */}
-      <form onSubmit={saveName} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <User className="w-4 h-4 text-slate-400" /> Account
+      <form onSubmit={saveName} className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <User className="w-4 h-4 text-fg-secondary" /> Account
         </h3>
         {nameError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{nameError}</p>}
         {nameSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Name updated
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} required />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Email</label>
+            <label className="block text-sm font-medium text-fg-secondary">Email</label>
             <input value={profile?.email ?? ''} disabled
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed" />
+              className="w-full px-4 py-2.5 rounded-lg bg-surface/50 border border-border-strong text-fg-secondary text-sm cursor-not-allowed" />
           </div>
         </div>
-        <p className="text-xs text-slate-500">Super admin since {profile ? formatDate(profile.created_at) : '—'}</p>
+        <p className="text-xs text-fg-muted">Super admin since {profile ? formatDate(profile.created_at) : '—'}</p>
         <Button type="submit" loading={savingName}>Save</Button>
       </form>
 
       {/* Password */}
-      <form onSubmit={savePassword} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-slate-400" /> Change Password
+      <form onSubmit={savePassword} className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-fg-secondary" /> Change Password
         </h3>
         {pwError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{pwError}</p>}
         {pwSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Password updated
           </div>
         )}
@@ -246,16 +246,16 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       </form>
 
       {/* Invitation defaults */}
-      <form onSubmit={saveInvitationDefaults} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Ticket className="w-4 h-4 text-slate-400" /> Invitation Defaults
+      <form onSubmit={saveInvitationDefaults} className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <Ticket className="w-4 h-4 text-fg-secondary" /> Invitation Defaults
         </h3>
-        <p className="text-slate-500 text-sm">
+        <p className="text-fg-muted text-sm">
           Default link validity (in hours) per invited role, used when the inviter doesn&apos;t set one. The maximum caps every invitation.
         </p>
         {invError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{invError}</p>}
         {invSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Invitation defaults saved
           </div>
         )}
@@ -273,16 +273,16 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       </form>
 
       {/* AI rate limits */}
-      <form onSubmit={saveAiRateLimits} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-slate-400" /> AI Rate Limits
+      <form onSubmit={saveAiRateLimits} className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <Gauge className="w-4 h-4 text-fg-secondary" /> AI Rate Limits
         </h3>
-        <p className="text-slate-500 text-sm">
+        <p className="text-fg-muted text-sm">
           Maximum AI generation calls per user per hour. Resets automatically every 60 minutes.
         </p>
         {aiError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{aiError}</p>}
         {aiSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> AI rate limits saved
           </div>
         )}
@@ -298,26 +298,26 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       </form>
 
       {/* Exam policies */}
-      <form onSubmit={saveExamPolicies} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <ClipboardCheck className="w-4 h-4 text-slate-400" /> Exam Policies
+      <form onSubmit={saveExamPolicies} className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <ClipboardCheck className="w-4 h-4 text-fg-secondary" /> Exam Policies
         </h3>
-        <p className="text-slate-500 text-sm">
+        <p className="text-fg-muted text-sm">
           Platform-wide defaults for new exams. Teachers can still toggle proctoring per exam.
         </p>
         {examError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{examError}</p>}
         {examSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Exam policies saved
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-slate-300 text-sm font-medium">Proctoring enabled by default</p>
-            <p className="text-slate-500 text-xs">New exams start with AI proctoring turned on</p>
+            <p className="text-fg-secondary text-sm font-medium">Proctoring enabled by default</p>
+            <p className="text-fg-muted text-xs">New exams start with AI proctoring turned on</p>
           </div>
           <div onClick={() => setExam(p => ({ ...p, proctoring_default_enabled: !p.proctoring_default_enabled }))}
-            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${exam.proctoring_default_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
+            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${exam.proctoring_default_enabled ? 'bg-accent' : 'bg-border-strong'}`}>
             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${exam.proctoring_default_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
           </div>
         </div>
@@ -326,39 +326,39 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
             value={exam.violation_warning_threshold}
             onChange={e => setExam(p => ({ ...p, violation_warning_threshold: Number(e.target.value) }))} required />
         </div>
-        <p className="text-xs text-slate-500">The student sees a persistent red warning once their proctoring violations reach this number.</p>
+        <p className="text-xs text-fg-muted">The student sees a persistent red warning once their proctoring violations reach this number.</p>
         <Button type="submit" loading={savingExam}>Save Policies</Button>
       </form>
 
       {/* Deletion policy */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Trash2 className="w-4 h-4 text-slate-400" /> Deletion Policy
+      <div className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <Trash2 className="w-4 h-4 text-fg-secondary" /> Deletion Policy
         </h3>
-        <p className="text-slate-500 text-sm">
+        <p className="text-fg-muted text-sm">
           Controls what happens when a teacher or admin deletes a group, lesson, exam, or homework across the whole platform.
         </p>
         {delSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Deletion policy saved
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-slate-300 text-sm font-medium">Allow permanent deletion</p>
-            <p className="text-slate-500 text-xs">
+            <p className="text-fg-secondary text-sm font-medium">Allow permanent deletion</p>
+            <p className="text-fg-muted text-xs">
               {del.hard_delete_enabled
                 ? 'ON — deletes permanently erase data (with all submissions & grades). Irreversible.'
                 : 'OFF — deletes move items to the archive (data preserved, recoverable). Recommended.'}
             </p>
           </div>
           <div onClick={() => !savingDel && saveDeletionPolicy(!del.hard_delete_enabled)}
-            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${del.hard_delete_enabled ? 'bg-red-600' : 'bg-slate-700'} ${savingDel ? 'opacity-60' : ''}`}>
+            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${del.hard_delete_enabled ? 'bg-red-600' : 'bg-border-strong'} ${savingDel ? 'opacity-60' : ''}`}>
             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${del.hard_delete_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
           </div>
         </div>
         {del.hard_delete_enabled && (
-          <div className="flex items-start gap-2 text-red-300 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
+          <div className="flex items-start gap-2 text-error text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>Permanent deletion is active. Deleted groups/exams and their students’ submissions and grades will be erased for good and will NOT appear in the archive.</span>
           </div>
@@ -366,37 +366,37 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       </div>
 
       {/* Platform configuration health */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Server className="w-4 h-4 text-slate-400" /> Platform Configuration
+      <div className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold flex items-center gap-2">
+          <Server className="w-4 h-4 text-fg-secondary" /> Platform Configuration
         </h3>
         <div className="space-y-3">
           {services.map(s => {
             const Icon = s.icon
             return (
               <div key={s.label} className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-slate-300 text-sm">
-                  <Icon className="w-4 h-4 text-slate-500" /> {s.label}
+                <span className="flex items-center gap-2 text-fg-secondary text-sm">
+                  <Icon className="w-4 h-4 text-fg-muted" /> {s.label}
                 </span>
                 <StatusPill ok={s.ok} />
               </div>
             )
           })}
           <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-slate-300 text-sm">
-              <Eye className="w-4 h-4 text-slate-500" /> Server-side proctoring analysis
+            <span className="flex items-center gap-2 text-fg-secondary text-sm">
+              <Eye className="w-4 h-4 text-fg-muted" /> Server-side proctoring analysis
             </span>
             <StatusPill ok={config.serverProctoring} okLabel="Enabled" badLabel="Disabled" />
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-slate-300 text-sm">
-              <Globe className="w-4 h-4 text-slate-500" /> App base URL (invitation links)
+            <span className="flex items-center gap-2 text-fg-secondary text-sm">
+              <Globe className="w-4 h-4 text-fg-muted" /> App base URL (invitation links)
             </span>
-            <span className="text-slate-400 text-xs font-mono truncate max-w-[220px]">{config.appUrl ?? 'not set — falls back to Vercel/localhost'}</span>
+            <span className="text-fg-secondary text-xs font-mono truncate max-w-[220px]">{config.appUrl ?? 'not set — falls back to Vercel/localhost'}</span>
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          These values come from environment variables on the server. To change them, edit <code className="text-slate-400">.env.local</code> (or your Vercel project settings) and redeploy.
+        <p className="text-xs text-fg-muted">
+          These values come from environment variables on the server. To change them, edit <code className="text-fg-secondary">.env.local</code> (or your Vercel project settings) and redeploy.
         </p>
       </div>
     </div>

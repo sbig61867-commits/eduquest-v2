@@ -115,48 +115,48 @@ export function TenantsClient({ initialTenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Universities</h2>
-          <p className="text-slate-400 mt-1">{tenants.length} tenants registered</p>
+          <h2 className="text-2xl font-bold text-fg">Universities</h2>
+          <p className="text-fg-secondary mt-1">{tenants.length} tenants registered</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> New University</Button>
       </div>
 
       {tenants.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 mb-2">No universities yet.</p>
-          <p className="text-slate-500 text-sm">Add the first university to get started.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <Building2 className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary mb-2">No universities yet.</p>
+          <p className="text-fg-muted text-sm">Add the first university to get started.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {tenants.map(tenant => (
-            <div key={tenant.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+            <div key={tenant.id} className="bg-surface border border-border rounded-lg p-5 hover:border-border-strong transition-colors">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-accent" />
                 </div>
-                <Badge variant={tenant.is_active ? 'green' : 'red'}>
+                <Badge variant={tenant.is_active ? 'success' : 'error'}>
                   {tenant.is_active ? 'نشطة' : 'مؤرشفة'}
                 </Badge>
               </div>
-              <h3 className="text-white font-semibold text-lg mb-1">{tenant.name}</h3>
-              <p className="text-slate-500 text-sm mb-1 font-mono">{tenant.slug}</p>
-              <p className="text-slate-500 text-xs mb-4">Created {formatDate(tenant.created_at)}</p>
+              <h3 className="text-fg font-semibold text-lg mb-1">{tenant.name}</h3>
+              <p className="text-fg-muted text-sm mb-1 font-mono">{tenant.slug}</p>
+              <p className="text-fg-muted text-xs mb-4">Created {formatDate(tenant.created_at)}</p>
 
-              <div className="space-y-2 pt-3 border-t border-slate-800">
+              <div className="space-y-2 pt-3 border-t border-border">
                 {/* Add admin manually */}
                 <Button variant="secondary" size="sm" className="w-full" onClick={() => openAddAdmin(tenant)}>
                   <UserPlus className="w-4 h-4" /> Add Admin (manual)
                 </Button>
                 {/* Invite admin via link — redirects to the Invitations page */}
-                <Button variant="secondary" size="sm" className="w-full !bg-blue-600/10 !border-blue-500/20 !text-blue-400 hover:!bg-blue-600/20" onClick={() => router.push('/super-admin/invitations')}>
+                <Button variant="secondary" size="sm" className="w-full !bg-accent/10 !border-accent/30 !text-accent hover:!bg-accent-subtle" onClick={() => router.push('/super-admin/invitations')}>
                   <Mail className="w-4 h-4" /> Invite Admin (link)
                 </Button>
                 <div className="flex gap-2">
                   <Button
                     variant="ghost" size="sm"
                     onClick={() => toggleTenant(tenant)}
-                    className={`flex-1 ${tenant.is_active ? 'hover:text-amber-400 hover:bg-amber-500/10' : 'hover:text-emerald-400 hover:bg-emerald-500/10'}`}
+                    className={`flex-1 ${tenant.is_active ? 'hover:text-accent hover:bg-accent-subtle' : 'hover:text-accent hover:bg-accent-subtle'}`}
                   >
                     {tenant.is_active
                       ? <><Archive className="w-4 h-4" /> أرشفة</>
@@ -209,9 +209,9 @@ export function TenantsClient({ initialTenants }: Props) {
       <Modal open={!!adminTarget} onClose={() => setAdminTarget(null)} title={`Add Admin — ${adminTarget?.name ?? ''}`}>
         <form onSubmit={handleAddAdmin} className="space-y-4">
           {adminError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{adminError}</p>}
-          {adminSuccess && <p className="text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">{adminSuccess}</p>}
-          <p className="text-slate-400 text-sm">
-            This admin will manage teachers and students for <span className="text-white font-medium">{adminTarget?.name}</span>.
+          {adminSuccess && <p className="text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">{adminSuccess}</p>}
+          <p className="text-fg-secondary text-sm">
+            This admin will manage teachers and students for <span className="text-fg font-medium">{adminTarget?.name}</span>.
           </p>
           <Input label="Full Name" value={adminForm.full_name} onChange={e => setAdminForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Dr. Mohammed Ali" />
           <Input label="Email" type="email" value={adminForm.email} onChange={e => setAdminForm(p => ({ ...p, email: e.target.value }))} required placeholder="admin@university.edu" />

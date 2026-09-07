@@ -18,16 +18,18 @@ export default async function TeacherDashboard() {
     { count: groups },
     { count: lessons },
     { count: exams },
+    { count: ungraded },
     { data: recentLessons },
     { data: upcomingExams },
   ] = await Promise.all([
     supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
     supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
     supabase.from('exams').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
+    supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).eq('status', 'submitted'),
     supabase.from('lessons')
       .select('id, title, is_published, created_at, groups(name)')
       .eq('teacher_id', user.id).is('deleted_at', null)
-      .order('created_at', { ascending: false }).limit(5),
+      .order('created_at', { ascending: false }).limit(6),
     supabase.from('exams')
       .select('id, title, ends_at, groups(name)')
       .eq('teacher_id', user.id).is('deleted_at', null)
@@ -36,82 +38,75 @@ export default async function TeacherDashboard() {
       .order('ends_at', { ascending: true }).limit(5),
   ])
 
-  const cards = [
-    { label: 'My Groups',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
-    { label: 'Lessons Created', value: lessons ?? 0, icon: BookOpen,     color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/teacher/lessons' },
-    { label: 'Exams Created',   value: exams   ?? 0, icon: ClipboardList,color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/teacher/exams'   },
-    { label: 'Upcoming Exams',  value: upcomingExams?.length ?? 0, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/teacher/exams' },
-  ]
-
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white">Teacher Dashboard</h2>
-        <p className="text-slate-400 mt-1">Manage your groups, lessons, and exams</p>
+      <h1 className="text-xl font-semibold text-fg">Dashboard</h1>
+
+      {/* Slim stat strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Groups', value: groups ?? 0, href: '/teacher/groups', icon: Users },
+          { label: 'Lessons', value: lessons ?? 0, href: '/teacher/lessons', icon: BookOpen },
+          { label: 'Exams', value: exams ?? 0, href: '/teacher/exams', icon: ClipboardList },
+          { label: 'Ungraded', value: ungraded ?? 0, href: '/teacher/grades', icon: Clock },
+        ].map(({ label, value, href, icon: Icon }) => (
+          <Link key={label} href={href}
+            className="flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-3 hover:border-border-strong transition-colors">
+            <Icon className="w-4 h-4 text-accent shrink-0" />
+            <div>
+              <p className="text-lg font-semibold text-fg leading-none">{value}</p>
+              <p className="text-xs text-fg-muted mt-0.5">{label}</p>
+            </div>
+          </Link>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card) => {
-          const Icon = card.icon
-          return (
-            <Link key={card.label} href={card.href} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors block">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-sm">{card.label}</p>
-                <div className={`p-2 rounded-lg ${card.bg}`}>
-                  <Icon className={`w-5 h-5 ${card.color}`} />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-white">{card.value}</p>
-            </Link>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recent Lessons */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+      {/* Row 2: Work queue (8) + Agenda (4) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-8 bg-surface border border-border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Recent Lessons</h3>
-            <Link href="/teacher/lessons" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
+            <h2 className="text-sm font-semibold text-fg">Recent Lessons</h2>
+            <Link href="/teacher/lessons" className="text-xs text-accent hover:text-accent-hover transition-colors">View all</Link>
           </div>
           {!recentLessons?.length ? (
-            <p className="text-slate-500 text-sm">No lessons yet. <Link href="/teacher/lessons" className="text-blue-400 hover:underline">Create your first lesson.</Link></p>
+            <p className="text-fg-muted text-sm">No lessons yet.{' '}
+              <Link href="/teacher/lessons" className="text-accent hover:underline">Create your first lesson.</Link>
+            </p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border">
               {(recentLessons as unknown as RecentLesson[]).map(l => (
                 <Link key={l.id} href={`/teacher/lessons/${l.id}`}
-                  className="flex items-center justify-between gap-3 py-2 border-b border-slate-800 last:border-0 hover:text-white transition-colors group">
+                  className="flex items-center justify-between gap-3 py-2.5 group">
                   <div className="min-w-0">
-                    <p className="text-slate-200 text-sm font-medium truncate group-hover:text-white">{l.title}</p>
-                    <p className="text-slate-500 text-xs">{l.groups?.name ?? '—'} · {formatDate(l.created_at)}</p>
+                    <p className="text-sm font-medium text-fg truncate group-hover:text-accent transition-colors">{l.title}</p>
+                    <p className="text-xs text-fg-muted">{l.groups?.name ?? '—'} · {formatDate(l.created_at)}</p>
                   </div>
                   {l.is_published
-                    ? <Eye className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    : <EyeOff className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
+                    ? <Eye className="w-3.5 h-3.5 text-accent shrink-0" />
+                    : <EyeOff className="w-3.5 h-3.5 text-fg-muted shrink-0" />}
                 </Link>
               ))}
             </div>
           )}
         </div>
 
-        {/* Upcoming Exams */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div className="lg:col-span-4 bg-surface border border-border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Upcoming Exams</h3>
-            <Link href="/teacher/exams" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
+            <h2 className="text-sm font-semibold text-fg">Upcoming Exams</h2>
+            <Link href="/teacher/exams" className="text-xs text-accent hover:text-accent-hover transition-colors">View all</Link>
           </div>
           {!upcomingExams?.length ? (
-            <p className="text-slate-500 text-sm">No upcoming exams. <Link href="/teacher/exams" className="text-blue-400 hover:underline">Create an exam.</Link></p>
+            <p className="text-fg-muted text-sm">No upcoming exams.{' '}
+              <Link href="/teacher/exams" className="text-accent hover:underline">Create an exam.</Link>
+            </p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border">
               {(upcomingExams as unknown as UpcomingExam[]).map(e => (
-                <div key={e.id} className="flex items-center justify-between gap-3 py-2 border-b border-slate-800 last:border-0">
-                  <div className="min-w-0">
-                    <p className="text-slate-200 text-sm font-medium truncate">{e.title}</p>
-                    <p className="text-slate-500 text-xs">{e.groups?.name ?? '—'}</p>
-                  </div>
+                <div key={e.id} className="py-2.5">
+                  <p className="text-sm font-medium text-fg truncate">{e.title}</p>
+                  <p className="text-xs text-fg-muted">{e.groups?.name ?? '—'}</p>
                   {e.ends_at && (
-                    <span className="text-amber-400 text-xs shrink-0">{formatDate(e.ends_at)}</span>
+                    <p className="text-xs text-accent mt-0.5">{formatDate(e.ends_at)}</p>
                   )}
                 </div>
               ))}

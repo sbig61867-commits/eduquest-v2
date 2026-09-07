@@ -15,10 +15,10 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   let i = 0
   while ((m = pattern.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index))
-    if (m[2] !== undefined) nodes.push(<mark key={`${keyPrefix}-hl${i}`} className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">{m[2]}</mark>)
+    if (m[2] !== undefined) nodes.push(<mark key={`${keyPrefix}-hl${i}`} className="px-1.5 py-0.5 rounded bg-success/20 text-success font-semibold">{m[2]}</mark>)
     else if (m[3] !== undefined) nodes.push(<strong key={`${keyPrefix}-b${i}`}>{m[3]}</strong>)
     else if (m[4] !== undefined) nodes.push(<em key={`${keyPrefix}-i${i}`}>{m[4]}</em>)
-    else if (m[5] !== undefined) nodes.push(<code key={`${keyPrefix}-c${i}`} className="px-1 py-0.5 rounded bg-slate-800 text-blue-300 text-[0.85em]">{m[5]}</code>)
+    else if (m[5] !== undefined) nodes.push(<code key={`${keyPrefix}-c${i}`} className="px-1 py-0.5 rounded bg-surface text-accent text-[0.85em]">{m[5]}</code>)
     last = m.index + m[0].length
     i++
   }
@@ -46,7 +46,7 @@ export function Markdown({ content, className }: { content: string; className?: 
   for (const line of lines) {
     if (codeLines !== null) {
       if (line.trim().startsWith('```')) {
-        blocks.push(<pre key={key++} className="my-3 p-3 rounded-lg bg-slate-950 border border-slate-800 overflow-x-auto text-sm text-slate-300"><code>{codeLines.join('\n')}</code></pre>)
+        blocks.push(<pre key={key++} className="my-3 p-3 rounded-lg bg-canvas border border-border overflow-x-auto text-sm text-fg-secondary"><code>{codeLines.join('\n')}</code></pre>)
         codeLines = null
       } else codeLines.push(line)
       continue
@@ -59,7 +59,7 @@ export function Markdown({ content, className }: { content: string; className?: 
       const level = h[1].length
       const sizes = ['text-2xl', 'text-xl', 'text-lg', 'text-base', 'text-base', 'text-sm']
       const Tag = (`h${Math.min(level, 6)}`) as keyof React.JSX.IntrinsicElements
-      blocks.push(<Tag key={key++} className={`${sizes[level - 1]} font-bold text-white mt-5 mb-2`}>{renderInline(h[2], `h${key}`)}</Tag>)
+      blocks.push(<Tag key={key++} className={`${sizes[level - 1]} font-bold text-fg mt-5 mb-2`}>{renderInline(h[2], `h${key}`)}</Tag>)
       continue
     }
     const li = line.match(/^\s*([-*+]|\d+[.)])\s+(.*)/)
@@ -71,14 +71,14 @@ export function Markdown({ content, className }: { content: string; className?: 
       continue
     }
     flushList()
-    if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) { blocks.push(<hr key={key++} className="my-4 border-slate-800" />); continue }
+    if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) { blocks.push(<hr key={key++} className="my-4 border-border" />); continue }
     const bq = line.match(/^>\s?(.*)/)
-    if (bq) { blocks.push(<blockquote key={key++} className="my-2 ps-3 border-s-2 border-blue-500/50 text-slate-400 italic">{renderInline(bq[1], `q${key}`)}</blockquote>); continue }
+    if (bq) { blocks.push(<blockquote key={key++} className="my-2 ps-3 border-s-2 border-blue-500/50 text-fg-secondary italic">{renderInline(bq[1], `q${key}`)}</blockquote>); continue }
     if (line.trim() === '') continue
     blocks.push(<p key={key++} className="my-2 leading-relaxed">{renderInline(line, `p${key}`)}</p>)
   }
   flushList()
-  if (codeLines !== null) blocks.push(<pre key={key++} className="my-3 p-3 rounded-lg bg-slate-950 border border-slate-800 overflow-x-auto text-sm text-slate-300"><code>{codeLines.join('\n')}</code></pre>)
+  if (codeLines !== null) blocks.push(<pre key={key++} className="my-3 p-3 rounded-lg bg-canvas border border-border overflow-x-auto text-sm text-fg-secondary"><code>{codeLines.join('\n')}</code></pre>)
 
-  return <div className={className ?? 'text-slate-300 text-sm'}>{blocks}</div>
+  return <div className={className ?? 'text-fg-secondary text-sm'}>{blocks}</div>
 }

@@ -50,11 +50,11 @@ const STATUS_LABEL: Record<RequestRow['status'], string> = {
   pending: 'قيد الانتظار', accepted: 'مقبول', rejected: 'مرفوض', completed: 'مكتمل', cancelled: 'ملغى',
 }
 const STATUS_CLASS: Record<RequestRow['status'], string> = {
-  pending: 'text-amber-400 bg-amber-500/10',
-  accepted: 'text-blue-400 bg-blue-500/10',
+  pending: 'text-accent bg-accent-subtle',
+  accepted: 'text-accent bg-accent-subtle',
   rejected: 'text-red-400 bg-red-500/10',
-  completed: 'text-emerald-400 bg-emerald-500/10',
-  cancelled: 'text-slate-400 bg-slate-500/10',
+  completed: 'text-accent bg-accent-subtle',
+  cancelled: 'text-fg-secondary bg-surface',
 }
 
 export function RequestsInbox({ me, requests, recipients, groups, recipientLabel }: Props) {
@@ -136,8 +136,8 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الطلبات والتواصل</h2>
-          <p className="text-slate-400 mt-1">{requests.length} طلب · تواصل مع {recipientLabel}</p>
+          <h2 className="text-2xl font-bold text-fg">الطلبات والتواصل</h2>
+          <p className="text-fg-secondary mt-1">{requests.length} طلب · تواصل مع {recipientLabel}</p>
         </div>
         <Button onClick={() => setComposing(v => !v)}>
           <Plus className="w-4 h-4" /> طلب جديد
@@ -145,13 +145,13 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
       </div>
 
       {composing && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">إنشاء طلب إلى {recipientLabel}</h3>
+        <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
+          <h3 className="text-fg font-semibold">إنشاء طلب إلى {recipientLabel}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>{recipientLabel}</span>
               <select
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.to_user_id}
                 onChange={e => setForm(f => ({ ...f, to_user_id: e.target.value, group_id: '' }))}
               >
@@ -159,10 +159,10 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 {recipients.map(r => <option key={r.id} value={r.id}>{r.full_name ?? '—'}</option>)}
               </select>
             </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>نوع الطلب</span>
               <select
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.type}
                 onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
               >
@@ -172,20 +172,20 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
               </select>
             </label>
           </div>
-          <label className="text-sm text-slate-300 space-y-1.5 block">
+          <label className="text-sm text-fg-secondary space-y-1.5 block">
             <span>الموضوع</span>
             <input
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+              className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
               value={form.subject}
               onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
               placeholder="مثال: كشف علامات مجموعة الرياضيات — الفصل الأول"
             />
           </label>
           {formGroups.length > 0 && (
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>المجموعة (اختياري)</span>
               <select
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.group_id}
                 onChange={e => setForm(f => ({ ...f, group_id: e.target.value }))}
               >
@@ -194,10 +194,10 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
               </select>
             </label>
           )}
-          <label className="text-sm text-slate-300 space-y-1.5 block">
+          <label className="text-sm text-fg-secondary space-y-1.5 block">
             <span>رسالة (اختياري)</span>
             <textarea
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm min-h-[80px]"
+              className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm min-h-[80px]"
               value={form.message}
               onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
               placeholder="تفاصيل إضافية…"
@@ -211,10 +211,10 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
       )}
 
       {requests.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Inbox className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد طلبات بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">أنشئ طلباً جديداً للتواصل مع {recipientLabel}.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <Inbox className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">لا توجد طلبات بعد.</p>
+          <p className="text-fg-muted text-sm mt-1">أنشئ طلباً جديداً للتواصل مع {recipientLabel}.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -227,15 +227,15 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 <button
                   key={r.id}
                   onClick={() => setSelectedId(r.id)}
-                  className={`w-full text-right p-3 rounded-xl border transition-colors ${
-                    selectedId === r.id ? 'bg-slate-800 border-blue-600' : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
+                  className={`w-full text-right p-3 rounded-lg border transition-colors ${
+                    selectedId === r.id ? 'bg-surface border-blue-600' : 'bg-surface border-border hover:bg-surface/50'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-white text-sm font-medium truncate">{r.subject}</span>
+                    <span className="text-fg text-sm font-medium truncate">{r.subject}</span>
                     <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${STATUS_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                  <div className="flex items-center gap-2 mt-1 text-xs text-fg-muted">
                     <span>{TYPE_LABEL[r.type]}</span>
                     <span>·</span>
                     <span>{outgoing ? 'إلى' : 'من'} {counterpart ?? '—'}</span>
@@ -251,13 +251,13 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
           {/* Thread */}
           <div className="lg:col-span-2">
             {selected ? (
-              <div className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-full">
-                <div className="p-4 border-b border-slate-800">
+              <div className="bg-surface border border-border rounded-lg flex flex-col h-full">
+                <div className="p-4 border-b border-border">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-white font-semibold">{selected.subject}</h3>
+                    <h3 className="text-fg font-semibold">{selected.subject}</h3>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_CLASS[selected.status]}`}>{STATUS_LABEL[selected.status]}</span>
                   </div>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-fg-muted text-xs mt-1">
                     {TYPE_LABEL[selected.type]}
                     {selected.group_name && <> · المجموعة: {selected.group_name}</>}
                     {' · '}{formatDate(selected.created_at)}
@@ -267,7 +267,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
 
                 <div className="p-4 space-y-3 max-h-[420px] overflow-y-auto">
                   {selected.messages.length === 0 ? (
-                    <p className="text-slate-500 text-sm text-center py-6">لا توجد رسائل — ابدأ المحادثة.</p>
+                    <p className="text-fg-muted text-sm text-center py-6">لا توجد رسائل — ابدأ المحادثة.</p>
                   ) : (
                     [...selected.messages]
                       .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -275,9 +275,9 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                         const mine = m.sender_id === me.id
                         return (
                           <div key={m.id} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
-                            <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-200'}`}>
+                            <div className={`max-w-[75%] rounded-lg px-3.5 py-2 text-sm ${mine ? 'bg-accent text-accent-fg' : 'bg-surface text-fg'}`}>
                               <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                              <p className={`text-[10px] mt-1 ${mine ? 'text-blue-100' : 'text-slate-500'}`}>{formatDate(m.created_at)}</p>
+                              <p className={`text-[10px] mt-1 ${mine ? 'text-accent-fg/70' : 'text-fg-muted'}`}>{formatDate(m.created_at)}</p>
                             </div>
                           </div>
                         )
@@ -285,9 +285,9 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                   )}
                 </div>
 
-                <div className="p-3 border-t border-slate-800 flex gap-2">
+                <div className="p-3 border-t border-border flex gap-2">
                   <input
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="flex-1 bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                     placeholder="اكتب رسالة…"
                     value={reply}
                     onChange={e => setReply(e.target.value)}
@@ -297,7 +297,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-900 border border-slate-800 rounded-xl h-full flex items-center justify-center text-slate-500 text-sm py-20">
+              <div className="bg-surface border border-border rounded-lg h-full flex items-center justify-center text-fg-muted text-sm py-20">
                 اختر طلباً لعرض المحادثة
               </div>
             )}

@@ -72,16 +72,16 @@ export default async function ProctoringReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Proctoring Reports</h2>
-        <p className="text-slate-400 mt-1">Exam integrity monitoring for all proctored exams</p>
+        <h2 className="text-2xl font-bold text-fg">Proctoring Reports</h2>
+        <p className="text-fg-secondary mt-1">Exam integrity monitoring for all proctored exams</p>
       </div>
 
       {(liveExams ?? []).length > 0 && (
-        <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
+        <div className="bg-surface border border-red-900/40 rounded-lg p-5">
           <div className="flex items-center gap-2 mb-3">
             <Radio className="w-4 h-4 text-red-400" />
-            <p className="text-white font-semibold">Live Monitoring</p>
-            <span className="text-slate-500 text-xs">Watch students in real time during a proctored exam</span>
+            <p className="text-fg font-semibold">Live Monitoring</p>
+            <span className="text-fg-muted text-xs">Watch students in real time during a proctored exam</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {(liveExams ?? []).map(e => (
@@ -95,25 +95,25 @@ export default async function ProctoringReportsPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">Total Submissions</p>
-          <p className="text-3xl font-bold text-white">{submissions.length}</p>
+        <div className="bg-surface border border-border rounded-lg p-5">
+          <p className="text-fg-secondary text-sm mb-1">Total Submissions</p>
+          <p className="text-3xl font-bold text-fg">{submissions.length}</p>
         </div>
-        <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">Flagged</p>
+        <div className="bg-surface border border-red-900/40 rounded-lg p-5">
+          <p className="text-fg-secondary text-sm mb-1">Flagged</p>
           <p className="text-3xl font-bold text-red-400">{flagged.length}</p>
         </div>
-        <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">Clean</p>
-          <p className="text-3xl font-bold text-emerald-400">{clean.length}</p>
+        <div className="bg-surface border border-emerald-900/40 rounded-lg p-5">
+          <p className="text-fg-secondary text-sm mb-1">Clean</p>
+          <p className="text-3xl font-bold text-accent">{clean.length}</p>
         </div>
       </div>
 
       {!submissions.length ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <ShieldCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No proctored exam submissions yet.</p>
-          <p className="text-slate-500 text-sm mt-1">Enable proctoring when creating an exam to see reports here.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <ShieldCheck className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">No proctored exam submissions yet.</p>
+          <p className="text-fg-muted text-sm mt-1">Enable proctoring when creating an exam to see reports here.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -124,21 +124,21 @@ export default async function ProctoringReportsPage() {
             const pct = Math.round(((sub.score ?? 0) / max) * 100)
 
             return (
-              <div key={sub.id} className={`bg-slate-900 border rounded-xl p-5 ${isFlagged ? 'border-red-900/50' : 'border-slate-800'}`}>
+              <div key={sub.id} className={`bg-surface border rounded-lg p-5 ${isFlagged ? 'border-red-900/50' : 'border-border'}`}>
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-white font-semibold">{sub.users?.full_name ?? '—'}</h3>
-                      <Badge variant={isFlagged ? 'red' : 'green'}>{isFlagged ? `${events.length} violations` : 'Clean'}</Badge>
+                      <h3 className="text-fg font-semibold">{sub.users?.full_name ?? '—'}</h3>
+                      <Badge variant={isFlagged ? 'error' : 'success'}>{isFlagged ? `${events.length} violations` : 'Clean'}</Badge>
                     </div>
-                    <p className="text-slate-400 text-sm">{sub.users?.email} · {sub.exams?.title}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">Score: {sub.score}/{max} ({pct}%) · {formatDateTime(sub.submitted_at)}</p>
+                    <p className="text-fg-secondary text-sm">{sub.users?.email} · {sub.exams?.title}</p>
+                    <p className="text-fg-muted text-xs mt-0.5">Score: {sub.score}/{max} ({pct}%) · {formatDateTime(sub.submitted_at)}</p>
                   </div>
                 </div>
 
                 {events.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Violations</p>
+                    <p className="text-xs font-medium text-fg-secondary uppercase tracking-wider mb-2">Violations</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {events.map((ev, i) => {
                         const Icon = VIOLATION_ICONS[ev.type as ViolationIconKey] ?? AlertTriangle
@@ -147,8 +147,8 @@ export default async function ProctoringReportsPage() {
                             <Icon className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                             <div className="min-w-0">
                               <p className="text-red-300 text-sm font-medium">{VIOLATION_LABELS[ev.type] ?? ev.type}</p>
-                              {ev.details && <p className="text-slate-500 text-xs truncate">{ev.details}</p>}
-                              {ev.timestamp && <p className="text-slate-600 text-xs">{formatDateTime(ev.timestamp)}</p>}
+                              {ev.details && <p className="text-fg-muted text-xs truncate">{ev.details}</p>}
+                              {ev.timestamp && <p className="text-fg-muted text-xs">{formatDateTime(ev.timestamp)}</p>}
                             </div>
                           </div>
                         )

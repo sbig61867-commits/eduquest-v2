@@ -273,14 +273,14 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-white transition-colors">
+        <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-white">{lesson.title}</h1>
-          <p className="text-slate-400 text-sm">{lesson.groups?.name ?? '—'}</p>
+          <h1 className="text-xl font-bold text-fg">{lesson.title}</h1>
+          <p className="text-fg-secondary text-sm">{lesson.groups?.name ?? '—'}</p>
         </div>
-        <Badge variant={published ? 'green' : 'yellow'}>
+        <Badge variant={published ? 'success' : 'warning'}>
           {published ? 'منشور للطلاب' : 'مسودة — غير ظاهر للطلاب'}
         </Badge>
         <Button size="sm" variant={published ? 'secondary' : 'primary'} loading={publishing} onClick={togglePublish}>
@@ -289,13 +289,13 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800">
+      <div className="flex border-b border-border">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              tab === t ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+              tab === t ? 'border-accent text-fg' : 'border-transparent text-fg-secondary hover:text-fg'
             }`}
           >
             {t === 'المحتوى' && <BookOpen className="w-4 h-4 inline ml-1.5" />}
@@ -303,7 +303,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
             {t === 'التسليمات' && <Users className="w-4 h-4 inline ml-1.5" />}
             {t}
             {t === 'الواجب' && homework.length > 0 && (
-              <span className="mr-1.5 bg-blue-600 text-white text-xs rounded-full px-1.5">{homework.length}</span>
+              <span className="mr-1.5 bg-accent text-accent-fg text-xs rounded-full px-1.5">{homework.length}</span>
             )}
           </button>
         ))}
@@ -317,38 +317,38 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
             <button
               onClick={() => setFileMode(!fileMode)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                fileMode ? 'border-violet-500 bg-violet-500/10 text-violet-300' : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-white'
+                fileMode ? 'border-accent bg-accent-subtle text-accent' : 'border-border-strong text-fg-secondary hover:border-border-strong hover:text-fg'
               }`}
             >
               <Upload className="w-4 h-4" />
               توليد من ملف
             </button>
-            <span className="text-slate-600 text-sm">أو اكتب المحتوى يدوياً أدناه</span>
+            <span className="text-fg-muted text-sm">أو اكتب المحتوى يدوياً أدناه</span>
           </div>
 
           {/* AI from file panel */}
           {fileMode && (
-            <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4 space-y-3">
+            <div className="bg-accent-subtle border border-accent/20 rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-4 h-4 text-violet-400" />
-                <span className="text-violet-300 text-sm font-medium">توليد محتوى الدرس من ملف</span>
+                <Sparkles className="w-4 h-4 text-accent" />
+                <span className="text-accent text-sm font-medium">توليد محتوى الدرس من ملف</span>
               </div>
 
               {/* File picker */}
               <div
                 onClick={() => fileRef.current?.click()}
                 className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-                  uploadedFile ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700 hover:border-slate-600'
+                  uploadedFile ? 'border-accent bg-accent-subtle' : 'border-border-strong hover:border-border-strong'
                 }`}
               >
                 {uploadedFile ? (
                   <div className="flex items-center justify-center gap-2">
-                    <FileText className="w-5 h-5 text-violet-400" />
-                    <span className="text-white text-sm">{uploadedFile.name}</span>
-                    <span className="text-slate-500 text-xs">({(uploadedFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                    <FileText className="w-5 h-5 text-accent" />
+                    <span className="text-fg text-sm">{uploadedFile.name}</span>
+                    <span className="text-fg-muted text-xs">({(uploadedFile.size / 1024 / 1024).toFixed(1)} MB)</span>
                   </div>
                 ) : (
-                  <p className="text-slate-400 text-sm">اضغط لاختيار ملف — PDF / PPTX / DOCX / JPG / PNG (حتى 20 MB)</p>
+                  <p className="text-fg-secondary text-sm">اضغط لاختيار ملف — PDF / PPTX / DOCX / JPG / PNG (حتى 20 MB)</p>
                 )}
               </div>
               <input ref={fileRef} type="file" accept=".pdf,.pptx,.docx,.jpg,.jpeg,.png,.webp" className="hidden"
@@ -356,7 +356,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
               <div className="flex gap-2">
                 <select value={aiLevel} onChange={e => setAiLevel(e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                  className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
                   <option value="high_school">ثانوي</option>
                   <option value="undergraduate">جامعي</option>
                   <option value="graduate">دراسات عليا</option>
@@ -367,7 +367,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">طبيعة أسئلة الكويز والاختبار — فعّل ما تريد (واحد أو أكثر)</label>
+                <label className="text-xs text-fg-muted">طبيعة أسئلة الكويز والاختبار — فعّل ما تريد (واحد أو أكثر)</label>
                 <div className="flex flex-wrap gap-2">
                   {QTYPE_OPTIONS.map(opt => {
                     const on = qTypes.includes(opt.key)
@@ -378,8 +378,8 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                         onClick={() => toggleQType(opt.key)}
                         className={`px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
                           on
-                            ? 'border-violet-500 bg-violet-500/15 text-violet-300'
-                            : 'border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300'
+                            ? 'border-accent bg-accent-subtle text-accent'
+                            : 'border-border-strong text-fg-muted hover:border-border-strong hover:text-fg-secondary'
                         }`}
                       >
                         {on ? '✓ ' : ''}{opt.label}
@@ -390,9 +390,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">تعليمات إضافية (اختياري) — يمكنك تحديد التبويبات التي تريدها بنفسك</label>
+                <label className="text-xs text-fg-muted">تعليمات إضافية (اختياري) — يمكنك تحديد التبويبات التي تريدها بنفسك</label>
                 <textarea value={aiInstructions} onChange={e => setAiInstructions(e.target.value)} rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
                   placeholder='مثال: "قسّم الدرس إلى: محادثة، استماع وفهم، قواعد، كلمات جديدة" — أو أي توجيه آخر. اتركه فارغاً وسيختار الذكاء الاصطناعي التبويبات المناسبة تلقائياً.' />
               </div>
 
@@ -408,24 +408,24 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           {/* Content editor */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-slate-300">المحتوى (Markdown)</label>
+              <label className="block text-sm font-medium text-fg-secondary">المحتوى (Markdown)</label>
               <button
                 onClick={() => setPreviewMode(p => !p)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 text-xs transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-border-strong text-fg-secondary hover:text-fg hover:border-border-strong text-xs transition-colors"
               >
                 {previewMode ? <><EyeOff className="w-3.5 h-3.5" /> تحرير</> : <><Eye className="w-3.5 h-3.5" /> معاينة</>}
               </button>
             </div>
             {previewMode ? (
-              <div className="min-h-[300px] px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm prose prose-invert max-w-none">
-                {content.trim() ? <LessonTabs content={content} /> : <p className="text-slate-500 italic">لا يوجد محتوى للمعاينة</p>}
+              <div className="min-h-[300px] px-4 py-3 rounded-lg bg-surface border border-border-strong text-fg text-sm prose prose-invert max-w-none">
+                {content.trim() ? <LessonTabs content={content} /> : <p className="text-fg-muted italic">لا يوجد محتوى للمعاينة</p>}
               </div>
             ) : (
               <textarea
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 rows={18}
-                className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                className="w-full px-4 py-3 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-accent font-mono"
                 placeholder="اكتب محتوى الدرس هنا أو ولّده من ملف..."
                 dir="auto"
               />
@@ -445,8 +445,8 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white font-medium">الواجبات اليومية</p>
-              <p className="text-slate-500 text-sm">{totalQuestions} سؤال · {totalSubmissions} تسليم</p>
+              <p className="text-fg font-medium">الواجبات اليومية</p>
+              <p className="text-fg-muted text-sm">{totalQuestions} سؤال · {totalSubmissions} تسليم</p>
             </div>
             <Button onClick={() => setShowHwModal(true)}>
               <Plus className="w-4 h-4" /> إضافة واجب
@@ -454,22 +454,22 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           </div>
 
           {homework.length === 0 ? (
-            <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
-              <ClipboardList className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">لا يوجد واجبات لهذا الدرس بعد.</p>
+            <div className="text-center py-16 bg-surface border border-border rounded-lg">
+              <ClipboardList className="w-10 h-10 text-fg-muted mx-auto mb-3" />
+              <p className="text-fg-secondary">لا يوجد واجبات لهذا الدرس بعد.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {homework.map(hw => (
-                <div key={hw.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+                <div key={hw.id} className="bg-surface border border-border rounded-lg p-4 flex items-center gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="text-white font-medium">{hw.title}</p>
-                      <Badge variant={hw.is_published ? 'green' : 'yellow'}>
+                      <p className="text-fg font-medium">{hw.title}</p>
+                      <Badge variant={hw.is_published ? 'success' : 'warning'}>
                         {hw.is_published ? 'منشور' : 'مسودة'}
                       </Badge>
                     </div>
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-fg-muted text-sm">
                       {hw.questions?.length ?? 0} سؤال ·{' '}
                       {hw.exam_submissions?.[0]?.count ?? 0} تسليم
                       {hw.ends_at && ` · موعد التسليم: ${new Date(hw.ends_at).toLocaleDateString('ar')}`}
@@ -488,7 +488,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
           {/* Export */}
           {homework.length > 0 && (
-            <div className="pt-2 border-t border-slate-800">
+            <div className="pt-2 border-t border-border">
               <Button variant="secondary" onClick={exportGrades}>
                 <Download className="w-4 h-4" /> تصدير الدرجات (Excel/CSV)
               </Button>
@@ -501,7 +501,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       {tab === 'التسليمات' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-white font-medium">التسليمات والدرجات</p>
+            <p className="text-fg font-medium">التسليمات والدرجات</p>
             <Button variant="secondary" onClick={exportGrades}>
               <Download className="w-4 h-4" /> تصدير Excel
             </Button>
@@ -515,32 +515,32 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
 
           {/* AI generator */}
-          <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 space-y-2">
+          <div className="bg-accent-subtle border border-accent/20 rounded-lg p-4 space-y-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-violet-400" />
-              <span className="text-violet-300 text-sm font-medium">توليد أسئلة بالذكاء الاصطناعي</span>
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-accent text-sm font-medium">توليد أسئلة بالذكاء الاصطناعي</span>
             </div>
             <div className="flex gap-2">
               <input value={aiHwTopic} onChange={e => setAiHwTopic(e.target.value)}
                 placeholder="موضوع الأسئلة (مثل: مقدمة أمن المعلومات)"
-                className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-violet-500" />
               <input type="number" value={aiHwCount} onChange={e => setAiHwCount(Number(e.target.value))} min={1} max={20}
-                className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
               <Button onClick={generateHwQuestions} loading={aiHwLoading} variant="secondary" size="sm">توليد</Button>
             </div>
           </div>
 
           {/* AI from file */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
+          <div className="bg-accent-subtle border border-accent/30 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <Upload className="w-4 h-4 text-blue-400" />
-              <span className="text-blue-300 text-sm font-medium">توليد واجب من ملف — الأسئلة من محتوى الملف فقط</span>
+              <Upload className="w-4 h-4 text-accent" />
+              <span className="text-accent-hover text-sm font-medium">توليد واجب من ملف — الأسئلة من محتوى الملف فقط</span>
             </div>
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => hwFileRef.current?.click()}
-                  className="px-3 py-2 rounded-lg border border-blue-500 bg-blue-500/10 text-blue-300 text-sm hover:bg-blue-500/20 transition-colors">
+                  className="px-3 py-2 rounded-lg border border-accent bg-accent-subtle text-accent-hover text-sm hover:bg-accent-hover/20 transition-colors">
                   <Plus className="w-3.5 h-3.5 inline -mt-0.5" /> {hwFiles.length ? 'إضافة ملفات أخرى' : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
                 </button>
                 {/* Appends to the existing selection (dedup by name+size) so the
@@ -557,20 +557,20 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   }} />
                 <input type="number" value={hwFileCount} onChange={e => setHwFileCount(Number(e.target.value))} min={1} max={120}
                   title="عدد الأسئلة"
-                  className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <span className="text-slate-500 text-xs">سؤال</span>
+                  className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-accent" />
+                <span className="text-fg-muted text-xs">سؤال</span>
               </div>
               {hwFiles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {hwFiles.map((f, i) => (
-                    <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs">
+                    <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border-strong text-fg-secondary text-xs">
                       📄 {f.name}
                       <button type="button" title="إزالة هذا الملف"
                         onClick={() => setHwFiles(prev => prev.filter((_, j) => j !== i))}
-                        className="text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                        className="text-fg-muted hover:text-red-400"><X className="w-3 h-3" /></button>
                     </span>
                   ))}
-                  <span className="text-slate-600 text-xs self-center">{hwFiles.length}/10</span>
+                  <span className="text-fg-muted text-xs self-center">{hwFiles.length}/10</span>
                 </div>
               )}
             </div>
@@ -581,7 +581,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   <div key={t} className="flex items-center gap-1.5">
                     <button type="button" onClick={() => toggleHwType(t)}
                       className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
-                        hwTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                        hwTypes.has(t) ? 'border-accent bg-accent-subtle text-accent-hover' : 'border-border-strong text-fg-secondary hover:border-border-strong'
                       }`}>
                       {hwTypes.has(t) ? '✓ ' : ''}{label}
                     </button>
@@ -590,18 +590,18 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                         <input type="number" min={1} max={100} value={typePoints[t]}
                           title={`علامة كل سؤال ${label}`}
                           onChange={e => setTypePoints(p => ({ ...p, [t]: Math.max(1, Number(e.target.value)) }))}
-                          className="w-14 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        <span className="text-slate-500 text-xs">علامة</span>
+                          className="w-14 px-2 py-1.5 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-1 focus:ring-accent" />
+                        <span className="text-fg-muted text-xs">علامة</span>
                       </>
                     )}
                   </div>
                 ))}
               </div>
-              <p className="text-slate-500 text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً.</p>
+              <p className="text-fg-muted text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً.</p>
             </div>
 
             <textarea value={hwFileInstructions} onChange={e => setHwFileInstructions(e.target.value)} rows={2}
-              className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent"
               placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على القسم الثاني من الملف واجعل الأسئلة قصيرة"' />
 
             <AiProgress active={hwFileLoading} />
@@ -618,10 +618,10 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               onChange={e => setHwForm(p => ({ ...p, title: e.target.value }))}
               placeholder="مثال: واجب الوحدة الأولى" required />
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-300">موعد التسليم (اختياري)</label>
+              <label className="block text-sm font-medium text-fg-secondary">موعد التسليم (اختياري)</label>
               <input type="datetime-local" value={hwForm.due_date}
                 onChange={e => setHwForm(p => ({ ...p, due_date: e.target.value }))}
-                className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
             </div>
           </div>
 
@@ -629,7 +629,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           {(() => {
             const hasEssay = questions.some(q => q.type === 'essay')
             return (
-              <label className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer ${hasEssay ? 'border-slate-800 opacity-60 cursor-not-allowed' : 'border-slate-700 hover:border-slate-500'}`}>
+              <label className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer ${hasEssay ? 'border-border opacity-60 cursor-not-allowed' : 'border-border-strong hover:border-border-strong'}`}>
                 <input
                   type="checkbox"
                   checked={autoPublishHw && !hasEssay}
@@ -638,8 +638,8 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   className="mt-0.5 accent-blue-500"
                 />
                 <span className="text-sm">
-                  <span className="text-slate-200 font-medium">نشر النتائج تلقائياً فور التسليم</span>
-                  <span className="block text-slate-500 text-xs mt-0.5">
+                  <span className="text-fg font-medium">نشر النتائج تلقائياً فور التسليم</span>
+                  <span className="block text-fg-muted text-xs mt-0.5">
                     {hasEssay
                       ? 'غير متاح — الواجب يحتوي أسئلة مقالية تتطلب تصحيحك اليدوي ثم نشر النتائج من تبويب التسليمات.'
                       : 'أسئلة الاختيار والصح/خطأ تُصحح آلياً — يرى الطالب علامته مباشرة بعد التسليم.'}
@@ -652,17 +652,17 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           {/* Questions list */}
           {questions.length > 0 && (
             <div className="space-y-2">
-              <p className="text-slate-300 text-sm font-medium">
-                {questions.length} سؤال — العلامة الكاملة: <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
+              <p className="text-fg-secondary text-sm font-medium">
+                {questions.length} سؤال — العلامة الكاملة: <span className="text-fg font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
               </p>
               {questions.map((q, i) => (
-                <div key={q.id} className="flex items-start gap-3 bg-slate-800 rounded-lg p-3">
-                  <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
+                <div key={q.id} className="flex items-start gap-3 bg-surface rounded-lg p-3">
+                  <span className="text-fg-muted text-xs font-mono mt-0.5">{i + 1}.</span>
                   <div className="flex-1">
-                    <p className="text-slate-300 text-sm">{q.text}</p>
+                    <p className="text-fg-secondary text-sm">{q.text}</p>
                     {q.correct_answer && <p className="text-green-500 text-xs mt-0.5">✓ {q.correct_answer}</p>}
                   </div>
-                  <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'essay' ? 'yellow' : 'gray'}>
+                  <Badge variant={q.type === 'mcq' ? 'info' : q.type === 'essay' ? 'warning' : 'neutral'}>
                     {q.type === 'mcq' ? 'اختيار' : q.type === 'essay' ? 'مقالي' : 'صح/خطأ'}
                   </Badge>
                   <span className="flex items-center gap-1 shrink-0">
@@ -672,11 +672,11 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                         const v = Math.max(1, Number(e.target.value))
                         setQuestions(p => p.map(x => x.id === q.id ? { ...x, points: v } : x))
                       }}
-                      className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    <span className="text-slate-500 text-xs">د</span>
+                      className="w-14 px-1.5 py-1 rounded bg-surface border border-border-strong text-fg text-xs text-center focus:outline-none focus:ring-1 focus:ring-accent" />
+                    <span className="text-fg-muted text-xs">د</span>
                   </span>
                   <button onClick={() => setQuestions(p => p.filter(x => x.id !== q.id))}
-                    className="text-slate-500 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                    className="text-fg-muted hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
                 </div>
               ))}
             </div>
@@ -684,58 +684,58 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
           {/* Add manual question */}
           {showAddQ ? (
-            <div className="bg-slate-800 rounded-xl p-4 space-y-3 border border-slate-700">
+            <div className="bg-surface rounded-lg p-4 space-y-3 border border-border-strong">
               <div className="flex items-center justify-between">
-                <p className="text-white text-sm font-medium">سؤال جديد</p>
-                <button onClick={() => setShowAddQ(false)} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
+                <p className="text-fg text-sm font-medium">سؤال جديد</p>
+                <button onClick={() => setShowAddQ(false)} className="text-fg-muted hover:text-fg"><X className="w-4 h-4" /></button>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <select value={newQ.type} onChange={e => setNewQ(p => ({ ...p, type: e.target.value as Question['type'] }))}
-                  className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-1 focus:ring-accent">
                   <option value="mcq">اختيار من متعدد</option>
                   <option value="true_false">صح / خطأ</option>
                   <option value="essay">مقالي</option>
                 </select>
                 <input type="number" placeholder="الدرجة" value={newQ.points ?? 5}
                   onChange={e => setNewQ(p => ({ ...p, points: Number(e.target.value) }))}
-                  className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                  className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-1 focus:ring-accent" />
               </div>
               <textarea value={newQ.text ?? ''} onChange={e => setNewQ(p => ({ ...p, text: e.target.value }))}
                 rows={2} placeholder="نص السؤال"
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent" />
               {newQ.type === 'mcq' && (
                 <div className="grid grid-cols-2 gap-2">
                   {(newQ.options ?? ['', '', '', '']).map((opt, i) => (
                     <input key={i} value={opt} placeholder={`الخيار ${i + 1}`}
                       onChange={e => setNewQ(p => ({ ...p, options: (p.options ?? []).map((o, j) => j === i ? e.target.value : o) }))}
-                      className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-1 focus:ring-accent" />
                   ))}
                   <input value={newQ.correct_answer ?? ''} placeholder="الإجابة الصحيحة"
                     onChange={e => setNewQ(p => ({ ...p, correct_answer: e.target.value }))}
-                    className="col-span-2 px-3 py-2 rounded-lg bg-slate-900 border border-green-600/50 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500" />
+                    className="col-span-2 px-3 py-2 rounded-lg bg-surface border border-green-600/50 text-fg text-sm focus:outline-none focus:ring-1 focus:ring-green-500" />
                 </div>
               )}
               {newQ.type === 'true_false' && (
                 <select value={newQ.correct_answer ?? 'True'}
                   onChange={e => setNewQ(p => ({ ...p, correct_answer: e.target.value }))}
-                  className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-1 focus:ring-accent">
                   <option value="True">صح (True)</option>
                   <option value="False">خطأ (False)</option>
                 </select>
               )}
               {newQ.type === 'essay' && (
-                <p className="text-slate-500 text-xs">الأسئلة المقالية تُصحح يدوياً من قبل المعلم.</p>
+                <p className="text-fg-muted text-xs">الأسئلة المقالية تُصحح يدوياً من قبل المعلم.</p>
               )}
               <Button onClick={addManualQuestion} size="sm">إضافة السؤال</Button>
             </div>
           ) : (
             <button onClick={() => setShowAddQ(true)}
-              className="w-full py-2.5 rounded-lg border-2 border-dashed border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white text-sm transition-colors flex items-center justify-center gap-2">
+              className="w-full py-2.5 rounded-lg border-2 border-dashed border-border-strong text-fg-secondary hover:border-border-strong hover:text-fg text-sm transition-colors flex items-center justify-center gap-2">
               <Plus className="w-4 h-4" /> إضافة سؤال يدوياً
             </button>
           )}
 
-          <div className="flex gap-3 pt-2 sticky bottom-0 bg-slate-900 pb-1">
+          <div className="flex gap-3 pt-2 sticky bottom-0 bg-surface pb-1">
             <Button variant="secondary" onClick={() => { setShowHwModal(false); setQuestions([]) }} className="flex-1">إلغاء</Button>
             <Button onClick={saveHomework} loading={hwLoading} disabled={!hwForm.title || questions.length === 0} className="flex-1">
               حفظ الواجب ({questions.length} سؤال)

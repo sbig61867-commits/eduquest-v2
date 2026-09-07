@@ -27,34 +27,34 @@ const isHomework = (e: ExamRow) =>
 
 function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div className="bg-surface border border-border rounded-lg overflow-hidden">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-slate-800">
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? 'Homework' : 'Exam'}</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Teacher</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Group</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Submissions</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Status</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">Created</th>
+          <tr className="border-b border-border">
+            <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3">{homework ? 'Homework' : 'Exam'}</th>
+            <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3 hidden md:table-cell">Teacher</th>
+            <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Group</th>
+            <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3">Submissions</th>
+            <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3">Status</th>
+            <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3 hidden xl:table-cell">Created</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800">
+        <tbody className="divide-y divide-border">
           {rows.map(exam => (
-            <tr key={exam.id} className="hover:bg-slate-800/50 transition-colors">
+            <tr key={exam.id} className="hover:bg-surface/50 transition-colors">
               <td className="px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${homework ? 'bg-amber-600/20' : 'bg-blue-600/20'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${homework ? 'bg-accent-subtle' : 'bg-accent-subtle'}`}>
                     {homework
-                      ? <FileText className="w-4 h-4 text-amber-400" />
-                      : <ClipboardList className="w-4 h-4 text-blue-400" />}
+                      ? <FileText className="w-4 h-4 text-accent" />
+                      : <ClipboardList className="w-4 h-4 text-accent" />}
                   </div>
                   <div>
-                    <p className="text-white text-sm font-medium">{exam.title}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">
+                    <p className="text-fg text-sm font-medium">{exam.title}</p>
+                    <p className="text-fg-muted text-xs mt-0.5">
                       {isHomework(exam) ? 'بدون مؤقت' : `${exam.duration_minutes} min`}
                       {exam.proctoring_enabled && (
-                        <span className="text-blue-400 inline-flex items-center gap-1 ml-2">
+                        <span className="text-accent inline-flex items-center gap-1 ml-2">
                           <ShieldCheck className="w-3 h-3" />Proctored
                         </span>
                       )}
@@ -62,25 +62,25 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{exam.teacher_name ?? '—'}</td>
+              <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{exam.teacher_name ?? '—'}</td>
               <td className="px-5 py-4 hidden lg:table-cell">
-                <span className="text-slate-300 text-sm flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-slate-500" />{exam.group_name ?? '—'}
+                <span className="text-fg-secondary text-sm flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-fg-muted" />{exam.group_name ?? '—'}
                 </span>
               </td>
-              <td className="px-5 py-4 text-slate-300 text-sm">{exam.submission_count ?? 0}</td>
+              <td className="px-5 py-4 text-fg-secondary text-sm">{exam.submission_count ?? 0}</td>
               <td className="px-5 py-4">
                 {exam.is_published ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
+                  <span className="inline-flex items-center gap-1.5 text-accent text-xs font-medium">
                     <Eye className="w-3.5 h-3.5" />Published
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium">
+                  <span className="inline-flex items-center gap-1.5 text-fg-muted text-xs font-medium">
                     <EyeOff className="w-3.5 h-3.5" />Draft
                   </span>
                 )}
               </td>
-              <td className="px-5 py-4 hidden xl:table-cell text-slate-500 text-sm">{formatDate(exam.created_at)}</td>
+              <td className="px-5 py-4 hidden xl:table-cell text-fg-muted text-sm">{formatDate(exam.created_at)}</td>
             </tr>
           ))}
         </tbody>
@@ -104,29 +104,29 @@ export default async function AdminExamsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Exams &amp; Homework</h2>
-        <p className="text-slate-400 mt-1">
+        <h2 className="text-2xl font-bold text-fg">Exams &amp; Homework</h2>
+        <p className="text-fg-secondary mt-1">
           {exams.length} exam{exams.length === 1 ? '' : 's'} · {homework.length} homework · {submissions} submission{submissions === 1 ? '' : 's'}
         </p>
       </div>
 
       {all.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No exams or homework yet.</p>
-          <p className="text-slate-500 text-sm mt-1">Teachers create these from their own panel.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <ClipboardList className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">No exams or homework yet.</p>
+          <p className="text-fg-muted text-sm mt-1">Teachers create these from their own panel.</p>
         </div>
       ) : (
         <div className="space-y-6">
           {exams.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">🕒 Exams</h3>
+              <h3 className="text-sm font-semibold text-fg-secondary uppercase tracking-wider">🕒 Exams</h3>
               <Table rows={exams} homework={false} />
             </div>
           )}
           {homework.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">📋 Homework &amp; Activities</h3>
+              <h3 className="text-sm font-semibold text-fg-secondary uppercase tracking-wider">📋 Homework &amp; Activities</h3>
               <Table rows={homework} homework />
             </div>
           )}

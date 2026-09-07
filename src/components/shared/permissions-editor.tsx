@@ -49,9 +49,9 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
 
   if (staff.length === 0) {
     return (
-      <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl" dir="rtl">
-        <UserCog className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-        <p className="text-slate-400">{emptyHint}</p>
+      <div className="text-center py-16 bg-surface border border-border rounded-lg" dir="rtl">
+        <UserCog className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+        <p className="text-fg-secondary">{emptyHint}</p>
       </div>
     )
   }
@@ -62,11 +62,11 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
         const current = draft[member.id] ?? member.effective
         const dirty = CAPABILITIES.some(c => current[c] !== member.effective[c])
         return (
-          <div key={member.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <div key={member.id} className="bg-surface border border-border rounded-lg p-5">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div className="min-w-0">
-                <p className="text-white font-semibold truncate">{member.full_name ?? '—'}</p>
-                <p className="text-slate-500 text-xs truncate">{member.email}</p>
+                <p className="text-fg font-semibold truncate">{member.full_name ?? '—'}</p>
+                <p className="text-fg-muted text-xs truncate">{member.email}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!member.is_active && (
@@ -86,7 +86,7 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
                   <label
                     key={cap}
                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors ${
-                      allowed ? 'border-slate-800 hover:bg-slate-800/40 cursor-pointer' : 'border-slate-800/50 opacity-45'
+                      allowed ? 'border-border hover:bg-surface/40 cursor-pointer' : 'border-border/50 opacity-45'
                     }`}
                     title={allowed ? CAPABILITY_HINTS[cap] : 'لا تملك هذه الصلاحية فلا يمكنك منحها'}
                   >
@@ -101,8 +101,8 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
                       }))}
                     />
                     <span className="min-w-0">
-                      <span className="block text-sm text-slate-200">{CAPABILITY_LABELS[cap]}</span>
-                      <span className="block text-xs text-slate-500">{CAPABILITY_HINTS[cap]}</span>
+                      <span className="block text-sm text-fg">{CAPABILITY_LABELS[cap]}</span>
+                      <span className="block text-xs text-fg-muted">{CAPABILITY_HINTS[cap]}</span>
                     </span>
                   </label>
                 )

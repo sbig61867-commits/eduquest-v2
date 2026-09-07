@@ -107,8 +107,8 @@ export function AnnouncementsManager({ announcements, groups }: {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الإعلانات</h2>
-          <p className="text-slate-400 mt-1">
+          <h2 className="text-2xl font-bold text-fg">الإعلانات</h2>
+          <p className="text-fg-secondary mt-1">
             {announcements.length} إعلان · {announcements.filter(a => a.is_published).length} منشور
           </p>
         </div>
@@ -116,23 +116,23 @@ export function AnnouncementsManager({ announcements, groups }: {
       </div>
 
       {composing && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">إعلان جديد</h3>
+        <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
+          <h3 className="text-fg font-semibold">إعلان جديد</h3>
 
-          <label className="text-sm text-slate-300 space-y-1.5 block">
+          <label className="text-sm text-fg-secondary space-y-1.5 block">
             <span>العنوان</span>
             <input
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+              className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="مثال: فتح التسجيل لدورة اللغة الإنجليزية"
             />
           </label>
 
-          <label className="text-sm text-slate-300 space-y-1.5 block">
+          <label className="text-sm text-fg-secondary space-y-1.5 block">
             <span>النص</span>
             <textarea
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm min-h-[90px]"
+              className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm min-h-[90px]"
               value={form.body}
               onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
               placeholder="تفاصيل الإعلان…"
@@ -141,14 +141,14 @@ export function AnnouncementsManager({ announcements, groups }: {
 
           {/* Image */}
           <div className="space-y-2">
-            <span className="text-sm text-slate-300">صورة / تصميم (اختياري)</span>
+            <span className="text-sm text-fg-secondary">صورة / تصميم (اختياري)</span>
             {form.image_url ? (
               <div className="relative w-full max-w-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.image_url} alt="معاينة" className="rounded-lg border border-slate-700 w-full object-cover max-h-48" />
+                <img src={form.image_url} alt="معاينة" className="rounded-lg border border-border-strong w-full object-cover max-h-48" />
                 <button
                   onClick={() => setForm(f => ({ ...f, image_url: '' }))}
-                  className="absolute top-2 left-2 bg-slate-900/80 rounded-full p-1.5 text-slate-300 hover:text-white"
+                  className="absolute top-2 left-2 bg-surface/80 rounded-full p-1.5 text-fg-secondary hover:text-fg"
                   aria-label="إزالة الصورة"
                 ><X className="w-4 h-4" /></button>
               </div>
@@ -162,25 +162,25 @@ export function AnnouncementsManager({ announcements, groups }: {
                 <Button variant="ghost" loading={uploading} onClick={() => fileRef.current?.click()}>
                   <ImagePlus className="w-4 h-4" /> رفع صورة
                 </Button>
-                <p className="text-slate-500 text-xs mt-1">JPG / PNG / WebP / GIF · حتى 4 ميغابايت</p>
+                <p className="text-fg-muted text-xs mt-1">JPG / PNG / WebP / GIF · حتى 4 ميغابايت</p>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>رابط (اختياري)</span>
               <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.link_url}
                 onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
                 placeholder="https://…"
               />
             </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>نص الزر (اختياري)</span>
               <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.cta_label}
                 onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
                 placeholder="سجّل الآن"
@@ -190,24 +190,24 @@ export function AnnouncementsManager({ announcements, groups }: {
 
           {/* Audience */}
           <div className="space-y-2">
-            <span className="text-sm text-slate-300">الجمهور</span>
+            <span className="text-sm text-fg-secondary">الجمهور</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setForm(f => ({ ...f, audience: 'all' }))}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
-                  form.audience === 'all' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
+                  form.audience === 'all' ? 'bg-accent border-accent text-accent-fg' : 'bg-surface border-border-strong text-fg-secondary'
                 }`}
               ><Globe className="w-4 h-4" /> كل الطلاب</button>
               <button
                 onClick={() => setForm(f => ({ ...f, audience: 'groups' }))}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
-                  form.audience === 'groups' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
+                  form.audience === 'groups' ? 'bg-accent border-accent text-accent-fg' : 'bg-surface border-border-strong text-fg-secondary'
                 }`}
               ><Users className="w-4 h-4" /> مجموعات محددة</button>
             </div>
             {form.audience === 'groups' && (
               <div className="flex flex-wrap gap-2 pt-1">
-                {groups.length === 0 && <p className="text-slate-500 text-xs">لا توجد مجموعات.</p>}
+                {groups.length === 0 && <p className="text-fg-muted text-xs">لا توجد مجموعات.</p>}
                 {groups.map(g => {
                   const on = form.group_ids.includes(g.id)
                   return (
@@ -218,7 +218,7 @@ export function AnnouncementsManager({ announcements, groups }: {
                         group_ids: on ? f.group_ids.filter(x => x !== g.id) : [...f.group_ids, g.id],
                       }))}
                       className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                        on ? 'bg-blue-600/20 border-blue-600 text-blue-300' : 'bg-slate-800 border-slate-700 text-slate-400'
+                        on ? 'bg-accent-subtle border-blue-600 text-accent' : 'bg-surface border-border-strong text-fg-secondary'
                       }`}
                     >{g.name}</button>
                   )
@@ -228,25 +228,25 @@ export function AnnouncementsManager({ announcements, groups }: {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>يبدأ في (اختياري)</span>
               <input type="datetime-local"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.starts_at}
                 onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))}
               />
             </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>ينتهي في (اختياري)</span>
               <input type="datetime-local"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
                 value={form.ends_at}
                 onChange={e => setForm(f => ({ ...f, ends_at: e.target.value }))}
               />
             </label>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-fg-secondary">
             <input type="checkbox" checked={form.is_published}
               onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))} />
             نشر مباشرةً
@@ -260,28 +260,28 @@ export function AnnouncementsManager({ announcements, groups }: {
       )}
 
       {announcements.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Megaphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد إعلانات بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">أنشئ إعلاناً ليظهر لطلابك في صفحتهم الرئيسية.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <Megaphone className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">لا توجد إعلانات بعد.</p>
+          <p className="text-fg-muted text-sm mt-1">أنشئ إعلاناً ليظهر لطلابك في صفحتهم الرئيسية.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {announcements.map(a => (
-            <div key={a.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <div key={a.id} className="bg-surface border border-border rounded-lg overflow-hidden">
               {a.image_url && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.image_url} alt="" className="h-36 w-full object-cover bg-slate-800" />
+                <img src={a.image_url} alt="" className="h-36 w-full object-cover bg-surface" />
               )}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-white font-semibold">{a.title}</h3>
+                  <h3 className="text-fg font-semibold">{a.title}</h3>
                   <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${
-                    a.is_published ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 bg-slate-500/10'
+                    a.is_published ? 'text-accent bg-accent-subtle' : 'text-fg-secondary bg-surface'
                   }`}>{a.is_published ? 'منشور' : 'مسودة'}</span>
                 </div>
-                {a.body && <p className="text-slate-400 text-sm mt-1 line-clamp-2">{a.body}</p>}
-                <p className="text-slate-500 text-xs mt-2 flex items-center gap-1.5">
+                {a.body && <p className="text-fg-secondary text-sm mt-1 line-clamp-2">{a.body}</p>}
+                <p className="text-fg-muted text-xs mt-2 flex items-center gap-1.5">
                   {a.audience === 'all'
                     ? <><Globe className="w-3 h-3" /> كل الطلاب</>
                     : <><Users className="w-3 h-3" /> {a.group_ids.length} مجموعة</>}

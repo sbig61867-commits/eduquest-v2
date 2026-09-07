@@ -137,14 +137,14 @@ export function SchedulesManager({
     setSlotOpen(true)
   }
 
-  const field = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm'
+  const field = 'w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm'
 
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-white">جداول المواعيد الأسبوعية</h2>
-          <p className="text-slate-400 mt-1">
+          <h2 className="text-2xl font-bold text-fg">جداول المواعيد الأسبوعية</h2>
+          <p className="text-fg-secondary mt-1">
             {schedules.length} جدول · {schedules.filter(s => s.is_published).length} منشور
           </p>
         </div>
@@ -152,10 +152,10 @@ export function SchedulesManager({
       </div>
 
       {creating && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">إنشاء جدول</h3>
+        <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
+          <h3 className="text-fg font-semibold">إنشاء جدول</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>نوع الجدول</span>
               <select
                 className={field}
@@ -166,7 +166,7 @@ export function SchedulesManager({
                 <option value="teacher">جدول خاص بمعلم (لا يراه الطلاب)</option>
               </select>
             </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>{createForm.kind === 'group' ? 'المجموعة' : 'المعلم'}</span>
               <select
                 className={field}
@@ -177,7 +177,7 @@ export function SchedulesManager({
                 {availableTargets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
+            <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>عنوان الجدول</span>
               <input
                 className={field}
@@ -188,7 +188,7 @@ export function SchedulesManager({
             </label>
           </div>
           {availableTargets.length === 0 && (
-            <p className="text-amber-400 text-xs">
+            <p className="text-accent text-xs">
               كل {createForm.kind === 'group' ? 'المجموعات' : 'المعلمين'} لديها جدول بالفعل.
             </p>
           )}
@@ -200,10 +200,10 @@ export function SchedulesManager({
       )}
 
       {schedules.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <CalendarDays className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد جداول بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">أنشئ جدولاً لمجموعة ثم أضف مواعيده وانشره للطلاب.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <CalendarDays className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">لا توجد جداول بعد.</p>
+          <p className="text-fg-muted text-sm mt-1">أنشئ جدولاً لمجموعة ثم أضف مواعيده وانشره للطلاب.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -213,24 +213,24 @@ export function SchedulesManager({
               <button
                 key={s.id}
                 onClick={() => { setSelectedId(s.id); setSlotOpen(false); setSlotForm({ ...EMPTY_SLOT }) }}
-                className={`w-full text-right p-3 rounded-xl border transition-colors ${
-                  selectedId === s.id ? 'bg-slate-800 border-blue-600' : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
+                className={`w-full text-right p-3 rounded-lg border transition-colors ${
+                  selectedId === s.id ? 'bg-surface border-blue-600' : 'bg-surface border-border hover:bg-surface/50'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   {s.kind === 'group'
-                    ? <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    : <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                  <span className="text-white text-sm font-medium truncate">{s.target_name ?? '—'}</span>
+                    ? <Users className="w-3.5 h-3.5 text-accent shrink-0" />
+                    : <User className="w-3.5 h-3.5 text-accent shrink-0" />}
+                  <span className="text-fg text-sm font-medium truncate">{s.target_name ?? '—'}</span>
                 </div>
-                <p className="text-slate-500 text-xs mt-1 truncate">{s.title}</p>
+                <p className="text-fg-muted text-xs mt-1 truncate">{s.title}</p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                    s.is_published ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 bg-slate-500/10'
+                    s.is_published ? 'text-accent bg-accent-subtle' : 'text-fg-secondary bg-surface'
                   }`}>
                     {s.is_published ? 'منشور' : 'مسودة'}
                   </span>
-                  <span className="text-slate-500 text-[11px]">{s.slots.length} موعد</span>
+                  <span className="text-fg-muted text-[11px]">{s.slots.length} موعد</span>
                 </div>
               </button>
             ))}
@@ -240,15 +240,15 @@ export function SchedulesManager({
           <div className="lg:col-span-3">
             {selected ? (
               <div className="space-y-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <div className="bg-surface border border-border rounded-lg p-4">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
-                      <h3 className="text-white font-semibold">{selected.target_name ?? '—'}</h3>
-                      <p className="text-slate-500 text-xs mt-0.5">
+                      <h3 className="text-fg font-semibold">{selected.target_name ?? '—'}</h3>
+                      <p className="text-fg-muted text-xs mt-0.5">
                         {selected.title} · {selected.kind === 'group' ? 'جدول رسمي' : 'جدول خاص بالمعلم'}
                       </p>
                       {selected.kind === 'teacher' && (
-                        <p className="text-amber-400/80 text-[11px] mt-1">
+                        <p className="text-accent/80 text-[11px] mt-1">
                           هذا الجدول لا يظهر للطلاب — مخصص لاختبارات المعلم غير الرسمية.
                         </p>
                       )}
@@ -272,12 +272,12 @@ export function SchedulesManager({
                 </div>
 
                 {slotOpen && (
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <h4 className="text-white font-semibold text-sm">
+                  <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
+                    <h4 className="text-fg font-semibold text-sm">
                       {slotForm.id ? 'تعديل موعد' : 'إضافة موعد'}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <label className="text-sm text-slate-300 space-y-1.5 block">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block">
                         <span>اليوم</span>
                         <select
                           className={field}
@@ -287,17 +287,17 @@ export function SchedulesManager({
                           {DAY_LABELS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                         </select>
                       </label>
-                      <label className="text-sm text-slate-300 space-y-1.5 block">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block">
                         <span>من</span>
                         <input type="time" className={field} value={slotForm.start_time}
                           onChange={e => setSlotForm(f => ({ ...f, start_time: e.target.value }))} />
                       </label>
-                      <label className="text-sm text-slate-300 space-y-1.5 block">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block">
                         <span>إلى</span>
                         <input type="time" className={field} value={slotForm.end_time}
                           onChange={e => setSlotForm(f => ({ ...f, end_time: e.target.value }))} />
                       </label>
-                      <label className="text-sm text-slate-300 space-y-1.5 block">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block">
                         <span>المعلم (اختياري)</span>
                         <select
                           className={field}
@@ -310,19 +310,19 @@ export function SchedulesManager({
                       </label>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <label className="text-sm text-slate-300 space-y-1.5 block md:col-span-1">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block md:col-span-1">
                         <span>عنوان الموعد</span>
                         <input className={field} value={slotForm.title}
                           onChange={e => setSlotForm(f => ({ ...f, title: e.target.value }))}
                           placeholder="مثال: محاضرة رياضيات" />
                       </label>
-                      <label className="text-sm text-slate-300 space-y-1.5 block">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block">
                         <span>المكان (اختياري)</span>
                         <input className={field} value={slotForm.location}
                           onChange={e => setSlotForm(f => ({ ...f, location: e.target.value }))}
                           placeholder="قاعة 201" />
                       </label>
-                      <label className="text-sm text-slate-300 space-y-1.5 block">
+                      <label className="text-sm text-fg-secondary space-y-1.5 block">
                         <span>ملاحظة (اختياري)</span>
                         <input className={field} value={slotForm.note}
                           onChange={e => setSlotForm(f => ({ ...f, note: e.target.value }))} />
@@ -343,28 +343,28 @@ export function SchedulesManager({
                     {DAY_LABELS.map((label, day) => {
                       const daySlots = slotsForDay(selected.slots, day)
                       return (
-                        <div key={day} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                          <div className="px-3 py-2 border-b border-slate-800 bg-slate-800/50">
-                            <p className="text-white text-sm font-semibold">{label}</p>
+                        <div key={day} className="bg-surface border border-border rounded-lg overflow-hidden">
+                          <div className="px-3 py-2 border-b border-border bg-surface/50">
+                            <p className="text-fg text-sm font-semibold">{label}</p>
                           </div>
                           <div className="p-2 space-y-2 min-h-[72px]">
                             {daySlots.length === 0 ? (
-                              <p className="text-slate-600 text-xs text-center py-4">—</p>
+                              <p className="text-fg-muted text-xs text-center py-4">—</p>
                             ) : daySlots.map(slot => (
-                              <div key={slot.id} className="rounded-lg bg-slate-800/70 border border-slate-700/60 p-2.5">
-                                <p className="text-white text-sm font-medium leading-tight">{slot.title}</p>
-                                <p className="text-blue-300 text-xs mt-1">
+                              <div key={slot.id} className="rounded-lg bg-surface/70 border border-border-strong/60 p-2.5">
+                                <p className="text-fg text-sm font-medium leading-tight">{slot.title}</p>
+                                <p className="text-accent text-xs mt-1">
                                   {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
                                 </p>
-                                {slot.teacher_name && <p className="text-slate-400 text-[11px] mt-1">{slot.teacher_name}</p>}
-                                {slot.location && <p className="text-slate-400 text-[11px] mt-0.5">{slot.location}</p>}
+                                {slot.teacher_name && <p className="text-fg-secondary text-[11px] mt-1">{slot.teacher_name}</p>}
+                                {slot.location && <p className="text-fg-secondary text-[11px] mt-0.5">{slot.location}</p>}
                                 <div className="flex gap-1 mt-2">
                                   <button onClick={() => editSlot(slot.id)}
-                                    className="text-slate-400 hover:text-white p-1 rounded" title="تعديل">
+                                    className="text-fg-secondary hover:text-fg p-1 rounded" title="تعديل">
                                     <Pencil className="w-3 h-3" />
                                   </button>
                                   <button onClick={() => deleteSlot(slot.id)}
-                                    className="text-slate-400 hover:text-red-400 p-1 rounded" title="حذف">
+                                    className="text-fg-secondary hover:text-red-400 p-1 rounded" title="حذف">
                                     <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
@@ -378,7 +378,7 @@ export function SchedulesManager({
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-900 border border-slate-800 rounded-xl h-full flex items-center justify-center text-slate-500 text-sm py-20">
+              <div className="bg-surface border border-border rounded-lg h-full flex items-center justify-center text-fg-muted text-sm py-20">
                 اختر جدولاً لعرضه وتحريره
               </div>
             )}

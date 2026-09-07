@@ -213,10 +213,10 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
 
   function renderItem(item: UnitItem, unitId: string) {
     return (
-      <div key={item.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-800/60 border border-slate-700/50 group">
-        <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">{item.type}</span>
-        <span className="text-slate-300 text-sm flex-1 truncate">{item.title}</span>
-        <button onClick={() => deleteItem(item.id, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 p-1">
+      <div key={item.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-surface/60 border border-border-strong/50 group">
+        <span className="text-xs px-2 py-0.5 rounded bg-border-strong text-fg-secondary">{item.type}</span>
+        <span className="text-fg-secondary text-sm flex-1 truncate">{item.title}</span>
+        <button onClick={() => deleteItem(item.id, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-fg-muted hover:text-red-400 p-1">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -226,23 +226,23 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   function renderUnit(unit: CourseUnit, levelId: string | null) {
     const isOpen = expanded[unit.id]
     return (
-      <div key={unit.id} className="bg-slate-800/40 border border-slate-700/60 rounded-lg overflow-hidden">
+      <div key={unit.id} className="bg-surface/40 border border-border-strong/60 rounded-lg overflow-hidden">
         <div className="flex items-center gap-2 p-3 cursor-pointer select-none" onClick={() => toggle(unit.id)}>
-          {isOpen ? <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />}
-          <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
-          <span className="text-white text-sm font-medium flex-1">{unit.title}</span>
-          <span className="text-slate-500 text-xs">{unit.unit_items.length} items</span>
-          <button onClick={e => { e.stopPropagation(); setItemModal({ open: true, unitId: unit.id }) }} className="ml-1 p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors" title="Add content">
+          {isOpen ? <ChevronDown className="w-4 h-4 text-fg-muted shrink-0" /> : <ChevronRight className="w-4 h-4 text-fg-muted shrink-0" />}
+          <BookOpen className="w-4 h-4 text-accent shrink-0" />
+          <span className="text-fg text-sm font-medium flex-1">{unit.title}</span>
+          <span className="text-fg-muted text-xs">{unit.unit_items.length} items</span>
+          <button onClick={e => { e.stopPropagation(); setItemModal({ open: true, unitId: unit.id }) }} className="ml-1 p-1 rounded hover:bg-canvas text-fg-secondary hover:text-fg transition-colors" title="Add content">
             <Plus className="w-3.5 h-3.5" />
           </button>
-          <button onClick={e => { e.stopPropagation(); deleteUnit(unit.id, levelId) }} className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors">
+          <button onClick={e => { e.stopPropagation(); deleteUnit(unit.id, levelId) }} className="p-1 rounded hover:bg-red-500/10 text-fg-muted hover:text-red-400 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
         {isOpen && (
-          <div className="px-3 pb-3 space-y-1.5 border-t border-slate-700/50 pt-2">
+          <div className="px-3 pb-3 space-y-1.5 border-t border-border-strong/50 pt-2">
             {unit.unit_items.length === 0
-              ? <p className="text-slate-500 text-xs py-2 text-center">No content yet — add items above</p>
+              ? <p className="text-fg-muted text-xs py-2 text-center">No content yet — add items above</p>
               : unit.unit_items.map(item => renderItem(item, unit.id))
             }
           </div>
@@ -257,16 +257,16 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push('/teacher/courses')} className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+        <button onClick={() => router.push('/teacher/courses')} className="p-2 rounded-lg hover:bg-surface text-fg-secondary hover:text-fg transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-white truncate">{course.title}</h2>
-          <p className="text-slate-400 text-sm">
+          <h2 className="text-xl font-bold text-fg truncate">{course.title}</h2>
+          <p className="text-fg-secondary text-sm">
             {course.has_levels ? 'Leveled course' : 'Flat course'} · {course.language ?? 'No language set'}
           </p>
         </div>
-        <Badge variant={course.is_published ? 'green' : 'yellow'}>
+        <Badge variant={course.is_published ? 'success' : 'warning'}>
           {course.is_published ? 'Published' : 'Draft'}
         </Badge>
       </div>
@@ -275,30 +275,30 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       {course.has_levels ? (
         <div className="space-y-4">
           {levels.map(level => (
-            <div key={level.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <div key={level.id} className="bg-surface border border-border rounded-lg overflow-hidden">
               <div
-                className="flex items-center gap-3 p-4 cursor-pointer select-none hover:bg-slate-800/40 transition-colors"
+                className="flex items-center gap-3 p-4 cursor-pointer select-none hover:bg-surface/40 transition-colors"
                 onClick={() => toggle(level.id)}
               >
-                {expanded[level.id] ? <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />}
-                <Layers className="w-4 h-4 text-violet-400 shrink-0" />
-                <span className="text-white font-semibold flex-1">{level.title}</span>
-                <span className="text-slate-500 text-sm">{level.course_units.length} units</span>
+                {expanded[level.id] ? <ChevronDown className="w-4 h-4 text-fg-muted shrink-0" /> : <ChevronRight className="w-4 h-4 text-fg-muted shrink-0" />}
+                <Layers className="w-4 h-4 text-accent shrink-0" />
+                <span className="text-fg font-semibold flex-1">{level.title}</span>
+                <span className="text-fg-muted text-sm">{level.course_units.length} units</span>
                 <button
                   onClick={e => { e.stopPropagation(); setUnitModal({ open: true, levelId: level.id }) }}
-                  className="ml-2 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors"
+                  className="ml-2 flex items-center gap-1 text-xs text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-subtle transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" /> Unit
                 </button>
-                <button onClick={e => { e.stopPropagation(); deleteLevel(level.id) }} className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors">
+                <button onClick={e => { e.stopPropagation(); deleteLevel(level.id) }} className="p-1 rounded hover:bg-red-500/10 text-fg-muted hover:text-red-400 transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
               {expanded[level.id] && (
-                <div className="px-4 pb-4 space-y-2 border-t border-slate-800">
+                <div className="px-4 pb-4 space-y-2 border-t border-border">
                   <div className="pt-3 space-y-2">
                     {level.course_units.length === 0
-                      ? <p className="text-slate-500 text-sm text-center py-4">No units yet — add a unit above</p>
+                      ? <p className="text-fg-muted text-sm text-center py-4">No units yet — add a unit above</p>
                       : level.course_units.map(unit => renderUnit(unit, level.id))
                     }
                   </div>
@@ -315,17 +315,17 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
         /* Flat Course */
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Units</h3>
+            <h3 className="text-sm font-semibold text-fg-secondary uppercase tracking-wider">Units</h3>
             <Button size="sm" onClick={() => setUnitModal({ open: true, levelId: null })}>
               <Plus className="w-3.5 h-3.5" /> Add Unit
             </Button>
           </div>
           {flatUnits.length === 0
             ? (
-              <div className="text-center py-12 bg-slate-900 border border-slate-800 rounded-xl">
-                <BookOpen className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400">No units yet.</p>
-                <p className="text-slate-500 text-sm">Add your first unit to start building this course.</p>
+              <div className="text-center py-12 bg-surface border border-border rounded-lg">
+                <BookOpen className="w-10 h-10 text-fg-muted mx-auto mb-3" />
+                <p className="text-fg-secondary">No units yet.</p>
+                <p className="text-fg-muted text-sm">Add your first unit to start building this course.</p>
               </div>
             )
             : flatUnits.map(unit => renderUnit(unit, null))
@@ -373,12 +373,12 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title="Add Content" size="xl">
         <form onSubmit={addItem} className="space-y-4">
           {/* AI Generator — strictly from the course's uploaded file */}
-          <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 space-y-2">
+          <div className="bg-accent-subtle border border-accent/20 rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-4 h-4 text-violet-400" />
-              <span className="text-violet-300 text-sm font-medium">توليد المحتوى من ملف الكورس</span>
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-accent text-sm font-medium">توليد المحتوى من ملف الكورس</span>
             </div>
-            <p className="text-slate-400 text-xs">
+            <p className="text-fg-secondary text-xs">
               اكتب عنوان القسم في خانة Title بالأسفل، ثم اضغط توليد — سيُكتب المحتوى من ملفك المرفوع فقط، بلا أي معلومات خارجية.
             </p>
             <Button type="button" onClick={generateItemContent} loading={aiLoading} variant="secondary" size="sm">
@@ -395,11 +395,11 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
               placeholder="Content title..."
             />
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-300">Type</label>
+              <label className="block text-sm font-medium text-fg-secondary">Type</label>
               <select
                 value={itemForm.type}
                 onChange={e => setItemForm(p => ({ ...p, type: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
@@ -407,13 +407,13 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Content (Markdown supported)</label>
+            <label className="block text-sm font-medium text-fg-secondary">Content (Markdown supported)</label>
             <textarea
               value={itemForm.body}
               onChange={e => setItemForm(p => ({ ...p, body: e.target.value }))}
               rows={10}
               required
-              className="w-full px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
+              className="w-full px-3 py-2.5 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none font-mono"
               placeholder="Write or generate content above..."
             />
           </div>

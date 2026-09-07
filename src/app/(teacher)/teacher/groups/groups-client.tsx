@@ -217,42 +217,42 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">My Groups</h2>
-          <p className="text-slate-400 mt-1">{groups.length} groups</p>
+          <h2 className="text-2xl font-bold text-fg">My Groups</h2>
+          <p className="text-fg-secondary mt-1">{groups.length} groups</p>
         </div>
         <Button onClick={openAdd}><Plus className="w-4 h-4" /> New Group</Button>
       </div>
 
       {groups.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No groups yet. Create your first group.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <Users className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">No groups yet. Create your first group.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {groups.map(group => (
-            <div key={group.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+            <div key={group.id} className="bg-surface border border-border rounded-lg p-5 hover:border-border-strong transition-colors">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center">
+                  <Users className="w-5 h-5 text-accent" />
                 </div>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(group)}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => toggleArchive(group)}
                     title={group.is_active ? 'أرشفة — إخفاء عن الطلاب مع حفظ السجلات' : 'استرجاع المجموعة'}
-                    className={group.is_active ? 'hover:text-amber-400 hover:bg-amber-500/10' : 'text-amber-400 hover:text-emerald-400 hover:bg-emerald-500/10'}>
+                    className={group.is_active ? 'hover:text-accent hover:bg-accent-subtle' : 'text-accent hover:text-accent hover:bg-accent-subtle'}>
                     {group.is_active ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteGroup(group.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
-              <h3 className="text-white font-semibold mb-1">
+              <h3 className="text-fg font-semibold mb-1">
                 {group.name}
-                {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 align-middle">مؤرشفة</span>}
+                {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-warning-subtle text-accent align-middle">مؤرشفة</span>}
               </h3>
-              <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || 'No description'}</p>
+              <p className="text-fg-secondary text-sm mb-4 line-clamp-2">{group.description || 'No description'}</p>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-500 shrink-0">{group.group_students?.[0]?.count ?? 0} students</span>
+                <span className="text-xs text-fg-muted shrink-0">{group.group_students?.[0]?.count ?? 0} students</span>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={() => openSurvey(group)} title="استبيان تقييم التجربة">
                     <ClipboardList className="w-3.5 h-3.5" />
@@ -277,12 +277,12 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
           )}
           <Input label="Group Name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g. Computer Science - Batch 2024" />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Description (optional)</label>
+            <label className="block text-sm font-medium text-fg-secondary">Description (optional)</label>
             <textarea
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               rows={3}
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+              className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm resize-none"
               placeholder="Brief description..."
             />
           </div>
@@ -297,35 +297,35 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       <Modal open={!!managingGroup} onClose={() => setManagingGroup(null)} title={`Manage Students — ${managingGroup?.name ?? ''}`}>
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-muted" />
             <input
               value={studentSearch}
               onChange={e => setStudentSearch(e.target.value)}
               placeholder="Search students..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm"
             />
           </div>
 
           {/* Enrolled */}
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
               Enrolled ({groupStudents.length})
             </p>
             {loadingStudents ? (
-              <p className="text-slate-500 text-sm py-2">Loading...</p>
+              <p className="text-fg-muted text-sm py-2">Loading...</p>
             ) : filteredEnrolled.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">No enrolled students</p>
+              <p className="text-fg-muted text-sm py-2">No enrolled students</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {filteredEnrolled.map(s => (
-                  <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800">
+                  <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface">
                     <div>
-                      <p className="text-white text-sm font-medium">{s.full_name}</p>
-                      <p className="text-slate-400 text-xs">{s.email}</p>
+                      <p className="text-fg text-sm font-medium">{s.full_name}</p>
+                      <p className="text-fg-secondary text-xs">{s.email}</p>
                     </div>
                     <button
                       onClick={() => removeStudentFromGroup(s.id)}
-                      className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="p-1 rounded text-fg-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -337,22 +337,22 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
 
           {/* Available to add */}
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
               Add Students ({availableStudents.length} available)
             </p>
             {availableStudents.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">All students are enrolled or none found</p>
+              <p className="text-fg-muted text-sm py-2">All students are enrolled or none found</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {availableStudents.map(s => (
-                  <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                  <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface/50 hover:bg-surface transition-colors">
                     <div>
-                      <p className="text-white text-sm font-medium">{s.full_name}</p>
-                      <p className="text-slate-400 text-xs">{s.email}</p>
+                      <p className="text-fg text-sm font-medium">{s.full_name}</p>
+                      <p className="text-fg-secondary text-xs">{s.email}</p>
                     </div>
                     <button
                       onClick={() => addStudentToGroup(s)}
-                      className="p-1 rounded text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                      className="p-1 rounded text-fg-secondary hover:text-accent hover:bg-accent-subtle transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -370,24 +370,24 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       <Modal open={!!surveyGroup} onClose={() => setSurveyGroup(null)} title={`استبيان التجربة — ${surveyGroup?.name ?? ''}`}>
         <div className="space-y-4">
           {surveyLoading ? (
-            <p className="text-slate-400 text-sm py-4 text-center">جارٍ التحميل...</p>
+            <p className="text-fg-secondary text-sm py-4 text-center">جارٍ التحميل...</p>
           ) : !surveyData ? (
             <div className="text-center py-4 space-y-3">
-              <p className="text-slate-400 text-sm">لا يوجد استبيان لهذه المجموعة بعد. أنشئه ليتمكن الطلاب من تقييم تجربتهم مع المنصة.</p>
+              <p className="text-fg-secondary text-sm">لا يوجد استبيان لهذه المجموعة بعد. أنشئه ليتمكن الطلاب من تقييم تجربتهم مع المنصة.</p>
               <Button onClick={createSurvey} loading={surveyLoading}>
                 <ClipboardList className="w-4 h-4" /> إنشاء استبيان
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-surface/50 border border-border-strong">
                 <div>
-                  <p className="text-white font-medium">{surveyData.title}</p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-fg font-medium">{surveyData.title}</p>
+                  <p className="text-xs text-fg-secondary mt-1">
                     أجاب {surveyStats.responseCount} من {surveyStats.memberCount} طالب
                   </p>
                 </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${surveyData.is_open ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${surveyData.is_open ? 'bg-success/15 text-accent' : 'bg-canvas text-fg-secondary'}`}>
                   {surveyData.is_open ? 'مفتوح' : 'مغلق'}
                 </span>
               </div>

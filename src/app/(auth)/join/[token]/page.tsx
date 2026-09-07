@@ -44,10 +44,10 @@ export default async function JoinPage({ params }: Props) {
           <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
             <span className="text-red-400 text-2xl">✕</span>
           </div>
-          <h1 className="text-xl font-bold text-white">{ERROR_MESSAGES.title}</h1>
-          <p className="text-slate-400 text-sm">{ERROR_MESSAGES.body}</p>
-          <p className="text-slate-500 text-sm">{ERROR_MESSAGES.hint}</p>
-          <a href="/login" className="inline-block mt-2 text-blue-400 hover:text-blue-300 text-sm underline">
+          <h1 className="text-xl font-bold text-fg">{ERROR_MESSAGES.title}</h1>
+          <p className="text-fg-secondary text-sm">{ERROR_MESSAGES.body}</p>
+          <p className="text-fg-muted text-sm">{ERROR_MESSAGES.hint}</p>
+          <a href="/login" className="inline-block mt-2 text-accent hover:text-accent text-sm underline">
             Already have an account? Sign in
           </a>
         </div>
@@ -68,11 +68,11 @@ export default async function JoinPage({ params }: Props) {
         {/* Header */}
         <div className="text-center">
           <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-${accentColor}-600 mb-4`}>
-            <span className="text-white text-2xl font-bold">E</span>
+            <span className="text-fg text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">You&apos;re invited!</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Join <span className="text-white font-semibold">{invitation.tenant_name}</span> as a{' '}
+          <h1 className="text-2xl font-bold text-fg">You&apos;re invited!</h1>
+          <p className="text-fg-secondary text-sm mt-1">
+            Join <span className="text-fg font-semibold">{invitation.tenant_name}</span> as a{' '}
             <span className={`text-${accentColor}-400 font-semibold`}>
               {ROLE_LABELS[invitation.role] ?? invitation.role}
             </span>
@@ -80,35 +80,35 @@ export default async function JoinPage({ params }: Props) {
         </div>
 
         {/* Invitation details card */}
-        <div className={`bg-${accentColor}-500/10 border border-${accentColor}-500/20 rounded-xl px-5 py-4 space-y-1.5`}>
+        <div className={`bg-${accentColor}-500/10 border border-${accentColor}-500/20 rounded-lg px-5 py-4 space-y-1.5`}>
           {!invitation.is_public && invitation.email && (
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Invited email</span>
-              <span className="text-white font-medium">{invitation.email}</span>
+              <span className="text-fg-secondary">Invited email</span>
+              <span className="text-fg font-medium">{invitation.email}</span>
             </div>
           )}
           {invitation.is_public && (
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Link type</span>
+              <span className="text-fg-secondary">Link type</span>
               <span className="text-purple-400 font-medium">Open to anyone</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">University</span>
-            <span className="text-white font-medium">{invitation.tenant_name}</span>
+            <span className="text-fg-secondary">University</span>
+            <span className="text-fg font-medium">{invitation.tenant_name}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Role</span>
-            <span className="text-white font-medium">{ROLE_LABELS[invitation.role] ?? invitation.role}</span>
+            <span className="text-fg-secondary">Role</span>
+            <span className="text-fg font-medium">{ROLE_LABELS[invitation.role] ?? invitation.role}</span>
           </div>
           {invitation.is_public && invitation.max_uses != null && (
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Spots remaining</span>
-              <span className="text-white font-medium">{invitation.max_uses - invitation.use_count}</span>
+              <span className="text-fg-secondary">Spots remaining</span>
+              <span className="text-fg font-medium">{invitation.max_uses - invitation.use_count}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Expires</span>
+            <span className="text-fg-secondary">Expires</span>
             <span className="text-amber-400 font-medium">{expiresLabel}</span>
           </div>
         </div>
@@ -120,9 +120,9 @@ export default async function JoinPage({ params }: Props) {
           isPublic={invitation.is_public}
         />
 
-        <p className="text-center text-slate-500 text-xs">
+        <p className="text-center text-fg-muted text-xs">
           Already have an account?{' '}
-          <a href="/login" className="text-blue-400 hover:text-blue-300 underline">Sign in</a>
+          <a href="/login" className="text-accent hover:text-accent underline">Sign in</a>
         </p>
       </div>
     </div>

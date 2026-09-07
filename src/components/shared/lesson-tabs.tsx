@@ -54,27 +54,27 @@ function speak(text: string) {
 function VocabItem({ term, explanation, translation }: { term: string; explanation: string; translation?: string }) {
   const [showTr, setShowTr] = useState(false)
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-slate-700/70 bg-slate-800/40 px-3 py-2.5">
+    <div className="flex items-start gap-2.5 rounded-lg border border-border-strong/70 bg-surface/40 px-3 py-2.5">
       <button
         onClick={() => speak(term)}
         title="استمع للنطق"
         aria-label={`استمع لنطق ${term}`}
-        className="shrink-0 mt-0.5 w-7 h-7 rounded-full bg-violet-600/20 text-violet-300 hover:bg-violet-600 hover:text-white flex items-center justify-center transition-colors"
+        className="shrink-0 mt-0.5 w-7 h-7 rounded-full bg-accent-subtle text-accent hover:bg-accent hover:text-fg flex items-center justify-center transition-colors"
       >
         <Volume2 className="w-3.5 h-3.5" />
       </button>
       <div className="flex-1 min-w-0 text-sm">
-        <span className="font-bold text-white">{term}</span>
-        <span className="text-slate-500 mx-2">—</span>
-        <span className="text-slate-300">{explanation}</span>
+        <span className="font-bold text-fg">{term}</span>
+        <span className="text-fg-muted mx-2">—</span>
+        <span className="text-fg-secondary">{explanation}</span>
         {translation && (
           showTr
-            ? <span className="ms-2 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-sm font-semibold" dir="rtl">{translation}</span>
+            ? <span className="ms-2 px-2.5 py-1 rounded-md bg-success/20 text-success text-sm font-semibold" dir="rtl">{translation}</span>
             : (
               <button
                 onClick={() => setShowTr(true)}
                 title="لم أفهم — أظهر الترجمة العربية"
-                className="ms-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-500 text-slate-300 hover:text-white hover:border-violet-400 hover:bg-violet-500/10 text-sm transition-colors align-middle"
+                className="ms-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border-strong text-fg-secondary hover:text-fg hover:border-accent hover:bg-accent-subtle text-sm transition-colors align-middle"
               >
                 <Languages className="w-4 h-4" /> ترجمة
               </button>
@@ -251,18 +251,18 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
         const correct = checked && !selfCheck && isCorrect(q, given)
         const wrong = checked && !selfCheck && !correct
         return (
-          <div key={i} className={`rounded-xl border p-4 space-y-3 ${
+          <div key={i} className={`rounded-lg border p-4 space-y-3 ${
             checked
               ? selfCheck
                 ? 'border-sky-500/40 bg-sky-500/5'
-                : correct ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-red-500/40 bg-red-500/5'
-              : 'border-slate-700 bg-slate-800/40'
+                : correct ? 'border-success/40 bg-success/5' : 'border-red-500/40 bg-red-500/5'
+              : 'border-border-strong bg-surface/40'
           }`}>
             <div className="flex items-start gap-2">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
-              <div className="flex-1 text-sm text-slate-200"><Markdown content={q.text} /></div>
+              <span className="shrink-0 w-6 h-6 rounded-full bg-canvas text-fg text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+              <div className="flex-1 text-sm text-fg"><Markdown content={q.text} /></div>
               {checked && !selfCheck && (correct
-                ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                ? <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
                 : <XCircle className="w-5 h-5 text-red-400 shrink-0" />)}
             </div>
 
@@ -279,12 +279,12 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                       onClick={() => setAnswers(a => ({ ...a, [i]: opt.letter }))}
                       className={`text-start px-3 py-2 rounded-lg border text-sm transition-colors disabled:cursor-default ${
                         isAnswer
-                          ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
+                          ? 'border-success bg-success/15 text-success'
                           : selected
                             ? checked
                               ? 'border-red-500 bg-red-500/15 text-red-300'
-                              : 'border-violet-500 bg-violet-500/15 text-white'
-                            : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-500'
+                              : 'border-accent bg-accent-subtle text-fg'
+                            : 'border-border-strong bg-surface/60 text-fg-secondary hover:border-border-strong'
                       }`}
                     >
                       <span className="font-bold me-2">{opt.letter})</span>{opt.label}
@@ -300,11 +300,11 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                   onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}
                   placeholder="اكتب إجابتك هنا..."
                   dir="auto"
-                  className={`w-full sm:w-80 px-3 py-2 rounded-lg border bg-slate-800/60 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 ${
-                    checked ? (correct ? 'border-emerald-500' : 'border-red-500') : 'border-slate-700'
+                  className={`w-full sm:w-80 px-3 py-2 rounded-lg border bg-surface/60 text-sm text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-violet-500 ${
+                    checked ? (correct ? 'border-success' : 'border-red-500') : 'border-border-strong'
                   }`}
                 />
-                {wrong && <p className="text-emerald-400 text-xs">الإجابة الصحيحة: {q.answer}</p>}
+                {wrong && <p className="text-accent text-xs">الإجابة الصحيحة: {q.answer}</p>}
                 {checked && selfCheck && (
                   <p className="text-sky-300 text-xs bg-sky-500/10 rounded px-2 py-1.5 mt-1">الإجابة النموذجية للمقارنة: {q.answer}</p>
                 )}
@@ -319,28 +319,28 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
           <button
             onClick={() => setChecked(true)}
             disabled={!allAnswered}
-            className="px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+            className="px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed text-fg text-sm font-semibold transition-colors"
           >
             تحقق من إجاباتي
           </button>
         ) : (
           <>
             <div className={`px-4 py-2 rounded-lg text-sm font-bold ${
-              score === gradable.length ? 'bg-emerald-500/15 text-emerald-400' : score >= gradable.length / 2 ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
+              score === gradable.length ? 'bg-success/15 text-accent' : score >= gradable.length / 2 ? 'bg-warning-subtle text-accent' : 'bg-red-500/15 text-red-400'
             }`}>
               نتيجتك: {score} / {gradable.length}
               {gradable.length < questions.length && <span className="font-normal opacity-70"> (+{questions.length - gradable.length} سؤال تقييم ذاتي)</span>}
             </div>
             <button
               onClick={reset}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400 text-sm transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border-strong text-fg-secondary hover:text-fg hover:border-border-strong text-sm transition-colors"
             >
               <RotateCcw className="w-4 h-4" /> إعادة المحاولة
             </button>
           </>
         )}
         {!checked && !allAnswered && (
-          <span className="text-slate-500 text-xs">أجب على كل الأسئلة أولاً</span>
+          <span className="text-fg-muted text-xs">أجب على كل الأسئلة أولاً</span>
         )}
       </div>
     </div>
@@ -361,7 +361,7 @@ export function LessonTabs({ content }: { content: string }) {
   return (
     <div className="space-y-4">
       {preamble && <Markdown content={preamble} />}
-      <div className="flex flex-wrap gap-2 border-b border-slate-700 pb-2" role="tablist">
+      <div className="flex flex-wrap gap-2 border-b border-border-strong pb-2" role="tablist">
         {sections.map((s, i) => (
           <button
             key={i}
@@ -370,8 +370,8 @@ export function LessonTabs({ content }: { content: string }) {
             onClick={() => setActive(i)}
             className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               i === active
-                ? 'bg-violet-600 text-white'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                ? 'bg-accent text-fg'
+                : 'bg-surface text-fg-secondary hover:bg-canvas hover:text-fg'
             }`}
           >
             {s.title}

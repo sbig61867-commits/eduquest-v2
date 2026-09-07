@@ -32,9 +32,9 @@ const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
 const PRIVATE_ONLY_ROLES = new Set(['university_admin', 'center_manager'])
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:   'text-amber-400 bg-amber-400/10',
-  accepted:  'text-emerald-400 bg-emerald-400/10',
-  revoked:   'text-slate-400 bg-slate-400/10',
+  pending:   'text-accent bg-warning-subtle',
+  accepted:  'text-accent bg-accent/10',
+  revoked:   'text-fg-secondary bg-surface',
   depleted:  'text-purple-400 bg-purple-400/10',
 }
 
@@ -168,21 +168,21 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Invitations</h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-fg">Invitations</h1>
+          <p className="text-fg-secondary text-sm mt-1">
             Manage access invitations for your platform
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={load}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => { setShowForm(f => !f); setNewLink(null); setFormError('') }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-fg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Invitation
@@ -192,28 +192,28 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
       {/* Create Form */}
       {showForm && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <div className="bg-surface border border-border rounded-lg p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-white font-semibold flex items-center gap-2">
+            <h2 className="text-fg font-semibold flex items-center gap-2">
               {isPublic
                 ? <><Link className="w-4 h-4 text-purple-400" /> Public Link</>
-                : <><Mail className="w-4 h-4 text-blue-400" /> Private Invitation</>
+                : <><Mail className="w-4 h-4 text-accent" /> Private Invitation</>
               }
             </h2>
-            <button onClick={() => setShowForm(false)} className="text-slate-500 hover:text-white">
+            <button onClick={() => setShowForm(false)} className="text-fg-muted hover:text-fg">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Link type toggle */}
-          <div className="flex rounded-lg border border-slate-700 overflow-hidden text-sm">
+          <div className="flex rounded-lg border border-border-strong overflow-hidden text-sm">
             <button
               type="button"
               onClick={() => setIsPublic(false)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
                 !isPublic
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-fg-secondary hover:text-fg hover:bg-surface'
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
@@ -226,10 +226,10 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               title={!canBePublic ? 'University Admin invitations must be email-specific' : undefined}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
                 isPublic
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-purple-600 text-fg'
                   : canBePublic
-                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    : 'text-slate-600 cursor-not-allowed'
+                    ? 'text-fg-secondary hover:text-fg hover:bg-surface'
+                    : 'text-fg-muted cursor-not-allowed'
               }`}
             >
               <Link className="w-3.5 h-3.5" />
@@ -245,14 +245,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           )}
 
           {newLink && (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-2">
-              <p className="text-emerald-400 text-sm font-semibold">Invitation created!</p>
-              <p className="text-slate-300 text-xs">Share this link:</p>
-              <div className="flex items-center gap-2 bg-slate-950 rounded-lg px-3 py-2">
-                <code className="text-blue-300 text-xs flex-1 break-all">{newLink}</code>
+            <div className="bg-accent-subtle border border-success/20 rounded-lg p-4 space-y-2">
+              <p className="text-accent text-sm font-semibold">Invitation created!</p>
+              <p className="text-fg-secondary text-xs">Share this link:</p>
+              <div className="flex items-center gap-2 bg-canvas rounded-lg px-3 py-2">
+                <code className="text-accent text-xs flex-1 break-all">{newLink}</code>
                 <button
                   onClick={() => navigator.clipboard.writeText(newLink)}
-                  className="text-slate-400 hover:text-white shrink-0"
+                  className="text-fg-secondary hover:text-fg shrink-0"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
@@ -271,24 +271,24 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             {/* Email — only for private invitations */}
             {!isPublic && (
               <div className="col-span-2">
-                <label className="block text-sm text-slate-400 mb-1">Email Address</label>
+                <label className="block text-sm text-fg-secondary mb-1">Email Address</label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
                   placeholder="invitee@university.edu"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm text-slate-400 mb-1">Role</label>
+              <label className="block text-sm text-fg-secondary mb-1">Role</label>
               <select
                 value={role}
                 onChange={e => handleRoleChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg focus:outline-none focus:ring-2 focus:ring-accent text-sm"
               >
                 {ROLE_OPTIONS[callerRole].map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -298,12 +298,12 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
             {callerRole === 'super_admin' && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">University</label>
+                <label className="block text-sm text-fg-secondary mb-1">University</label>
                 <select
                   value={tenantId}
                   onChange={e => setTenantId(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg focus:outline-none focus:ring-2 focus:ring-accent text-sm"
                 >
                   {tenants.map(t => (
                     <option key={t.id} value={t.id}>{t.name}</option>
@@ -314,11 +314,11 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
             {role === 'student' && groups.length > 0 && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Group {isPublic ? '' : '(optional)'}</label>
+                <label className="block text-sm text-fg-secondary mb-1">Group {isPublic ? '' : '(optional)'}</label>
                 <select
                   value={groupId}
                   onChange={e => setGroupId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg focus:outline-none focus:ring-2 focus:ring-accent text-sm"
                 >
                   <option value="">No specific group</option>
                   {groups.map(g => (
@@ -329,28 +329,28 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             )}
 
             <div>
-              <label className="block text-sm text-slate-400 mb-1">Expires in (hours)</label>
+              <label className="block text-sm text-fg-secondary mb-1">Expires in (hours)</label>
               <input
                 type="number"
                 value={expiresHours}
                 onChange={e => setExpiresHours(Number(e.target.value))}
                 min={1}
                 max={720}
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg focus:outline-none focus:ring-2 focus:ring-accent text-sm"
               />
             </div>
 
             {/* Max uses — only for public links */}
             {isPublic && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Max uses (blank = unlimited)</label>
+                <label className="block text-sm text-fg-secondary mb-1">Max uses (blank = unlimited)</label>
                 <input
                   type="number"
                   value={maxUses}
                   onChange={e => setMaxUses(e.target.value === '' ? '' : Number(e.target.value))}
                   min={1}
                   placeholder="Unlimited"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                 />
               </div>
             )}
@@ -359,17 +359,17 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors"
+                className="px-4 py-2 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={creating}
-                className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-60 ${
+                className={`px-4 py-2 rounded-lg text-fg text-sm font-medium transition-colors disabled:opacity-60 ${
                   isPublic
                     ? 'bg-purple-600 hover:bg-purple-500'
-                    : 'bg-blue-600 hover:bg-blue-500'
+                    : 'bg-accent hover:bg-accent-hover'
                 }`}
               >
                 {creating ? 'Creating…' : isPublic ? 'Generate Public Link' : 'Send Invitation'}
@@ -380,36 +380,36 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       )}
 
       {/* Invitations Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-surface border border-border rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : invitations.length === 0 ? (
           <div className="text-center py-16 space-y-2">
-            <Mail className="w-10 h-10 text-slate-600 mx-auto" />
-            <p className="text-slate-400 text-sm">No invitations yet</p>
-            <p className="text-slate-500 text-xs">Create one to invite users to your platform</p>
+            <Mail className="w-10 h-10 text-fg-muted mx-auto" />
+            <p className="text-fg-secondary text-sm">No invitations yet</p>
+            <p className="text-fg-muted text-xs">Create one to invite users to your platform</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">Email / Type</th>
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">Role</th>
+              <tr className="border-b border-border">
+                <th className="text-left px-5 py-3 text-fg-secondary font-medium">Email / Type</th>
+                <th className="text-left px-5 py-3 text-fg-secondary font-medium">Role</th>
                 {callerRole === 'super_admin' && (
-                  <th className="text-left px-5 py-3 text-slate-400 font-medium">University</th>
+                  <th className="text-left px-5 py-3 text-fg-secondary font-medium">University</th>
                 )}
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">Status</th>
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">Uses / Expires</th>
-                <th className="text-right px-5 py-3 text-slate-400 font-medium">Actions</th>
+                <th className="text-left px-5 py-3 text-fg-secondary font-medium">Status</th>
+                <th className="text-left px-5 py-3 text-fg-secondary font-medium">Uses / Expires</th>
+                <th className="text-right px-5 py-3 text-fg-secondary font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-border/60">
               {invitations.map(inv => {
                 const expired = isExpired(inv)
                 return (
-                  <tr key={inv.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr key={inv.id} className="hover:bg-surface/30 transition-colors">
                     <td className="px-5 py-3">
                       {inv.is_public ? (
                         <span className="inline-flex items-center gap-1.5 text-purple-400">
@@ -417,14 +417,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                           Public link
                         </span>
                       ) : (
-                        <span className="text-white font-medium">{inv.email}</span>
+                        <span className="text-fg font-medium">{inv.email}</span>
                       )}
                     </td>
                     <td className="px-5 py-3">
-                      <span className="capitalize text-slate-300">{inv.role.replace('_', ' ')}</span>
+                      <span className="capitalize text-fg-secondary">{inv.role.replace('_', ' ')}</span>
                     </td>
                     {callerRole === 'super_admin' && (
-                      <td className="px-5 py-3 text-slate-300">
+                      <td className="px-5 py-3 text-fg-secondary">
                         {(inv as unknown as { tenants: { name: string } }).tenants?.name ?? '—'}
                       </td>
                     )}
@@ -438,7 +438,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                         {expired ? 'expired' : resolvedStatus(inv)}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-400 text-xs space-y-0.5">
+                    <td className="px-5 py-3 text-fg-secondary text-xs space-y-0.5">
                       {inv.is_public && (
                         <div className="flex items-center gap-1 text-purple-400">
                           <Users className="w-3 h-3" />
@@ -455,17 +455,17 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                             <button
                               onClick={() => copyLink(inv)}
                               title="Copy invitation link"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                              className="p-1.5 rounded-lg text-fg-secondary hover:text-fg hover:bg-canvas transition-colors"
                             >
                               {copiedId === inv.id
-                                ? <Check className="w-4 h-4 text-emerald-400" />
+                                ? <Check className="w-4 h-4 text-accent" />
                                 : <Copy className="w-4 h-4" />
                               }
                             </button>
                             <button
                               onClick={() => revoke(inv.id)}
                               title="Revoke invitation"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              className="p-1.5 rounded-lg text-fg-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
                             >
                               <X className="w-4 h-4" />
                             </button>

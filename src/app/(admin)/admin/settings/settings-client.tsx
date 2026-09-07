@@ -49,7 +49,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
 
   if (!tenant) {
     return (
-      <div className="text-center py-20 text-slate-400">
+      <div className="text-center py-20 text-fg-secondary">
         No institution data found.
       </div>
     )
@@ -58,40 +58,40 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
-          <Settings className="w-5 h-5 text-slate-400" />
+        <div className="w-10 h-10 rounded-lg bg-surface flex items-center justify-center">
+          <Settings className="w-5 h-5 text-fg-secondary" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Institution Settings</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Manage your university profile</p>
+          <h2 className="text-2xl font-bold text-fg">Institution Settings</h2>
+          <p className="text-fg-secondary text-sm mt-0.5">Manage your university profile</p>
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-2 text-sm">
+      <div className="bg-surface border border-border rounded-lg p-6 space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-slate-400">Slug</span>
-          <span className="text-slate-300 font-mono">{tenant.slug}</span>
+          <span className="text-fg-secondary">Slug</span>
+          <span className="text-fg-secondary font-mono">{tenant.slug}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-400">Status</span>
-          <span className={tenant.is_active ? 'text-emerald-400' : 'text-red-400'}>
+          <span className="text-fg-secondary">Status</span>
+          <span className={tenant.is_active ? 'text-accent' : 'text-red-400'}>
             {tenant.is_active ? 'Active' : 'Suspended'}
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-400">Created</span>
-          <span className="text-slate-300">{new Date(tenant.created_at).toLocaleDateString()}</span>
+          <span className="text-fg-secondary">Created</span>
+          <span className="text-fg-secondary">{new Date(tenant.created_at).toLocaleDateString()}</span>
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold">Edit Profile</h3>
+      <form onSubmit={handleSave} className="bg-surface border border-border rounded-lg p-6 space-y-4">
+        <h3 className="text-fg font-semibold">Edit Profile</h3>
 
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
         {saved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Settings saved successfully
           </div>
         )}
@@ -111,7 +111,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
         />
 
         {form.logo_url && (
-          <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-surface rounded-lg">
             <Image
               src={form.logo_url}
               alt="Logo preview"
@@ -120,7 +120,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
               className="rounded-lg object-contain bg-white p-1"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
-            <span className="text-slate-400 text-sm">Logo preview</span>
+            <span className="text-fg-secondary text-sm">Logo preview</span>
           </div>
         )}
 

@@ -25,24 +25,24 @@ export default function FeaturesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Feature Flags</h2>
-        <p className="text-slate-400 mt-1">Enable or disable platform features globally</p>
+        <h2 className="text-2xl font-bold text-fg">Feature Flags</h2>
+        <p className="text-fg-secondary mt-1">Enable or disable platform features globally</p>
       </div>
       <div className="space-y-3">
         {DEFAULT_FLAGS.map(flag => (
-          <div key={flag.name} className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div key={flag.name} className="bg-surface border border-border rounded-lg p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                <Flag className="w-5 h-5 text-violet-400" />
+              <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center">
+                <Flag className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <p className="text-white font-medium">{flag.label}</p>
-                <p className="text-slate-400 text-sm">{flag.description}</p>
+                <p className="text-fg font-medium">{flag.label}</p>
+                <p className="text-fg-secondary text-sm">{flag.description}</p>
               </div>
             </div>
             <button
               onClick={() => toggle(flag.name)}
-              className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none ${flags[flag.name] ? 'bg-blue-600' : 'bg-slate-700'}`}
+              className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none ${flags[flag.name] ? 'bg-accent' : 'bg-border-strong'}`}
             >
               <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${flags[flag.name] ? 'translate-x-7' : 'translate-x-1'}`} />
             </button>

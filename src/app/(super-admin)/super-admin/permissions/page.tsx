@@ -47,8 +47,8 @@ export default async function SuperAdminPermissionsPage() {
   return (
     <div className="space-y-6" dir="rtl">
       <div>
-        <h2 className="text-2xl font-bold text-white">الصلاحيات</h2>
-        <p className="text-slate-400 mt-1">
+        <h2 className="text-2xl font-bold text-fg">الصلاحيات</h2>
+        <p className="text-fg-secondary mt-1">
           حدّد ما يستطيع كل مدير مؤسسة ومدير مركز فعله. المدير بدوره لا يستطيع منح صلاحية لا يملكها.
         </p>
       </div>

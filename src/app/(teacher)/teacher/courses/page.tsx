@@ -20,16 +20,16 @@ export default async function CoursesPage() {
   if (!profile?.can_create_courses) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-5">
-          <Lock className="w-8 h-8 text-slate-500" />
+        <div className="w-16 h-16 rounded-lg bg-surface flex items-center justify-center mb-5">
+          <Lock className="w-8 h-8 text-fg-muted" />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Courses — Permission Required</h2>
-        <p className="text-slate-400 max-w-sm">
+        <h2 className="text-xl font-bold text-fg mb-2">Courses — Permission Required</h2>
+        <p className="text-fg-secondary max-w-sm">
           You need your university admin to enable course creation for your account before you can access this section.
         </p>
-        <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 border border-slate-800">
-          <GraduationCap className="w-4 h-4 text-slate-500" />
-          <span className="text-slate-500 text-sm">Ask your university admin to grant you course creation access</span>
+        <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-border">
+          <GraduationCap className="w-4 h-4 text-fg-muted" />
+          <span className="text-fg-muted text-sm">Ask your university admin to grant you course creation access</span>
         </div>
       </div>
     )

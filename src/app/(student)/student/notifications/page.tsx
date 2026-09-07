@@ -81,23 +81,23 @@ export default async function NotificationsPage() {
   }
 
   const colorMap = {
-    lesson: 'bg-violet-600/20 text-violet-400',
-    exam: 'bg-amber-600/20 text-amber-400',
-    grade: 'bg-emerald-600/20 text-emerald-400',
+    lesson: 'bg-accent-subtle text-accent',
+    exam: 'bg-accent-subtle text-accent',
+    grade: 'bg-accent-subtle text-accent',
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Notifications</h2>
-        <p className="text-slate-400 mt-1">Recent activity in your groups</p>
+        <h2 className="text-2xl font-bold text-fg">Notifications</h2>
+        <p className="text-fg-secondary mt-1">Recent activity in your groups</p>
       </div>
 
       {notifications.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-white font-medium">No notifications yet</p>
-          <p className="text-slate-400 text-sm mt-1">
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <Bell className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg font-medium">No notifications yet</p>
+          <p className="text-fg-secondary text-sm mt-1">
             {groupIds.length === 0
               ? 'You are not enrolled in any group yet.'
               : 'New lessons and exams will appear here.'}
@@ -109,15 +109,15 @@ export default async function NotificationsPage() {
             const Icon = iconMap[n.type as keyof typeof iconMap]
             const color = colorMap[n.type as keyof typeof colorMap]
             return (
-              <div key={n.id} className="flex items-start gap-4 bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 hover:border-slate-700 transition-colors">
+              <div key={n.id} className="flex items-start gap-4 bg-surface border border-border rounded-lg px-5 py-4 hover:border-border-strong transition-colors">
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium">{n.title}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">{n.subtitle}</p>
+                  <p className="text-fg text-sm font-medium">{n.title}</p>
+                  <p className="text-fg-secondary text-xs mt-0.5">{n.subtitle}</p>
                 </div>
-                <span className="text-slate-500 text-xs shrink-0">{formatDate(n.date)}</span>
+                <span className="text-fg-muted text-xs shrink-0">{formatDate(n.date)}</span>
               </div>
             )
           })}

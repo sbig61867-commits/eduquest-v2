@@ -7,46 +7,52 @@ import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from './notification-bell'
 
-interface HeaderProps {
-  title: string
-}
-
-export function Header({ title }: HeaderProps) {
+export function Header() {
   const { user, tenant } = useAuthStore()
   const { sidebarOpen, setMobileNavOpen } = useUIStore()
 
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+    : 'U'
+
   return (
     <header className={cn(
-      'fixed top-0 right-0 left-0 h-16 bg-slate-950/80 backdrop-blur border-b border-slate-800 flex items-center justify-between px-4 lg:px-6 z-30 transition-all duration-300',
-      sidebarOpen ? 'lg:left-64' : 'lg:left-16'
+      'fixed top-0 end-0 start-0 h-16 z-30',
+      'bg-elevated/90 backdrop-blur-md border-b border-border',
+      'flex items-center justify-between px-4 lg:px-6',
+      'transition-[inset-inline-start] duration-200',
+      sidebarOpen ? 'lg:start-64' : 'lg:start-16'
     )}>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setMobileNavOpen(true)}
-          className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          aria-label="Open menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <h1 className="text-white font-semibold text-lg">{title}</h1>
-      </div>
+      {/* Mobile hamburger */}
+      <button
+        onClick={() => setMobileNavOpen(true)}
+        className="lg:hidden p-2 rounded-md text-fg-muted hover:text-fg hover:bg-surface transition-colors"
+        aria-label="Open navigation menu"
+      >
+        <Menu className="w-5 h-5" aria-hidden="true" />
+      </button>
 
-      <div className="flex items-center gap-4">
+      {/* Spacer on desktop (no static title — pages provide their own <h1>) */}
+      <div className="hidden lg:block" />
+
+      {/* Right: notifications + user */}
+      <div className="flex items-center gap-3">
         <NotificationBell />
 
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-            <span className="text-white text-sm font-bold">
-              {user?.full_name?.[0]?.toUpperCase() ?? 'U'}
+        <div className="flex items-center gap-2.5">
+          {/* Avatar */}
+          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0">
+            <span className="text-accent-fg text-xs font-semibold leading-none select-none">
+              {initials}
             </span>
           </div>
+
+          {/* Name + role — hidden on small screens */}
           <div className="hidden sm:block">
-            <p className="text-white text-sm font-medium leading-none">{user?.full_name ?? 'User'}</p>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <p className="text-fg text-sm font-medium leading-none">{user?.full_name ?? 'User'}</p>
+            <p className="text-fg-muted text-xs mt-0.5 leading-none">
               {user?.role ? getRoleLabel(user.role) : ''}
-              {tenant?.name && (
-                <span className="text-slate-500"> · {tenant.name}</span>
-              )}
+              {tenant?.name && <span className="text-fg-muted"> · {tenant.name}</span>}
             </p>
           </div>
         </div>

@@ -17,8 +17,8 @@ export default async function StudentSchedulePage() {
   return (
     <div className="space-y-6" dir="rtl">
       <div>
-        <h2 className="text-2xl font-bold text-white">جدول مواعيدي</h2>
-        <p className="text-slate-400 mt-1">المواعيد الأسبوعية للمجموعات المسجَّل بها</p>
+        <h2 className="text-2xl font-bold text-fg">جدول مواعيدي</h2>
+        <p className="text-fg-secondary mt-1">المواعيد الأسبوعية للمجموعات المسجَّل بها</p>
       </div>
       <ScheduleGrid slots={slots} showGroup emptyText="لم يُنشر جدول مواعيد لمجموعاتك بعد." />
     </div>

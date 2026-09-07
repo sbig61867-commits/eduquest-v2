@@ -209,8 +209,8 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Exams</h2>
-          <p className="text-slate-400 mt-1">{exams.length} exams created</p>
+          <h2 className="text-2xl font-bold text-fg">Exams</h2>
+          <p className="text-fg-secondary mt-1">{exams.length} exams created</p>
         </div>
         <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
           <Plus className="w-4 h-4" /> New Exam
@@ -218,23 +218,23 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       </div>
 
       {exams.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No exams yet.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <ClipboardList className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">No exams yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {exams.map(exam => (
-            <div key={exam.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+            <div key={exam.id} className="bg-surface border border-border rounded-lg p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-white font-semibold">{exam.title}</h3>
-                    <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? 'Published' : 'Draft'}</Badge>
-                    {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 mr-1" />Proctored</Badge>}
+                    <h3 className="text-fg font-semibold">{exam.title}</h3>
+                    <Badge variant={exam.is_published ? 'success' : 'neutral'}>{exam.is_published ? 'Published' : 'Draft'}</Badge>
+                    {exam.proctoring_enabled && <Badge variant="info"><ShieldCheck className="w-3 h-3 mr-1" />Proctored</Badge>}
                   </div>
-                  <p className="text-slate-400 text-sm flex items-center gap-1.5 flex-wrap">
-                    <Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span>
+                  <p className="text-fg-secondary text-sm flex items-center gap-1.5 flex-wrap">
+                    <Users className="w-3.5 h-3.5" /> <span className="text-fg-secondary">{exam.groups?.name ?? '—'}</span>
                     · {exam.duration_minutes} min · {exam.questions.length} questions · {formatDate(exam.created_at)}
                   </p>
                 </div>
@@ -253,40 +253,40 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Create New Exam" size="xl">
         <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
           {/* AI Generator — from a topic, or from the teacher's own files */}
-          <div className="flex rounded-lg border border-slate-700 overflow-hidden w-fit">
+          <div className="flex rounded-lg border border-border-strong overflow-hidden w-fit">
             <button type="button" onClick={() => setGenMode('topic')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'topic' ? 'bg-violet-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+              className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'topic' ? 'bg-accent text-accent-fg' : 'bg-surface text-fg-secondary hover:text-fg'}`}>
               من عنوان
             </button>
             <button type="button" onClick={() => setGenMode('file')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'file' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+              className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'file' ? 'bg-accent text-accent-fg' : 'bg-surface text-fg-secondary hover:text-fg'}`}>
               من ملفات
             </button>
           </div>
 
           {genMode === 'topic' ? (
-            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4">
+            <div className="bg-accent-subtle border border-accent/20 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-violet-400" />
-                <span className="text-violet-400 text-sm font-medium">AI Question Generator</span>
+                <Sparkles className="w-4 h-4 text-accent" />
+                <span className="text-accent text-sm font-medium">AI Question Generator</span>
               </div>
               <div className="flex gap-2">
-                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-                <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
                 <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
               </div>
             </div>
           ) : (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3" dir="rtl">
+            <div className="bg-accent-subtle border border-accent/30 rounded-lg p-4 space-y-3" dir="rtl">
               <div className="flex items-center gap-2">
-                <Upload className="w-4 h-4 text-blue-400" />
-                <span className="text-blue-300 text-sm font-medium">توليد اختبار من ملف — الأسئلة من محتوى الملف فقط</span>
+                <Upload className="w-4 h-4 text-accent" />
+                <span className="text-accent-hover text-sm font-medium">توليد اختبار من ملف — الأسئلة من محتوى الملف فقط</span>
               </div>
 
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" onClick={() => examFileRef.current?.click()}
-                    className="px-3 py-2 rounded-lg border border-blue-500 bg-blue-500/10 text-blue-300 text-sm hover:bg-blue-500/20 transition-colors">
+                    className="px-3 py-2 rounded-lg border border-accent bg-accent-subtle text-accent-hover text-sm hover:bg-accent-hover/20 transition-colors">
                     <Plus className="w-3.5 h-3.5 inline -mt-0.5" /> {examFiles.length ? 'إضافة ملفات أخرى' : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
                   </button>
                   <input ref={examFileRef} type="file" multiple accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
@@ -301,20 +301,20 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     }} />
                   <input type="number" value={examFileCount} onChange={e => setExamFileCount(Number(e.target.value))} min={1} max={120}
                     title="عدد الأسئلة"
-                    className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <span className="text-slate-500 text-xs">سؤال</span>
+                    className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-accent" />
+                  <span className="text-fg-muted text-xs">سؤال</span>
                 </div>
                 {examFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {examFiles.map((f, i) => (
-                      <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs">
+                      <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border-strong text-fg-secondary text-xs">
                         📄 {f.name}
                         <button type="button" title="إزالة هذا الملف"
                           onClick={() => setExamFiles(prev => prev.filter((_, j) => j !== i))}
-                          className="text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                          className="text-fg-muted hover:text-red-400"><X className="w-3 h-3" /></button>
                       </span>
                     ))}
-                    <span className="text-slate-600 text-xs self-center">{examFiles.length}/10</span>
+                    <span className="text-fg-muted text-xs self-center">{examFiles.length}/10</span>
                   </div>
                 )}
               </div>
@@ -325,7 +325,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     <div key={t} className="flex items-center gap-1.5">
                       <button type="button" onClick={() => toggleExamQType(t)}
                         className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
-                          examQTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                          examQTypes.has(t) ? 'border-accent bg-accent-subtle text-accent-hover' : 'border-border-strong text-fg-secondary hover:border-border-strong'
                         }`}>
                         {examQTypes.has(t) ? '✓ ' : ''}{label}
                       </button>
@@ -334,18 +334,18 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                           <input type="number" min={1} max={100} value={examTypePoints[t]}
                             title={`علامة كل سؤال ${label}`}
                             onChange={e => setExamTypePoints(p => ({ ...p, [t]: Math.max(1, Number(e.target.value)) }))}
-                            className="w-14 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                          <span className="text-slate-500 text-xs">علامة</span>
+                            className="w-14 px-2 py-1.5 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-1 focus:ring-accent" />
+                          <span className="text-fg-muted text-xs">علامة</span>
                         </>
                       )}
                     </div>
                   ))}
                 </div>
-                <p className="text-slate-500 text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً أو جماعياً.</p>
+                <p className="text-fg-muted text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً أو جماعياً.</p>
               </div>
 
               <textarea value={examFileInstructions} onChange={e => setExamFileInstructions(e.target.value)} rows={2}
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent"
                 placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على الفصلين 3 و4"' />
 
               <AiProgress active={examFileLoading} />
@@ -361,39 +361,39 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             <Input label="Exam Title" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Midterm Exam - Chapter 1-5" />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">Group</label>
-                <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label className="block text-sm font-medium text-fg-secondary">Group</label>
+                <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent">
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
               <Input label="Duration (minutes)" type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
             </div>
             <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
+              <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-accent' : 'bg-canvas'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.proctoring_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />Enable Proctoring (camera + tab detection)</span>
+              <span className="text-fg-secondary text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-accent" />Enable Proctoring (camera + tab detection)</span>
             </label>
 
             {/* Questions Preview */}
             {questions.length > 0 && (
               <div className="space-y-2">
-                <p className="text-slate-300 text-sm font-medium">{questions.length} Questions Generated</p>
+                <p className="text-fg-secondary text-sm font-medium">{questions.length} Questions Generated</p>
 
                 {/* Bulk-grade bar: set a uniform mark for selected (or all) questions
                     at once — no need to edit 100 questions one by one. */}
-                <div className="flex flex-wrap items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2" dir="rtl">
+                <div className="flex flex-wrap items-center gap-2 bg-surface/60 border border-border-strong rounded-lg px-3 py-2" dir="rtl">
                   <button type="button"
                     onClick={() => setSelectedQ(selectedQ.size === questions.length ? new Set() : new Set(questions.map(q => q.id)))}
-                    className="text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400">
+                    className="text-xs px-2 py-1 rounded border border-border-strong text-fg-secondary hover:text-fg hover:border-border-strong">
                     {selectedQ.size === questions.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
                   </button>
-                  <span className="text-slate-400 text-xs">
+                  <span className="text-fg-secondary text-xs">
                     {selectedQ.size > 0 ? `${selectedQ.size} محدد` : 'حدّد أسئلة'} — ضع درجة موحّدة:
                   </span>
                   <input type="number" min={1} max={100} value={bulkPts}
                     onChange={e => setBulkPts(Math.max(1, Number(e.target.value)))}
-                    className="w-16 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    className="w-16 px-2 py-1 rounded bg-surface border border-border-strong text-fg text-xs text-center focus:outline-none focus:ring-1 focus:ring-accent" />
                   <Button type="button" size="sm" variant="secondary"
                     onClick={() => {
                       const target = selectedQ.size > 0 ? selectedQ : new Set(questions.map(q => q.id))
@@ -407,13 +407,13 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                   {questions.map((q, i) => {
                     const sel = selectedQ.has(q.id)
                     return (
-                      <div key={q.id} className={`flex items-start gap-3 rounded-lg p-3 border ${sel ? 'bg-blue-600/10 border-blue-500/40' : 'bg-slate-800 border-transparent'}`}>
+                      <div key={q.id} className={`flex items-start gap-3 rounded-lg p-3 border ${sel ? 'bg-accent/10 border-accent/30' : 'bg-surface border-transparent'}`}>
                         <input type="checkbox" checked={sel}
                           onChange={() => setSelectedQ(prev => { const n = new Set(prev); if (n.has(q.id)) n.delete(q.id); else n.add(q.id); return n })}
                           className="mt-1 accent-blue-500 shrink-0" />
-                        <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
-                        <p className="text-slate-300 text-sm flex-1 line-clamp-2">{q.text}</p>
-                        <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'} className="shrink-0">{q.type}</Badge>
+                        <span className="text-fg-muted text-xs font-mono mt-0.5">{i + 1}.</span>
+                        <p className="text-fg-secondary text-sm flex-1 line-clamp-2">{q.text}</p>
+                        <Badge variant={q.type === 'mcq' ? 'info' : q.type === 'true_false' ? 'warning' : 'neutral'} className="shrink-0">{q.type}</Badge>
                         <span className="flex items-center gap-1 shrink-0">
                           <input type="number" min={1} max={100} value={q.points}
                             title="درجة هذا السؤال"
@@ -421,17 +421,17 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                               const v = Math.max(1, Number(e.target.value))
                               setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, points: v } : x))
                             }}
-                            className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                          <span className="text-slate-500 text-xs">د</span>
+                            className="w-14 px-1.5 py-1 rounded bg-surface border border-border-strong text-fg text-xs text-center focus:outline-none focus:ring-1 focus:ring-accent" />
+                          <span className="text-fg-muted text-xs">د</span>
                         </span>
-                        <button onClick={() => removeQuestion(q.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeQuestion(q.id)} className="text-fg-muted hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
                       </div>
                     )
                   })}
                 </div>
-                <p className="text-slate-400 text-xs mt-2">
-                  {questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
-                  <span className="text-slate-600"> — عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة</span>
+                <p className="text-fg-secondary text-xs mt-2">
+                  {questions.length} سؤالاً · العلامة الكاملة: <span className="text-fg font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
+                  <span className="text-fg-muted"> — عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة</span>
                 </p>
               </div>
             )}
@@ -447,34 +447,34 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       {/* Results */}
       <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title="Exam Results" size="xl">
         {resultsLoading ? (
-          <p className="text-slate-500 text-sm py-8 text-center">Loading results...</p>
+          <p className="text-fg-muted text-sm py-8 text-center">Loading results...</p>
         ) : results ? (
           <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <p className="text-white font-semibold">{results.title}</p>
-                <p className="text-slate-400 text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {results.group_name}</p>
+                <p className="text-fg font-semibold">{results.title}</p>
+                <p className="text-fg-secondary text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {results.group_name}</p>
               </div>
               <div className="ms-auto flex gap-4 text-sm">
-                <span className="text-slate-300">{results.submitted_count}/{results.roster_count} submitted</span>
-                <span className="text-slate-500">out of {results.max_score} marks</span>
+                <span className="text-fg-secondary">{results.submitted_count}/{results.roster_count} submitted</span>
+                <span className="text-fg-muted">out of {results.max_score} marks</span>
               </div>
             </div>
 
             {results.results.length === 0 ? (
-              <p className="text-slate-500 text-sm py-6 text-center">No students enrolled in this group yet.</p>
+              <p className="text-fg-muted text-sm py-6 text-center">No students enrolled in this group yet.</p>
             ) : (
-              <div className="border border-slate-800 rounded-xl">
+              <div className="border border-border rounded-lg">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                    <tr className="border-b border-border text-fg-secondary text-xs uppercase tracking-wider">
                       <th className="text-left px-4 py-2.5">Student</th>
                       <th className="text-left px-4 py-2.5">Score</th>
                       <th className="text-left px-4 py-2.5 hidden sm:table-cell">Submitted</th>
                       <th className="text-left px-4 py-2.5">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/70">
+                  <tbody className="divide-y divide-border/70">
                     {results.results.map(r => {
                       const pct = r.submitted && r.score != null ? Math.round((r.score / (r.max_score || 1)) * 100) : null
                       const open = expandedRow === r.student_id
@@ -483,25 +483,25 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                         <>
                           <tr key={r.student_id}
                             onClick={() => r.submitted && setExpandedRow(open ? null : r.student_id)}
-                            className={`hover:bg-slate-800/40 ${r.submitted ? 'cursor-pointer' : ''}`}>
+                            className={`hover:bg-surface/40 ${r.submitted ? 'cursor-pointer' : ''}`}>
                             <td className="px-4 py-3">
-                              <p className="text-white flex items-center gap-1.5">
+                              <p className="text-fg flex items-center gap-1.5">
                                 {r.name}
-                                {r.submitted && (open ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />)}
+                                {r.submitted && (open ? <ChevronUp className="w-3.5 h-3.5 text-fg-muted" /> : <ChevronDown className="w-3.5 h-3.5 text-fg-muted" />)}
                               </p>
-                              <p className="text-slate-500 text-xs">{r.email}</p>
+                              <p className="text-fg-muted text-xs">{r.email}</p>
                             </td>
                             <td className="px-4 py-3">
-                              {!r.submitted ? <span className="text-slate-600">—</span>
+                              {!r.submitted ? <span className="text-fg-muted">—</span>
                                 : r.grading_status === 'published' && r.score != null
-                                  ? <span className={`font-bold ${pct! >= 60 ? 'text-emerald-400' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
-                                  : <span className="text-amber-400 text-xs">pending grading</span>}
+                                  ? <span className={`font-bold ${pct! >= 60 ? 'text-accent' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
+                                  : <span className="text-accent text-xs">pending grading</span>}
                             </td>
-                            <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
+                            <td className="px-4 py-3 hidden sm:table-cell text-fg-secondary text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
                             <td className="px-4 py-3">
-                              {!r.submitted ? <Badge variant="gray">Not taken</Badge>
+                              {!r.submitted ? <Badge variant="neutral">Not taken</Badge>
                                 : <span className="flex items-center gap-2">
-                                    <Badge variant="green">Submitted</Badge>
+                                    <Badge variant="success">Submitted</Badge>
                                     {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
                                   </span>}
                             </td>
@@ -510,37 +510,37 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                           {/* Expanded: answers review + manual grading */}
                           {open && r.submitted && r.submission_id && (
                             <tr key={`${r.student_id}-detail`}>
-                              <td colSpan={4} className="px-4 py-4 bg-slate-950/50">
+                              <td colSpan={4} className="px-4 py-4 bg-canvas/50">
                                 <div className="space-y-3" dir="rtl">
                                   {results.questions.map((q, qi) => {
                                     const ans = r.answers[q.id] ?? ''
                                     const auto = isAutoQ(q)
                                     const correct = auto && isAutoCorrect(q, ans)
                                     return (
-                                      <div key={q.id} className="rounded-lg border border-slate-800 p-3 space-y-1.5 text-start">
+                                      <div key={q.id} className="rounded-lg border border-border p-3 space-y-1.5 text-start">
                                         <div className="flex items-start gap-2">
-                                          <span className="text-slate-500 text-xs font-mono mt-0.5">{qi + 1}.</span>
-                                          <p className="flex-1 text-slate-200 text-sm">{q.text}</p>
+                                          <span className="text-fg-muted text-xs font-mono mt-0.5">{qi + 1}.</span>
+                                          <p className="flex-1 text-fg text-sm">{q.text}</p>
                                           {auto && (correct
-                                            ? <span className="flex items-center gap-1 text-emerald-400 text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
+                                            ? <span className="flex items-center gap-1 text-accent text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
                                             : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0/{q.points} د</span>)}
                                         </div>
                                         <p className="text-sm ps-6">
-                                          <span className="text-slate-500">إجابة الطالب: </span>
-                                          <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || '— لم يجب —'}</span>
+                                          <span className="text-fg-muted">إجابة الطالب: </span>
+                                          <span className={auto ? (correct ? 'text-success' : 'text-error') : 'text-fg'} dir="auto">{ans || '— لم يجب —'}</span>
                                         </p>
-                                        {auto && !correct && <p className="text-xs ps-6 text-emerald-400">الإجابة الصحيحة: {q.correct_answer}</p>}
+                                        {auto && !correct && <p className="text-xs ps-6 text-accent">الإجابة الصحيحة: {q.correct_answer}</p>}
                                         {!auto && (
                                           <div className="flex items-center gap-2 ps-6">
-                                            <label className="text-slate-400 text-xs">درجة هذا السؤال:</label>
+                                            <label className="text-fg-secondary text-xs">درجة هذا السؤال:</label>
                                             <input type="number" min={0} max={q.points}
                                               value={manualPts[r.submission_id!]?.[q.id] ?? 0}
                                               onChange={e => setManualPts(p => ({
                                                 ...p,
                                                 [r.submission_id!]: { ...(p[r.submission_id!] ?? {}), [q.id]: Math.max(0, Math.min(q.points, Number(e.target.value))) },
                                               }))}
-                                              className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                                            <span className="text-slate-500 text-xs">من {q.points}</span>
+                                              className="w-20 px-2 py-1 rounded bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-1 focus:ring-accent" />
+                                            <span className="text-fg-muted text-xs">من {q.points}</span>
                                           </div>
                                         )}
                                       </div>
@@ -550,9 +550,9 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                   <div className="flex items-center gap-3 flex-wrap pt-1">
                                     {hasManualQ && (
                                       <>
-                                        <span className="text-slate-300 text-sm">
-                                          المجموع النهائي: <span className="text-white font-bold">{totalFor(r)} / {r.max_score}</span>
-                                          <span className="text-slate-500 text-xs"> (آلي {autoScore(r)} + يدوي)</span>
+                                        <span className="text-fg-secondary text-sm">
+                                          المجموع النهائي: <span className="text-fg font-bold">{totalFor(r)} / {r.max_score}</span>
+                                          <span className="text-fg-muted text-xs"> (آلي {autoScore(r)} + يدوي)</span>
                                         </span>
                                         <Button size="sm" loading={gradeBusy === r.submission_id}
                                           onClick={() => patchSubmission(r.submission_id!, { score: totalFor(r), grading_status: 'reviewing' }, resultsExamId)}>
@@ -593,26 +593,26 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       <Modal open={!!viewQuestions} onClose={() => setViewQuestions(null)} title={viewQuestions ? `أسئلة: ${viewQuestions.title}` : ''} size="xl">
         {viewQuestions && (
           <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1" dir="rtl">
-            <p className="text-slate-400 text-sm">{viewQuestions.questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{viewQuestions.questions.reduce((s, q) => s + (q.points || 0), 0)}</span></p>
+            <p className="text-fg-secondary text-sm">{viewQuestions.questions.length} سؤالاً · العلامة الكاملة: <span className="text-fg font-bold">{viewQuestions.questions.reduce((s, q) => s + (q.points || 0), 0)}</span></p>
             {viewQuestions.questions.map((q, i) => (
-              <div key={q.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2 text-start">
+              <div key={q.id} className="rounded-lg border border-border bg-surface p-4 space-y-2 text-start">
                 <div className="flex items-start gap-2">
-                  <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
-                  <p className="flex-1 text-white text-sm">{q.text}</p>
-                  <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'}>{q.type}</Badge>
-                  <span className="text-slate-500 text-xs shrink-0">{q.points} د</span>
+                  <span className="text-fg-muted text-xs font-mono mt-0.5">{i + 1}.</span>
+                  <p className="flex-1 text-fg text-sm">{q.text}</p>
+                  <Badge variant={q.type === 'mcq' ? 'info' : q.type === 'true_false' ? 'warning' : 'neutral'}>{q.type}</Badge>
+                  <span className="text-fg-muted text-xs shrink-0">{q.points} د</span>
                 </div>
                 {q.options && q.options.length > 0 && (
                   <ul className="ps-6 space-y-1">
                     {q.options.map((opt, j) => (
-                      <li key={j} className={`text-sm flex items-center gap-1.5 ${opt === q.correct_answer ? 'text-emerald-400 font-medium' : 'text-slate-400'}`}>
+                      <li key={j} className={`text-sm flex items-center gap-1.5 ${opt === q.correct_answer ? 'text-accent font-medium' : 'text-fg-secondary'}`}>
                         {opt === q.correct_answer && <CheckCircle2 className="w-3.5 h-3.5" />}{opt}
                       </li>
                     ))}
                   </ul>
                 )}
                 {(!q.options || q.options.length === 0) && q.correct_answer && (
-                  <p className="ps-6 text-emerald-400 text-sm">الإجابة: {q.correct_answer}</p>
+                  <p className="ps-6 text-accent text-sm">الإجابة: {q.correct_answer}</p>
                 )}
               </div>
             ))}

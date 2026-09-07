@@ -37,7 +37,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
   return (
     <div
       dir="rtl"
-      className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/40"
+      className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/40"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -56,20 +56,20 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
 
         <div className="p-5 flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning-subtle text-warning border border-warning/30">
               <Megaphone className="w-3 h-3" /> إعلان
             </span>
           </div>
 
-          <h3 className="text-white text-lg font-bold leading-snug">{a.title}</h3>
-          {a.body && <p className="text-slate-300 text-sm mt-1.5 line-clamp-3">{a.body}</p>}
+          <h3 className="text-fg text-lg font-bold leading-snug">{a.title}</h3>
+          {a.body && <p className="text-fg-secondary text-sm mt-1.5 line-clamp-3">{a.body}</p>}
 
           {a.link_url && (
             <a
               href={a.link_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-fg transition-colors"
             >
               {a.cta_label?.trim() || 'اعرف المزيد'}
               <ExternalLink className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
                   onClick={() => setIndex(i)}
                   aria-label={`الإعلان ${i + 1}`}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === index ? 'w-6 bg-blue-500' : 'w-1.5 bg-slate-600 hover:bg-slate-500'
+                    i === index ? 'w-6 bg-accent' : 'w-1.5 bg-border-strong hover:bg-border'
                   }`}
                 />
               ))}
@@ -97,12 +97,12 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
               <button
                 onClick={() => setIndex(i => (i - 1 + count) % count)}
                 aria-label="السابق"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors"
               ><ChevronRight className="w-4 h-4" /></button>
               <button
                 onClick={() => setIndex(i => (i + 1) % count)}
                 aria-label="التالي"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors"
               ><ChevronLeft className="w-4 h-4" /></button>
             </div>
           </div>
@@ -111,7 +111,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
           {!paused && (
             <div
               key={`bar-${index}`}
-              className="absolute bottom-0 right-0 h-0.5 bg-blue-500/70 eq-progress"
+              className="absolute bottom-0 right-0 h-0.5 bg-accent/70 eq-progress"
               style={{ animationDuration: `${ROTATE_MS}ms` }}
             />
           )}

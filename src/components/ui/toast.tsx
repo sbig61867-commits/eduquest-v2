@@ -25,9 +25,9 @@ toast.error   = (msg: string) => toast(msg, 'error')
 toast.warning = (msg: string) => toast(msg, 'warning')
 
 const ICONS: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle  className="w-4 h-4 text-emerald-400 shrink-0" />,
+  success: <CheckCircle  className="w-4 h-4 text-accent shrink-0" />,
   error:   <XCircle      className="w-4 h-4 text-red-400 shrink-0"     />,
-  warning: <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0"  />,
+  warning: <AlertTriangle className="w-4 h-4 text-accent shrink-0"  />,
 }
 const BORDERS: Record<ToastType, string> = {
   success: 'border-emerald-500/30',
@@ -43,13 +43,13 @@ function ToastItem({ toast: t, onRemove }: { toast: Toast; onRemove: (id: number
 
   return (
     <div className={cn(
-      'flex items-start gap-3 px-4 py-3 bg-slate-900 border rounded-xl shadow-2xl',
+      'flex items-start gap-3 px-4 py-3 bg-surface border rounded-lg shadow-2xl',
       'animate-in slide-in-from-bottom-2 fade-in duration-200',
       BORDERS[t.type],
     )}>
       {ICONS[t.type]}
-      <p className="text-sm text-slate-200 leading-snug flex-1">{t.message}</p>
-      <button onClick={() => onRemove(t.id)} className="text-slate-500 hover:text-white transition-colors ml-1">
+      <p className="text-sm text-fg leading-snug flex-1">{t.message}</p>
+      <button onClick={() => onRemove(t.id)} className="text-fg-muted hover:text-fg transition-colors ml-1">
         <X className="w-3.5 h-3.5" />
       </button>
     </div>

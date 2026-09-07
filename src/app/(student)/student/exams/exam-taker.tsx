@@ -337,16 +337,16 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-4 max-w-md">
-          <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
-            <Send className="w-8 h-8 text-emerald-400" />
+          <div className="w-20 h-20 rounded-full bg-accent-subtle flex items-center justify-center mx-auto">
+            <Send className="w-8 h-8 text-accent" />
           </div>
-          <h2 className="text-2xl font-bold text-white">{untimed ? 'تم تسليم الواجب!' : 'Exam Submitted!'}</h2>
+          <h2 className="text-2xl font-bold text-fg">{untimed ? 'تم تسليم الواجب!' : 'Exam Submitted!'}</h2>
           {finalScore ? (
-            <p className="text-slate-400">Your score: <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
+            <p className="text-fg-secondary">Your score: <span className="text-fg font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
           ) : (
-            <p className="text-amber-400 text-sm">تم استلام إجاباتك — ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
+            <p className="text-accent text-sm">تم استلام إجاباتك — ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
           )}
-          {violations.length > 0 && <p className="text-amber-400 text-sm">{violations.length} proctoring violation(s) recorded</p>}
+          {violations.length > 0 && <p className="text-accent text-sm">{violations.length} proctoring violation(s) recorded</p>}
           <Button onClick={onFinish} className="mt-4">Back to Exams</Button>
         </div>
       </div>
@@ -356,10 +356,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   if (!started) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
+        <div className="max-w-lg w-full bg-surface border border-border rounded-lg p-8 space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">{exam.title}</h2>
-            <p className="text-slate-400">
+            <h2 className="text-2xl font-bold text-fg mb-2">{exam.title}</h2>
+            <p className="text-fg-secondary">
               {exam.questions.length} questions · {untimed
                 ? (exam.ends_at ? `واجب — سلّمه قبل ${new Date(exam.ends_at).toLocaleString('ar')}` : 'واجب — بدون وقت محدد')
                 : `${exam.duration_minutes} minutes`}
@@ -377,16 +377,16 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
               exam.proctoring_enabled ? 'Tab switching and exiting fullscreen will be recorded.' : null,
               'Make sure you have a stable internet connection.',
             ].filter(Boolean).map((rule, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                <span className="text-blue-400 mt-0.5">•</span>
+              <div key={i} className="flex items-start gap-2 text-sm text-fg-secondary">
+                <span className="text-accent mt-0.5">•</span>
                 <span>{rule}</span>
               </div>
             ))}
           </div>
           {exam.proctoring_enabled && (
-            <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
-              <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
-              <p className="text-blue-300 text-sm">This exam is proctored. Camera monitoring is active.</p>
+            <div className="flex items-center gap-2 bg-accent-subtle border border-accent/20 rounded-lg px-4 py-3">
+              <ShieldCheck className="w-5 h-5 text-accent shrink-0" />
+              <p className="text-accent-hover text-sm">This exam is proctored. Camera monitoring is active.</p>
             </div>
           )}
           <Button onClick={startExam} className="w-full" size="lg">Start Exam</Button>
@@ -401,27 +401,27 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Header */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-5 py-3 sticky top-0 z-10">
-        <h2 className="text-white font-semibold truncate flex-1">{exam.title}</h2>
+      <div className="flex items-center justify-between bg-surface border border-border rounded-lg px-5 py-3 sticky top-0 z-10">
+        <h2 className="text-fg font-semibold truncate flex-1">{exam.title}</h2>
         <div className="flex items-center gap-3">
           {exam.proctoring_enabled && (
             <div className="flex items-center gap-1.5">
-              <Eye className={`w-4 h-4 ${cameraStatus === 'active' ? 'text-emerald-400' : 'text-slate-500'}`} />
-              <Mic className={`w-4 h-4 ${cameraStatus === 'active' ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <Eye className={`w-4 h-4 ${cameraStatus === 'active' ? 'text-accent' : 'text-fg-muted'}`} />
+              <Mic className={`w-4 h-4 ${cameraStatus === 'active' ? 'text-accent' : 'text-fg-muted'}`} />
             </div>
           )}
           {violations.length > 0 && (
-            <span className="flex items-center gap-1 text-amber-400 text-sm font-medium">
+            <span className="flex items-center gap-1 text-accent text-sm font-medium">
               <AlertTriangle className="w-4 h-4" />{violations.length}
             </span>
           )}
           {!untimed && (
-            <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-400' : 'text-white'}`}>
+            <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-400' : 'text-fg'}`}>
               <Clock className="w-4 h-4" />{formatTime(timeLeft)}
             </span>
           )}
           {exam.proctoring_enabled && cameraStatus === 'active' && (
-            <video ref={videoRef} className="w-20 h-14 rounded-lg object-cover border border-slate-700 bg-slate-800" muted />
+            <video ref={videoRef} className="w-20 h-14 rounded-lg object-cover border border-border-strong bg-surface" muted />
           )}
         </div>
       </div>
@@ -443,44 +443,44 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
       {/* Progress */}
       <div className="flex items-center gap-3">
-        <span className="text-slate-400 text-sm shrink-0">Q {current + 1} / {exam.questions.length}</span>
-        <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
+        <span className="text-fg-secondary text-sm shrink-0">Q {current + 1} / {exam.questions.length}</span>
+        <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
+          <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${progress}%` }} />
         </div>
-        <span className="text-slate-400 text-sm shrink-0">{Object.keys(answers).length} answered</span>
+        <span className="text-fg-secondary text-sm shrink-0">{Object.keys(answers).length} answered</span>
       </div>
 
       {/* Question Card */}
       {question && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-5">
+        <div className="bg-surface border border-border rounded-lg p-6 space-y-5">
           <div className="flex items-start gap-3">
-            <span className="bg-blue-600 text-white text-sm font-bold px-2.5 py-1 rounded-lg shrink-0">{current + 1}</span>
-            <p className="text-white text-lg leading-relaxed">{question.text}</p>
+            <span className="bg-accent text-accent-fg text-sm font-bold px-2.5 py-1 rounded-lg shrink-0">{current + 1}</span>
+            <p className="text-fg text-lg leading-relaxed">{question.text}</p>
           </div>
 
           <div className="space-y-2.5">
             {question.type === 'mcq' && question.options?.map((opt, i) => (
-              <label key={i} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-blue-600/20 border-blue-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}>
+              <label key={i} className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-accent-subtle border-accent text-fg' : 'border-border-strong text-fg-secondary hover:border-border-strong hover:bg-surface'}`}>
                 <input type="radio" name={question.id} value={opt} checked={answers[question.id] === opt} onChange={() => setAnswers(a => ({ ...a, [question.id]: opt }))} className="sr-only" />
                 <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 border-current">
-                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-blue-400" />}
+                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-accent" />}
                 </span>
                 <span>{opt}</span>
               </label>
             ))}
 
             {question.type === 'true_false' && ['True', 'False'].map(opt => (
-              <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-blue-600/20 border-blue-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}>
+              <label key={opt} className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-accent-subtle border-accent text-fg' : 'border-border-strong text-fg-secondary hover:border-border-strong hover:bg-surface'}`}>
                 <input type="radio" name={question.id} value={opt} checked={answers[question.id] === opt} onChange={() => setAnswers(a => ({ ...a, [question.id]: opt }))} className="sr-only" />
                 <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 border-current">
-                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-blue-400" />}
+                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-accent" />}
                 </span>
                 <span>{opt}</span>
               </label>
             ))}
 
             {(question.type === 'short_answer' || question.type === 'essay') && (
-              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Type your answer here..." />
+              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none" placeholder="Type your answer here..." />
             )}
           </div>
         </div>
@@ -493,7 +493,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         </Button>
         <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
           {exam.questions.map((_, i) => (
-            <button key={i} onClick={() => setCurrent(i)} className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${i === current ? 'bg-blue-600 text-white' : answers[exam.questions[i].id] ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-600/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+            <button key={i} onClick={() => setCurrent(i)} className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${i === current ? 'bg-accent text-accent-fg' : answers[exam.questions[i].id] ? 'bg-accent-subtle text-accent border border-accent-border' : 'bg-surface text-fg-secondary hover:bg-canvas'}`}>
               {i + 1}
             </button>
           ))}
@@ -501,7 +501,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         {current < exam.questions.length - 1 ? (
           <Button onClick={() => setCurrent(c => c + 1)}>Next <ChevronRight className="w-4 h-4" /></Button>
         ) : (
-          <Button variant="primary" onClick={handleSubmit} loading={submitting} className="bg-emerald-600 hover:bg-emerald-500">
+          <Button variant="primary" onClick={handleSubmit} loading={submitting} className="bg-accent hover:bg-accent-hover">
             <Send className="w-4 h-4" /> Submit
           </Button>
         )}

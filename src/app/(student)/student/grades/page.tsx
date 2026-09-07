@@ -60,23 +60,23 @@ export default async function GradesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">My Grades</h2>
-        <p className="text-slate-400 mt-1">{submissions.length} graded exams</p>
+        <h2 className="text-2xl font-bold text-fg">My Grades</h2>
+        <p className="text-fg-secondary mt-1">{submissions.length} graded exams</p>
       </div>
 
       {avg !== null && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-slate-400 text-sm mb-1">Average Score</p>
-            <p className={`text-3xl font-bold ${avg >= 70 ? 'text-emerald-400' : avg >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{avg}%</p>
+          <div className="bg-surface border border-border rounded-lg p-5">
+            <p className="text-fg-secondary text-sm mb-1">Average Score</p>
+            <p className={`text-3xl font-bold ${avg >= 70 ? 'text-accent' : avg >= 50 ? 'text-accent' : 'text-red-400'}`}>{avg}%</p>
           </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-slate-400 text-sm mb-1">Exams Taken</p>
-            <p className="text-3xl font-bold text-white">{submissions.length}</p>
+          <div className="bg-surface border border-border rounded-lg p-5">
+            <p className="text-fg-secondary text-sm mb-1">Exams Taken</p>
+            <p className="text-3xl font-bold text-fg">{submissions.length}</p>
           </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-slate-400 text-sm mb-1">Passed</p>
-            <p className="text-3xl font-bold text-emerald-400">
+          <div className="bg-surface border border-border rounded-lg p-5">
+            <p className="text-fg-secondary text-sm mb-1">Passed</p>
+            <p className="text-3xl font-bold text-accent">
               {submissions.filter(s => s.pct >= 60).length}
             </p>
           </div>
@@ -84,37 +84,37 @@ export default async function GradesPage() {
       )}
 
       {!submissions.length ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <BarChart2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No grades yet. Take an exam to see your results.</p>
+        <div className="text-center py-20 bg-surface border border-border rounded-lg">
+          <BarChart2 className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">No grades yet. Take an exam to see your results.</p>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Exam</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Score</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Date</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Result</th>
+              <tr className="border-b border-border">
+                <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3">Exam</th>
+                <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3">Score</th>
+                <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3 hidden md:table-cell">Date</th>
+                <th className="text-left text-xs font-medium text-fg-secondary uppercase tracking-wider px-5 py-3">Result</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-border">
               {submissions.map(sub => {
                 const passed = sub.pct >= 60
                 return (
-                  <tr key={sub.id} className="hover:bg-slate-800/50 transition-colors">
-                    <td className="px-5 py-4 text-white text-sm font-medium">
-                      <Badge variant={sub.homework ? 'blue' : 'gray'}>{sub.homework ? 'واجب' : 'اختبار'}</Badge>
+                  <tr key={sub.id} className="hover:bg-surface/50 transition-colors">
+                    <td className="px-5 py-4 text-fg text-sm font-medium">
+                      <Badge variant={sub.homework ? 'info' : 'neutral'}>{sub.homework ? 'واجب' : 'اختبار'}</Badge>
                       <span className="ms-2">{sub.title}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`text-sm font-bold ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <span className={`text-sm font-bold ${passed ? 'text-accent' : 'text-red-400'}`}>
                         {sub.score}/{sub.max} ({sub.pct}%)
                       </span>
                     </td>
-                    <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(sub.submitted_at)}</td>
-                    <td className="px-5 py-4"><Badge variant={passed ? 'green' : 'red'}>{passed ? 'Passed' : 'Failed'}</Badge></td>
+                    <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{formatDate(sub.submitted_at)}</td>
+                    <td className="px-5 py-4"><Badge variant={passed ? 'success' : 'error'}>{passed ? 'Passed' : 'Failed'}</Badge></td>
                   </tr>
                 )
               })}

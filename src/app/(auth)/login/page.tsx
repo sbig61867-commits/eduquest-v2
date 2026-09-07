@@ -68,11 +68,11 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
       <div className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
-            <span className="text-white text-2xl font-bold">E</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent mb-2">
+            <span className="text-fg text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">EduQuest</h1>
-          <p className="text-slate-400 text-sm">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-fg">EduQuest</h1>
+          <p className="text-fg-secondary text-sm">Sign in to your account</p>
         </div>
 
         {registered && (
@@ -101,31 +101,31 @@ function LoginForm() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-fg-secondary mb-1.5">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               placeholder="you@university.edu"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+            <label className="block text-sm font-medium text-fg-secondary mb-1.5">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               placeholder="••••••••"
             />
           </div>
           <div className="flex justify-end">
             <a
               href="/forgot-password"
-              className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
+              className="text-accent hover:text-accent text-xs transition-colors"
             >
               Forgot password?
             </a>
@@ -133,7 +133,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+            className="w-full py-2.5 px-4 bg-accent hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-fg font-medium rounded-lg transition-colors"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
@@ -141,7 +141,7 @@ function LoginForm() {
 
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-slate-500">أو</span>
+          <span className="text-xs text-fg-muted">أو</span>
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
@@ -173,7 +173,7 @@ function GoogleIcon() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>

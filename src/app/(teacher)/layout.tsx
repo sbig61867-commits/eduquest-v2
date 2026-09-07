@@ -1,29 +1,45 @@
-﻿import { Sidebar } from '@/components/shared/sidebar'
+import { Sidebar } from '@/components/shared/sidebar'
 import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
+import type { NavGroup } from '@/components/shared/sidebar'
 
-const navItems = [
-  { label: 'Dashboard',   href: '/teacher/dashboard',   icon: 'LayoutDashboard' as const },
-  { label: 'My Groups',   href: '/teacher/groups',      icon: 'Users' as const },
-  { label: 'Lessons',     href: '/teacher/lessons',     icon: 'BookOpen' as const },
-  { label: 'Courses',     href: '/teacher/courses',     icon: 'GraduationCap' as const },
-  { label: 'Exams',       href: '/teacher/exams',       icon: 'ClipboardList' as const },
-  { label: 'Grades',      href: '/teacher/grades',      icon: 'BarChart2' as const },
-  { label: 'Proctoring',  href: '/teacher/proctoring',  icon: 'ShieldCheck' as const },
-  { label: 'Schedule',    href: '/teacher/schedule',    icon: 'CalendarDays' as const },
-  { label: 'Requests',    href: '/teacher/requests',    icon: 'Inbox' as const },
-  { label: 'Invitations', href: '/teacher/invitations', icon: 'Mail' as const },
+const groups: NavGroup[] = [
+  {
+    label: 'Teaching',
+    items: [
+      { label: 'Dashboard',  href: '/teacher/dashboard',  icon: 'LayoutDashboard' },
+      { label: 'My Groups',  href: '/teacher/groups',     icon: 'Users' },
+      { label: 'Lessons',    href: '/teacher/lessons',    icon: 'BookOpen' },
+      { label: 'Courses',    href: '/teacher/courses',    icon: 'GraduationCap' },
+    ],
+  },
+  {
+    label: 'Assessment',
+    items: [
+      { label: 'Exams',      href: '/teacher/exams',      icon: 'ClipboardList' },
+      { label: 'Grades',     href: '/teacher/grades',     icon: 'BarChart2' },
+      { label: 'Proctoring', href: '/teacher/proctoring', icon: 'ShieldCheck' },
+    ],
+  },
+  {
+    label: 'Communication',
+    items: [
+      { label: 'Schedule',    href: '/teacher/schedule',    icon: 'CalendarDays' },
+      { label: 'Requests',    href: '/teacher/requests',    icon: 'Inbox' },
+      { label: 'Invitations', href: '/teacher/invitations', icon: 'Mail' },
+    ],
+  },
 ]
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-canvas">
       <TenantWatcher />
-      <Sidebar items={navItems} title="Teacher" />
+      <Sidebar groups={groups} roleLabel="Teacher" />
       <ContentShell>
-        <Header title="Teacher Panel" />
-        <main className="p-4 lg:p-6 !pt-20">{children}</main>
+        <Header />
+        <main className="p-4 lg:p-6 pt-20">{children}</main>
       </ContentShell>
     </div>
   )

@@ -151,39 +151,39 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push('/teacher/proctoring')} className="text-slate-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+        <button onClick={() => router.push('/teacher/proctoring')} className="text-fg-secondary hover:text-fg"><ArrowLeft className="w-5 h-5" /></button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-white">Live Monitoring — {examTitle}</h2>
-          <p className="text-slate-400 text-sm flex items-center gap-1.5">
+          <h2 className="text-xl font-bold text-fg">Live Monitoring — {examTitle}</h2>
+          <p className="text-fg-secondary text-sm flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> {list.length} student{list.length === 1 ? '' : 's'} connected
           </p>
         </div>
         {status === 'live' && (
           <button onClick={() => setMuted(m => !m)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${muted ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-emerald-600 text-white'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${muted ? 'bg-surface text-fg-secondary hover:bg-canvas' : 'bg-accent text-accent-fg'}`}>
             {muted ? <><MicOff className="w-4 h-4" /> الصوت مكتوم — اضغط للاستماع</> : <><Volume2 className="w-4 h-4" /> تستمع لكل الطلاب</>}
           </button>
         )}
       </div>
 
       {status === 'disabled' && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-amber-300 text-sm">
+        <div className="bg-accent-subtle border border-warning/30 rounded-lg px-4 py-3 text-warning text-sm">
           المراقبة الحية غير مُهيّأة بعد (مفاتيح LiveKit غير مضبوطة). المراقبة بالمخالفات المسجّلة تعمل كالمعتاد.
         </div>
       )}
-      {status === 'connecting' && <p className="text-slate-500 text-sm py-8 text-center">جاري الاتصال بغرفة المراقبة...</p>}
+      {status === 'connecting' && <p className="text-fg-muted text-sm py-8 text-center">جاري الاتصال بغرفة المراقبة...</p>}
       {status === 'error' && <p className="text-red-400 text-sm py-8 text-center">تعذّر الاتصال بالمراقبة الحية. حاول تحديث الصفحة.</p>}
 
       {status === 'live' && list.length === 0 && (
-        <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
-          <Video className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا يوجد طلاب في الاختبار الآن.</p>
-          <p className="text-slate-500 text-sm mt-1">سيظهر كل طالب هنا فور دخوله الاختبار.</p>
+        <div className="text-center py-16 bg-surface border border-border rounded-lg">
+          <Video className="w-10 h-10 text-fg-muted mx-auto mb-3" />
+          <p className="text-fg-secondary">لا يوجد طلاب في الاختبار الآن.</p>
+          <p className="text-fg-muted text-sm mt-1">سيظهر كل طالب هنا فور دخوله الاختبار.</p>
         </div>
       )}
 
       {zoomedFeed && (
-        <button onClick={() => setZoomed(null)} className="text-sm text-slate-400 hover:text-white flex items-center gap-1.5">
+        <button onClick={() => setZoomed(null)} className="text-sm text-fg-secondary hover:text-fg flex items-center gap-1.5">
           <ArrowLeft className="w-4 h-4" /> رجوع للجدار الكامل
         </button>
       )}
@@ -208,10 +208,10 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
       {!zoomedFeed && pageCount > 1 && (
         <div className="flex items-center justify-center gap-2 pt-2">
           <button disabled={safePage === 0} onClick={() => setPage(p => Math.max(0, p - 1))}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-sm disabled:opacity-40 hover:bg-slate-700">السابق</button>
-          <span className="text-slate-400 text-sm">صفحة {safePage + 1} / {pageCount}</span>
+            className="px-3 py-1.5 rounded-lg bg-surface text-fg-secondary text-sm disabled:opacity-40 hover:bg-canvas">السابق</button>
+          <span className="text-fg-secondary text-sm">صفحة {safePage + 1} / {pageCount}</span>
           <button disabled={safePage >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-sm disabled:opacity-40 hover:bg-slate-700">التالي</button>
+            className="px-3 py-1.5 rounded-lg bg-surface text-fg-secondary text-sm disabled:opacity-40 hover:bg-canvas">التالي</button>
         </div>
       )}
     </div>
@@ -231,21 +231,21 @@ function StudentTile({ feed, videoEl, zoomed, onClick }: { feed: Feed; videoEl?:
   return (
     <div onClick={onClick}
       title={zoomed ? '' : 'اضغط للتكبير بجودة أعلى'}
-      className={`relative rounded-xl overflow-hidden border-2 bg-slate-950 transition-colors cursor-pointer ${zoomed ? 'aspect-video max-h-[70vh] mx-auto w-full' : 'aspect-video'} ${feed.speaking ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.3)]' : 'border-slate-800 hover:border-slate-600'}`}>
+      className={`relative rounded-lg overflow-hidden border-2 bg-canvas transition-colors cursor-pointer ${zoomed ? 'aspect-video max-h-[70vh] mx-auto w-full' : 'aspect-video'} ${feed.speaking ? 'border-success shadow-[0_0_0_3px_rgba(52,211,153,0.3)]' : 'border-border hover:border-border-strong'}`}>
       <div ref={holder} className="absolute inset-0 flex items-center justify-center">
-        {!feed.hasVideo && <VideoOff className="w-8 h-8 text-slate-700" />}
+        {!feed.hasVideo && <VideoOff className="w-8 h-8 text-fg-muted" />}
       </div>
       {/* Speaking badge — tells the teacher WHO the sound is coming from */}
       {feed.speaking && (
-        <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-success text-fg text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
           <Volume2 className="w-3 h-3" /> يتكلم
         </div>
       )}
       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2 flex items-center justify-between">
-        <span className="text-white text-sm font-medium truncate">{feed.name}</span>
+        <span className="text-fg text-sm font-medium truncate">{feed.name}</span>
         <span className="flex items-center gap-1.5 shrink-0">
-          {feed.hasAudio ? <Mic className="w-3.5 h-3.5 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 text-red-400" />}
-          {feed.hasVideo ? <Video className="w-3.5 h-3.5 text-emerald-400" /> : <VideoOff className="w-3.5 h-3.5 text-red-400" />}
+          {feed.hasAudio ? <Mic className="w-3.5 h-3.5 text-accent" /> : <MicOff className="w-3.5 h-3.5 text-red-400" />}
+          {feed.hasVideo ? <Video className="w-3.5 h-3.5 text-accent" /> : <VideoOff className="w-3.5 h-3.5 text-red-400" />}
         </span>
       </div>
     </div>

@@ -3,12 +3,15 @@
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
 
-// Wraps dashboard page content: no sidebar offset on mobile (drawer overlays),
-// offset matching the collapsible sidebar width on desktop.
+// Offsets page content to the inline-start side of the fixed sidebar.
+// Uses logical property ps- (padding-inline-start) so RTL is handled correctly.
 export function ContentShell({ children }: { children: React.ReactNode }) {
   const { sidebarOpen } = useUIStore()
   return (
-    <div className={cn('transition-all duration-300', sidebarOpen ? 'lg:pl-64' : 'lg:pl-16')}>
+    <div className={cn(
+      'transition-[padding-inline-start] duration-200',
+      sidebarOpen ? 'lg:ps-64' : 'lg:ps-16'
+    )}>
       {children}
     </div>
   )

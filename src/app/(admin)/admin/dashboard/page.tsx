@@ -6,9 +6,6 @@ import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatDate } from '@/lib/utils'
 
-// Lesson/exam figures come from the metadata-only admin feeds (the admin
-// has no direct RLS read on lessons/exams — that would expose content and
-// questions). Teacher/student counts stay on `users`, which the admin can read.
 interface AdminLessonMeta { id: string; title: string; created_at: string; is_published: boolean; teacher_name: string | null }
 
 async function getStats(supabase: SupabaseClient, tenantId: string, lessons: number, exams: number) {
@@ -24,67 +21,62 @@ export default async function AdminDashboard() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  // tenant_id comes from the JWT claims (synced by sync_user_claims) — no DB lookup needed
   const tenantId = user.tenant_id
   if (!tenantId) redirect('/login?error=no_tenant')
 
-  // Metadata-only admin feeds (no content / no questions). Recent lessons
-  // stand in as the activity feed until a dedicated audit table exists.
   const [{ data: lessonRows }, { data: examRows }] = await Promise.all([
     supabase.rpc('get_admin_lessons'),
     supabase.rpc('get_admin_exams'),
   ])
   const allLessons = (lessonRows ?? []) as unknown as AdminLessonMeta[]
   const stats = await getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length)
-  const activity = allLessons.slice(0, 5)
-
-  const cards = [
-    { label: 'Teachers', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Students', value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Lessons', value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'Exams', value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  ]
+  const activity = allLessons.slice(0, 8)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white">University Dashboard</h2>
-        <p className="text-slate-400 mt-1">Overview of your institution</p>
-      </div>
+      <h1 className="text-xl font-semibold text-fg">Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card) => {
-          const Icon = card.icon
-          return (
-            <div key={card.label} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-sm">{card.label}</p>
-                <div className={`p-2 rounded-lg ${card.bg}`}>
-                  <Icon className={`w-5 h-5 ${card.color}`} />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-white">{card.value}</p>
+      {/* Institution health strip — real signals only */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Teachers', value: stats.teachers, icon: GraduationCap, href: '/admin/teachers' },
+          { label: 'Students', value: stats.students, icon: Users, href: '/admin/students' },
+          { label: 'Lessons', value: stats.lessons, icon: BookOpen, href: '/admin/lessons' },
+          { label: 'Exams', value: stats.exams, icon: ClipboardList, href: '/admin/exams' },
+        ].map(({ label, value, href, icon: Icon }) => (
+          <a key={label} href={href}
+            className="flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-3 hover:border-border-strong transition-colors">
+            <Icon className="w-4 h-4 text-accent shrink-0" />
+            <div>
+              <p className="text-lg font-semibold text-fg leading-none">{value}</p>
+              <p className="text-xs text-fg-muted mt-0.5">{label}</p>
             </div>
-          )
-        })}
+          </a>
+        ))}
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <h3 className="text-white font-semibold mb-4">Recent Activity</h3>
+      {/* Lesson activity — honestly labeled, not "Recent Activity" implying a full audit log */}
+      <div className="bg-surface border border-border rounded-lg p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold text-fg">Recent Lesson Activity</h2>
+        </div>
+        <p className="text-xs text-fg-muted mb-4">Latest lessons created or updated by your teachers</p>
         {activity.length === 0 ? (
-          <p className="text-slate-500 text-sm">No activity yet.</p>
+          <p className="text-fg-muted text-sm">No lessons yet.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-border">
             {activity.map(a => (
-              <li key={a.id} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-violet-600/20 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-4 h-4 text-violet-400" />
+              <li key={a.id} className="flex items-center gap-3 py-2.5">
+                <div className="w-7 h-7 rounded-md bg-accent-subtle flex items-center justify-center shrink-0">
+                  <BookOpen className="w-3.5 h-3.5 text-accent" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-white text-sm font-medium truncate">
-                    {a.teacher_name ?? 'Teacher'} {a.is_published ? 'published' : 'created'} lesson “{a.title}”
+                  <p className="text-sm text-fg truncate">
+                    <span className="font-medium">{a.teacher_name ?? 'Teacher'}</span>
+                    {' '}{a.is_published ? 'published' : 'created'}{' '}
+                    <span className="text-fg-secondary">"{a.title}"</span>
                   </p>
-                  <p className="text-slate-500 text-xs">{formatDate(a.created_at)}</p>
+                  <p className="text-xs text-fg-muted">{formatDate(a.created_at)}</p>
                 </div>
               </li>
             ))}
