@@ -54,9 +54,22 @@ test.describe('API routes without session → 401', () => {
   ]
 
   for (const route of apiRoutes) {
-    test(`POST ${route} → 401`, async ({ request }) => {
-      const res = await request.post(route, { data: {} })
-      expect(res.status()).toBe(401)
+    test(`POST ${route} → blocked without a session`, async ({ request }) => {
+      // maxRedirects: 0 — inspect the API route's OWN response, not whatever
+      // the redirect target (/login, a GET-only page) returns for a followed
+      // POST. proxy.ts intercepts these paths before the route handler runs
+      // and 307-redirects to /login (stronger than a bare 401: the request
+      // never reaches application code at all); a route outside proxy's
+      // matcher would instead 401 from its own `if (!user)` check. Both are
+      // valid "blocked" outcomes — what must never happen is a 2xx/POST
+      // actually executing.
+      const res = await request.post(route, { data: {}, maxRedirects: 0 })
+      const status = res.status()
+      if (status >= 300 && status < 400) {
+        expect(res.headers()['location']).toMatch(/\/login/)
+      } else {
+        expect(status).toBe(401)
+      }
     })
   }
 })
