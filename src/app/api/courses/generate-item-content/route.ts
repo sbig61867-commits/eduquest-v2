@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { rateLimit } from '@/lib/rate-limit'
+import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
 
 function adminClient() {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const rl = await rateLimit(`item-content:${user.id}`, { limit: 30, windowSecs: 3600 })
+  const rl = await aiRateLimit(`item-content:${user.id}`, { limit: 30, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },

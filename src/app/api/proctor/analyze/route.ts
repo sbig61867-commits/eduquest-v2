@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { rateLimit } from '@/lib/rate-limit'
+import { aiRateLimit } from '@/lib/rate-limit'
 import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
 
 // Students no longer have direct SELECT on exams (answer-leak fix); read exam
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
   // 200/hr covers a 90-min exam at one frame per 30s (180 frames) plus buffer.
   // Previous limit of 60 would cut off server proctoring after 30 minutes.
-  const rl = await rateLimit(`proctor:${user.id}`, { limit: 200, windowSecs: 3600 })
+  const rl = await aiRateLimit(`proctor:${user.id}`, { limit: 200, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { rateLimit } from '@/lib/rate-limit'
+import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
 import { aiChat } from '@/lib/ai/chat'
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   const aiLimits = await getAiRateLimits(supabase)
-  const rl = await rateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
+  const rl = await aiRateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },

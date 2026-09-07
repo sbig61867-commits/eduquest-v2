@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { rateLimit } from '@/lib/rate-limit'
+import { aiRateLimit } from '@/lib/rate-limit'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 
 export const maxDuration = 30
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   // scanned files — generous fixed cap, independent of the admin-configured
   // AI generation limits, since this endpoint never calls the lesson/exam
   // generation model itself.
-  const rl = await rateLimit(`extract-file:${user.id}`, { limit: 60, windowSecs: 3600 })
+  const rl = await aiRateLimit(`extract-file:${user.id}`, { limit: 60, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },

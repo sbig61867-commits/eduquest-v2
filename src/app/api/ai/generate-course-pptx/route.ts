@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { rateLimit } from '@/lib/rate-limit'
+import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden: course creation not enabled for your account' }, { status: 403 })
   }
 
-  const rl = await rateLimit(`course-file:${user.id}`, { limit: 5, windowSecs: 3600 })
+  const rl = await aiRateLimit(`course-file:${user.id}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },

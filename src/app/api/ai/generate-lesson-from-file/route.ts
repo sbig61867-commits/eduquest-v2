@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { rateLimit } from '@/lib/rate-limit'
+import { aiRateLimit } from '@/lib/rate-limit'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { aiChat } from '@/lib/ai/chat'
 import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   // Limit comes from super-admin settings (ai_rate_limits.lesson_per_hour),
   // same as topic-based lesson generation — no more hardcoded 10.
   const aiLimits = await getAiRateLimits(supabase)
-  const rl = await rateLimit(`lesson-file:${user.id}`, { limit: aiLimits.lesson_per_hour, windowSecs: 3600 })
+  const rl = await aiRateLimit(`lesson-file:${user.id}`, { limit: aiLimits.lesson_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Try again later.' },
