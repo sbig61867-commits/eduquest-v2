@@ -2,7 +2,25 @@
 
 ## 🚨 INCIDENT — CRITICAL — Production database credential exposed in Git history
 
-**Status: MITIGATION IN PROGRESS. Password rotation pending user confirmation.**
+**Status: ROTATED 2026-09-07 — exposure closed. History cleanup optional (see below).**
+
+**Post-rotation verification (2026-09-07, all checks run after the user
+rotated the password via Supabase Dashboard):**
+
+| Check | Result |
+|---|---|
+| Old password anywhere in source (excl. `.git` history) | **0 occurrences** |
+| Old password in `.env.local` | Not present — `.env.local` holds no DB password at all |
+| `.env.local` tracked by git | **No** — `git ls-files` reports it as never tracked |
+| Service-role key ever committed to git history | **0 commits** (`git log --all -S`) — the highest-value credential was never exposed and does **not** need rotation |
+| Direct Postgres client usage anywhere in `src/` | **None** — the app talks to the DB exclusively through Supabase's REST API using JWT keys, so the rotated `postgres` password was **never** part of the running application's auth path |
+| Anon-key query against live production | `200` |
+| Service-role query against live production | `200` |
+| TypeScript / unit tests | clean / 63 passed |
+
+**Impact of rotation on the application: none, by design** — the only
+consumer of that password was the one manual migration script, which now
+requires `SUPABASE_DB_PASSWORD` from the environment.
 
 - **Discovery method:** `gitleaks` (v8.21.2, official binary release), full
   git-history scan (190 commits), run twice this session (before and after
@@ -23,11 +41,10 @@
   removed from the current file and replaced with a required
   `SUPABASE_DB_PASSWORD` environment variable read (script now exits with an
   error if unset, rather than falling back to any default).
-- **Rotation status:** **NOT YET ROTATED.** Per explicit user instruction,
-  Claude does not rotate this credential via the Management API or any
-  other means — the user will rotate it directly via Supabase Dashboard
-  (Database → Settings) and provide explicit confirmation before any
-  further dependent step proceeds.
+- **Rotation status:** ✅ **ROTATED 2026-09-07 by the project owner** via
+  Supabase Dashboard. The leaked value is now inert. Claude did not perform
+  or request the rotation, per explicit instruction. Post-rotation
+  verification results are in the table at the top of this section.
 - **Git-history cleanup status:** **NOT YET PLANNED FOR EXECUTION.** A
   history-rewrite plan will be prepared (commits affected, rewrite method,
   expected impact on the 4 branches and 3 PRs) once rotation is confirmed —

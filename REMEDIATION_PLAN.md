@@ -1,14 +1,18 @@
 # Remediation Plan
 
-## 🚨 ACTIVE INCIDENT — highest priority, blocks everything else below
+## ✅ RESOLVED INCIDENT — production database credential exposure
 
 **CRITICAL — Production database credential exposed in Git history**
 (`scripts/run-migration.mjs`, hardcoded since 2026-06-22, public repo, all 4
-branches). Working-tree fix applied (env-var-only now). **Waiting on: user
-rotates the `postgres` password via Supabase Dashboard and confirms.** Once
-confirmed: re-verify connectivity/tests/build, then plan (not yet execute)
-a git-history rewrite. Full detail in `FINAL_AUDIT_STATUS.md`. No item below
-this should be treated as higher priority until this is closed.
+branches). **Password rotated by the owner 2026-09-07.** Post-rotation
+verification: 0 old-value occurrences in source, service-role key was never
+exposed (0 commits), app has no direct Postgres client (talks to Supabase
+exclusively via REST/JWT, so rotation required zero app changes), live
+anon-key and service-role queries both return 200, 63/63 unit tests pass,
+17/17 live Playwright tests pass against production, build succeeds.
+Git-history cleanup remains optional per `GIT_HISTORY_CLEANUP_PLAN.md`
+(Option A — leave history, secret is now inert — recommended over a
+disruptive rewrite). Full detail in `FINAL_AUDIT_STATUS.md`.
 
 ---
 
