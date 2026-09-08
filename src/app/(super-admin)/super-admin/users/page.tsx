@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SuperUsersClient } from './users-client'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function AllUsersPage() {
   const supabase = await createClient()
@@ -42,10 +43,13 @@ export default async function AllUsersPage() {
   }
 
   return (
-    <SuperUsersClient
-      tenants={tenants ?? []}
-      superAdmins={(superAdmins ?? []) as Parameters<typeof SuperUsersClient>[0]['superAdmins']}
-      tenantCounts={counts}
-    />
+    <>
+      <PageTitle title="Users" />
+      <SuperUsersClient
+        tenants={tenants ?? []}
+        superAdmins={(superAdmins ?? []) as Parameters<typeof SuperUsersClient>[0]['superAdmins']}
+        tenantCounts={counts}
+      />
+    </>
   )
 }

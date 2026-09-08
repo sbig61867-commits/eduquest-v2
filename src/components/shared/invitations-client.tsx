@@ -168,7 +168,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-fg">Invitations</h1>
+          <h1 className="text-xl font-semibold text-fg">Invitations</h1>
           <p className="text-fg-secondary text-sm mt-1">
             Manage access invitations for your platform
           </p>

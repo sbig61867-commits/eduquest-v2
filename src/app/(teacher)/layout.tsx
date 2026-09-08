@@ -39,7 +39,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
       <Sidebar groups={groups} roleLabel="Teacher" />
       <ContentShell>
         <Header />
-        <main className="p-4 lg:p-6 pt-20">{children}</main>
+        <main className="p-4 lg:p-6 pt-14">{children}</main>
       </ContentShell>
     </div>
   )

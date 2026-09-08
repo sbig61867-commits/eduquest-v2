@@ -25,7 +25,7 @@ export default function FeaturesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-fg">Feature Flags</h2>
+        <h2 className="text-xl font-semibold text-fg">Feature Flags</h2>
         <p className="text-fg-secondary mt-1">Enable or disable platform features globally</p>
       </div>
       <div className="space-y-3">

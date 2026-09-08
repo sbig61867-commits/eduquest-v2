@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PageTitle } from '@/components/shared/page-title'
 import { AnnouncementsManager } from '@/components/announcements/announcements-manager'
 import { loadAnnouncementsPage } from '@/lib/announcements-data'
 import { ShieldAlert } from 'lucide-react'
@@ -23,5 +24,5 @@ export default async function AdminAnnouncementsPage() {
     )
   }
 
-  return <AnnouncementsManager announcements={announcements} groups={groups} />
+  return (<><PageTitle title="Announcements" /><AnnouncementsManager announcements={announcements} groups={groups} /></>)
 }

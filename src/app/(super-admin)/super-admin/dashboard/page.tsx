@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Building2, Users } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { PageTitle } from '@/components/shared/page-title'
 
 interface TenantRow { id: string; name: string; created_at: string }
 
@@ -20,24 +21,29 @@ export default async function SuperAdminDashboard() {
   const stats = await getStats()
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-fg">Platform Overview</h1>
+    <>
+      <PageTitle title="Platform Overview" />
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mb-8">
+        <h1 className="text-xl font-semibold text-fg">Platform Overview</h1>
+      </div>
 
-      {/* Slim aggregate strip */}
-      <div className="grid grid-cols-2 gap-3 max-w-sm">
-        <div className="flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-3">
-          <Building2 className="w-4 h-4 text-accent shrink-0" />
-          <div>
-            <p className="text-lg font-semibold text-fg leading-none">{stats.tenants}</p>
-            <p className="text-xs text-fg-muted mt-0.5">Tenants</p>
-          </div>
+      {/* Slim aggregate strip — text-only */}
+      <div className="flex items-center gap-6 pb-7 border-b border-border">
+        <div>
+          <p className="text-2xl font-semibold text-fg leading-none">{stats.tenants}</p>
+          <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
+            <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+            Tenants
+          </p>
         </div>
-        <div className="flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-3">
-          <Users className="w-4 h-4 text-accent shrink-0" />
-          <div>
-            <p className="text-lg font-semibold text-fg leading-none">{stats.users}</p>
-            <p className="text-xs text-fg-muted mt-0.5">Users</p>
-          </div>
+        <div className="w-px h-8 bg-border" aria-hidden="true" />
+        <div>
+          <p className="text-2xl font-semibold text-fg leading-none">{stats.users}</p>
+          <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
+            <Users className="w-3.5 h-3.5" aria-hidden="true" />
+            Users
+          </p>
         </div>
       </div>
 
@@ -82,5 +88,6 @@ export default async function SuperAdminDashboard() {
         )}
       </div>
     </div>
+    </>
   )
 }

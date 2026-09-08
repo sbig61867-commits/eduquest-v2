@@ -62,7 +62,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
           <Settings className="w-5 h-5 text-fg-secondary" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-fg">Institution Settings</h2>
+          <h2 className="text-xl font-semibold text-fg">Institution Settings</h2>
           <p className="text-fg-secondary text-sm mt-0.5">Manage your university profile</p>
         </div>
       </div>

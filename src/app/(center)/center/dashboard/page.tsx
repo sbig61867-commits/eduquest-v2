@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Users, Layers, Megaphone, ShieldCheck } from 'lucide-react'
 import { resolvePermissions, CAPABILITY_LABELS, CAPABILITIES } from '@/lib/permissions'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function CenterDashboard() {
   const supabase = await createClient()
@@ -24,8 +25,12 @@ export default async function CenterDashboard() {
   const granted = CAPABILITIES.filter(c => perms[c])
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <h1 className="text-xl font-semibold text-fg">لوحة مدير المركز</h1>
+    <>
+      <PageTitle title="Dashboard" />
+    <div className="max-w-3xl mx-auto space-y-6" dir="rtl">
+      <div className="mb-7">
+        <h1 className="text-xl font-semibold text-fg">لوحة مدير المركز</h1>
+      </div>
 
       {/* Capabilities — the organizing element of this dashboard */}
       <div className="bg-surface border border-border rounded-lg p-5">
@@ -45,23 +50,27 @@ export default async function CenterDashboard() {
         )}
       </div>
 
-      {/* Institution overview — slim strip, secondary to capabilities */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Institution overview — text-only strip, secondary to capabilities */}
+      <div className="flex items-center gap-6 pt-2 flex-wrap">
         {[
           { label: 'المعلمون', value: teachers ?? 0, icon: GraduationCap },
           { label: 'الطلاب', value: students ?? 0, icon: Users },
           { label: 'المجموعات', value: groups ?? 0, icon: Layers },
           { label: 'الإعلانات', value: announcements ?? 0, icon: Megaphone },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="flex items-center gap-3 bg-surface border border-border rounded-lg px-4 py-3">
-            <Icon className="w-4 h-4 text-accent shrink-0" />
-            <div>
-              <p className="text-lg font-semibold text-fg leading-none">{value}</p>
-              <p className="text-xs text-fg-muted mt-0.5">{label}</p>
+        ].map(({ label, value, icon: Icon }, i, arr) => (
+          <>
+            {i > 0 && <div key={`d-${label}`} className="w-px h-7 bg-border hidden sm:block" aria-hidden="true" />}
+            <div key={label}>
+              <p className="text-xl font-semibold text-fg leading-none">{value}</p>
+              <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                {label}
+              </p>
             </div>
-          </div>
+          </>
         ))}
       </div>
     </div>
+    </>
   )
 }

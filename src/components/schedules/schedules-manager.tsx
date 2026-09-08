@@ -143,7 +143,7 @@ export function SchedulesManager({
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-fg">جداول المواعيد الأسبوعية</h2>
+          <h2 className="text-xl font-semibold text-fg">جداول المواعيد الأسبوعية</h2>
           <p className="text-fg-secondary mt-1">
             {schedules.length} جدول · {schedules.filter(s => s.is_published).length} منشور
           </p>

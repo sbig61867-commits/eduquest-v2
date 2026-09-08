@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PageTitle } from '@/components/shared/page-title'
 import { SchedulesManager } from '@/components/schedules/schedules-manager'
 import { loadSchedulesPage } from '@/lib/schedules-data'
 import { ShieldAlert } from 'lucide-react'
@@ -22,5 +23,5 @@ export default async function CenterSchedulesPage() {
     )
   }
 
-  return <SchedulesManager schedules={schedules} targets={targets} />
+  return (<><PageTitle title="Schedules" /><SchedulesManager schedules={schedules} targets={targets} /></>)
 }

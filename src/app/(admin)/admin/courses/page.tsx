@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { PageTitle } from '@/components/shared/page-title'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Layers, Eye, EyeOff, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -54,7 +55,7 @@ export default async function AdminCoursesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-fg">Courses</h2>
+        <h2 className="text-xl font-semibold text-fg">Courses</h2>
         <p className="text-fg-secondary mt-1">Structured courses built by teachers in your institution</p>
       </div>
 
@@ -64,7 +65,7 @@ export default async function AdminCoursesPage() {
             <div className={`w-10 h-10 rounded-lg ${s.bg} flex items-center justify-center mb-3`}>
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
-            <p className="text-2xl font-bold text-fg">{s.value}</p>
+            <p className="text-xl font-semibold text-fg">{s.value}</p>
             <p className="text-fg-secondary text-sm mt-0.5">{s.label}</p>
           </div>
         ))}

@@ -37,7 +37,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       <Sidebar groups={groups} roleLabel="Super Admin" />
       <ContentShell>
         <Header />
-        <main className="p-4 lg:p-6 pt-20">{children}</main>
+        <main className="p-4 lg:p-6 pt-14">{children}</main>
       </ContentShell>
     </div>
   )

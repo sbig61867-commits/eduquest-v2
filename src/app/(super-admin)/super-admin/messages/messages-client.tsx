@@ -48,7 +48,7 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-fg">Contact Messages</h2>
+        <h2 className="text-xl font-semibold text-fg">Contact Messages</h2>
         <p className="text-fg-secondary mt-1">
           {messages.length} total · {unread} unread — sent from the public landing page
         </p>

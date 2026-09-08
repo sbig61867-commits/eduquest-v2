@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { PageTitle } from '@/components/shared/page-title'
 import { redirect } from 'next/navigation'
 import { ClipboardList, ShieldCheck, Eye, EyeOff, Users, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -104,7 +105,7 @@ export default async function AdminExamsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-fg">Exams &amp; Homework</h2>
+        <h2 className="text-xl font-semibold text-fg">Exams &amp; Homework</h2>
         <p className="text-fg-secondary mt-1">
           {exams.length} exam{exams.length === 1 ? '' : 's'} · {homework.length} homework · {submissions} submission{submissions === 1 ? '' : 's'}
         </p>

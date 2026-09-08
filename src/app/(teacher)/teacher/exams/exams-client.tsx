@@ -209,7 +209,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">Exams</h2>
+          <h2 className="text-xl font-semibold text-fg">Exams</h2>
           <p className="text-fg-secondary mt-1">{exams.length} exams created</p>
         </div>
         <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>

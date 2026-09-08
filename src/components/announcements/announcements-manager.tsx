@@ -107,7 +107,7 @@ export function AnnouncementsManager({ announcements, groups }: {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">الإعلانات</h2>
+          <h2 className="text-xl font-semibold text-fg">الإعلانات</h2>
           <p className="text-fg-secondary mt-1">
             {announcements.length} إعلان · {announcements.filter(a => a.is_published).length} منشور
           </p>

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { InvitationsClient } from '@/components/shared/invitations-client'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function TeacherInvitationsPage() {
   const supabase = await createClient()
@@ -16,10 +17,13 @@ export default async function TeacherInvitationsPage() {
     .order('name')
 
   return (
-    <InvitationsClient
-      callerRole="teacher"
-      tenants={[]}
-      groups={groups ?? []}
-    />
+    <>
+      <PageTitle title="Invitations" />
+      <InvitationsClient
+        callerRole="teacher"
+        tenants={[]}
+        groups={groups ?? []}
+      />
+    </>
   )
 }

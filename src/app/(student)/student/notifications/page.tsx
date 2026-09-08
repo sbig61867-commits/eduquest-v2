@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -87,42 +88,48 @@ export default async function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-fg">Notifications</h2>
-        <p className="text-fg-secondary mt-1">Recent activity in your groups</p>
-      </div>
+    <>
+      <PageTitle title="Notifications" />
 
-      {notifications.length === 0 ? (
-        <div className="text-center py-20 bg-surface border border-border rounded-lg">
-          <Bell className="w-12 h-12 text-fg-muted mx-auto mb-3" />
-          <p className="text-fg font-medium">No notifications yet</p>
-          <p className="text-fg-secondary text-sm mt-1">
-            {groupIds.length === 0
-              ? 'You are not enrolled in any group yet.'
-              : 'New lessons and exams will appear here.'}
-          </p>
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-7">
+          <h1 className="text-xl font-semibold text-fg">Notifications</h1>
+          <p className="text-[13px] text-fg-muted mt-1.5">Recent activity in your groups</p>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {notifications.map(n => {
-            const Icon = iconMap[n.type as keyof typeof iconMap]
-            const color = colorMap[n.type as keyof typeof colorMap]
-            return (
-              <div key={n.id} className="flex items-start gap-4 bg-surface border border-border rounded-lg px-5 py-4 hover:border-border-strong transition-colors">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-                  <Icon className="w-4 h-4" />
+
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+            <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center mb-4">
+              <Bell className="w-5 h-5 text-fg-muted" aria-hidden="true" />
+            </div>
+            <p className="text-[15px] font-medium text-fg">No notifications yet</p>
+            <p className="text-[13px] text-fg-muted mt-1.5 max-w-xs leading-relaxed">
+              {groupIds.length === 0
+                ? 'You are not enrolled in any group yet.'
+                : 'New lessons and exams will appear here.'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface border border-border rounded-lg overflow-hidden divide-y divide-border">
+            {notifications.map(n => {
+              const Icon = iconMap[n.type as keyof typeof iconMap]
+              const color = colorMap[n.type as keyof typeof colorMap]
+              return (
+                <div key={n.id} className="flex items-center gap-4 px-5 py-4 hover:bg-canvas transition-colors">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+                    <Icon className="w-[15px] h-[15px]" aria-hidden="true" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-fg truncate">{n.title}</p>
+                    <p className="text-[11px] text-fg-muted mt-0.5 truncate">{n.subtitle}</p>
+                  </div>
+                  <span className="text-[11px] text-fg-muted shrink-0">{formatDate(n.date)}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-fg text-sm font-medium">{n.title}</p>
-                  <p className="text-fg-secondary text-xs mt-0.5">{n.subtitle}</p>
-                </div>
-                <span className="text-fg-muted text-xs shrink-0">{formatDate(n.date)}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </>
   )
 }

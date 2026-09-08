@@ -60,7 +60,7 @@ export function TeachersClient({ initialTeachers }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">Teachers</h2>
+          <h2 className="text-xl font-semibold text-fg">Teachers</h2>
           <p className="text-fg-secondary mt-1">{teachers.length} total teachers</p>
         </div>
         <Button onClick={() => router.push('/admin/invitations')}>

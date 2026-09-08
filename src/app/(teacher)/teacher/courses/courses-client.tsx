@@ -201,7 +201,7 @@ export function CoursesClient({ initialCourses }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">My Courses</h2>
+          <h2 className="text-xl font-semibold text-fg">My Courses</h2>
           <p className="text-fg-secondary mt-1">{courses.length} courses · Continuing Education Center</p>
         </div>
         <div className="flex gap-2">

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users, Radio } from 'lucide-react'
+import { PageTitle } from '@/components/shared/page-title'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
@@ -70,10 +71,12 @@ export default async function ProctoringReportsPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-fg">Proctoring Reports</h2>
-        <p className="text-fg-secondary mt-1">Exam integrity monitoring for all proctored exams</p>
+    <>
+    <PageTitle title="Proctoring" />
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mb-7">
+        <h1 className="text-xl font-semibold text-fg">Proctoring Reports</h1>
+        <p className="text-[13px] text-fg-muted mt-1.5">Exam integrity monitoring for all proctored exams</p>
       </div>
 
       {(liveExams ?? []).length > 0 && (
@@ -162,5 +165,6 @@ export default async function ProctoringReportsPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

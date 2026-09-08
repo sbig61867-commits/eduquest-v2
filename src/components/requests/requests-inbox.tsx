@@ -136,7 +136,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">الطلبات والتواصل</h2>
+          <h2 className="text-xl font-semibold text-fg">الطلبات والتواصل</h2>
           <p className="text-fg-secondary mt-1">{requests.length} طلب · تواصل مع {recipientLabel}</p>
         </div>
         <Button onClick={() => setComposing(v => !v)}>

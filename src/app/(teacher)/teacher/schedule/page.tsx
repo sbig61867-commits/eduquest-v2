@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { ScheduleGrid } from '@/components/schedules/schedule-grid'
 import { loadTeacherSchedules } from '@/lib/schedules-data'
 import { CalendarDays, Users, User } from 'lucide-react'
+import { PageTitle } from '@/components/shared/page-title'
 
 // Read-only. RLS narrows this to the teacher own private timetable plus
 // the timetables of groups they teach; the admin or centre manager is the
@@ -17,16 +18,20 @@ export default async function TeacherSchedulePage() {
   const schedules = await loadTeacherSchedules(supabase, user.tenant_id)
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
-        <h2 className="text-2xl font-bold text-fg">جداول المواعيد</h2>
-        <p className="text-fg-secondary mt-1">جداول مجموعاتك وجدولك الخاص — يرتّبها مدير المؤسسة بالتنسيق معك.</p>
+    <>
+      <PageTitle title="Schedule" />
+    <div className="max-w-4xl mx-auto space-y-6" dir="rtl">
+      <div className="mb-7">
+        <h1 className="text-xl font-semibold text-fg">جداول المواعيد</h1>
+        <p className="text-[13px] text-fg-muted mt-1.5">جداول مجموعاتك وجدولك الخاص — يرتّبها مدير المؤسسة بالتنسيق معك.</p>
       </div>
 
       {schedules.length === 0 ? (
-        <div className="text-center py-20 bg-surface border border-border rounded-lg">
-          <CalendarDays className="w-12 h-12 text-fg-muted mx-auto mb-3" />
-          <p className="text-fg-secondary">لا توجد جداول مرتبطة بك بعد.</p>
+        <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+          <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center mb-4">
+            <CalendarDays className="w-5 h-5 text-fg-muted" aria-hidden="true" />
+          </div>
+          <p className="text-[15px] font-medium text-fg">لا توجد جداول مرتبطة بك بعد.</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -57,5 +62,6 @@ export default async function TeacherSchedulePage() {
         </div>
       )}
     </div>
+    </>
   )
 }

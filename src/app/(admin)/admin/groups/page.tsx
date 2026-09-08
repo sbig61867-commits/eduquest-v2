@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PageTitle } from '@/components/shared/page-title'
 import { AdminGroupsClient } from './groups-client'
 
 export default async function AdminGroupsPage() {
@@ -17,5 +18,5 @@ export default async function AdminGroupsPage() {
     .eq('tenant_id', user.tenant_id)
     .order('created_at', { ascending: false })
 
-  return <AdminGroupsClient initialGroups={(groups ?? []) as never} />
+  return (<><PageTitle title="Groups" /><AdminGroupsClient initialGroups={(groups ?? []) as never} /></>)
 }

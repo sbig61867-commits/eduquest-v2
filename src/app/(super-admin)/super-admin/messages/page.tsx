@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PageTitle } from '@/components/shared/page-title'
 import { MessagesClient } from './messages-client'
 
 export default async function MessagesPage() {
@@ -15,5 +16,5 @@ export default async function MessagesPage() {
     .select('id, name, email, message, is_read, created_at')
     .order('created_at', { ascending: false })
 
-  return <MessagesClient initialMessages={messages ?? []} />
+  return (<><PageTitle title="Messages" /><MessagesClient initialMessages={messages ?? []} /></>)
 }

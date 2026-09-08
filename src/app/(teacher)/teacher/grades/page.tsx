@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Question } from '@/types'
+import { PageTitle } from '@/components/shared/page-title'
 
 interface ExamRow { title: string; teacher_id: string; questions: Question[] }
 interface UserRow  { full_name: string; email: string }
@@ -50,10 +51,12 @@ export default async function TeacherGradesPage() {
   const passed = rows.filter(r => r.grade.pass).length
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-fg">Student Grades</h2>
-        <p className="text-fg-secondary mt-1">{rows.length} graded submissions</p>
+    <>
+      <PageTitle title="Grades" />
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mb-7">
+        <h1 className="text-xl font-semibold text-fg">Student Grades</h1>
+        <p className="text-[13px] text-fg-muted mt-1.5">{rows.length} graded submissions</p>
       </div>
 
       {rows.length === 0 ? (
@@ -64,19 +67,21 @@ export default async function TeacherGradesPage() {
         </div>
       ) : (
         <>
-          {/* Quick summary */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <p className="text-fg-secondary text-xs mb-1">المعدّل العام</p>
-              <p className="text-2xl font-bold text-fg">{avg}%</p>
+          {/* Summary strip */}
+          <div className="flex items-center gap-6 pb-6 border-b border-border flex-wrap">
+            <div>
+              <p className="text-2xl font-semibold text-fg leading-none">{avg}%</p>
+              <p className="text-[12px] text-fg-muted mt-1">المعدّل العام</p>
             </div>
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <p className="text-fg-secondary text-xs mb-1">ناجحون</p>
-              <p className="text-2xl font-bold text-accent">{passed}</p>
+            <div className="w-px h-8 bg-border hidden sm:block" aria-hidden="true" />
+            <div>
+              <p className="text-2xl font-semibold text-accent leading-none">{passed}</p>
+              <p className="text-[12px] text-fg-muted mt-1">ناجحون</p>
             </div>
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <p className="text-fg-secondary text-xs mb-1">راسبون</p>
-              <p className="text-2xl font-bold text-red-400">{rows.length - passed}</p>
+            <div className="w-px h-8 bg-border hidden sm:block" aria-hidden="true" />
+            <div>
+              <p className="text-2xl font-semibold text-error leading-none">{rows.length - passed}</p>
+              <p className="text-[12px] text-fg-muted mt-1">راسبون</p>
             </div>
           </div>
 
@@ -103,5 +108,6 @@ export default async function TeacherGradesPage() {
         </>
       )}
     </div>
+    </>
   )
 }

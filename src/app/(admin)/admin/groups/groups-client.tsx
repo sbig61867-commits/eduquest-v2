@@ -48,7 +48,7 @@ export function AdminGroupsClient({ initialGroups }: { initialGroups: GroupRow[]
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-fg">المجموعات (الفصول)</h2>
+        <h2 className="text-xl font-semibold text-fg">المجموعات (الفصول)</h2>
         <p className="text-fg-secondary mt-1">{groups.length} مجموعة · {groups.filter(g => !g.is_active).length} مؤرشفة</p>
       </div>
 

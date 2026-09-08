@@ -115,7 +115,7 @@ export function TenantsClient({ initialTenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">Universities</h2>
+          <h2 className="text-xl font-semibold text-fg">Universities</h2>
           <p className="text-fg-secondary mt-1">{tenants.length} tenants registered</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> New University</Button>

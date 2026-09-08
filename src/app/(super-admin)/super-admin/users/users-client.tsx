@@ -342,7 +342,7 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
               tab === t.key ? 'bg-surface border-border-strong' : 'bg-surface border-border hover:border-border-strong'
             }`}>
             <t.icon className={`w-5 h-5 mb-2 ${t.color}`} />
-            <p className="text-2xl font-bold text-fg">{t.count}</p>
+            <p className="text-xl font-semibold text-fg">{t.count}</p>
             <p className="text-fg-secondary text-sm">{t.label}</p>
           </button>
         ))}
@@ -448,7 +448,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">All Users</h2>
+          <h2 className="text-xl font-semibold text-fg">All Users</h2>
           <p className="text-fg-secondary mt-1">{tenants.length} universities · {totalUsers} total users</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ReportsClient } from './reports-client'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function ReportsPage() {
   const supabase = await createClient()
@@ -21,11 +22,14 @@ export default async function ReportsPage() {
   ])
 
   return (
-    <ReportsClient
-      tenants={tenants ?? []}
-      teachers={teachers ?? []}
-      groups={groups ?? []}
-      students={students ?? []}
-    />
+    <>
+      <PageTitle title="Reports" />
+      <ReportsClient
+        tenants={tenants ?? []}
+        teachers={teachers ?? []}
+        groups={groups ?? []}
+        students={students ?? []}
+      />
+    </>
   )
 }

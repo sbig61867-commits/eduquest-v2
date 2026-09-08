@@ -4,9 +4,8 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ScheduleGrid } from '@/components/schedules/schedule-grid'
 import { loadStudentSchedule } from '@/lib/schedules-data'
+import { PageTitle } from '@/components/shared/page-title'
 
-// Students have no direct row read on schedules — get_student_schedule()
-// returns only published timetables for the groups they are enrolled in.
 export default async function StudentSchedulePage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
@@ -15,12 +14,16 @@ export default async function StudentSchedulePage() {
   const slots = await loadStudentSchedule(supabase)
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
-        <h2 className="text-2xl font-bold text-fg">جدول مواعيدي</h2>
-        <p className="text-fg-secondary mt-1">المواعيد الأسبوعية للمجموعات المسجَّل بها</p>
+    <>
+      <PageTitle title="Schedule" />
+
+      <div className="max-w-4xl mx-auto" dir="rtl">
+        <div className="mb-7">
+          <h1 className="text-xl font-semibold text-fg">جدول مواعيدي</h1>
+          <p className="text-[13px] text-fg-muted mt-1.5">المواعيد الأسبوعية للمجموعات المسجَّل بها</p>
+        </div>
+        <ScheduleGrid slots={slots} showGroup emptyText="لم يُنشر جدول مواعيد لمجموعاتك بعد." />
       </div>
-      <ScheduleGrid slots={slots} showGroup emptyText="لم يُنشر جدول مواعيد لمجموعاتك بعد." />
-    </div>
+    </>
   )
 }

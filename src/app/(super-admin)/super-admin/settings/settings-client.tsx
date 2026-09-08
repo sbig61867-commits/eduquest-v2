@@ -200,7 +200,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h2 className="text-2xl font-bold text-fg">Platform Settings</h2>
+        <h2 className="text-xl font-semibold text-fg">Platform Settings</h2>
         <p className="text-fg-secondary mt-1">Your account and platform configuration</p>
       </div>
 

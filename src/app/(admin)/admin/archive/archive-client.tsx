@@ -62,7 +62,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-fg">University Archive</h2>
+        <h2 className="text-xl font-semibold text-fg">University Archive</h2>
         <p className="text-fg-secondary mt-1">
           Full historical record — {items.length} classes &amp; courses ({archivedCount} archived). All submissions and grades are preserved for future reference.
         </p>

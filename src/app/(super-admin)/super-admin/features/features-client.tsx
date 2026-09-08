@@ -51,7 +51,7 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fg">Feature Flags</h2>
+          <h2 className="text-xl font-semibold text-fg">Feature Flags</h2>
           <p className="text-fg-secondary mt-1">Kill-switch control for platform features</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> Add Flag</Button>
