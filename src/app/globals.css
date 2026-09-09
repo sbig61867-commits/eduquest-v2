@@ -175,6 +175,17 @@ body {
   }
 }
 
+/* ── Scroll fade-in ─────────────────────────────────────────────────────── */
+[data-fadein] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-fadein].fadein-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* ── Landing hero: ambient blobs + 3D role stage ────────────────────────── */
 @keyframes eq-blob-drift-1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -209,3 +220,39 @@ body {
   opacity: 0;
   animation: eq-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ── Progress fill, card hover, skeleton shimmer, stagger fallback ───────── */
+.eq-progress-fill {
+  transition: width var(--duration-slow) var(--ease-standard), stroke-dashoffset var(--duration-slow) var(--ease-standard);
+}
+
+.eq-card-hover {
+  transition: transform var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard);
+}
+.eq-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes eq-skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.eq-skeleton {
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-elevated) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: eq-skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+.eq-stagger > * {
+  opacity: 0;
+  animation: eq-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.eq-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.eq-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.eq-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.eq-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.eq-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.eq-stagger > *:nth-child(6) { animation-delay: 300ms; }
+.eq-stagger > *:nth-child(n+7) { animation-delay: 360ms; }

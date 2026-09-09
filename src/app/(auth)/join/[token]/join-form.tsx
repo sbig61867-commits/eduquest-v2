@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
+import { RevealOnScroll } from '@/components/shared/motion'
 
 interface Props {
   token: string
@@ -101,7 +102,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
   }
 
   return (
-    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+    <RevealOnScroll className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl" mode="mount">
       <h2 className="text-lg font-semibold text-fg mb-5">Create your account</h2>
 
       {error && (
@@ -216,7 +217,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
         <GoogleIcon />
         {googleLoading ? 'جارٍ التحويل إلى Google...' : 'المتابعة باستخدام Google'}
       </button>
-    </div>
+    </RevealOnScroll>
   )
 }
 

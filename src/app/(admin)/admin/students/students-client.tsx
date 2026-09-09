@@ -3,6 +3,7 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useDebounce } from '@/hooks/useDebounce'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Search, Trash2, ToggleLeft, Mail } from 'lucide-react'
@@ -14,11 +15,12 @@ interface Props { initialStudents: User[] }
 export function StudentsClient({ initialStudents }: Props) {
   const [students, setStudents] = useState(initialStudents)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search)
   const router = useRouter()
 
   const filtered = students.filter(s =>
-    s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())
+    s.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    s.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   )
 
   async function toggleStatus(student: User) {

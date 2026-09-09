@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280, height=720" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1280px; height: 720px; overflow: hidden; background: #f0f5fa; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      position: absolute; right: 0; top: 0; width: 220px; height: 720px;
+      background: #0b3658; display: flex; flex-direction: column;
+    }
+    .sb-logo { padding: 24px 20px 20px; color: #fff; font-size: 20px; font-weight: 800; letter-spacing: -.5px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .sb-logo span { color: #4e9ad9; }
+    .sb-user { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; gap: 10px; }
+    .sb-avatar { width: 36px; height: 36px; border-radius: 50%; background: #4e9ad9; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+    .sb-name { color: #fff; font-size: 13px; font-weight: 700; }
+    .sb-role { color: rgba(255,255,255,.5); font-size: 11px; }
+    .sb-nav { flex: 1; padding: 12px 0; }
+    .sb-item {
+      display: flex; align-items: center; gap: 10px; padding: 11px 20px;
+      color: rgba(255,255,255,.65); font-size: 14px; cursor: pointer;
+      border-right: 3px solid transparent;
+    }
+    .sb-item.active { background: rgba(255,255,255,.1); color: #fff; border-right-color: #4e9ad9; }
+    .sb-icon { width: 18px; height: 18px; opacity: .8; flex-shrink: 0; }
+
+    /* ── Main ── */
+    #main { position: absolute; right: 220px; top: 0; width: 1060px; height: 720px; }
+    .topbar {
+      position: absolute; top: 0; right: 0; left: 0; height: 60px;
+      background: #fff; border-bottom: 1px solid #dde7ee;
+      display: flex; align-items: center; padding: 0 28px; gap: 12px;
+    }
+    .topbar-title { font-size: 18px; font-weight: 700; color: #0b3658; flex: 1; }
+    .topbar-sub { font-size: 13px; color: #688dac; }
+    .btn-primary { padding: 9px 20px; background: #4e9ad9; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .btn-outline { padding: 9px 20px; background: #fff; color: #486984; border: 1px solid #dde7ee; border-radius: 8px; font-size: 13px; font-weight: 600; }
+
+    /* ── Pages ── */
+    .page { position: absolute; top: 60px; right: 0; left: 0; bottom: 0; padding: 22px 26px; opacity: 0; }
+
+    /* ── Dashboard ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+    .stat-card { background: #fff; border: 1px solid #dde7ee; border-radius: 12px; padding: 18px; }
+    .stat-label { font-size: 12px; color: #688dac; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+    .stat-val { font-size: 26px; font-weight: 800; color: #0b3658; }
+    .stat-hint { font-size: 12px; color: #4e9ad9; margin-top: 2px; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { background: #fff; border: 1px solid #dde7ee; border-radius: 12px; padding: 16px; }
+    .card-title { font-size: 13px; font-weight: 700; color: #0b3658; margin-bottom: 12px; }
+    .mini-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f5f9fd; font-size: 13px; color: #0b3658; }
+    .mini-row:last-child { border: none; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-orange { background: #fef3c7; color: #92400e; }
+    .badge-green  { background: #d1fae5; color: #065f46; }
+    .badge-blue   { background: #e0f2fe; color: #0369a1; }
+
+    /* ── Exams list ── */
+    .table-card { background: #fff; border: 1px solid #dde7ee; border-radius: 12px; overflow: hidden; }
+    .table-header {
+      display: grid; grid-template-columns: 2fr 1fr 80px 80px 100px;
+      padding: 11px 18px; background: #f5f9fd; border-bottom: 1px solid #dde7ee;
+      font-size: 11px; font-weight: 700; color: #688dac; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .table-row {
+      display: grid; grid-template-columns: 2fr 1fr 80px 80px 100px;
+      padding: 13px 18px; border-bottom: 1px solid #f0f4f8; font-size: 13px; color: #0b3658; align-items: center;
+    }
+    .table-row.hl { background: #e6f1fa; }
+
+    /* ── Submission detail ── */
+    .sub-header { display: flex; align-items: center; gap: 16px; background: #fff; border: 1px solid #dde7ee; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+    .sub-meta { flex: 1; }
+    .sub-title { font-size: 17px; font-weight: 800; color: #0b3658; }
+    .sub-info { font-size: 12px; color: #688dac; margin-top: 2px; }
+
+    .student-table { background: #fff; border: 1px solid #dde7ee; border-radius: 12px; overflow: hidden; }
+    .st-header {
+      display: grid; grid-template-columns: 2fr 1fr 120px 80px 100px;
+      padding: 11px 18px; background: #f5f9fd; border-bottom: 1px solid #dde7ee;
+      font-size: 11px; font-weight: 700; color: #688dac; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .st-row {
+      display: grid; grid-template-columns: 2fr 1fr 120px 80px 100px;
+      padding: 13px 18px; border-bottom: 1px solid #f0f4f8; font-size: 13px; color: #0b3658; align-items: center;
+    }
+    .score-bar-wrap { width: 100%; height: 6px; background: #e6f1fa; border-radius: 3px; overflow: hidden; }
+    .score-bar { height: 100%; background: #4e9ad9; border-radius: 3px; width: 0; }
+    .score-num { font-size: 15px; font-weight: 800; color: #0b3658; }
+
+    /* ── Publish overlay ── */
+    #publish-overlay {
+      position: absolute; inset: 0; background: rgba(11,54,88,.5);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; z-index: 60;
+    }
+    .pub-modal {
+      background: #fff; border-radius: 20px; padding: 36px 40px; text-align: center;
+      box-shadow: 0 24px 64px rgba(11,54,88,.25); width: 380px;
+    }
+    .pub-icon {
+      width: 64px; height: 64px; background: #d1fae5; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+    }
+    .pub-title { font-size: 20px; font-weight: 800; color: #0b3658; margin-bottom: 8px; }
+    .pub-sub { font-size: 14px; color: #688dac; }
+
+    /* ── Cursor ── */
+    #cursor {
+      position: absolute; width: 22px; height: 22px;
+      border-radius: 50%; background: rgba(11,54,88,.75);
+      border: 2px solid rgba(255,255,255,.9);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      z-index: 999; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      top: 0; left: 0; will-change: transform;
+    }
+    #cursor-click { position: absolute; inset: -4px; border-radius: 50%; background: rgba(78,154,217,.4); opacity: 0; }
+  </style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="26" data-width="1280" data-height="720">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-logo">Edu<span>Quest</span></div>
+    <div class="sb-user">
+      <div class="sb-avatar">س</div>
+      <div>
+        <div class="sb-name">أ. سارة العمري</div>
+        <div class="sb-role">معلمة · علوم الحاسب</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item active" id="nav-home">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        لوحتي
+      </div>
+      <div class="sb-item" id="nav-lessons">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        الدروس
+      </div>
+      <div class="sb-item" id="nav-exams">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        الاختبارات
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        مجموعاتي
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        الدرجات
+      </div>
+    </nav>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="page-title">لوحتي — هذا الأسبوع</div>
+        <div class="topbar-sub" id="page-sub">الأحد 8 سبتمبر 2026</div>
+      </div>
+      <button class="btn-outline" id="btn-sec">تصفية</button>
+      <button class="btn-primary" id="btn-pub">نشر الدرجات</button>
+    </div>
+
+    <!-- Dashboard page -->
+    <div class="page" id="p-dash">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">دروس منشورة</div><div class="stat-val">6</div><div class="stat-hint">هذا الأسبوع</div></div>
+        <div class="stat-card"><div class="stat-label">اختبارات نشطة</div><div class="stat-val">2</div><div class="stat-hint">منتهية الصلاحية غداً</div></div>
+        <div class="stat-card"><div class="stat-label">تسليمات للتصحيح</div><div class="stat-val">38</div><div class="stat-hint" style="color:#f59e0b">تنتظر مراجعتك</div></div>
+        <div class="stat-card"><div class="stat-label">متوسط المجموعة</div><div class="stat-val">82%</div><div class="stat-hint">↑ 4% عن الاختبار السابق</div></div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">اختبارات قادمة</div>
+          <div class="mini-row"><span>الجهاز الهضمي — مج أ</span><span class="badge badge-orange">غداً</span></div>
+          <div class="mini-row"><span>الكيمياء العضوية — مج ب</span><span class="badge badge-blue">الأربعاء</span></div>
+          <div class="mini-row"><span>الفيزياء الكمية — مج ج</span><span class="badge badge-blue">الخميس</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title">تسليمات تنتظر التصحيح</div>
+          <div class="mini-row"><span>الدورة الدموية — اختبار الفصل</span><span class="badge badge-orange">38 تسليم</span></div>
+          <div class="mini-row"><span>الجهاز القصبي — واجب 4</span><span class="badge badge-orange">24 تسليم</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exams page -->
+    <div class="page" id="p-exams">
+      <div class="table-card">
+        <div class="table-header"><span>الاختبار</span><span>المجموعة</span><span>تسليمات</span><span>معدل</span><span>الحالة</span></div>
+        <div class="table-row" id="ex1">
+          <span style="font-weight:600">الدورة الدموية — اختبار الفصل</span>
+          <span>مجموعة أ</span><span>38 / 40</span><span>78%</span>
+          <span><div class="badge badge-orange">للتصحيح</div></span>
+        </div>
+        <div class="table-row">
+          <span style="font-weight:600">الجهاز القصبي — واجب 4</span>
+          <span>مجموعة ب</span><span>24 / 26</span><span>85%</span>
+          <span><div class="badge badge-orange">للتصحيح</div></span>
+        </div>
+        <div class="table-row">
+          <span style="font-weight:600">الكيمياء العضوية — اختبار 3</span>
+          <span>مجموعة أ</span><span>38 / 38</span><span>91%</span>
+          <span><div class="badge badge-green">منشور</div></span>
+        </div>
+        <div class="table-row">
+          <span style="font-weight:600">الفيزياء الكمية — مراجعة</span>
+          <span>مجموعة ج</span><span>30 / 32</span><span>74%</span>
+          <span><div class="badge badge-green">منشور</div></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submission detail page -->
+    <div class="page" id="p-detail">
+      <div class="sub-header">
+        <div class="sub-meta">
+          <div class="sub-title">الدورة الدموية — اختبار الفصل</div>
+          <div class="sub-info">مجموعة أ · 38 تسليماً · 25 سؤالاً · المدة: 60 دقيقة</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:28px;font-weight:800;color:#0b3658" id="avg-score">0%</div>
+          <div style="font-size:12px;color:#688dac">متوسط الدرجات</div>
+        </div>
+      </div>
+      <div class="student-table">
+        <div class="st-header"><span>الطالب</span><span>وقت التسليم</span><span>التقدم</span><span>الدرجة</span><span>الحالة</span></div>
+        <div class="st-row" id="sr1">
+          <span style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:#0b3658;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">أم</div>أحمد محمد</span>
+          <span>منذ 2 ساعة</span>
+          <span><div class="score-bar-wrap"><div class="score-bar" id="bar1"></div></div></span>
+          <span class="score-num" id="sc1">—</span>
+          <span><div class="badge badge-blue">مراجعة</div></span>
+        </div>
+        <div class="st-row" id="sr2">
+          <span style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:#059669;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">سع</div>سارة عبدالله</span>
+          <span>منذ 3 ساعات</span>
+          <span><div class="score-bar-wrap"><div class="score-bar" id="bar2"></div></div></span>
+          <span class="score-num" id="sc2">—</span>
+          <span><div class="badge badge-blue">مراجعة</div></span>
+        </div>
+        <div class="st-row" id="sr3">
+          <span style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">خر</div>خالد الرشيد</span>
+          <span>منذ 4 ساعات</span>
+          <span><div class="score-bar-wrap"><div class="score-bar" id="bar3"></div></div></span>
+          <span class="score-num" id="sc3">—</span>
+          <span><div class="badge badge-blue">مراجعة</div></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Publish overlay -->
+    <div id="publish-overlay">
+      <div class="pub-modal">
+        <div class="pub-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#065f46" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="pub-title">تم نشر الدرجات</div>
+        <div class="pub-sub">تم إشعار 38 طالباً بدرجاتهم في اختبار الدورة الدموية</div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- Cursor -->
+  <div id="cursor">
+    <div id="cursor-click"></div>
+  </div>
+
+</div>
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  function click(t) {
+    tl.to('#cursor-click', { opacity: 1, scale: 1.6, duration: 0.15 }, t)
+      .to('#cursor-click', { opacity: 0, scale: 1, duration: 0.15 }, t + 0.15);
+  }
+
+  // ─── Scene 1: Dashboard (0-6s) ───
+  tl.to('#p-dash', { opacity: 1, duration: 0.6 }, 0.3);
+  tl.set('#cursor', { x: 750, y: 280 }, 0);
+  tl.to('#cursor', { x: 730, y: 340, duration: 2.5, ease: 'power1.inOut' }, 0.5);
+  tl.to('#cursor', { x: 650, y: 430, duration: 2, ease: 'power1.inOut' }, 3.0);
+
+  // ─── Scene 2: Navigate to Exams (6-10s) ───
+  tl.to('#cursor', { x: 1145, y: 175, duration: 0.9, ease: 'power2.inOut' }, 5.5);
+  click(6.2);
+  tl.to('#nav-home', { color: 'rgba(255,255,255,.65)', borderRightColor: 'transparent', background: 'transparent', duration: 0.25 }, 6.2);
+  tl.to('#nav-exams', { color: '#fff', borderRightColor: '#4e9ad9', background: 'rgba(255,255,255,.1)', duration: 0.25 }, 6.2);
+  tl.to('#p-dash', { opacity: 0, duration: 0.35 }, 6.4);
+  tl.set('#page-title', { innerText: 'الاختبارات' }, 6.6);
+  tl.set('#page-sub', { innerText: 'إدارة اختباراتك وتصحيح تسليمات الطلاب' }, 6.6);
+  tl.to('#p-exams', { opacity: 1, duration: 0.5 }, 6.7);
+  tl.to('#cursor', { x: 700, y: 220, duration: 0.7, ease: 'power2.inOut' }, 7.5);
+  // hover exam rows
+  tl.to('#ex1', { backgroundColor: '#e6f1fa', duration: 0.25 }, 8.2);
+  tl.to('#ex1', { backgroundColor: '#fff', duration: 0.25 }, 8.8);
+
+  // ─── Scene 3: Open submission detail (9-17s) ───
+  tl.to('#cursor', { x: 700, y: 225, duration: 0.4, ease: 'power2.inOut' }, 9.2);
+  click(9.5);
+  tl.to('#p-exams', { opacity: 0, duration: 0.35 }, 9.7);
+  tl.set('#page-title', { innerText: 'الدورة الدموية — اختبار الفصل' }, 9.9);
+  tl.set('#page-sub', { innerText: 'مجموعة أ · 38 تسليماً' }, 9.9);
+  tl.to('#p-detail', { opacity: 1, duration: 0.5 }, 10.0);
+
+  // Score bars + count-up using GSAP proxy objects (render-safe)
+  const proxy1 = { val: 0 };
+  tl.to('#bar1', { width: '88%', duration: 1.2, ease: 'power2.out' }, 10.8);
+  tl.to(proxy1, { val: 88, duration: 1.2, ease: 'power2.out',
+    onUpdate: () => { const el = document.getElementById('sc1'); if (el) el.textContent = Math.round(proxy1.val) + '%'; }
+  }, 10.8);
+
+  const proxy2 = { val: 0 };
+  tl.to('#bar2', { width: '76%', duration: 1.1, ease: 'power2.out' }, 11.3);
+  tl.to(proxy2, { val: 76, duration: 1.1, ease: 'power2.out',
+    onUpdate: () => { const el = document.getElementById('sc2'); if (el) el.textContent = Math.round(proxy2.val) + '%'; }
+  }, 11.3);
+
+  const proxy3 = { val: 0 };
+  tl.to('#bar3', { width: '91%', duration: 1.3, ease: 'power2.out' }, 11.8);
+  tl.to(proxy3, { val: 91, duration: 1.3, ease: 'power2.out',
+    onUpdate: () => { const el = document.getElementById('sc3'); if (el) el.textContent = Math.round(proxy3.val) + '%'; }
+  }, 11.8);
+
+  const proxyAvg = { val: 0 };
+  tl.to(proxyAvg, { val: 78, duration: 1.0, ease: 'power1.out',
+    onUpdate: () => { const el = document.getElementById('avg-score'); if (el) el.textContent = Math.round(proxyAvg.val) + '%'; }
+  }, 12.5);
+
+  // Update badges to "صحّح"
+  tl.call(() => {
+    ['sr1','sr2','sr3'].forEach(id => {
+      const row = document.getElementById(id);
+      if (row) {
+        const badge = row.querySelector('.badge');
+        if (badge) { badge.className = 'badge badge-green'; badge.textContent = 'صحّح'; }
+      }
+    });
+  }, [], 13.3);
+
+  // Cursor moves to Publish button
+  tl.to('#cursor', { x: 960, y: 30, duration: 0.9, ease: 'power2.inOut' }, 14.5);
+  // Button glow
+  tl.to('#btn-pub', { boxShadow: '0 0 0 3px rgba(78,154,217,.4)', duration: 0.3 }, 15.2);
+  click(15.5);
+  tl.to('#btn-pub', { boxShadow: '0 0 0 0px rgba(78,154,217,.0)', duration: 0.3 }, 15.7);
+  tl.to('#publish-overlay', { opacity: 1, duration: 0.5 }, 15.8);
+
+  // Hold publish overlay, then fade out
+  tl.to('#publish-overlay', { opacity: 0, duration: 0.5 }, 21.0);
+  // Update first exam badge to "منشور"
+  tl.call(() => {
+    const ex = document.getElementById('ex1');
+    if (ex) {
+      const b = ex.querySelector('.badge');
+      if (b) { b.className = 'badge badge-green'; b.textContent = 'منشور'; }
+    }
+  }, [], 21.0);
+  tl.to('#p-detail', { opacity: 0, duration: 0.4 }, 21.5);
+  tl.set('#page-title', { innerText: 'الاختبارات' }, 21.7);
+  tl.set('#page-sub', { innerText: 'إدارة اختباراتك وتصحيح تسليمات الطلاب' }, 21.7);
+  tl.to('#p-exams', { opacity: 1, duration: 0.5 }, 21.8);
+  // cursor back to center
+  tl.to('#cursor', { x: 650, y: 300, duration: 1.2, ease: 'power2.inOut' }, 22.0);
+
+  // Fade out gently before loop
+  tl.to('#root', { opacity: 0, duration: 1.0 }, 24.5);
+
+  window.__timelines['main'] = tl;
+</script>
+</body>
+</html>

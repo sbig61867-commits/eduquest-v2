@@ -8,6 +8,7 @@ import { SurveyCard } from '@/components/student/survey-card'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
 import { PageTitle } from '@/components/shared/page-title'
 import { Badge } from '@/components/ui/badge'
+import { StaggerGrid, StaggerItem, ProgressBar } from '@/components/shared/motion'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
 interface GradeRow { id: string; score: number; max_score: number; submitted_at: string; exams: { title: string } | null }
@@ -164,33 +165,36 @@ export default async function StudentDashboard() {
                 <p className="text-[13px] text-fg-muted">No grades yet.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-border">
+              <StaggerGrid className="divide-y divide-border">
                 {gradeList.map(g => {
                   const max = g.max_score || 1
                   const pct = Math.round(((g.score ?? 0) / max) * 100)
                   const passed = pct >= 60
                   return (
-                    <li key={g.id} className="flex items-center gap-3 px-5 py-3.5">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-medium text-fg truncate">
-                          {g.exams?.title ?? 'Exam'}
-                        </p>
-                        <p className="text-[11px] text-fg-muted mt-0.5">
-                          {formatDate(g.submitted_at)}
-                        </p>
+                    <StaggerItem key={g.id} className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-medium text-fg truncate">
+                            {g.exams?.title ?? 'Exam'}
+                          </p>
+                          <p className="text-[11px] text-fg-muted mt-0.5">
+                            {formatDate(g.submitted_at)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          <span className={`text-[13px] font-semibold ${passed ? 'text-accent' : 'text-error'}`}>
+                            {g.score}/{max}
+                          </span>
+                          <Badge variant={passed ? 'success' : 'error'} className="text-[10px]">
+                            {pct}%
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="shrink-0 flex items-center gap-2">
-                        <span className={`text-[13px] font-semibold ${passed ? 'text-accent' : 'text-error'}`}>
-                          {g.score}/{max}
-                        </span>
-                        <Badge variant={passed ? 'success' : 'error'} className="text-[10px]">
-                          {pct}%
-                        </Badge>
-                      </div>
-                    </li>
+                      <ProgressBar value={pct} accent={passed ? 'var(--color-accent)' : 'var(--color-error)'} showPercent={false} className="mt-2" />
+                    </StaggerItem>
                   )
                 })}
-              </ul>
+              </StaggerGrid>
             )}
           </div>
 

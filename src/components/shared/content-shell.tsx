@@ -2,6 +2,7 @@
 
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
+import { PageTransition } from './motion'
 
 // Offsets page content to the inline-start side of the fixed sidebar.
 // Uses logical property ps- (padding-inline-start) so RTL is handled correctly.
@@ -12,7 +13,7 @@ export function ContentShell({ children }: { children: React.ReactNode }) {
       'transition-[padding-inline-start] duration-200',
       sidebarOpen ? 'lg:ps-64' : 'lg:ps-16'
     )}>
-      {children}
+      <PageTransition>{children}</PageTransition>
     </div>
   )
 }

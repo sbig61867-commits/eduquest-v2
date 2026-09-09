@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
@@ -157,17 +158,24 @@ export function Sidebar({ groups, roleLabel }: SidebarProps) {
                           'relative flex items-center rounded-md transition-colors w-full group',
                           isExpanded ? 'gap-3 px-2 py-2' : 'justify-center p-2',
                           isActive
-                            ? 'bg-accent-subtle text-accent'
+                            ? 'text-accent'
                             : 'text-fg-secondary hover:text-fg hover:bg-canvas'
                         )}
                       >
-                        {/* Active indicator bar */}
+                        {/* Sliding active pill */}
                         {isActive && (
-                          <span className="absolute start-0 top-1 bottom-1 w-0.5 rounded-e-full bg-accent" />
+                          <motion.span
+                            layoutId="sidebar-active-pill"
+                            className="absolute inset-0 rounded-md bg-accent-subtle"
+                            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                          />
                         )}
-                        <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+                        {isActive && (
+                          <span className="absolute start-0 top-1 bottom-1 w-0.5 rounded-e-full bg-accent z-10" />
+                        )}
+                        <Icon className="relative w-[18px] h-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
                         {isExpanded && (
-                          <span className="text-[13px] font-medium truncate">{item.label}</span>
+                          <span className="relative text-[13px] font-medium truncate">{item.label}</span>
                         )}
                       </Link>
                     )

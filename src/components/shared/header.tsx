@@ -3,6 +3,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from './notification-bell'
@@ -27,7 +28,11 @@ export function Header() {
   const displayTitle = pageTitle || routeLabel
 
   return (
-    <header className={cn(
+    <motion.header
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className={cn(
       'fixed top-0 end-0 start-0 h-14 z-30',
       'bg-elevated/95 backdrop-blur-sm border-b border-border',
       'flex items-center gap-3 px-4 lg:px-6',
@@ -70,6 +75,6 @@ export function Header() {
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   )
 }

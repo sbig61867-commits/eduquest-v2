@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Search, Trash2, ToggleLeft, UserPlus, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { useDebounce } from '@/hooks/useDebounce'
 import type { User } from '@/types'
 
 interface Props { initialTeachers: User[] }
@@ -15,12 +16,13 @@ interface Props { initialTeachers: User[] }
 export function TeachersClient({ initialTeachers }: Props) {
   const [teachers, setTeachers] = useState(initialTeachers)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search)
   const supabase = createClient()
   const router = useRouter()
 
   const filtered = teachers.filter(t =>
-    t.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.toLowerCase())
+    t.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    t.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   )
 
   async function toggleStatus(teacher: User) {

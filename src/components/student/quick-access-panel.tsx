@@ -9,6 +9,7 @@ import {
   BookOpen, ClipboardList, Layers, ChevronRight,
   PanelRightOpen, PanelRightClose, Loader2,
 } from 'lucide-react'
+import { StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
 interface CourseItem  { id: string; title: string }
 interface LessonItem  { id: string; title: string }
@@ -147,9 +148,9 @@ export function StudentQuickAccessPanel() {
               {items.length === 0 ? (
                 <p className="text-fg-muted text-xs pl-6">{emptyText}</p>
               ) : (
-                <ul className="space-y-1">
+                <StaggerGrid className="space-y-1">
                   {items.map((item, i) => (
-                    <li key={i}>
+                    <StaggerItem key={i}>
                       <button
                         onClick={() => { router.push(item.href); setOpen(false) }}
                         className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors text-sm"
@@ -157,9 +158,9 @@ export function StudentQuickAccessPanel() {
                         <ChevronRight className="w-3 h-3 text-fg-muted shrink-0" />
                         <span className="truncate">{item.label}</span>
                       </button>
-                    </li>
+                    </StaggerItem>
                   ))}
-                </ul>
+                </StaggerGrid>
               )}
             </div>
           ))}

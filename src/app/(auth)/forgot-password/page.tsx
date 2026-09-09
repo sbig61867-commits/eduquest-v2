@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { RevealOnScroll } from '@/components/shared/motion'
 
 export default function ForgotPasswordPage() {
   const [email,     setEmail]     = useState('')
@@ -39,7 +40,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+      <RevealOnScroll className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl" mode="mount">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent mb-2">
             <span className="text-fg text-2xl font-bold">E</span>
@@ -107,7 +108,7 @@ export default function ForgotPasswordPage() {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
           </Link>
         </div>
-      </div>
+      </RevealOnScroll>
     </div>
   )
 }

@@ -3,8 +3,10 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { LiveProctoringGrid } from './mockups'
+import { RevealOnScroll, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 import {
-  Radio, Users, Volume2, ZoomIn, WifiOff, ShieldCheck, Mail, ArrowLeft, ArrowRight,
+  Radio, Volume2, ZoomIn, WifiOff, ShieldCheck, Mail, ArrowLeft, ArrowRight,
 } from 'lucide-react'
 
 const dict = {
@@ -87,7 +89,7 @@ export function LiveMonitoringPage() {
       </section>
 
       {/* Live demo wall */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-14">
+      <RevealOnScroll className="max-w-4xl mx-auto px-4 sm:px-6 pb-14">
         <div className="bg-elevated border border-border rounded-[24px] overflow-hidden shadow-[0_24px_64px_rgba(11,54,88,0.14)]">
           <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border bg-surface">
             <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
@@ -95,30 +97,20 @@ export function LiveMonitoringPage() {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
             <span className="text-fg-muted text-xs font-medium ms-2">{t.demoLabel}</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-4 sm:p-5">
-            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-              <div key={i} className={`eq-float relative aspect-video rounded-xl bg-surface border-2 overflow-hidden ${i === 2 ? 'border-success' : 'border-border'}`} style={{ animationDelay: `${(i % 4) * 0.4}s` }}>
-                <Users className="absolute inset-0 m-auto w-6 h-6 text-fg-muted" />
-                {i === 2 && (
-                  <span className="absolute top-1.5 end-1.5 flex items-center gap-1 bg-success text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    <Volume2 className="w-2.5 h-2.5" /> {t.demoSpeaking}
-                  </span>
-                )}
-                <span className="absolute bottom-1 start-1.5 text-fg-muted text-[10px]">{t.demoStudent} {i + 1}</span>
-              </div>
-            ))}
+          <div className="p-4 sm:p-5">
+            <LiveProctoringGrid lang={lang} />
           </div>
         </div>
-      </section>
+      </RevealOnScroll>
 
       {/* Feature grid */}
       <section className="bg-surface border-y border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {t.features.map((f, i) => {
               const Icon = icons[f.icon as keyof typeof icons]
               return (
-                <div key={i} className="flex items-start gap-4 bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
+                <StaggerItem key={i} className="eq-card-hover flex items-start gap-4 bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
                   <div className="w-10 h-10 rounded-xl bg-error-subtle flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5 text-error" />
                   </div>
@@ -126,25 +118,25 @@ export function LiveMonitoringPage() {
                     <h3 className="text-fg font-semibold mb-1.5">{f.title}</h3>
                     <p className="text-fg-secondary text-sm leading-relaxed">{f.desc}</p>
                   </div>
-                </div>
+                </StaggerItem>
               )
             })}
-          </div>
+          </StaggerGrid>
         </div>
       </section>
 
       {/* How it works */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-16">
         <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-10" style={{ letterSpacing: '-0.01em' }}>{t.howTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {t.steps.map((s, i) => (
-            <div key={i} className="relative bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
+            <StaggerItem key={i} className="eq-card-hover relative bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
               <span className="flex items-center justify-center w-9 h-9 rounded-full bg-error text-white font-black mb-4">{i + 1}</span>
               <h3 className="text-fg font-semibold mb-1.5">{s.title}</h3>
               <p className="text-fg-secondary text-sm leading-relaxed">{s.desc}</p>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* CTA */}

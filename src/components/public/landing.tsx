@@ -3,16 +3,18 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { AiTypingMockup, LiveProctoringGrid } from './mockups'
 import {
   ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
-  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, Radio, Volume2, CheckCircle2, Plus, Zap,
+  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, Radio, CheckCircle2, Plus, Zap,
   GraduationCap, Megaphone, CalendarClock, Sparkles, TrendingUp, Award,
+  Lock, Clock, Archive, Headphones, Volume2,
 } from 'lucide-react'
 
 const dict = {
   ar: {
-    heroBadge: '✦ منصة واحدة، أربعة أدوار، صفر فوضى',
-    heroTitle: 'كل قرار تعليمي في مكانه الصحيح',
+    heroBadge: '✦ للجامعات والمراكز التعليمية',
+    heroTitle: 'بيئة أكاديمية متكاملة — من الدرس إلى العلامة',
     heroDesc: 'من إنشاء الدرس بالذكاء الاصطناعي، إلى مراقبة الاختبار لحظة بلحظة، إلى العلامة النهائية — EduQuest تصنع مساراً واحداً واضحاً لكل من يدير عملية تعليمية: جامعة، مركزاً، أو صفاً واحداً.',
     heroCta: 'اطلب اشتراكاً',
     heroLogin: 'تسجيل الدخول',
@@ -75,34 +77,37 @@ const dict = {
     ],
     trustTitle: 'لماذا EduQuest؟',
     trust: [
-      { title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً — لا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
-      { title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا — تحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
-      { title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ — كل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
-      { title: 'مرافقة كاملة عند البدء', desc: 'نجهّز بيئة جامعتك بأنفسنا ونرافق فريقك خطوة بخطوة حتى تستقر العملية التعليمية.' },
+      { icon: 'Lock', title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً — لا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
+      { icon: 'Clock', title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا — تحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
+      { icon: 'Archive', title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ — كل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
+      { icon: 'Headphones', title: 'مرافقة كاملة عند البدء', desc: 'نجهّز بيئة جامعتك بأنفسنا ونرافق فريقك خطوة بخطوة حتى تستقر العملية التعليمية.' },
     ],
-    teaserTitle: 'الحل: منصة واحدة تفعل كل شيء',
+    teaserTitle: 'LMS كامل + إدارة أكاديمية في منصة واحدة',
     teaser: [
-      { icon: 'Zap', title: 'توليد بالذكاء الاصطناعي', desc: 'دروس واختبارات كاملة في ثوانٍ، قابلة للتعديل قبل النشر.' },
-      { icon: 'ShieldCheck', title: 'مراقبة ذكية للاختبارات', desc: 'كاميرا وذكاء اصطناعي يحميان نزاهة الاختبار، والتصحيح على الخادم.' },
-      { icon: 'Building2', title: 'عزل كامل لكل جامعة', desc: 'بيانات كل جامعة معزولة تماماً على مستوى قاعدة البيانات.' },
+      { icon: 'BookOpen', title: 'كورسات ودروس منظّمة', desc: 'أنشئ مواد دراسية بمستويات ووحدات، وشارك المحتوى مع مجموعاتك فوراً.' },
+      { icon: 'ClipboardList', title: 'واجبات واختبارات متكاملة', desc: 'اختبارات موقوتة، تصحيح تلقائي، ودرجات مباشرة في كتاب العلامات.' },
+      { icon: 'BarChart2', title: 'تتبع تقدم الطالب', desc: 'درجات ونسب إنجاز لكل طالب، بصريات واضحة للمعلم والمدير.' },
+      { icon: 'Zap', title: 'مساعد أكاديمي بالذكاء الاصطناعي', desc: 'مساعد ذكاء اصطناعي يرافق المعلم خطوة بخطوة في إعداد الدروس والاختبارات، قابل للمراجعة والتعديل الكامل قبل النشر.' },
+      { icon: 'ShieldCheck', title: 'مراقبة حية للاختبارات', desc: 'كاميرا وذكاء اصطناعي يصونان نزاهة الاختبار، مع تصحيح آمن على الخادم لا يُخترق.' },
+      { icon: 'Building2', title: 'عزل تام بين المؤسسات', desc: 'بيانات كل مؤسسة تعليمية معزولة بالكامل على مستوى قاعدة البيانات، مع ضمان انعدام أي تداخل بين بيانات المستخدمين.' },
     ],
     allFeatures: 'استكشف كل المميزات',
-    liveTitle: 'تشوف كل طالب وتسمعه، لحظة بلحظة',
-    liveDesc: 'المعلم يفتح جداراً مباشراً لكل طلاب الاختبار — صورة وصوت الجميع في آنٍ واحد، بدون تطبيق خارجي.',
+    liveTitle: 'رؤية حية لقاعات الاختبار عبر تقنية الفيديو',
+    liveDesc: 'اتصال مرئي مباشر بين المراقب وجميع المتقدمين، مع إمكانية إعطاء التعليمات فورياً دون الحاجة إلى أي تطبيق خارجي.',
     livePoints: [
-      'يتكلم؟ بتشوف علامة فوق طالبه فوراً',
-      'اضغط على أي طالب لتكبيره وتتابعه لحاله',
-      'ثابتة حتى على إنترنت ضعيف',
+      'تنبيهات حية مع معالجة آلية لأي مخالفة يرتكبها المتقدم',
+      'تتبع مراقبة مخصص لمتقدم معين للحصول على رؤية أشمل',
+      'مرونة في الاتصال تتكيف مع جودة شبكة المتقدم',
     ],
-    liveCta: 'شوف تفاصيل المراقبة الحية',
-    aiTitle: 'مساعدك لكل شيء تعليمي',
-    aiDesc: 'اكتب موضوعاً بجملة واحدة، ويطلع لك درس كامل أو اختبار جاهز بأسئلته وإجاباته — تراجعه وتعدّله قبل ما ينشر.',
+    liveCta: 'استعراض تفاصيل المراقبة الحية',
+    aiTitle: 'المساعد الأكاديمي في إعداد المحتوى التعليمي',
+    aiDesc: 'يرافق المعلمَ في كل مرحلة من مراحل إعداد المحتوى التعليمي — من صياغة الدروس إلى بناء الاختبارات — مع إمكانية المراجعة والتعديل الكامل قبل النشر.',
     aiPoints: [
-      'درس أو اختبار كامل خلال ثوانٍ',
-      'قابل للتعديل بالكامل قبل النشر',
-      'يفهم موضوعك بلغتك العربية والإنجليزية',
+      'إعداد درس أو اختبار متكامل في وقت قياسي',
+      'مراجعة وتعديل كامل للمحتوى المولَّد قبل نشره',
+      'دعم كامل للغة العربية والإنجليزية',
     ],
-    aiCta: 'شوف كيف يعمل المساعد',
+    aiCta: 'استعراض إمكانيات المساعد الأكاديمي',
     stepsTitle: 'كيف تبدأ في 4 خطوات',
     steps: [
       { title: 'اطلب اشتراكاً', desc: 'راسلنا عبر النموذج وأخبرنا عن جامعتك.' },
@@ -132,8 +137,8 @@ const dict = {
     ctaButton: 'راسلنا الآن',
   },
   en: {
-    heroBadge: '✦ One platform, four roles, zero chaos',
-    heroTitle: 'Every teaching decision, exactly where it belongs',
+    heroBadge: '✦ For universities & educational centers',
+    heroTitle: 'A complete academic environment — from lesson to final grade',
     heroDesc: "From an AI-drafted lesson, to a live-monitored exam, to the final grade — EduQuest gives everyone running an educational operation, a university, a center, or a single classroom, one clear path.",
     heroCta: 'Request a subscription',
     heroLogin: 'Sign In',
@@ -196,34 +201,37 @@ const dict = {
     ],
     trustTitle: 'Why EduQuest?',
     trust: [
-      { title: 'Grading on the server, not the browser', desc: "Correct answers never leave the server — students can't see or tamper with them, no matter what." },
-      { title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers — refreshing the page or changing the device clock changes nothing.' },
-      { title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake — every delete goes to an archive the admin can restore anytime.' },
-      { title: 'Full onboarding support', desc: "We set up your university's environment ourselves and guide your team step by step until everything runs smoothly." },
+      { icon: 'Lock', title: 'Grading on the server, not the browser', desc: "Correct answers never leave the server — students can't see or tamper with them, no matter what." },
+      { icon: 'Clock', title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers — refreshing the page or changing the device clock changes nothing.' },
+      { icon: 'Archive', title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake — every delete goes to an archive the admin can restore anytime.' },
+      { icon: 'Headphones', title: 'Full onboarding support', desc: "We set up your university's environment ourselves and guide your team step by step until everything runs smoothly." },
     ],
-    teaserTitle: 'The solution: one platform that does it all',
+    teaserTitle: 'Full LMS + Academic management in one platform',
     teaser: [
-      { icon: 'Zap', title: 'AI-powered generation', desc: 'Full lessons and exams in seconds, editable before publishing.' },
-      { icon: 'ShieldCheck', title: 'Smart exam proctoring', desc: 'Camera + AI protect exam integrity, with grading on the server.' },
-      { icon: 'Building2', title: 'Full isolation per university', desc: "Every university's data is fully isolated at the database level." },
+      { icon: 'BookOpen', title: 'Courses & structured lessons', desc: 'Build curricula with levels and units, share content with your groups instantly.' },
+      { icon: 'ClipboardList', title: 'Assignments & exams', desc: 'Timed exams, auto-grading, and instant results in the grade book.' },
+      { icon: 'BarChart2', title: 'Student progress tracking', desc: 'Grades and completion rates per student, clear visuals for teachers and admins.' },
+      { icon: 'Zap', title: 'AI academic assistant', desc: 'An AI assistant that guides instructors step by step through lesson and exam preparation, with full review and editing before publishing.' },
+      { icon: 'ShieldCheck', title: 'Live exam proctoring', desc: 'Camera and AI safeguard exam integrity, with server-side grading that cannot be tampered with.' },
+      { icon: 'Building2', title: 'Complete inter-institution isolation', desc: "Each institution's data is fully isolated at the database level, with zero possibility of cross-institution data leakage." },
     ],
     allFeatures: 'Explore all features',
-    liveTitle: 'See and hear every student, live',
-    liveDesc: "The teacher opens one live wall for the whole exam — everyone's video and audio at once, no third-party app.",
+    liveTitle: 'Live visual access to examination rooms via video technology',
+    liveDesc: 'Direct visual connection between the proctor and all candidates, with the ability to issue instructions in real time — no third-party application required.',
     livePoints: [
-      'Speaking? A marker appears on their tile instantly',
-      'Click any student to zoom in and follow them alone',
-      'Stays stable even on weak internet',
+      'Real-time alerts with automated handling of any candidate violation',
+      'Dedicated monitoring of a specific candidate for a more comprehensive view',
+      'Adaptive connection quality that adjusts to each candidate\'s network conditions',
     ],
-    liveCta: 'See live monitoring in detail',
-    aiTitle: 'Your assistant for everything teaching',
-    aiDesc: 'Type a topic in one sentence and get back a full lesson or a ready exam with questions and answers — review and tweak it before publishing.',
+    liveCta: 'Explore live monitoring in detail',
+    aiTitle: 'Academic assistant for educational content preparation',
+    aiDesc: 'Accompanies instructors through every stage of content preparation — from lesson drafting to exam construction — with full review and editing capabilities before publishing.',
     aiPoints: [
-      'A full lesson or exam in seconds',
-      'Fully editable before publishing',
-      'Understands your topic in Arabic or English',
+      'Complete lesson or exam preparation in record time',
+      'Full review and editing of generated content before publishing',
+      'Comprehensive support for Arabic and English',
     ],
-    aiCta: 'See how the assistant works',
+    aiCta: 'Explore the academic assistant\'s capabilities',
     stepsTitle: 'Get started in 4 steps',
     steps: [
       { title: 'Request access', desc: 'Message us through the form and tell us about your university.' },
@@ -257,7 +265,42 @@ const dict = {
 const icons = {
   Zap, ShieldCheck, Building2, Users, BookOpen, ClipboardList, BarChart2,
   GraduationCap, Megaphone, CalendarClock, Sparkles, TrendingUp, Award,
+  Lock, Clock, Archive, Headphones,
 } as const
+
+function SectionBanner({ label, color, textColor }: { label: string; color: string; textColor?: string }) {
+  return (
+    <div className="w-full py-2.5 border-b" style={{ background: `${color}12`, borderColor: `${color}28` }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+        <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: textColor ?? color }}>{label}</span>
+      </div>
+    </div>
+  )
+}
+
+const SECTION_COLORS = {
+  transform:  { color: '#64748b', label: { ar: 'قبل وبعد', en: 'Before & After' } },
+  stats:      { color: '#4E9AD9', label: { ar: 'أرقام المنصة', en: 'Platform Numbers' } },
+  platform:   { color: '#0b3658', label: { ar: 'ما تقدمه المنصة', en: 'What the platform offers' } },
+  demo:       { color: '#0b3658', label: { ar: 'استعراض المنصة', en: 'Platform walkthrough' } },
+  admin:      { color: '#4E9AD9', label: { ar: 'مدير المؤسسة', en: 'Institution Admin' } },
+  teacher:    { color: '#2DD4BF', label: { ar: 'عضو هيئة التدريس', en: 'Instructor' } },
+  live:       { color: '#F43F5E', label: { ar: 'المراقبة الحية', en: 'Live Monitoring' } },
+  ai:         { color: '#7C3AED', label: { ar: 'المساعد الأكاديمي', en: 'Academic AI Assistant' } },
+  steps:      { color: '#0b3658', label: { ar: 'البدء بالمنصة', en: 'Getting started' } },
+  trust:      { color: '#059669', label: { ar: 'الأمان والموثوقية', en: 'Security & Trust' } },
+  faq:        { color: '#F2B84B', label: { ar: 'الأسئلة الشائعة', en: 'FAQ' } },
+} as const
+
+const TEASER_ACCENTS = [
+  { bg: '#e6f1fa', color: '#4e9ad9' },   // blue
+  { bg: '#ede9fe', color: '#7c3aed' },   // purple
+  { bg: '#d1fae5', color: '#059669' },   // green
+  { bg: '#d1fae5', color: '#0d9488' },   // teal
+  { bg: '#fee2e2', color: '#dc2626' },   // red
+  { bg: '#e0f2fe', color: '#0369a1' },   // deep blue
+]
 
 type Role = {
   key: string; icon: keyof typeof icons; label: string; title: string; accent: string
@@ -290,7 +333,6 @@ function RoleStage({ roles }: { roles: Role[] }) {
 
   return (
     <div>
-      {/* role tabs */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
         {roles.map((r, i) => {
           const Icon = icons[r.icon]
@@ -313,8 +355,6 @@ function RoleStage({ roles }: { roles: Role[] }) {
           )
         })}
       </div>
-
-      {/* 3D stage */}
       <div
         ref={stageRef}
         onMouseMove={onMove}
@@ -359,8 +399,6 @@ function RoleStage({ roles }: { roles: Role[] }) {
           </div>
         </div>
       </div>
-
-      {/* progress dots */}
       <div className="flex items-center justify-center gap-1.5 mt-6">
         {roles.map((r, i) => (
           <span
@@ -377,6 +415,65 @@ function RoleStage({ roles }: { roles: Role[] }) {
   )
 }
 
+// Seamless fade-in for elements entering the viewport
+function useFadeIn(deps: unknown[] = []) {
+  useEffect(() => {
+    const els = document.querySelectorAll<HTMLElement>('[data-fadein]')
+    if (!els.length) return
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const el = e.target as HTMLElement
+          const delay = Number(el.dataset.fadein ?? 0)
+          el.style.transitionDelay = `${delay}ms`
+          el.classList.add('fadein-visible')
+          obs.unobserve(el)
+        }
+      })
+    }, { threshold: 0.12 })
+    els.forEach(el => obs.observe(el))
+    return () => obs.disconnect()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
+}
+
+// Count-up for a single number stat
+function useCountUp(target: string, inView: boolean) {
+  const [display, setDisplay] = useState('0')
+  useEffect(() => {
+    if (!inView) return
+    const num = parseInt(target.replace(/\D/g, ''), 10)
+    if (isNaN(num)) { setDisplay(target); return }
+    let start = 0
+    const step = Math.ceil(num / 40)
+    const id = setInterval(() => {
+      start = Math.min(start + step, num)
+      setDisplay(target.replace(/\d+/, String(start)))
+      if (start >= num) clearInterval(id)
+    }, 30)
+    return () => clearInterval(id)
+  }, [inView, target])
+  return display
+}
+
+function StatCard({ value, label, sub }: { value: string; label: string; sub: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect() } }, { threshold: 0.5 })
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [])
+  const display = useCountUp(value, inView)
+  return (
+    <div ref={ref} className="rounded-[20px] p-6 sm:p-8 text-center" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
+      <p className="text-4xl sm:text-5xl font-black text-white" style={{letterSpacing: '-0.02em'}}>{display}</p>
+      <p className="text-[#7ec8f0] text-sm font-semibold mt-3">{label}</p>
+      <p className="text-[#5a9ec4] text-xs mt-1 leading-relaxed">{sub}</p>
+    </div>
+  )
+}
+
 export function Landing() {
   const [lang, setLang] = useLang()
   const t = dict[lang]
@@ -388,40 +485,33 @@ export function Landing() {
     return () => document.documentElement.removeAttribute('data-theme')
   }, [])
 
+  useFadeIn([lang])
+
   return (
     <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-canvas">
       <PublicNav lang={lang} setLang={setLang} />
-
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        {/* ambient gradient blobs */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div className="eq-blob-1 absolute -top-24 -start-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-40" style={{ background: 'radial-gradient(circle, #4E9AD9, transparent 70%)' }} />
           <div className="eq-blob-2 absolute top-32 -end-32 w-[380px] h-[380px] rounded-full blur-3xl opacity-30" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(78,154,217,0.10),transparent)]" />
         </div>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-6 text-center">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent-subtle border border-accent-border text-accent text-sm font-semibold mb-6">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-28 pb-6 text-center">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-accent-subtle border border-accent-border text-accent text-sm font-semibold mb-6 tracking-wide">
             {t.heroBadge}
           </span>
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black leading-tight tracking-tight max-w-3xl mx-auto text-fg" style={{letterSpacing: '-0.02em'}}>
-            {t.heroTitle}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black leading-tight max-w-2xl mx-auto text-fg" style={{letterSpacing: '-0.03em'}}>
+            EduQuest
           </h1>
-          <p className="text-fg-secondary text-base sm:text-lg mt-5 max-w-2xl mx-auto leading-relaxed">
-            {t.heroDesc}
+          <p className="text-fg-secondary text-lg sm:text-xl mt-4 max-w-xl mx-auto font-medium leading-snug">
+            {t.heroTitle}
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+          <div className="mt-8">
             <Link href="/contact"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-[24px] bg-accent hover:bg-accent-hover text-accent-fg font-semibold transition-colors flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(78,154,217,0.30)]">
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-[24px] bg-accent hover:bg-accent-hover text-accent-fg font-semibold text-base transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.30)]">
               {t.heroCta} <Arrow className="w-4 h-4" />
             </Link>
-            <Link href="/login"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-[24px] border border-border hover:border-accent-border text-fg font-semibold transition-colors text-center">
-              {t.heroLogin}
-            </Link>
           </div>
-
-          {/* 3D role stage — the platform seen from every seat */}
           <div className="mt-14 sm:mt-20" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
             <RoleStage roles={t.roles as Role[]} />
           </div>
@@ -431,9 +521,8 @@ export function Landing() {
           </div>
         </div>
       </section>
-
-      {/* ── Before / after transformation ───────────────────────────────────── */}
       <section className="bg-surface border-y border-border">
+        <SectionBanner label={SECTION_COLORS.transform.label[lang]} color={SECTION_COLORS.transform.color} />
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-2" style={{letterSpacing: '-0.01em'}}>{t.transformTitle}</h2>
           <p className="text-fg-secondary text-center max-w-xl mx-auto mb-10">{t.transformSub}</p>
@@ -462,34 +551,37 @@ export function Landing() {
           </div>
         </div>
       </section>
-
-      {/* ── Stats ────────────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-10" style={{letterSpacing: '-0.01em'}}>{t.statsTitle}</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-border rtl:divide-x-reverse border border-border rounded-[20px] overflow-hidden shadow-[0_12px_48px_rgba(11,54,88,0.08)]">
-          {t.stats.map((s, i) => (
-            <div key={i} className="p-6 sm:p-8 text-center bg-elevated">
-              <p className="text-3xl sm:text-4xl font-extrabold text-accent">{s.value}</p>
-              <p className="text-fg text-sm font-semibold mt-2">{s.label}</p>
-              <p className="text-fg-muted text-xs mt-1 leading-relaxed">{s.sub}</p>
-            </div>
-          ))}
+      <section style={{ background: 'linear-gradient(135deg, #0b3658 0%, #0e4a7a 100%)' }}>
+        <SectionBanner label={SECTION_COLORS.stats.label[lang]} color="#7ec8f0" textColor="#7ec8f0" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white text-center mb-12" style={{letterSpacing: '-0.01em'}}>{t.statsTitle}</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {t.stats.map((s, i) => (
+              <StatCard key={i} value={s.value} label={s.label} sub={s.sub} />
+            ))}
+          </div>
         </div>
       </section>
-
-      {/* ── Solution teaser ──────────────────────────────────────────────── */}
-      <section className="bg-surface border-y border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-10" style={{letterSpacing: '-0.01em'}}>{t.teaserTitle}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <section className="bg-canvas">
+        <SectionBanner label={SECTION_COLORS.platform.label[lang]} color={SECTION_COLORS.platform.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">المنصة</span>
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.teaserTitle}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {t.teaser.map((f, i) => {
               const Icon = icons[f.icon as keyof typeof icons]
+              const acc = TEASER_ACCENTS[i] ?? TEASER_ACCENTS[0]
               return (
-                <div key={i} className="bg-elevated border border-border rounded-[20px] p-6 hover:border-accent-border transition-colors shadow-[0_4px_16px_rgba(11,54,88,0.06)] hover:shadow-[0_8px_32px_rgba(11,54,88,0.10)]">
-                  <div className="w-11 h-11 rounded-xl bg-accent-subtle flex items-center justify-center mb-4">
-                    <Icon className="w-5 h-5 text-accent" />
+                <div key={i} data-fadein={i * 80} className="group bg-white border border-border rounded-[20px] p-6 hover:shadow-[0_12px_40px_rgba(11,54,88,0.12)] transition-all duration-300 hover:-translate-y-0.5 shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: acc.bg }}>
+                      <Icon className="w-5 h-5" style={{ color: acc.color }} />
+                    </div>
+                    <span className="text-xs font-black text-fg-muted tabular-nums">0{i + 1}</span>
                   </div>
-                  <h3 className="text-fg font-semibold mb-2">{f.title}</h3>
+                  <h3 className="text-fg font-bold mb-1.5">{f.title}</h3>
                   <p className="text-fg-secondary text-sm leading-relaxed">{f.desc}</p>
                 </div>
               )
@@ -504,84 +596,163 @@ export function Landing() {
         </div>
       </section>
 
-      {/* ── Live proctoring — full dedicated section ────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <div className="relative border border-border rounded-[24px] p-6 sm:p-10 bg-elevated shadow-[0_12px_48px_rgba(11,54,88,0.08)] overflow-hidden">
-          <div className="absolute -top-20 -end-20 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle, #F43F5E, transparent 70%)' }} />
-          <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-            <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error-subtle border border-error/20 text-error text-xs font-semibold mb-4">
-                <Radio className="w-3.5 h-3.5 animate-pulse" /> {lang === 'ar' ? 'مباشر' : 'LIVE'}
+      <section className="bg-canvas overflow-hidden">
+        <SectionBanner label={SECTION_COLORS.demo.label[lang]} color={SECTION_COLORS.demo.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-6">
+          <div className="text-center">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">
+              {lang === 'ar' ? 'استعراض المنصة' : 'Platform walkthrough'}
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.03em'}}>
+              {lang === 'ar' ? 'تجربة حية لما ستتعامل معه داخل المنصة' : 'A live experience of what you will work with inside the platform'}
+            </h2>
+            <p className="text-fg-secondary mt-4 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
+              {lang === 'ar'
+                ? 'لقطات توضيحية حقيقية من واجهات المنصة — دون تجميل أو حذف.'
+                : 'Genuine screen recordings from the platform interfaces — unfiltered and unscripted.'}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-canvas pb-0">
+        <SectionBanner label={SECTION_COLORS.admin.label[lang]} color={SECTION_COLORS.admin.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div data-fadein="0" className="rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#e6f1fa' }}>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+                <span className="text-xs font-medium ms-2" style={{ color: '#4e9ad9' }}>
+                  {lang === 'ar' ? 'لوحة إدارة المؤسسة التعليمية' : 'Institution Administration Dashboard'}
+                </span>
+              </div>
+              <video src="/demo-admin.mp4" autoPlay muted loop playsInline className="w-full block" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+            </div>
+            <div data-fadein="120">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5 border" style={{ background: '#e6f1fa', color: '#4e9ad9', borderColor: '#c3dff5' }}>
+                {lang === 'ar' ? 'مدير المؤسسة' : 'Institution Admin'}
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg mb-3" style={{letterSpacing: '-0.01em'}}>{t.liveTitle}</h2>
-              <p className="text-fg-secondary leading-relaxed mb-5">{t.liveDesc}</p>
-              <ul className="space-y-2.5 mb-6">
-                {t.livePoints.map((p, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-fg-secondary text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" /> {p}
+              <h3 className="text-2xl sm:text-3xl font-black text-fg mb-4" style={{letterSpacing: '-0.02em'}}>
+                {lang === 'ar' ? 'إدارة المؤسسة التعليمية بالكامل من مكان واحد' : 'Manage the entire institution from a single place'}
+              </h3>
+              <p className="text-fg-secondary leading-relaxed mb-6 text-base">
+                {lang === 'ar'
+                  ? 'لوحة إدارية شاملة تتيح للمسؤول متابعة أعضاء هيئة التدريس، إدارة صلاحياتهم، واستعراض المؤشرات الأكاديمية للمؤسسة بالكامل — دون الحاجة للتنقل بين أنظمة متعددة.'
+                  : 'A comprehensive administrative panel that allows the responsible party to track faculty members, manage their permissions, and review the institution\'s academic indicators in full — without switching between multiple systems.'}
+              </p>
+              <ul className="space-y-3">
+                {(lang === 'ar'
+                  ? ['إضافة أعضاء هيئة التدريس وتعيين صلاحياتهم بدقة', 'نظرة كاملة على الأنشطة الأكاديمية للمؤسسة', 'عزل تام لبيانات المؤسسة عن أي مؤسسة أخرى']
+                  : ['Add faculty members and assign their permissions precisely', 'Full view of the institution\'s academic activities', 'Complete data isolation from all other institutions']
+                ).map((p, i) => (
+                  <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-[#4e9ad9] shrink-0 mt-0.5" /> {p}
                   </li>
                 ))}
               </ul>
-              <Link href="/features/live-monitoring"
-                className="inline-flex items-center gap-2 text-error font-semibold text-sm hover:gap-3 transition-all">
-                {t.liveCta} <Arrow className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} className={`relative aspect-video rounded-lg bg-surface border-2 overflow-hidden ${i === 1 ? 'border-success' : 'border-border'}`}>
-                  <Users className="absolute inset-0 m-auto w-6 h-6 text-fg-muted" />
-                  {i === 1 && (
-                    <span className="absolute top-1.5 end-1.5 flex items-center gap-1 bg-success text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                      <Volume2 className="w-2.5 h-2.5" /> {lang === 'ar' ? 'يتكلم' : 'speaking'}
-                    </span>
-                  )}
-                  <span className="absolute bottom-1 start-1.5 text-fg-muted text-[10px]">{lang === 'ar' ? `طالب ${i + 1}` : `Student ${i + 1}`}</span>
-                </div>
-              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── AI assistant — full dedicated section ───────────────────────────── */}
-      <section className="bg-surface border-y border-border">
+      <section className="bg-surface">
+        <SectionBanner label={SECTION_COLORS.teacher.label[lang]} color={SECTION_COLORS.teacher.color} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <div className="relative border border-border rounded-[24px] p-6 sm:p-10 bg-elevated shadow-[0_12px_48px_rgba(11,54,88,0.08)] overflow-hidden">
-            <div className="absolute -bottom-20 -start-20 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
-            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div className="order-2 lg:order-1">
-                <div className="relative bg-canvas border border-border rounded-2xl p-4 sm:p-5 font-mono text-xs sm:text-sm">
-                  <p className="text-fg-muted mb-2">{lang === 'ar' ? '> اكتب موضوع الدرس' : '> type a lesson topic'}</p>
-                  <p className="text-fg font-semibold mb-3">
-                    {lang === 'ar' ? 'الدورة الدموية الصغرى والكبرى' : 'Pulmonary and systemic circulation'}
-                    <span className="inline-block w-1.5 h-4 bg-accent ms-1 align-middle animate-pulse" />
-                  </p>
-                  <div className="space-y-2">
-                    {[100, 85, 70].map((w, i) => (
-                      <div key={i} className="h-2.5 rounded-full bg-accent/15 eq-float" style={{ width: `${w}%`, animationDelay: `${i * 0.4}s` }} />
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-4 text-success text-[11px] font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> {lang === 'ar' ? 'جاهز للمراجعة' : 'Ready to review'}
-                  </div>
-                </div>
-              </div>
-              <div className="order-1 lg:order-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-subtle border border-accent-border text-accent text-xs font-semibold mb-4">
-                  <Sparkles className="w-3.5 h-3.5" /> AI
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div data-fadein="0" className="order-1 lg:order-2 rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#e6faf8' }}>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+                <span className="text-xs font-medium ms-2" style={{ color: '#0d9488' }}>
+                  {lang === 'ar' ? 'لوحة عضو هيئة التدريس' : 'Instructor Dashboard'}
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg mb-3" style={{letterSpacing: '-0.01em'}}>{t.aiTitle}</h2>
-                <p className="text-fg-secondary leading-relaxed mb-5">{t.aiDesc}</p>
-                <ul className="space-y-2.5 mb-6">
-                  {t.aiPoints.map((p, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-fg-secondary text-sm">
+              </div>
+              <video src="/demo-teacher.mp4" autoPlay muted loop playsInline className="w-full block" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+            </div>
+            <div data-fadein="120" className="order-2 lg:order-1">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5 border" style={{ background: '#d1fae5', color: '#059669', borderColor: '#a7f3d0' }}>
+                {lang === 'ar' ? 'عضو هيئة التدريس' : 'Instructor'}
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-fg mb-4" style={{letterSpacing: '-0.02em'}}>
+                {lang === 'ar' ? 'من إعداد المحتوى إلى نشر النتائج في مسار واحد' : 'From content preparation to results publishing in one workflow'}
+              </h3>
+              <p className="text-fg-secondary leading-relaxed mb-6 text-base">
+                {lang === 'ar'
+                  ? 'يتابع عضو هيئة التدريس مساره الأكاديمي بالكامل من لوحة واحدة: إعداد المحتوى وتصحيح الاختبارات ونشر النتائج — مع دعم الذكاء الاصطناعي في كل مرحلة.'
+                  : 'Instructors manage their entire academic workflow from a single panel: content preparation, exam grading, and results publishing — with AI support at every stage.'}
+              </p>
+              <ul className="space-y-3">
+                {(lang === 'ar'
+                  ? ['تصحيح تلقائي لإجابات الطلاب مع نشر فوري للنتائج', 'مساعد ذكاء اصطناعي لإعداد الدروس والاختبارات', 'متابعة تقدم الطلاب ومؤشرات الأداء الأكاديمي']
+                  : ['Automatic grading of student answers with instant results publishing', 'AI assistant for preparing lessons and exams', 'Student progress tracking and academic performance indicators']
+                ).map((p, i) => (
+                  <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0 mt-0.5" /> {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-canvas">
+        <SectionBanner label={SECTION_COLORS.live.label[lang]} color={SECTION_COLORS.live.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
+            <div className="absolute -top-24 -end-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #F43F5E, transparent 70%)' }} />
+            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div>
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-error-subtle border border-error/20 text-error text-xs font-bold uppercase tracking-widest mb-6">
+                  <Radio className="w-3.5 h-3.5 animate-pulse" /> {lang === 'ar' ? 'المراقبة الحية' : 'Live Monitoring'}
+                </span>
+                <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg mb-4" style={{letterSpacing: '-0.02em'}}>{t.liveTitle}</h2>
+                <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.liveDesc}</p>
+                <ul className="space-y-3 mb-8">
+                  {t.livePoints.map((p, i) => (
+                    <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
                       <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" /> {p}
                     </li>
                   ))}
                 </ul>
+                <Link href="/features/live-monitoring"
+                  className="inline-flex items-center gap-3 px-6 py-3 rounded-[16px] bg-error text-white font-semibold text-sm hover:bg-error/90 transition-colors shadow-[0_4px_16px_rgba(239,68,68,0.30)]">
+                  {t.liveCta} <Arrow className="w-4 h-4" />
+                </Link>
+              </div>
+              <LiveProctoringGrid lang={lang} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface">
+        <SectionBanner label={SECTION_COLORS.ai.label[lang]} color={SECTION_COLORS.ai.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
+            <div className="absolute -bottom-24 -start-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
+            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="order-2 lg:order-1">
+                <AiTypingMockup lang={lang} />
+              </div>
+              <div className="order-1 lg:order-2">
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent-subtle border border-accent-border text-accent text-xs font-bold uppercase tracking-widest mb-6">
+                  <Sparkles className="w-3.5 h-3.5" /> {lang === 'ar' ? 'ذكاء اصطناعي أكاديمي' : 'Academic AI'}
+                </span>
+                <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg mb-4" style={{letterSpacing: '-0.02em'}}>{t.aiTitle}</h2>
+                <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.aiDesc}</p>
+                <ul className="space-y-3 mb-8">
+                  {t.aiPoints.map((p, i) => (
+                    <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" /> {p}
+                    </li>
+                  ))}
+                </ul>
                 <Link href="/features/ai-assistant" target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-accent font-semibold text-sm hover:gap-3 transition-all">
+                  className="inline-flex items-center gap-3 px-6 py-3 rounded-[16px] bg-accent text-white font-semibold text-sm hover:bg-accent-hover transition-colors shadow-[0_4px_16px_rgba(78,154,217,0.30)]">
                   {t.aiCta} <Arrow className="w-4 h-4" />
                 </Link>
               </div>
@@ -589,60 +760,78 @@ export function Landing() {
           </div>
         </div>
       </section>
-
-      {/* ── Steps ────────────────────────────────────────────────────────── */}
       <section className="bg-surface border-y border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-10" style={{letterSpacing: '-0.01em'}}>{t.stepsTitle}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SectionBanner label={SECTION_COLORS.steps.label[lang]} color={SECTION_COLORS.steps.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">{lang === 'ar' ? 'البدء' : 'Getting started'}</span>
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.stepsTitle}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+            <div className="hidden lg:block absolute top-9 start-[12.5%] end-[12.5%] h-px bg-border z-0" />
             {t.steps.map((s, i) => (
-              <div key={i} className="relative bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
-                <span className="flex items-center justify-center w-9 h-9 rounded-full bg-accent text-accent-fg font-black mb-4">{i + 1}</span>
-                <h3 className="text-fg font-semibold mb-1.5">{s.title}</h3>
+              <div key={i} className="relative bg-white border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)] z-10">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#0b3658] text-white font-black text-sm mb-4 shadow-[0_4px_12px_rgba(11,54,88,0.25)]">{i + 1}</span>
+                <h3 className="text-fg font-bold mb-1.5">{s.title}</h3>
                 <p className="text-fg-secondary text-sm leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      {/* ── Trust / why us ───────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-10" style={{letterSpacing: '-0.01em'}}>{t.trustTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {t.trust.map((item, i) => (
-            <div key={i} className="flex items-start gap-4 bg-elevated border border-border rounded-[20px] p-6 hover:border-accent-border transition-colors shadow-[0_4px_16px_rgba(11,54,88,0.06)] hover:shadow-[0_8px_32px_rgba(11,54,88,0.10)]">
-              <div className="w-10 h-10 rounded-xl bg-accent-subtle flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-accent" />
-              </div>
-              <div>
-                <h3 className="text-fg font-semibold mb-1.5">{item.title}</h3>
-                <p className="text-fg-secondary text-sm leading-relaxed">{item.desc}</p>
-              </div>
-            </div>
-          ))}
+      <section className="bg-canvas">
+        <SectionBanner label={SECTION_COLORS.trust.label[lang]} color={SECTION_COLORS.trust.color} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">{lang === 'ar' ? 'الثقة' : 'Trust'}</span>
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.trustTitle}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {t.trust.map((item, i) => {
+              const TrustIcon = icons[item.icon as keyof typeof icons] ?? ShieldCheck
+              const trustAccents = [
+                { bg: '#fee2e2', color: '#dc2626' },
+                { bg: '#dbeafe', color: '#1d4ed8' },
+                { bg: '#d1fae5', color: '#059669' },
+                { bg: '#e0e7ff', color: '#4338ca' },
+              ]
+              const acc = trustAccents[i]
+              return (
+                <div key={i} className="flex items-start gap-4 bg-white border border-border rounded-[20px] p-6 hover:shadow-[0_12px_40px_rgba(11,54,88,0.10)] transition-all duration-300 shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: acc.bg }}>
+                    <TrustIcon className="w-5 h-5" style={{ color: acc.color }} />
+                  </div>
+                  <div>
+                    <h3 className="text-fg font-bold mb-1.5">{item.title}</h3>
+                    <p className="text-fg-secondary text-sm leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-      <section className="bg-surface border-y border-border">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-10" style={{letterSpacing: '-0.01em'}}>{t.faqTitle}</h2>
+      <section className="bg-canvas">
+        <SectionBanner label={SECTION_COLORS.faq.label[lang]} color={SECTION_COLORS.faq.color} />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">{lang === 'ar' ? 'الأسئلة الشائعة' : 'FAQ'}</span>
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.faqTitle}</h2>
+          </div>
           <div className="space-y-3">
             {t.faqs.map((f, i) => (
-              <details key={i} className="group bg-elevated border border-border rounded-[20px] overflow-hidden shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
-                <summary className="flex items-center justify-between gap-3 p-5 cursor-pointer list-none text-fg font-medium">
+              <details key={i} className="group bg-white border border-border rounded-[20px] overflow-hidden shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
+                <summary className="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer list-none text-fg font-semibold text-base">
                   {f.q}
-                  <Plus className="w-4 h-4 text-fg-muted shrink-0 transition-transform group-open:rotate-45" />
+                  <Plus className="w-5 h-5 text-fg-muted shrink-0 transition-transform group-open:rotate-45" />
                 </summary>
-                <p className="px-5 pb-5 -mt-1 text-fg-secondary text-sm leading-relaxed">{f.a}</p>
+                <p className="px-6 pb-6 -mt-1 text-fg-secondary text-base leading-relaxed">{f.a}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
-
-      {/* ── CTA — full-bleed Midnight Harbor dark navy banner (cord.com style) ── */}
       <section className="bg-[#0b3658] mt-4">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-3" style={{letterSpacing: '-0.02em'}}>{t.ctaTitle}</h2>

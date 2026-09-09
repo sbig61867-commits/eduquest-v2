@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
 import { CheckCircle2, Mail } from 'lucide-react'
+import { RevealOnScroll, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
 // ── Toggle: set to true when pricing is ready to show ──────────────────────
 export const PRICING_ENABLED = false
@@ -195,19 +196,19 @@ export function PricingPageContent() {
       <PublicNav lang={lang} setLang={setLang} />
 
       {/* Header */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-10 text-center">
+      <RevealOnScroll className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-10 text-center">
         <span className="inline-block px-4 py-1.5 rounded-full bg-accent-subtle border border-accent-border text-accent text-sm font-medium mb-5">
           {t.badge}
         </span>
         <h1 className="text-3xl sm:text-5xl font-extrabold text-fg mb-4">{t.title}</h1>
         <p className="text-fg-secondary text-lg max-w-xl mx-auto">{t.subtitle}</p>
-      </section>
+      </RevealOnScroll>
 
       {/* Plans */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {t.plans.map((plan, i) => (
-            <div key={i} className={`relative rounded-2xl p-8 flex flex-col gap-6 ${
+            <StaggerItem key={i} className={`eq-card-hover relative rounded-2xl p-8 flex flex-col gap-6 ${
               plan.highlighted
                 ? 'bg-accent text-accent-fg shadow-2xl shadow-accent/20 scale-[1.02]'
                 : 'bg-elevated border border-border'
@@ -244,9 +245,9 @@ export function PricingPageContent() {
                 }`}>
                 {plan.cta}
               </Link>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* FAQ */}

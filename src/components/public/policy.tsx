@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { RevealOnScroll, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
 type Section = { h: string; body: string[] }
 type PolicyDict = { title: string; updated: string; intro?: string; sections: Section[] }
@@ -265,16 +266,18 @@ export function PolicyPage({ kind }: { kind: 'privacy' | 'terms' | 'cookies' }) 
     <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-canvas">
       <PublicNav lang={lang} setLang={setLang} />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-14">
-        <h1 className="text-3xl sm:text-4xl font-bold text-fg">{t.title}</h1>
-        <p className="text-fg-muted text-sm mt-2">{t.updated}</p>
-        {t.intro && (
-          <p className="text-fg-secondary text-base leading-relaxed mt-4 mb-10 p-4 bg-accent-subtle border border-accent-border rounded-xl">
-            {t.intro}
-          </p>
-        )}
-        <div className="space-y-8 mt-8">
+        <RevealOnScroll>
+          <h1 className="text-3xl sm:text-4xl font-bold text-fg">{t.title}</h1>
+          <p className="text-fg-muted text-sm mt-2">{t.updated}</p>
+          {t.intro && (
+            <p className="text-fg-secondary text-base leading-relaxed mt-4 mb-10 p-4 bg-accent-subtle border border-accent-border rounded-xl">
+              {t.intro}
+            </p>
+          )}
+        </RevealOnScroll>
+        <StaggerGrid className="space-y-8 mt-8">
           {t.sections.map((s, i) => (
-            <section key={i} className="border-b border-border pb-8 last:border-0">
+            <StaggerItem key={i} className="border-b border-border pb-8 last:border-0">
               <h2 className="text-fg font-semibold text-lg mb-3">{s.h}</h2>
               <ul className="space-y-2">
                 {s.body.map((line, j) => (
@@ -284,9 +287,9 @@ export function PolicyPage({ kind }: { kind: 'privacy' | 'terms' | 'cookies' }) 
                   </li>
                 ))}
               </ul>
-            </section>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </main>
       <PublicFooter lang={lang} />
     </div>

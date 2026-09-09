@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { PageTitle } from '@/components/shared/page-title'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
+import { AnimatedStat, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
 interface RecentLesson { id: string; title: string; is_published: boolean; created_at: string; groups: { name: string } | null }
 interface UpcomingExam  { id: string; title: string; ends_at: string | null; groups: { name: string } | null }
@@ -65,23 +66,16 @@ export default async function TeacherDashboard() {
       <div className="max-w-5xl mx-auto">
         <AnnouncementsBanner announcements={announcements} />
 
-        {/* Stat strip — text-only, no decorative cards */}
-        <div className="flex items-center gap-6 mb-8 pb-7 border-b border-border flex-wrap">
-          {stats.map(({ label, value, href, icon: Icon }, i) => (
-            <>
-              {i > 0 && <div key={`div-${label}`} className="w-px h-8 bg-border hidden sm:block" aria-hidden="true" />}
-              <Link key={label} href={href} className="group">
-                <p className="text-2xl font-semibold text-fg group-hover:text-accent transition-colors leading-none">
-                  {value}
-                </p>
-                <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
-                  <Icon className="w-3.5 h-3.5" aria-hidden="true" />
-                  {label}
-                </p>
+        {/* Stat strip */}
+        <StaggerGrid className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+          {stats.map(({ label, value, href, icon: Icon }) => (
+            <StaggerItem key={label}>
+              <Link href={href} className="block">
+                <AnimatedStat icon={Icon} label={label} value={String(value)} />
               </Link>
-            </>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
 
         {/* Work queue + agenda — 8/4 split */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -104,9 +98,9 @@ export default async function TeacherDashboard() {
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-border">
+              <StaggerGrid className="divide-y divide-border">
                 {(recentLessons as unknown as RecentLesson[]).map(l => (
-                  <li key={l.id}>
+                  <StaggerItem key={l.id}>
                     <Link href={`/teacher/lessons/${l.id}`}
                       className="flex items-center gap-3 px-5 py-3.5 hover:bg-canvas transition-colors group">
                       {l.is_published
@@ -121,9 +115,9 @@ export default async function TeacherDashboard() {
                         </p>
                       </div>
                     </Link>
-                  </li>
+                  </StaggerItem>
                 ))}
-              </ul>
+              </StaggerGrid>
             )}
           </div>
 

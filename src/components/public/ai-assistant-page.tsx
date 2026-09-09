@@ -3,8 +3,10 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { AiTypingMockup } from './mockups'
+import { RevealOnScroll, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 import {
-  Sparkles, FileText, ClipboardList, Languages, PenLine, Mail, ArrowLeft, ArrowRight, CheckCircle2,
+  Sparkles, FileText, ClipboardList, Languages, PenLine, Mail, ArrowLeft, ArrowRight,
   Type, MessageSquare, Eye, Send, LineChart,
 } from 'lucide-react'
 
@@ -97,32 +99,18 @@ export function AiAssistantPage() {
       </section>
 
       {/* Generation demo */}
-      <section className="max-w-2xl mx-auto px-4 sm:px-6 pb-14">
-        <div className="relative bg-elevated border border-border rounded-[24px] overflow-hidden shadow-[0_24px_64px_rgba(11,54,88,0.14)] p-6 sm:p-8 font-mono text-sm">
-          <p className="text-fg-muted mb-2">{t.demoTopicLabel}</p>
-          <p className="text-fg font-semibold mb-5 text-base">
-            {t.demoTopic}
-            <span className="inline-block w-2 h-5 bg-accent ms-1 align-middle animate-pulse" />
-          </p>
-          <div className="space-y-2.5">
-            {[100, 92, 78, 60].map((w, i) => (
-              <div key={i} className="h-3 rounded-full bg-accent/15 eq-float" style={{ width: `${w}%`, animationDelay: `${i * 0.35}s` }} />
-            ))}
-          </div>
-          <div className="flex items-center gap-1.5 mt-6 text-success text-xs font-semibold">
-            <CheckCircle2 className="w-4 h-4" /> {t.demoReady}
-          </div>
-        </div>
-      </section>
+      <RevealOnScroll className="max-w-2xl mx-auto px-4 sm:px-6 pb-14">
+        <AiTypingMockup lang={lang} />
+      </RevealOnScroll>
 
       {/* Feature grid */}
       <section className="bg-surface border-y border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {t.features.map((f, i) => {
               const Icon = icons[f.icon as keyof typeof icons]
               return (
-                <div key={i} className="flex items-start gap-4 bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
+                <StaggerItem key={i} className="eq-card-hover flex items-start gap-4 bg-elevated border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)]">
                   <div className="w-10 h-10 rounded-xl bg-accent-subtle flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5 text-accent" />
                   </div>
@@ -130,10 +118,10 @@ export function AiAssistantPage() {
                     <h3 className="text-fg font-semibold mb-1.5">{f.title}</h3>
                     <p className="text-fg-secondary text-sm leading-relaxed">{f.desc}</p>
                   </div>
-                </div>
+                </StaggerItem>
               )
             })}
-          </div>
+          </StaggerGrid>
         </div>
       </section>
 

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280, height=720" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1280px; height: 720px; overflow: hidden; background: #f0f5fa; font-family: 'Segoe UI', Arial, sans-serif; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      position: absolute; right: 0; top: 0; width: 220px; height: 720px;
+      background: #0b3658; display: flex; flex-direction: column;
+    }
+    .sb-logo { padding: 24px 20px 20px; color: #fff; font-size: 20px; font-weight: 800; letter-spacing: -.5px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .sb-logo span { color: #4e9ad9; }
+    .sb-nav { flex: 1; padding: 16px 0; }
+    .sb-item {
+      display: flex; align-items: center; gap: 10px; padding: 11px 20px;
+      color: rgba(255,255,255,.65); font-size: 14px; cursor: pointer;
+      border-right: 3px solid transparent; transition: background .2s;
+    }
+    .sb-item.active { background: rgba(255,255,255,.1); color: #fff; border-right-color: #4e9ad9; }
+    .sb-item:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
+    .sb-icon { width: 18px; height: 18px; opacity: .8; }
+
+    /* ── Main area ── */
+    #main { position: absolute; right: 220px; top: 0; width: 1060px; height: 720px; }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: absolute; top: 0; right: 0; left: 0; height: 60px;
+      background: #fff; border-bottom: 1px solid #dde7ee;
+      display: flex; align-items: center; padding: 0 28px; gap: 12px;
+    }
+    .topbar-title { font-size: 18px; font-weight: 700; color: #0b3658; flex: 1; }
+    .btn-primary {
+      padding: 8px 18px; background: #4e9ad9; color: #fff; border: none;
+      border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-outline {
+      padding: 8px 18px; background: #fff; color: #486984; border: 1px solid #dde7ee;
+      border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+
+    /* ── Pages ── */
+    .page { position: absolute; top: 60px; right: 0; left: 0; bottom: 0; padding: 24px 28px; opacity: 0; }
+
+    /* ── Dashboard page ── */
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .metric-card {
+      background: #fff; border: 1px solid #dde7ee; border-radius: 12px;
+      padding: 20px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .metric-label { font-size: 12px; color: #688dac; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .metric-value { font-size: 28px; font-weight: 800; color: #0b3658; }
+    .metric-sub { font-size: 12px; color: #4e9ad9; }
+
+    .section-title { font-size: 15px; font-weight: 700; color: #0b3658; margin-bottom: 12px; }
+    .table-card { background: #fff; border: 1px solid #dde7ee; border-radius: 12px; overflow: hidden; }
+    .table-header {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 100px;
+      padding: 12px 20px; background: #f5f9fd; border-bottom: 1px solid #dde7ee;
+      font-size: 12px; font-weight: 700; color: #688dac; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .table-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 100px;
+      padding: 14px 20px; border-bottom: 1px solid #f0f4f8;
+      font-size: 14px; color: #0b3658; align-items: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; padding: 3px 10px;
+      border-radius: 999px; font-size: 11px; font-weight: 600;
+    }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-blue { background: #e0f2fe; color: #0369a1; }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: #0b3658;
+      color: #fff; font-size: 12px; font-weight: 700; display: inline-flex;
+      align-items: center; justify-content: center; margin-left: 10px;
+    }
+
+    /* ── Teachers page ── */
+    .search-bar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    }
+    .search-input {
+      flex: 1; padding: 10px 16px; border: 1px solid #dde7ee; border-radius: 8px;
+      font-size: 14px; color: #0b3658; background: #fff;
+    }
+
+    /* ── Modal ── */
+    #modal-overlay {
+      position: absolute; inset: 0; background: rgba(11,54,88,.35);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; z-index: 50;
+    }
+    .modal {
+      background: #fff; border-radius: 16px; width: 440px; padding: 28px;
+      box-shadow: 0 20px 60px rgba(11,54,88,.25);
+    }
+    .modal-title { font-size: 18px; font-weight: 800; color: #0b3658; margin-bottom: 20px; }
+    .field-label { font-size: 12px; font-weight: 700; color: #486984; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+    .field-input {
+      width: 100%; padding: 10px 14px; border: 1px solid #dde7ee; border-radius: 8px;
+      font-size: 14px; color: #0b3658; margin-bottom: 14px; background: #f5f9fd;
+    }
+    .field-input.typing { background: #fff; border-color: #4e9ad9; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 8px; justify-content: flex-end; }
+
+    /* Typing cursor */
+    .typing-cursor { display: inline-block; width: 2px; height: 14px; background: #0b3658; margin-right: 1px; vertical-align: middle; }
+
+    /* ── Toast ── */
+    #toast {
+      position: absolute; bottom: 28px; left: 28px; right: auto;
+      background: #0b3658; color: #fff; padding: 14px 20px;
+      border-radius: 12px; font-size: 14px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(11,54,88,.3);
+      display: flex; align-items: center; gap: 10px; opacity: 0;
+    }
+    .toast-icon { width: 20px; height: 20px; background: #4e9ad9; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* ── Permissions page ── */
+    .perm-section { background: #fff; border: 1px solid #dde7ee; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+    .perm-header { padding: 14px 20px; background: #f5f9fd; border-bottom: 1px solid #dde7ee; font-size: 13px; font-weight: 700; color: #486984; }
+    .perm-row { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid #f5f9fd; gap: 14px; }
+    .perm-row:last-child { border-bottom: none; }
+    .perm-name { flex: 1; font-size: 14px; color: #0b3658; font-weight: 600; }
+    .perm-desc { font-size: 12px; color: #688dac; }
+    .toggle {
+      width: 40px; height: 22px; border-radius: 11px; background: #dde7ee;
+      position: relative; cursor: pointer; transition: background .3s; flex-shrink: 0;
+    }
+    .toggle.on { background: #4e9ad9; }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; right: 2px;
+      width: 18px; height: 18px; border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .3s;
+    }
+    .toggle.on::after { transform: translateX(-18px); }
+
+    /* ── Cursor ── */
+    #cursor {
+      position: absolute; width: 22px; height: 22px;
+      border-radius: 50%; background: rgba(11,54,88,.75);
+      border: 2px solid rgba(255,255,255,.9);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      z-index: 999; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      top: 0; left: 0; will-change: transform;
+    }
+    #cursor-click {
+      position: absolute; inset: -4px; border-radius: 50%;
+      background: rgba(78,154,217,.4); opacity: 0;
+    }
+
+    /* Highlight row */
+    .row-highlight { background: #e6f1fa; }
+  </style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="24" data-width="1280" data-height="720">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-logo">Edu<span>Quest</span></div>
+    <nav class="sb-nav">
+      <div class="sb-item active" id="nav-dash">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        لوحة التحكم
+      </div>
+      <div class="sb-item" id="nav-teachers">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        المعلمون
+      </div>
+      <div class="sb-item" id="nav-students">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        الطلاب
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        الاختبارات
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        الطلبات
+      </div>
+      <div class="sb-item">
+        <svg class="sb-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        الإعدادات
+      </div>
+    </nav>
+    <div style="padding:16px 20px; border-top:1px solid rgba(255,255,255,.1); display:flex; align-items:center; gap:10px;">
+      <div style="width:34px;height:34px;border-radius:50%;background:#4e9ad9;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;">م</div>
+      <div>
+        <div style="color:#fff;font-size:13px;font-weight:700;">مدير الجامعة</div>
+        <div style="color:rgba(255,255,255,.5);font-size:11px;">admin@eduquest.com</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">لوحة التحكم</div>
+      <button class="btn-outline">تصدير</button>
+      <button class="btn-primary" id="btn-invite">+ دعوة معلم</button>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div class="page" id="p-dash">
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">إجمالي المعلمين</div>
+          <div class="metric-value">48</div>
+          <div class="metric-sub">↑ 3 هذا الشهر</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">الطلاب النشطون</div>
+          <div class="metric-value">1,240</div>
+          <div class="metric-sub">↑ 12% عن الفصل السابق</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">المقررات النشطة</div>
+          <div class="metric-value">86</div>
+          <div class="metric-sub">في 9 أقسام</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">معدل الإنجاز</div>
+          <div class="metric-value">78%</div>
+          <div class="metric-sub">↑ 5% عن الفصل السابق</div>
+        </div>
+      </div>
+      <div class="section-title">آخر النشاطات</div>
+      <div class="table-card">
+        <div class="table-header"><span>المستخدم</span><span>الإجراء</span><span>التاريخ</span><span>الحالة</span></div>
+        <div class="table-row"><span style="display:flex;align-items:center"><div class="avatar">س</div> د. سامي الحارثي</span><span>أنشأ اختباراً</span><span>منذ 10 دقائق</span><span><div class="badge badge-green">مكتمل</div></span></div>
+        <div class="table-row"><span style="display:flex;align-items:center"><div class="avatar">ن</div> أ. نور الزهراني</span><span>رفع درساً</span><span>منذ 32 دقيقة</span><span><div class="badge badge-blue">مراجعة</div></span></div>
+        <div class="table-row"><span style="display:flex;align-items:center"><div class="avatar">أ</div> أ. أحمد البكري</span><span>نشر إعلاناً</span><span>منذ ساعة</span><span><div class="badge badge-green">مكتمل</div></span></div>
+      </div>
+    </div>
+
+    <!-- Teachers Page -->
+    <div class="page" id="p-teachers">
+      <div class="search-bar">
+        <input class="search-input" placeholder="ابحث عن معلم..." value="" readonly />
+        <button class="btn-outline">تصفية</button>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><span>الاسم</span><span>التخصص</span><span>المجموعات</span><span>الحالة</span></div>
+        <div class="table-row" id="tr1"><span style="display:flex;align-items:center"><div class="avatar">س</div> د. سامي الحارثي</span><span>الرياضيات</span><span>6 مجموعات</span><span><div class="badge badge-green">نشط</div></span></div>
+        <div class="table-row" id="tr2"><span style="display:flex;align-items:center"><div class="avatar">ن</div> أ. نور الزهراني</span><span>اللغة العربية</span><span>4 مجموعات</span><span><div class="badge badge-green">نشط</div></span></div>
+        <div class="table-row" id="tr3"><span style="display:flex;align-items:center"><div class="avatar">أ</div> أ. أحمد البكري</span><span>الفيزياء</span><span>5 مجموعات</span><span><div class="badge badge-blue">معلّق</div></span></div>
+        <div class="table-row" id="tr4"><span style="display:flex;align-items:center"><div class="avatar">ر</div> أ. ريم السيد</span><span>الكيمياء</span><span>3 مجموعات</span><span><div class="badge badge-green">نشط</div></span></div>
+      </div>
+    </div>
+
+    <!-- Modal overlay -->
+    <div id="modal-overlay">
+      <div class="modal">
+        <div class="modal-title">دعوة معلم جديد</div>
+        <div class="field-label">الاسم الكامل</div>
+        <div class="field-input typing" id="field-name">د. سارة العمري<span class="typing-cursor" id="cur1"></span></div>
+        <div class="field-label">البريد الإلكتروني</div>
+        <div class="field-input typing" id="field-email">sara.omari@uni.edu<span class="typing-cursor" id="cur2"></span></div>
+        <div class="field-label">التخصص</div>
+        <div class="field-input" id="field-spec">علوم الحاسب</div>
+        <div class="modal-actions">
+          <button class="btn-outline">إلغاء</button>
+          <button class="btn-primary" id="btn-send">إرسال الدعوة</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast">
+      <div class="toast-icon">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      تم إرسال دعوة إلى د. سارة العمري بنجاح
+    </div>
+
+    <!-- Permissions Page -->
+    <div class="page" id="p-perms">
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+          <div class="avatar" style="width:44px;height:44px;font-size:16px;">س</div>
+          <div>
+            <div style="font-size:16px;font-weight:800;color:#0b3658;">د. سارة العمري</div>
+            <div style="font-size:13px;color:#688dac;">sara.omari@uni.edu · علوم الحاسب</div>
+          </div>
+          <div class="badge badge-blue" style="margin-right:auto;">معلمة جديدة</div>
+        </div>
+      </div>
+      <div class="perm-section">
+        <div class="perm-header">صلاحيات المحتوى</div>
+        <div class="perm-row">
+          <div><div class="perm-name">إنشاء المقررات</div><div class="perm-desc">إضافة مقررات ووحدات جديدة</div></div>
+          <div class="toggle" id="tog1"></div>
+        </div>
+        <div class="perm-row">
+          <div><div class="perm-name">رفع الدروس</div><div class="perm-desc">رفع ملفات الفيديو والمواد الدراسية</div></div>
+          <div class="toggle" id="tog2"></div>
+        </div>
+        <div class="perm-row">
+          <div><div class="perm-name">إنشاء الاختبارات</div><div class="perm-desc">بناء بنوك الأسئلة والاختبارات</div></div>
+          <div class="toggle" id="tog3"></div>
+        </div>
+      </div>
+      <div class="perm-section">
+        <div class="perm-header">صلاحيات الطلاب</div>
+        <div class="perm-row">
+          <div><div class="perm-name">عرض درجات الطلاب</div><div class="perm-desc">الاطلاع على نتائج مجموعاته فقط</div></div>
+          <div class="toggle on" id="tog4"></div>
+        </div>
+        <div class="perm-row">
+          <div><div class="perm-name">إرسال الإعلانات</div><div class="perm-desc">إشعارات للطلاب المسجلين</div></div>
+          <div class="toggle" id="tog5"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- Cursor -->
+  <div id="cursor">
+    <div id="cursor-click"></div>
+  </div>
+
+</div><!-- /root -->
+
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // ── helpers ──
+  function click(el, t) {
+    tl.to('#cursor-click', { opacity: 1, scale: 1.5, duration: 0.15 }, t)
+      .to('#cursor-click', { opacity: 0, scale: 1, duration: 0.15 }, t + 0.15);
+  }
+
+  // ─── Scene 1: Dashboard (0-5s) ───
+  tl.to('#p-dash', { opacity: 1, duration: 0.6 }, 0.3);
+  // cursor idle drift
+  tl.set('#cursor', { x: 800, y: 300 }, 0);
+  tl.to('#cursor', { x: 820, y: 320, duration: 2, ease: 'power1.inOut' }, 0.5);
+
+  // ─── Scene 2: Navigate to Teachers (5-10s) ───
+  // cursor moves to sidebar Teachers item
+  tl.to('#cursor', { x: 1160, y: 140, duration: 0.9, ease: 'power2.inOut' }, 4.5);
+  click('#nav-teachers', 5.3);
+  tl.to('#nav-dash',      { color: 'rgba(255,255,255,.65)', borderRightColor: 'transparent', background: 'transparent', duration: 0.3 }, 5.3);
+  tl.to('#nav-teachers',  { color: '#fff', borderRightColor: '#4e9ad9', background: 'rgba(255,255,255,.1)', duration: 0.3 }, 5.3);
+  tl.to('#p-dash',        { opacity: 0, duration: 0.4 }, 5.5);
+  tl.set('#page-title',   { innerText: 'المعلمون' }, 5.7);
+  tl.to('#p-teachers',   { opacity: 1, duration: 0.5 }, 5.8);
+  // cursor moves into main area
+  tl.to('#cursor', { x: 700, y: 200, duration: 0.8, ease: 'power2.inOut' }, 6.5);
+  // hover row highlight
+  tl.to('#tr1', { backgroundColor: '#e6f1fa', duration: 0.3 }, 7.2);
+  tl.to('#tr1', { backgroundColor: '#fff', duration: 0.3 }, 7.8);
+  tl.to('#tr2', { backgroundColor: '#e6f1fa', duration: 0.3 }, 8.1);
+  tl.to('#tr2', { backgroundColor: '#fff', duration: 0.3 }, 8.7);
+
+  // ─── Scene 3: Invite modal (9-15s) ───
+  tl.to('#cursor', { x: 900, y: 30, duration: 0.7, ease: 'power2.inOut' }, 8.8);
+  click('#btn-invite', 9.4);
+  tl.set('#field-name',  { innerText: '' }, 9.3);
+  tl.set('#field-email', { innerText: '' }, 9.3);
+  tl.to('#modal-overlay', { opacity: 1, duration: 0.4 }, 9.5);
+  // type name
+  tl.to('#cursor', { x: 820, y: 310, duration: 0.5, ease: 'power2.inOut' }, 10.0);
+  click('#field-name', 10.4);
+  const name = 'د. سارة العمري';
+  name.split('').forEach((ch, i) => {
+    tl.call(() => {
+      const el = document.getElementById('field-name');
+      if (el) el.textContent = name.slice(0, i + 1);
+    }, [], 10.7 + i * 0.09);
+  });
+  // type email
+  tl.to('#cursor', { x: 820, y: 380, duration: 0.4, ease: 'power2.inOut' }, 12.2);
+  click('#field-email', 12.5);
+  const email = 'sara.omari@uni.edu';
+  email.split('').forEach((ch, i) => {
+    tl.call(() => {
+      const el = document.getElementById('field-email');
+      if (el) el.textContent = email.slice(0, i + 1);
+    }, [], 12.8 + i * 0.07);
+  });
+  // click send
+  tl.to('#cursor', { x: 930, y: 480, duration: 0.5, ease: 'power2.inOut' }, 14.2);
+  click('#btn-send', 14.7);
+  tl.to('#modal-overlay', { opacity: 0, duration: 0.4 }, 14.9);
+  tl.to('#toast', { opacity: 1, y: 0, duration: 0.4 }, 15.1);
+  tl.to('#toast', { opacity: 0, duration: 0.4 }, 16.5);
+
+  // ─── Scene 4: Permissions (17-24s) ───
+  // New row appears in teachers list
+  tl.call(() => {
+    const table = document.querySelector('#p-teachers .table-card');
+    if (table && !document.getElementById('tr-new')) {
+      const row = document.createElement('div');
+      row.className = 'table-row row-highlight';
+      row.id = 'tr-new';
+      row.innerHTML = '<span style="display:flex;align-items:center"><div class="avatar" style="background:#059669">س</div> د. سارة العمري</span><span>علوم الحاسب</span><span>—</span><span><div class="badge" style="background:#fef3c7;color:#92400e">دعوة مرسلة</div></span>';
+      table.appendChild(row);
+    }
+  }, [], 16.8);
+  // click on new teacher row → permissions
+  tl.to('#cursor', { x: 700, y: 420, duration: 0.6, ease: 'power2.inOut' }, 17.0);
+  click('#tr-new', 17.5);
+  tl.to('#p-teachers', { opacity: 0, duration: 0.4 }, 17.7);
+  tl.set('#page-title', { innerText: 'صلاحيات المعلم' }, 17.8);
+  tl.to('#p-perms', { opacity: 1, duration: 0.5 }, 17.9);
+
+  // Toggle ON one by one
+  tl.to('#cursor', { x: 840, y: 310, duration: 0.6, ease: 'power2.inOut' }, 18.5);
+  click('#tog1', 19.0);
+  tl.call(() => { document.getElementById('tog1').classList.add('on'); }, [], 19.1);
+
+  tl.to('#cursor', { x: 840, y: 370, duration: 0.5, ease: 'power2.inOut' }, 19.6);
+  click('#tog2', 20.0);
+  tl.call(() => { document.getElementById('tog2').classList.add('on'); }, [], 20.1);
+
+  tl.to('#cursor', { x: 840, y: 430, duration: 0.5, ease: 'power2.inOut' }, 20.6);
+  click('#tog3', 21.0);
+  tl.call(() => { document.getElementById('tog3').classList.add('on'); }, [], 21.1);
+
+  tl.to('#cursor', { x: 840, y: 530, duration: 0.5, ease: 'power2.inOut' }, 21.6);
+  click('#tog5', 22.1);
+  tl.call(() => { document.getElementById('tog5').classList.add('on'); }, [], 22.2);
+
+  // Save button glow
+  tl.to('#cursor', { x: 920, y: 660, duration: 0.6, ease: 'power2.inOut' }, 22.8);
+
+  window.__timelines['main'] = tl;
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Bell, BookOpen, ClipboardList, BarChart2, Send, UserPlus, Mail, Building2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
@@ -74,11 +75,20 @@ export function NotificationBell() {
       <button onClick={toggle} aria-label="Notifications"
         className="relative p-2 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors">
         <Bell className="w-5 h-5" />
-        {unread > 0 && (
-          <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-fg text-[10px] font-bold flex items-center justify-center">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
+        <AnimatePresence>
+          {unread > 0 && (
+            <motion.span
+              key={unread}
+              initial={{ scale: 0.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.4, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-fg text-[10px] font-bold flex items-center justify-center"
+            >
+              {unread > 9 ? '9+' : unread}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </button>
 
       {open && (

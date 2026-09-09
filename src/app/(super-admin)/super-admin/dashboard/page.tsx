@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Building2, Users } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { PageTitle } from '@/components/shared/page-title'
+import { AnimatedStat, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
 interface TenantRow { id: string; name: string; created_at: string }
 
@@ -28,24 +29,15 @@ export default async function SuperAdminDashboard() {
         <h1 className="text-xl font-semibold text-fg">Platform Overview</h1>
       </div>
 
-      {/* Slim aggregate strip — text-only */}
-      <div className="flex items-center gap-6 pb-7 border-b border-border">
-        <div>
-          <p className="text-2xl font-semibold text-fg leading-none">{stats.tenants}</p>
-          <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
-            <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
-            Tenants
-          </p>
-        </div>
-        <div className="w-px h-8 bg-border" aria-hidden="true" />
-        <div>
-          <p className="text-2xl font-semibold text-fg leading-none">{stats.users}</p>
-          <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
-            <Users className="w-3.5 h-3.5" aria-hidden="true" />
-            Users
-          </p>
-        </div>
-      </div>
+      {/* Aggregate strip */}
+      <StaggerGrid className="grid grid-cols-2 gap-3 max-w-sm">
+        <StaggerItem>
+          <AnimatedStat icon={Building2} label="Tenants" value={String(stats.tenants)} />
+        </StaggerItem>
+        <StaggerItem>
+          <AnimatedStat icon={Users} label="Users" value={String(stats.users)} />
+        </StaggerItem>
+      </StaggerGrid>
 
       {/* Tenant fleet table */}
       <div className="bg-surface border border-border rounded-lg overflow-hidden">

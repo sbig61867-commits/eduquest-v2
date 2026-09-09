@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>EduQuest – Teacher Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1280px;height:720px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:#f5f9fd;position:relative}
+.layout{display:flex;height:100%}
+
+/* Sidebar */
+.sidebar{width:220px;background:#0b3658;display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.1)}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:#4e9ad9;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px}
+.logo-name{color:#fff;font-weight:900;font-size:15px;letter-spacing:-.5px}
+.teacher-badge{margin:0 12px 10px;margin-top:14px;background:rgba(78,154,217,.15);border:1px solid rgba(78,154,217,.3);border-radius:10px;padding:8px 12px}
+.teacher-name{color:#7ec8f0;font-size:12px;font-weight:700}
+.teacher-role{color:rgba(255,255,255,.5);font-size:11px;margin-top:2px}
+.nav{padding:6px 10px;display:flex;flex-direction:column;gap:3px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,.55);font-size:13.5px;font-weight:500}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Main */
+.main{flex:1;padding:26px 30px;overflow:hidden;position:relative}
+.page{position:absolute;inset:26px 30px;opacity:0;pointer-events:none;transition:opacity .4s}
+.page.show{opacity:1}
+.ph{margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between}
+.ph-left h1{font-size:21px;font-weight:800;color:#0b3658;letter-spacing:-.4px}
+.ph-left p{color:#486984;font-size:13px;margin-top:3px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:none}
+.btn-primary{background:#4e9ad9;color:#fff}
+.btn-green{background:#059669;color:#fff}
+.btn-ghost{background:#e6f1fa;color:#0b3658}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* Cards grid */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.card{background:#fff;border:1px solid #dde7ee;border-radius:18px;overflow:hidden}
+.card-p{padding:18px 20px}
+.card-title{font-size:13px;font-weight:700;color:#0b3658;margin-bottom:12px}
+.mini-stat{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f5f9}
+.mini-stat:last-child{border-bottom:none}
+.mini-stat-lbl{font-size:12px;color:#486984}
+.mini-stat-val{font-size:13px;font-weight:700;color:#0b3658}
+
+/* Table */
+table{width:100%;border-collapse:collapse}
+th{text-align:right;font-size:11px;font-weight:600;color:#486984;text-transform:uppercase;letter-spacing:.05em;padding:9px 14px;background:#f5f9fd}
+td{padding:11px 14px;border-top:1px solid #dde7ee;font-size:13px;color:#0b3658}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:#d1fae5;color:#059669}
+.badge-blue{background:#e6f1fa;color:#4e9ad9}
+.badge-amber{background:#fef3c7;color:#d97706}
+.badge-red{background:#fee2e2;color:#dc2626}
+
+/* Score input */
+.score-input{width:64px;text-align:center;padding:6px 8px;border:2px solid #4e9ad9;border-radius:10px;font-size:15px;font-weight:800;color:#0b3658;background:#f0f7ff}
+
+/* Submission detail panel */
+.detail-panel{position:absolute;inset:0;background:#fff;border-radius:18px;border:1px solid #dde7ee;padding:22px;overflow:hidden}
+.detail-header{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #dde7ee}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:#4e9ad9;font-weight:600;cursor:pointer}
+.student-avatar{width:40px;height:40px;border-radius:50%;background:#e6f1fa;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4e9ad9;font-size:16px}
+.q-block{background:#f5f9fd;border-radius:12px;padding:14px;margin-bottom:10px}
+.q-text{font-size:13px;color:#0b3658;font-weight:600;margin-bottom:10px}
+.answer-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;font-size:12.5px;margin-bottom:4px}
+.answer-row.correct{background:#d1fae5;color:#059669}
+.answer-row.wrong{background:#fee2e2;color:#dc2626;text-decoration:line-through}
+.answer-row.student{background:#e6f1fa;color:#0b3658;font-weight:600}
+
+/* Grade bar animation */
+.grade-bar{height:8px;border-radius:4px;background:#e6f1fa;overflow:hidden;margin-top:4px}
+.grade-fill{height:100%;background:#4e9ad9;border-radius:4px;width:0;transition:width 1s ease}
+
+/* Publish overlay */
+.pub-overlay{position:absolute;inset:0;background:rgba(11,54,88,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s;z-index:10;border-radius:18px}
+.pub-modal{background:#fff;border-radius:20px;padding:28px 32px;text-align:center;width:340px}
+.pub-icon{width:56px;height:56px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.pub-icon svg{width:28px;height:28px;stroke:#059669;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.pub-title{font-size:17px;font-weight:800;color:#0b3658;margin-bottom:6px}
+.pub-sub{font-size:13px;color:#486984}
+.confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.dot{position:absolute;width:8px;height:8px;border-radius:50%}
+
+/* Cursor */
+#cursor{position:fixed;width:22px;height:22px;pointer-events:none;z-index:100;animation:cursorPath 26s infinite}
+
+/* ─── SCENE ANIMATIONS (26s loop) ─────────────────────────── */
+
+/* Pages */
+#p-dash{animation:pDash 26s infinite}
+@keyframes pDash{0%,38%{opacity:1}40%,100%{opacity:0}}
+
+#p-exams{animation:pExams 26s infinite}
+@keyframes pExams{0%,37%{opacity:0}39%,62%{opacity:1}64%,100%{opacity:0}}
+
+#p-detail{animation:pDetail 26s infinite}
+@keyframes pDetail{0%,61%{opacity:0}63%,90%{opacity:1}92%,100%{opacity:0}}
+
+/* Sidebar active */
+#nav-home{animation:navHome 26s infinite}
+@keyframes navHome{0%,36%{background:rgba(78,154,217,.22);color:#7ec8f0}37%,100%{background:transparent;color:rgba(255,255,255,.55)}}
+#nav-exams{animation:navExams 26s infinite}
+@keyframes navExams{0%,37%{background:transparent;color:rgba(255,255,255,.55)}38%,91%{background:rgba(78,154,217,.22);color:#7ec8f0}92%,100%{background:transparent;color:rgba(255,255,255,.55)}}
+
+/* Cursor path */
+@keyframes cursorPath{
+  0%    {left:720px;top:320px}
+  /* → Exams nav */
+  12%   {left:110px;top:248px}
+  15%   {left:110px;top:248px}
+  /* → click exam row */
+  22%   {left:800px;top:340px}
+  25%   {left:800px;top:340px}
+  /* → submission row 1 */
+  30%   {left:800px;top:320px}
+  34%   {left:800px;top:320px}
+  /* → score input */
+  42%   {left:980px;top:390px}
+  46%   {left:980px;top:390px}
+  /* → score input row 2 */
+  52%   {left:980px;top:440px}
+  56%   {left:980px;top:440px}
+  /* → Publish button */
+  64%   {left:760px;top:160px}
+  67%   {left:760px;top:160px}
+  /* → idle on success */
+  78%   {left:640px;top:360px}
+  88%   {left:640px;top:360px}
+  /* → return */
+  95%   {left:720px;top:320px}
+  100%  {left:720px;top:320px}
+}
+
+/* Score typing animation */
+#score1{animation:score1anim 26s infinite}
+@keyframes score1anim{0%,43%{width:0}47%,100%{width:32px}}
+#score2{animation:score2anim 26s infinite}
+@keyframes score2anim{0%,53%{width:0}57%,100%{width:32px}}
+#score3{animation:score3anim 26s infinite}
+@keyframes score3anim{0%,58%{width:0}62%,100%{width:32px}}
+
+/* Grade bars fill */
+#bar1{animation:bar1a 26s infinite}
+@keyframes bar1a{0%,43%{width:0}50%,100%{width:88%}}
+#bar2{animation:bar2a 26s infinite}
+@keyframes bar2a{0%,54%{width:0}60%,100%{width:72%}}
+#bar3{animation:bar3a 26s infinite}
+@keyframes bar3a{0%,59%{width:0}65%,100%{width:65%}}
+
+/* Publish overlay */
+#pub-overlay{animation:pubOverlay 26s infinite}
+@keyframes pubOverlay{0%,65%{opacity:0;pointer-events:none}67%{opacity:1;pointer-events:auto}87%{opacity:1;pointer-events:auto}89%{opacity:0;pointer-events:none}100%{opacity:0;pointer-events:none}}
+
+/* Row highlights */
+#exam-row1{animation:examRow1 26s infinite}
+@keyframes examRow1{0%,20%,28%,100%{background:transparent}21%,27%{background:#f0f7ff}}
+#sub-row1{animation:subRow1 26s infinite}
+@keyframes subRow1{0%,29%,36%,100%{background:transparent}30%,35%{background:#f0f7ff}}
+
+body{animation:bodyLoop 26s infinite}
+@keyframes bodyLoop{0%,96%{opacity:1}98%{opacity:0}100%{opacity:0}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">E</div>
+      <span class="logo-name">EduQuest</span>
+    </div>
+    <div class="teacher-badge">
+      <div class="teacher-name">أ. سارة العمري</div>
+      <div class="teacher-role">معلمة — قسم علوم الحياة</div>
+    </div>
+    <div class="nav">
+      <div class="nav-item" id="nav-home">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        لوحتي
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        الدروس
+      </div>
+      <div class="nav-item" id="nav-exams">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>
+        الاختبارات
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        مجموعاتي
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        الدرجات
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Page: Dashboard -->
+    <div class="page show" id="p-dash">
+      <div class="ph">
+        <div class="ph-left">
+          <h1>لوحتي — هذا الأسبوع</h1>
+          <p>الأحد 8 سبتمبر 2026</p>
+        </div>
+        <button class="btn btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+          إنشاء درس بالذكاء الاصطناعي
+        </button>
+      </div>
+      <div class="grid2">
+        <div class="card card-p">
+          <div class="card-title">نشاط الأسبوع</div>
+          <div class="mini-stat"><span class="mini-stat-lbl">دروس منشورة</span><span class="mini-stat-val">6</span></div>
+          <div class="mini-stat"><span class="mini-stat-lbl">اختبارات نشطة</span><span class="mini-stat-val">2</span></div>
+          <div class="mini-stat"><span class="mini-stat-lbl">تسليمات انتظار التصحيح</span><span class="mini-stat-val" style="color:#d97706">38</span></div>
+          <div class="mini-stat"><span class="mini-stat-lbl">متوسط درجات المجموعة أ</span><span class="mini-stat-val" style="color:#059669">82%</span></div>
+        </div>
+        <div class="card card-p">
+          <div class="card-title">اختبارات قادمة</div>
+          <div class="mini-stat"><span class="mini-stat-lbl">الجهاز الهضمي — مج.أ</span><span class="badge badge-amber">غداً 10ص</span></div>
+          <div class="mini-stat"><span class="mini-stat-lbl">الكيمياء العضوية — مج.ب</span><span class="badge badge-blue">الأربعاء</span></div>
+          <div class="mini-stat"><span class="mini-stat-lbl">الفيزياء الكمية — مج.ج</span><span class="badge badge-blue">الخميس</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="padding:14px 18px;border-bottom:1px solid #dde7ee;font-size:13px;font-weight:700;color:#0b3658">تسليمات تنتظر التصحيح</div>
+        <table>
+          <tr><td>الدورة الدموية — اختبار الفصل</td><td><span class="badge badge-amber">38 تسليم</span></td><td style="color:#486984;font-size:12px">أُغلق منذ 3 ساعات</td></tr>
+          <tr><td>الجهاز العصبي — واجب 4</td><td><span class="badge badge-amber">24 تسليم</span></td><td style="color:#486984;font-size:12px">أُغلق أمس</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Page: Exams -->
+    <div class="page" id="p-exams">
+      <div class="ph">
+        <div class="ph-left">
+          <h1>الاختبارات</h1>
+          <p>3 اختبارات نشطة — 2 بانتظار التصحيح</p>
+        </div>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>الاختبار</th><th>المجموعة</th><th>التسليمات</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>
+            <tr id="exam-row1">
+              <td style="font-weight:600">الدورة الدموية — اختبار الفصل</td>
+              <td>مجموعة أ</td>
+              <td>38 / 40</td>
+              <td><span class="badge badge-amber">تنتظر التصحيح</span></td>
+              <td><button class="btn btn-ghost btn-sm">افتح</button></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">الجهاز العصبي — واجب 4</td>
+              <td>مجموعة ب</td>
+              <td>24 / 25</td>
+              <td><span class="badge badge-amber">تنتظر التصحيح</span></td>
+              <td><button class="btn btn-ghost btn-sm">افتح</button></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">الكيمياء العضوية — اختبار 3</td>
+              <td>مجموعة ج</td>
+              <td>30 / 30</td>
+              <td><span class="badge badge-green">مكتمل</span></td>
+              <td><button class="btn btn-ghost btn-sm">عرض</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Page: Submission Detail -->
+    <div class="page" id="p-detail">
+      <div class="ph">
+        <div class="ph-left">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:13px;color:#4e9ad9;font-weight:600;cursor:pointer">← الاختبارات</span>
+            <span style="color:#dde7ee">/</span>
+            <span style="font-size:13px;color:#486984">الدورة الدموية — تصحيح</span>
+          </div>
+          <h1>تصحيح الاختبارات</h1>
+          <p>38 تسليم — 2 مصحَّح — 36 منتظر</p>
+        </div>
+        <button class="btn btn-green" id="publish-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          نشر الدرجات
+        </button>
+      </div>
+      <div class="card" style="position:relative">
+        <table>
+          <thead><tr><th>الطالب</th><th>التسليم</th><th>الدرجة / 100</th><th>الحالة</th></tr></thead>
+          <tbody>
+            <tr id="sub-row1">
+              <td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:50%;background:#e6f1fa;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4e9ad9;font-size:13px">ن</div>نورة سليمان</div></td>
+              <td style="color:#486984;font-size:12px">منذ 4 ساعات</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="score-input" style="overflow:hidden;width:48px;display:flex;align-items:center;justify-content:center">
+                    <span id="score1" style="overflow:hidden;display:inline-block;white-space:nowrap">88</span>
+                  </div>
+                  <div style="flex:1"><div class="grade-bar"><div class="grade-fill" id="bar1"></div></div></div>
+                </div>
+              </td>
+              <td><span class="badge badge-green">مصحَّح</span></td>
+            </tr>
+            <tr>
+              <td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:50%;background:#e6f1fa;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4e9ad9;font-size:13px">م</div>محمد الرشيد</div></td>
+              <td style="color:#486984;font-size:12px">منذ 5 ساعات</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="score-input" style="overflow:hidden;width:48px;display:flex;align-items:center;justify-content:center">
+                    <span id="score2" style="overflow:hidden;display:inline-block;white-space:nowrap">72</span>
+                  </div>
+                  <div style="flex:1"><div class="grade-bar"><div class="grade-fill" id="bar2"></div></div></div>
+                </div>
+              </td>
+              <td><span class="badge badge-green">مصحَّح</span></td>
+            </tr>
+            <tr>
+              <td><div style="display:flex;align-items:center;gap:8px"><div style="width:30px;height:30px;border-radius:50%;background:#e6f1fa;display:flex;align-items:center;justify-content:center;font-weight:800;color:#4e9ad9;font-size:13px">ف</div>فاطمة الزهراني</div></td>
+              <td style="color:#486984;font-size:12px">منذ 6 ساعات</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="score-input" style="overflow:hidden;width:48px;display:flex;align-items:center;justify-content:center">
+                    <span id="score3" style="overflow:hidden;display:inline-block;white-space:nowrap">65</span>
+                  </div>
+                  <div style="flex:1"><div class="grade-bar"><div class="grade-fill" id="bar3"></div></div></div>
+                </div>
+              </td>
+              <td><span class="badge badge-green">مصحَّح</span></td>
+            </tr>
+            <tr><td colspan="4" style="text-align:center;padding:14px;color:#486984;font-size:12px">35 تسليم إضافي — مصحَّح تلقائياً بالذكاء الاصطناعي</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Publish Success -->
+        <div class="pub-overlay" id="pub-overlay">
+          <div class="pub-modal">
+            <div class="pub-icon">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="pub-title">تم نشر الدرجات!</div>
+            <div class="pub-sub" style="margin-top:6px">38 طالباً تلقّوا درجاتهم على الفور</div>
+            <div style="margin-top:18px;padding:12px;background:#f0fdf4;border-radius:12px;font-size:12px;color:#059669;font-weight:600">
+              ✓ أُشعر الطلاب تلقائياً • الدرجات في سجل المجموعة
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Cursor -->
+<svg id="cursor" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:fixed;width:22px;height:22px;pointer-events:none;z-index:100">
+  <filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0b3658" flood-opacity=".3"/></filter>
+  <path d="M4 2L18 11L11 12.5L8.5 19L4 2Z" fill="white" stroke="#0b3658" stroke-width="1.5" filter="url(#s)"/>
+</svg>
+
+</body>
+</html>

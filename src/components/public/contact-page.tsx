@@ -2,6 +2,7 @@
 
 import { useLang, PublicNav, PublicFooter } from './shell'
 import { ContactForm } from './contact-form'
+import { RevealOnScroll } from '@/components/shared/motion'
 
 const dict = {
   ar: {
@@ -24,7 +25,9 @@ export function ContactPage() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-14">
         <h1 className="text-3xl sm:text-4xl font-bold text-white text-center">{t.title}</h1>
         <p className="text-slate-400 text-center max-w-xl mx-auto mt-3 mb-10">{t.desc}</p>
-        <ContactForm lang={lang} />
+        <RevealOnScroll>
+          <ContactForm lang={lang} />
+        </RevealOnScroll>
       </main>
       <PublicFooter lang={lang} />
     </div>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { RevealOnScroll, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 import {
   Sparkles, ShieldCheck, BookOpen, BarChart2, Building2, GraduationCap,
   UserRound, Mail, CheckCircle2, ArrowLeft, ArrowRight,
@@ -108,29 +109,31 @@ export function FeaturesPage() {
         <p className="text-slate-400 text-center max-w-2xl mx-auto mt-3 mb-12">{t.desc}</p>
 
         {/* Features */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {t.features.map((f, i) => {
             const Icon = icons[f.icon as keyof typeof icons]
             return (
-              <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors">
+              <StaggerItem key={i} className="eq-card-hover bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-slate-700">
                 <div className="w-11 h-11 rounded-xl bg-blue-600/15 flex items-center justify-center mb-4">
                   <Icon className="w-5 h-5 text-blue-400" />
                 </div>
                 <h3 className="text-white font-semibold mb-2">{f.title}</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
-              </div>
+              </StaggerItem>
             )
           })}
-        </div>
+        </StaggerGrid>
 
         {/* Roles */}
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mt-20 mb-3">{t.rolesTitle}</h2>
-        <p className="text-slate-400 text-center max-w-2xl mx-auto mb-10">{t.rolesDesc}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <RevealOnScroll>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mt-20 mb-3">{t.rolesTitle}</h2>
+          <p className="text-slate-400 text-center max-w-2xl mx-auto mb-10">{t.rolesDesc}</p>
+        </RevealOnScroll>
+        <StaggerGrid className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {t.roles.map((r, i) => {
             const Icon = icons[r.icon as keyof typeof icons]
             return (
-              <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-7">
+              <StaggerItem key={i} className="eq-card-hover bg-slate-900 border border-slate-800 rounded-xl p-7">
                 <div className="w-14 h-14 rounded-2xl bg-blue-600/15 flex items-center justify-center mb-4">
                   <Icon className="w-7 h-7 text-blue-400" />
                 </div>
@@ -143,22 +146,22 @@ export function FeaturesPage() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </StaggerItem>
             )
           })}
-        </div>
+        </StaggerGrid>
 
         {/* How it works */}
         <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mt-20 mb-10">{t.howTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
+        <StaggerGrid className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
           {t.steps.map((s) => (
-            <div key={s.n} className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <StaggerItem key={s.n} className="eq-card-hover bg-slate-900 border border-slate-800 rounded-xl p-6">
               <span className="inline-flex w-9 h-9 rounded-full bg-blue-600 text-white font-bold items-center justify-center mb-4">{s.n}</span>
               <h3 className="text-white font-semibold mb-2">{s.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
 
         <div className="text-center mt-14">
           <Link href="/contact"
