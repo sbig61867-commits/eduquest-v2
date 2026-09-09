@@ -334,12 +334,12 @@ export function HelperMascot({ lang = 'ar' as 'ar' | 'en' }: { lang?: 'ar' | 'en
       >
         <span className="absolute inset-0 rounded-full bg-accent/25 blur-lg" />
         <svg viewBox="0 0 64 64" className="relative w-full h-full drop-shadow-[0_6px_16px_rgba(78,154,217,0.45)]">
-          <circle cx="32" cy="32" r="28" fill="#4E9AD9" />
+          <circle cx="32" cy="32" r="28" fill="#062045" />
           <circle cx="32" cy="32" r="28" fill="url(#eq-mascot-grad)" opacity="0.5" />
           <defs>
             <linearGradient id="eq-mascot-grad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#7FD4C1" />
-              <stop offset="100%" stopColor="#4E9AD9" />
+              <stop offset="0%" stopColor="#f2c4ce" />
+              <stop offset="100%" stopColor="#062045" />
             </linearGradient>
           </defs>
 
@@ -347,22 +347,22 @@ export function HelperMascot({ lang = 'ar' as 'ar' | 'en' }: { lang?: 'ar' | 'en
             <g>
               <path d="M18 28 Q23 32 28 28" stroke="white" strokeWidth="3" fill="none" strokeLinecap="round" />
               <path d="M36 28 Q41 32 46 28" stroke="white" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <path d="M24 44 Q32 40 40 44" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <path d="M24 44 Q32 40 40 44" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
               <path d="M46 12 q4 4 0 9" stroke="#8FD3EE" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.9" />
             </g>
           ) : peek === 'closed' ? (
             <g>
               {/* politely shuts its eyes while the user is typing their password */}
-              <path d="M17 30 q6 5 12 0" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-              <path d="M35 30 q6 5 12 0" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-              <path d="M24 42 Q32 47 40 42" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <path d="M17 30 q6 5 12 0" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <path d="M35 30 q6 5 12 0" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <path d="M24 42 Q32 47 40 42" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
             </g>
           ) : peek === 'cover' ? (
             <g>
               {/* bashfully covering its own eyes */}
-              <ellipse cx="32" cy="30" rx="13" ry="7" fill="#e6f1fa" />
-              <path d="M20 30 h24" stroke="#0b3658" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.4" />
-              <path d="M26 43 Q32 46 38 43" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <ellipse cx="32" cy="30" rx="13" ry="7" fill="#f9e9ed" />
+              <path d="M20 30 h24" stroke="#062045" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.4" />
+              <path d="M26 43 Q32 46 38 43" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
             </g>
           ) : peek === 'peek' ? (
             <g>
@@ -370,23 +370,23 @@ export function HelperMascot({ lang = 'ar' as 'ar' | 'en' }: { lang?: 'ar' | 'en
               <g transform={`translate(${peekEye.x}, ${peekEye.y})`}>
                 <circle cx="23" cy="30" r="6" fill="white" />
                 <circle cx="41" cy="30" r="6" fill="white" />
-                <circle cx="24" cy="31" r="2.6" fill="#0b3658" />
-                <circle cx="42" cy="31" r="2.6" fill="#0b3658" />
+                <circle cx="24" cy="31" r="2.6" fill="#062045" />
+                <circle cx="42" cy="31" r="2.6" fill="#062045" />
               </g>
-              <path d="M27 42 Q33 46 40 41" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <path d="M27 42 Q33 46 40 41" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
             </g>
           ) : (
             <>
               <g transform={`translate(${eye.x}, ${eye.y})`}>
                 <circle cx="23" cy="30" r="6" fill="white" />
                 <circle cx="41" cy="30" r="6" fill="white" />
-                <circle cx="24" cy="31" r="2.6" fill="#0b3658" />
-                <circle cx="42" cy="31" r="2.6" fill="#0b3658" />
+                <circle cx="24" cy="31" r="2.6" fill="#062045" />
+                <circle cx="42" cy="31" r="2.6" fill="#062045" />
               </g>
-              <path d="M24 42 Q32 48 40 42" stroke="#0b3658" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+              <path d="M24 42 Q32 48 40 42" stroke="#062045" strokeWidth="2.5" fill="none" strokeLinecap="round" />
             </>
           )}
-          <circle cx="50" cy="14" r="3" fill="#F2B84B" className="eq-float" />
+          <circle cx="50" cy="14" r="3" fill="#8a5a06" className="eq-float" />
         </svg>
         {!open && (
           <span className="absolute -top-1 -end-1 w-3.5 h-3.5 rounded-full bg-error border-2 border-canvas" />

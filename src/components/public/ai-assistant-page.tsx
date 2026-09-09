@@ -87,7 +87,7 @@ export function AiAssistantPage() {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="eq-blob-2 absolute -top-24 -start-24 w-[380px] h-[380px] rounded-full blur-3xl opacity-25" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
+          <div className="eq-blob-2 absolute -top-24 -start-24 w-[380px] h-[380px] rounded-full blur-3xl opacity-25" style={{ background: 'radial-gradient(circle, #0f8a7a, transparent 70%)' }} />
         </div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-8 text-center">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-subtle border border-accent-border text-accent text-xs font-semibold mb-5">
@@ -147,11 +147,11 @@ export function AiAssistantPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-[#0b3658] mt-4">
+      <section className="bg-[#062045] mt-4">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 text-center">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-6" style={{ letterSpacing: '-0.02em' }}>{t.ctaTitle}</h2>
           <Link href="/contact"
-            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[24px] bg-[#4e9ad9] hover:bg-[#3a85c4] text-white font-semibold transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.35)]">
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[24px] bg-[#062045] hover:bg-[#0c3468] text-white font-semibold transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.35)]">
             <Mail className="w-4 h-4" /> {t.ctaButton} <Arrow className="w-4 h-4" />
           </Link>
         </div>

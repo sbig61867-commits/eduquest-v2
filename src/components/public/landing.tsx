@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { gsap, ScrollTrigger, prefersMotion } from '@/lib/gsap'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
 import { AiTypingMockup, LiveProctoringGrid } from './mockups'
@@ -23,7 +24,7 @@ const dict = {
     roles: [
       {
         key: 'admin', icon: 'Building2', label: 'مدير الجامعة',
-        title: 'نظرة كاملة على الجامعة', accent: '#4E9AD9',
+        title: 'نظرة كاملة على الجامعة', accent: '#062045',
         stats: [
           { icon: 'Users', label: 'معلم نشط', value: '128' },
           { icon: 'GraduationCap', label: 'طالب مسجّل', value: '3,410' },
@@ -32,7 +33,7 @@ const dict = {
       },
       {
         key: 'teacher', icon: 'BookOpen', label: 'المعلم',
-        title: 'من فكرة إلى اختبار جاهز خلال ثوانٍ', accent: '#2DD4BF',
+        title: 'من فكرة إلى اختبار جاهز خلال ثوانٍ', accent: '#0f8a7a',
         stats: [
           { icon: 'Sparkles', label: 'درس مولَّد بالذكاء الاصطناعي', value: 'الآن' },
           { icon: 'ClipboardList', label: 'اختبار قيد المراقبة', value: 'مباشر' },
@@ -41,7 +42,7 @@ const dict = {
       },
       {
         key: 'student', icon: 'GraduationCap', label: 'الطالب',
-        title: 'كل مادته، في مكان واحد بسيط', accent: '#F2B84B',
+        title: 'كل مادته، في مكان واحد بسيط', accent: '#8a5a06',
         stats: [
           { icon: 'BookOpen', label: 'دروس هذا الأسبوع', value: '6' },
           { icon: 'ClipboardList', label: 'اختبار قادم', value: 'غداً 10ص' },
@@ -50,7 +51,7 @@ const dict = {
       },
       {
         key: 'center', icon: 'CalendarClock', label: 'مركز التعليم المستمر',
-        title: 'جداول وإعلانات بلا فوضى واتساب', accent: '#9F7AEA',
+        title: 'جداول وإعلانات بلا فوضى واتساب', accent: '#5b3a9e',
         stats: [
           { icon: 'CalendarClock', label: 'جدول أسبوعي منشور', value: '14' },
           { icon: 'Megaphone', label: 'إعلان جديد', value: '2 اليوم' },
@@ -147,7 +148,7 @@ const dict = {
     roles: [
       {
         key: 'admin', icon: 'Building2', label: 'University Admin',
-        title: 'A complete view of the university', accent: '#4E9AD9',
+        title: 'A complete view of the university', accent: '#062045',
         stats: [
           { icon: 'Users', label: 'Active teachers', value: '128' },
           { icon: 'GraduationCap', label: 'Enrolled students', value: '3,410' },
@@ -156,7 +157,7 @@ const dict = {
       },
       {
         key: 'teacher', icon: 'BookOpen', label: 'Teacher',
-        title: 'From idea to ready exam in seconds', accent: '#2DD4BF',
+        title: 'From idea to ready exam in seconds', accent: '#0f8a7a',
         stats: [
           { icon: 'Sparkles', label: 'AI-generated lesson', value: 'Now' },
           { icon: 'ClipboardList', label: 'Exam being proctored', value: 'Live' },
@@ -165,7 +166,7 @@ const dict = {
       },
       {
         key: 'student', icon: 'GraduationCap', label: 'Student',
-        title: 'Every subject, in one simple place', accent: '#F2B84B',
+        title: 'Every subject, in one simple place', accent: '#8a5a06',
         stats: [
           { icon: 'BookOpen', label: "This week's lessons", value: '6' },
           { icon: 'ClipboardList', label: 'Upcoming exam', value: 'Tomorrow 10am' },
@@ -174,7 +175,7 @@ const dict = {
       },
       {
         key: 'center', icon: 'CalendarClock', label: 'Continuing-Ed Center',
-        title: 'Schedules and announcements, no WhatsApp chaos', accent: '#9F7AEA',
+        title: 'Schedules and announcements, no WhatsApp chaos', accent: '#5b3a9e',
         stats: [
           { icon: 'CalendarClock', label: 'Published weekly schedules', value: '14' },
           { icon: 'Megaphone', label: 'New announcement', value: '2 today' },
@@ -270,7 +271,7 @@ const icons = {
 
 // Ground colours the landing page actually runs on: white, the pale blue
 // surface, and the navy used by the two dark sections.
-const INK_ON_LIGHT = '#0b3658'
+const INK_ON_LIGHT = '#062045'
 const INK_ON_DARK  = '#ffffff'
 
 // The banner that opens every section. Two drifting radial washes and a slow
@@ -330,27 +331,32 @@ function SectionBanner({
 // Each section's identity hue. It tints its banner's ground and the drifting
 // washes behind the headline, so a section still reads as "the rose one" or
 // "the teal one" without needing a word to say so.
+// Each section's identity hue. It tints its banner's ground and the drifting
+// washes behind the headline, so a section still reads as "the rose one" or
+// "the green one" without needing a word to say so. All of them are tuned to
+// sit beside the blush ground rather than fight it; the headline on top is
+// always navy, or white on the one navy section.
 const SECTION_COLORS = {
-  transform:  { color: '#64748b' },
-  stats:      { color: '#4E9AD9' },
-  platform:   { color: '#0b3658' },
-  demo:       { color: '#0b3658' },
-  admin:      { color: '#4E9AD9' },
-  teacher:    { color: '#2DD4BF' },
-  live:       { color: '#F43F5E' },
-  ai:         { color: '#7C3AED' },
-  steps:      { color: '#0b3658' },
-  trust:      { color: '#059669' },
-  faq:        { color: '#F2B84B' },
+  transform:  { color: '#5F6E85' },
+  stats:      { color: '#F2C4CE' },
+  platform:   { color: '#062045' },
+  demo:       { color: '#062045' },
+  admin:      { color: '#0C3468' },
+  teacher:    { color: '#0F8A7A' },
+  live:       { color: '#C2325A' },
+  ai:         { color: '#5B3A9E' },
+  steps:      { color: '#062045' },
+  trust:      { color: '#0F6B45' },
+  faq:        { color: '#8A5A06' },
 } as const
 
 const TEASER_ACCENTS = [
-  { bg: '#e6f1fa', color: '#4e9ad9' },   // blue
-  { bg: '#ede9fe', color: '#7c3aed' },   // purple
-  { bg: '#d1fae5', color: '#059669' },   // green
-  { bg: '#d1fae5', color: '#0d9488' },   // teal
-  { bg: '#fee2e2', color: '#dc2626' },   // red
-  { bg: '#e0f2fe', color: '#0369a1' },   // deep blue
+  { bg: '#f9e9ed', color: '#062045' },   // blue
+  { bg: '#efeafb', color: '#5b3a9e' },   // purple
+  { bg: '#eef8f2', color: '#0f6b45' },   // green
+  { bg: '#eef8f2', color: '#0f6b45' },   // teal
+  { bg: '#fdf0f3', color: '#a3123c' },   // red
+  { bg: '#edf4fa', color: '#0369a1' },   // deep blue
 ]
 
 type Role = {
@@ -466,62 +472,85 @@ function RoleStage({ roles }: { roles: Role[] }) {
   )
 }
 
-// Seamless fade-in for elements entering the viewport
+// Reveal on scroll, driven by GSAP ScrollTrigger.
+//
+// The rule this follows: never hide content up front. The hand-rolled observer
+// this replaced set every element to opacity 0 and cleared it in a callback, so
+// any element the callback missed stayed invisible permanently. A first pass
+// with GSAP repeated the mistake with gsap.set(), and four sections stayed dark
+// on a full scroll through the page.
+//
+// gsap.from() inverts that. The start state is applied at the moment the tween
+// is built, which ScrollTrigger only does when the element actually enters. An
+// element whose trigger never fires is simply never touched, so the worst case
+// is content that appears without animating rather than content that never
+// appears at all.
 function useFadeIn(deps: unknown[] = []) {
   useEffect(() => {
-    const els = document.querySelectorAll<HTMLElement>('[data-fadein]')
-    if (!els.length) return
-    const obs = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          const el = e.target as HTMLElement
-          const delay = Number(el.dataset.fadein ?? 0)
-          el.style.transitionDelay = `${delay}ms`
-          el.classList.add('fadein-visible')
-          obs.unobserve(el)
-        }
+    return prefersMotion(() => {
+      const els = gsap.utils.toArray<HTMLElement>('[data-fadein]')
+      if (!els.length) return
+
+      // batch groups everything crossing the line together into one stagger,
+      // instead of each element running its own timer.
+      ScrollTrigger.batch(els, {
+        start: 'top 90%',
+        once: true,
+        onEnter: batch =>
+          gsap.from(batch, {
+            opacity: 0,
+            y: 18,
+            duration: 0.55,
+            ease: 'power2.out',
+            stagger: 0.07,
+            overwrite: 'auto',
+          }),
       })
-    }, { threshold: 0.12 })
-    els.forEach(el => obs.observe(el))
-    return () => obs.disconnect()
+
+      // Fonts and lazy images settle after first paint and shift everything
+      // below them, so the trigger points have to be measured again.
+      ScrollTrigger.refresh()
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
 }
 
-// Count-up for a single number stat
-function useCountUp(target: string, inView: boolean) {
-  const numeric = parseInt(target.replace(/\D/g, ''), 10)
-  const isNumeric = !isNaN(numeric)
-  const [display, setDisplay] = useState('0')
-  useEffect(() => {
-    if (!inView || !isNumeric) return
-    const num = numeric
-    let start = 0
-    const step = Math.ceil(num / 40)
-    const id = setInterval(() => {
-      start = Math.min(start + step, num)
-      setDisplay(target.replace(/\d+/, String(start)))
-      if (start >= num) clearInterval(id)
-    }, 30)
-    return () => clearInterval(id)
-  }, [inView, target, numeric, isNumeric])
-  return isNumeric ? display : target
-}
-
+// One stat tile. GSAP tweens a plain number and writes each frame into state,
+// so the count is tied to the same timeline as the reveal rather than running
+// on its own interval. Non-numeric values ("Live", "seconds") skip the count
+// and just fade in.
 function StatCard({ value, label, sub }: { value: string; label: string; sub: string }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [inView, setInView] = useState(false)
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect() } }, { threshold: 0.5 })
-    if (ref.current) obs.observe(ref.current)
-    return () => obs.disconnect()
-  }, [])
-  const display = useCountUp(value, inView)
+  const numeric = parseInt(value.replace(/\D/g, ''), 10)
+  const isNumeric = !isNaN(numeric)
+  const [display, setDisplay] = useState(isNumeric ? value.replace(/\d+/, '0') : value)
+
+  useEffect(() => prefersMotion(() => {
+    const el = ref.current
+    if (!el) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+    })
+
+    tl.from(el, { opacity: 0, y: 20, duration: 0.5, ease: 'power2.out' })
+
+    if (isNumeric) {
+      const counter = { n: 0 }
+      tl.to(counter, {
+        n: numeric,
+        duration: 1.1,
+        ease: 'power1.out',
+        onUpdate: () => setDisplay(value.replace(/\d+/, String(Math.round(counter.n)))),
+      }, '<0.15')
+    }
+  }, ref), [value, numeric, isNumeric])
+
   return (
     <div ref={ref} className="rounded-[20px] p-6 sm:p-8 text-center" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
       <p className="text-4xl sm:text-5xl font-black text-white" style={{letterSpacing: '-0.02em'}}>{display}</p>
-      <p className="text-[#7ec8f0] text-sm font-semibold mt-3">{label}</p>
-      <p className="text-[#5a9ec4] text-xs mt-1 leading-relaxed">{sub}</p>
+      <p className="text-[#f2c4ce] text-sm font-semibold mt-3">{label}</p>
+      <p className="text-[#aebacc] text-xs mt-1 leading-relaxed">{sub}</p>
     </div>
   )
 }
@@ -544,8 +573,8 @@ export function Landing() {
       <PublicNav lang={lang} setLang={setLang} />
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="eq-blob-1 absolute -top-24 -start-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-40" style={{ background: 'radial-gradient(circle, #4E9AD9, transparent 70%)' }} />
-          <div className="eq-blob-2 absolute top-32 -end-32 w-[380px] h-[380px] rounded-full blur-3xl opacity-30" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
+          <div className="eq-blob-1 absolute -top-24 -start-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-40" style={{ background: 'radial-gradient(circle, #062045, transparent 70%)' }} />
+          <div className="eq-blob-2 absolute top-32 -end-32 w-[380px] h-[380px] rounded-full blur-3xl opacity-30" style={{ background: 'radial-gradient(circle, #0f8a7a, transparent 70%)' }} />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(78,154,217,0.10),transparent)]" />
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-28 pb-6 text-center">
@@ -592,8 +621,8 @@ export function Landing() {
                 ))}
               </div>
             </div>
-            <div className="bg-[#0b3658] p-6 sm:p-8">
-              <span className="inline-flex items-center gap-1.5 text-[#7fd4c1] text-xs font-bold uppercase tracking-wide mb-5">
+            <div className="bg-[#062045] p-6 sm:p-8">
+              <span className="inline-flex items-center gap-1.5 text-[#f2c4ce] text-xs font-bold uppercase tracking-wide mb-5">
                 <CheckCircle2 className="w-4 h-4" /> {t.transformAfter}
               </span>
               <div className="space-y-4">
@@ -605,9 +634,9 @@ export function Landing() {
           </div>
         </div>
       </section>
-      <section style={{ background: 'linear-gradient(135deg, #0b3658 0%, #0e4a7a 100%)' }}>
+      <section style={{ background: 'linear-gradient(135deg, #062045 0%, #0c3468 100%)' }}>
         <SectionBanner
-          color="#7ec8f0"
+          color={SECTION_COLORS.stats.color}
           title={t.statsTitle}
           onDark
         />
@@ -674,11 +703,11 @@ export function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div data-fadein="0" className="rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#e6f1fa' }}>
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#f9e9ed' }}>
                 <span className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
-                <span className="text-xs font-medium ms-2" style={{ color: '#4e9ad9' }}>
+                <span className="text-xs font-medium ms-2" style={{ color: '#062045' }}>
                   {lang === 'ar' ? 'لوحة إدارة المؤسسة التعليمية' : 'Institution Administration Dashboard'}
                 </span>
               </div>
@@ -696,7 +725,7 @@ export function Landing() {
                   : ['Add faculty members and assign their permissions precisely', 'Full view of the institution\'s academic activities', 'Complete data isolation from all other institutions']
                 ).map((p, i) => (
                   <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-[#4e9ad9] shrink-0 mt-0.5" /> {p}
+                    <CheckCircle2 className="w-4 h-4 text-[#062045] shrink-0 mt-0.5" /> {p}
                   </li>
                 ))}
               </ul>
@@ -715,11 +744,11 @@ export function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div data-fadein="0" className="order-1 lg:order-2 rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#e6faf8' }}>
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#e9f6f2' }}>
                 <span className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
-                <span className="text-xs font-medium ms-2" style={{ color: '#0d9488' }}>
+                <span className="text-xs font-medium ms-2" style={{ color: '#0f6b45' }}>
                   {lang === 'ar' ? 'لوحة عضو هيئة التدريس' : 'Instructor Dashboard'}
                 </span>
               </div>
@@ -737,7 +766,7 @@ export function Landing() {
                   : ['Automatic grading of student answers with instant results publishing', 'AI assistant for preparing lessons and exams', 'Student progress tracking and academic performance indicators']
                 ).map((p, i) => (
                   <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-[#059669] shrink-0 mt-0.5" /> {p}
+                    <CheckCircle2 className="w-4 h-4 text-[#0f6b45] shrink-0 mt-0.5" /> {p}
                   </li>
                 ))}
               </ul>
@@ -750,7 +779,7 @@ export function Landing() {
         <SectionBanner color={SECTION_COLORS.live.color} title={t.liveTitle} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
-            <div className="absolute -top-24 -end-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #F43F5E, transparent 70%)' }} />
+            <div className="absolute -top-24 -end-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #c2325a, transparent 70%)' }} />
             <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div>
                 <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.liveDesc}</p>
@@ -776,7 +805,7 @@ export function Landing() {
         <SectionBanner color={SECTION_COLORS.ai.color} title={t.aiTitle} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
-            <div className="absolute -bottom-24 -start-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
+            <div className="absolute -bottom-24 -start-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #0f8a7a, transparent 70%)' }} />
             <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div className="order-2 lg:order-1">
                 <AiTypingMockup lang={lang} />
@@ -806,7 +835,7 @@ export function Landing() {
             <div className="hidden lg:block absolute top-9 start-[12.5%] end-[12.5%] h-px bg-border z-0" />
             {t.steps.map((s, i) => (
               <div key={i} className="relative bg-white border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)] z-10">
-                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#0b3658] text-white font-black text-sm mb-4 shadow-[0_4px_12px_rgba(11,54,88,0.25)]">{i + 1}</span>
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#062045] text-white font-black text-sm mb-4 shadow-[0_4px_12px_rgba(11,54,88,0.25)]">{i + 1}</span>
                 <h3 className="text-fg font-bold mb-1.5">{s.title}</h3>
                 <p className="text-fg-secondary text-sm leading-relaxed">{s.desc}</p>
               </div>
@@ -821,10 +850,10 @@ export function Landing() {
             {t.trust.map((item, i) => {
               const TrustIcon = icons[item.icon as keyof typeof icons] ?? ShieldCheck
               const trustAccents = [
-                { bg: '#fee2e2', color: '#dc2626' },
-                { bg: '#dbeafe', color: '#1d4ed8' },
-                { bg: '#d1fae5', color: '#059669' },
-                { bg: '#e0e7ff', color: '#4338ca' },
+                { bg: '#fdf0f3', color: '#a3123c' },
+                { bg: '#edf4fa', color: '#1d4ed8' },
+                { bg: '#eef8f2', color: '#0f6b45' },
+                { bg: '#eaeefb', color: '#4338ca' },
               ]
               const acc = trustAccents[i]
               return (
@@ -859,12 +888,12 @@ export function Landing() {
           </div>
         </div>
       </section>
-      <section className="bg-[#0b3658] mt-4">
+      <section className="bg-[#062045] mt-4">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-3" style={{letterSpacing: '-0.02em'}}>{t.ctaTitle}</h2>
           <p className="text-[#a8c8e2] mb-8 max-w-xl mx-auto leading-relaxed">{t.ctaDesc}</p>
           <Link href="/contact"
-            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[24px] bg-[#4e9ad9] hover:bg-[#3a85c4] text-white font-semibold transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.35)]">
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[24px] bg-[#062045] hover:bg-[#0c3468] text-white font-semibold transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.35)]">
             <Mail className="w-4 h-4" /> {t.ctaButton}
           </Link>
         </div>

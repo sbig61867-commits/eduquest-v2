@@ -8,88 +8,107 @@
 
 /* ── Light theme (default) — cord.com inspired ──────────────────────────── */
 :root {
-  /* Surfaces */
+  /* Brand: two colours, Blush #F2C4CE and Navy #062045. Everything below is
+     derived from them. Navy carries the ink and the action; blush carries the
+     warmth, as surfaces, chips and washes. Contrast figures are measured, not
+     estimated: navy on white is 16.15:1, white on navy 16.15:1, navy on blush
+     10.43:1.                                                                 */
+
+  /* Surfaces: white paper, warmed toward blush as it recedes */
   --color-canvas:            #FFFFFF;
-  --color-surface:           #E6F1FA;
+  --color-surface:           #FBF3F5;
   --color-elevated:          #FFFFFF;
 
-  /* Borders */
-  --color-border:            #DDE7EE;
-  --color-border-strong:     #C8D8E4;
+  /* Borders: neutral tinted toward blush so they belong to the same family */
+  --color-border:            #EBDDE2;
+  --color-border-strong:     #DCC7CE;
 
-  /* Foreground / text — Midnight Harbor navy, never pure black */
-  --color-fg:                #0B3658;
-  --color-fg-secondary:      #486984;
-  --color-fg-muted:          #688DAC;
+  /* Foreground: the brand navy and two steps up from it */
+  --color-fg:                #062045;   /* 16.15:1 on canvas */
+  --color-fg-secondary:      #3B4E66;   /*  8.51:1 on canvas */
+  --color-fg-muted:          #5F6E85;   /*  5.18:1 on canvas, 4.74 on surface */
 
-  /* Accent — Signal Blue (cord.com #4e9ad9), white-on-accent: 3.5:1 AA large ✓ */
-  --color-accent:            #4E9AD9;
-  --color-accent-hover:      #3A85C4;
-  --color-accent-subtle:     #E6F1FA;
-  --color-accent-border:     #C8D8E4;
+  /* Accent: navy acts. Blush is too light to carry white text, so it becomes
+     the subtle surface behind navy type rather than a button fill.           */
+  --color-accent:            #062045;
+  --color-accent-hover:      #0C3468;
+  --color-accent-subtle:     #F9E9ED;   /* navy on it: 13.77:1 */
+  --color-accent-border:     #E7CDD5;
   --color-accent-fg:         #FFFFFF;
 
-  /* Semantic */
-  --color-success:           #166534;
-  --color-success-subtle:    #F0FDF4;
-  --color-warning:           #92400E;
-  --color-warning-subtle:    #FFFBEB;
-  --color-error:             #9F1239;
-  --color-error-subtle:      #FFF1F2;
-  --color-info:              #075985;
-  --color-info-subtle:       #F0F9FF;
+  /* Brand blush, available directly for washes and chips */
+  --color-blush:             #F2C4CE;
+  --color-blush-soft:        #F9E9ED;
+
+  /* Semantic states keep their own hues: "failed" cannot be said in blush.
+     Each is tuned against the warm ground above rather than a neutral one.   */
+  --color-success:           #0F6B45;
+  --color-success-subtle:    #EEF8F2;
+  --color-warning:           #8A5A06;
+  --color-warning-subtle:    #FDF6E9;
+  --color-error:             #A3123C;
+  --color-error-subtle:      #FDF0F3;
+  --color-info:              #0B4C7A;
+  --color-info-subtle:       #EDF4FA;
 }
 
-/* ── Dark theme — system preference ─────────────────────────────────────── */
+/* ── Dark theme ────────────────────────────────────────────────────────────
+   The roles swap. Navy becomes the ground and blush becomes the action, which
+   is the one pairing that gives a light accent enough contrast to fill a
+   button: navy type on blush reads at 10.43:1.                              */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-canvas:            #0F1117;
-    --color-surface:           #1A1D27;
-    --color-elevated:          #222633;
-    --color-border:            #3D4257;
-    --color-border-strong:     #55596E;
-    --color-fg:                #DDE0E8;
-    --color-fg-secondary:      #A8ADBE;
-    --color-fg-muted:          #8B91A8;
-    --color-accent:            #60A5FA;
-    --color-accent-hover:      #3B82F6;
-    --color-accent-subtle:     #0A1A40;
-    --color-accent-border:     #1D4ED8;
-    --color-accent-fg:         #030712;
-    --color-success:           #4ADE80;
-    --color-success-subtle:    #052E16;
-    --color-warning:           #FBBF24;
-    --color-warning-subtle:    #3B1600;
-    --color-error:             #FB7185;
-    --color-error-subtle:      #3B0013;
-    --color-info:              #38BDF8;
-    --color-info-subtle:       #082F49;
+    --color-canvas:            #050F1F;
+    --color-surface:           #0A1B32;
+    --color-elevated:          #0F2440;
+    --color-border:            #21354F;
+    --color-border-strong:     #344965;
+    --color-fg:                #E4E9F0;
+    --color-fg-secondary:      #AEBACC;
+    --color-fg-muted:          #93A2B8;
+    --color-accent:            #F2C4CE;
+    --color-accent-hover:      #E8AFBD;
+    --color-accent-subtle:     #24172150;
+    --color-accent-border:     #5A3B45;
+    --color-accent-fg:         #062045;
+    --color-blush:             #F2C4CE;
+    --color-blush-soft:        #2A1A22;
+    --color-success:           #5FD9A0;
+    --color-success-subtle:    #06251A;
+    --color-warning:           #F5C462;
+    --color-warning-subtle:    #2A1D05;
+    --color-error:             #FF9BB0;
+    --color-error-subtle:      #2E0A18;
+    --color-info:              #7EC4F5;
+    --color-info-subtle:       #06253C;
   }
 }
 
-/* ── Dark theme — explicit toggle wins over media query ─────────────────── */
+/* ── Dark theme, explicit toggle wins over the media query ───────────────── */
 :root[data-theme="dark"] {
-  --color-canvas:            #0F1117;
-  --color-surface:           #1A1D27;
-  --color-elevated:          #222633;
-  --color-border:            #3D4257;
-  --color-border-strong:     #55596E;
-  --color-fg:                #DDE0E8;
-  --color-fg-secondary:      #A8ADBE;
-  --color-fg-muted:          #8B91A8;
-  --color-accent:            #2DD4BF;
-  --color-accent-hover:      #25BCA9;
-  --color-accent-subtle:     #0D2E2E;
-  --color-accent-border:     #1D5F5F;
-  --color-accent-fg:         #0F1117;
-  --color-success:           #4ADE80;
-  --color-success-subtle:    #052E16;
-  --color-warning:           #FBBF24;
-  --color-warning-subtle:    #3B1600;
-  --color-error:             #FB7185;
-  --color-error-subtle:      #3B0013;
-  --color-info:              #38BDF8;
-  --color-info-subtle:       #082F49;
+  --color-canvas:            #050F1F;
+  --color-surface:           #0A1B32;
+  --color-elevated:          #0F2440;
+  --color-border:            #21354F;
+  --color-border-strong:     #344965;
+  --color-fg:                #E4E9F0;
+  --color-fg-secondary:      #AEBACC;
+  --color-fg-muted:          #93A2B8;
+  --color-accent:            #F2C4CE;
+  --color-accent-hover:      #E8AFBD;
+  --color-accent-subtle:     #24172150;
+  --color-accent-border:     #5A3B45;
+  --color-accent-fg:         #062045;
+  --color-blush:             #F2C4CE;
+  --color-blush-soft:        #2A1A22;
+  --color-success:           #5FD9A0;
+  --color-success-subtle:    #06251A;
+  --color-warning:           #F5C462;
+  --color-warning-subtle:    #2A1D05;
+  --color-error:             #FF9BB0;
+  --color-error-subtle:      #2E0A18;
+  --color-info:              #7EC4F5;
+  --color-info-subtle:       #06253C;
 }
 
 /* ── Static tokens — baked into generated CSS, theme-independent ─────────── */
@@ -141,6 +160,8 @@
   --color-accent-subtle:     var(--color-accent-subtle);
   --color-accent-border:     var(--color-accent-border);
   --color-accent-fg:         var(--color-accent-fg);
+  --color-blush:             var(--color-blush);
+  --color-blush-soft:        var(--color-blush-soft);
   --color-success:           var(--color-success);
   --color-success-subtle:    var(--color-success-subtle);
   --color-warning:           var(--color-warning);
@@ -175,16 +196,11 @@ body {
   }
 }
 
-/* ── Scroll fade-in ─────────────────────────────────────────────────────── */
-[data-fadein] {
-  opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-[data-fadein].fadein-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+/* ── Scroll reveal ───────────────────────────────────────────────────────
+   [data-fadein] elements are animated by GSAP ScrollTrigger (src/lib/gsap.ts),
+   which sets the starting opacity itself. Nothing is hidden here: if the script
+   fails to load, or the viewer prefers reduced motion, the content must still
+   be on the page rather than parked at opacity 0 waiting for a callback.   */
 
 /* ── Landing hero: ambient blobs + 3D role stage ────────────────────────── */
 @keyframes eq-blob-drift-1 {
