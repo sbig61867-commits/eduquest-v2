@@ -1,4 +1,5 @@
--- PENDING — run this in the Supabase SQL Editor. Re-runnable.
+-- Applied live 2026-09-09 (migration fix_get_course_progress_flat_courses).
+-- Re-runnable. Recorded here per the repo's own convention.
 --
 -- Bug: get_course_progress counts items with
 --   JOIN course_units cu ON cu.id = ui.unit_id

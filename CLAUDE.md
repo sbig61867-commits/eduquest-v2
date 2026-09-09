@@ -97,6 +97,7 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - `revoke_trigger_function_public_execute_migration.sql` — revokes EXECUTE on 4 trigger-only SECURITY DEFINER functions from PUBLIC/anon/authenticated (defense-in-depth; Postgres already blocks direct invocation of trigger functions). ✅ 2026-09-06
 - `fix_get_course_progress_cross_tenant_idor_migration.sql` — fixes a real cross-tenant IDOR: `get_course_progress` authorized any teacher/university_admin globally with no tenant check on the target course/student. ✅ 2026-09-06
 - `r1_defense_in_depth_service_role_rpcs_migration.sql` — `start_exam_attempt`, `soft_delete_entity`, `restore_entity` (gains a new required `p_actor` param), `append_proctoring_events` no longer trust caller-supplied tenant_id/actor/student_id at face value; each re-derives the real fact from `public.users`/`public.exams`/the target entity and rejects on mismatch. `restore_entity`'s old 3-arg signature is dropped. ✅ 2026-09-06 — see `SECURITY_DEFINER_PROOF.md` for the full per-function proof.
+- `fix_get_course_progress_flat_courses_migration.sql` — `get_course_progress` counted items through an INNER join on `course_levels`, so flat courses (`has_levels = FALSE`, units with `level_id IS NULL`) always reported 0%. Now counts through `course_units.course_id`, which is NOT NULL for both shapes, and applies the `is_published` filter to the completed count as well as the total. ✅ 2026-09-09
 
 ## Conventions
 
