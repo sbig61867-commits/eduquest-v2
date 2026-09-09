@@ -274,55 +274,64 @@ const icons = {
 const INK_ON_LIGHT = '#062045'
 const INK_ON_DARK  = '#ffffff'
 
-// The banner that opens every section. Two drifting radial washes and a slow
-// sheen behind a translucent tint, with a hairline of light along the top and a
-// soft shadow separating it from the content below.
+// The banner that opens every section.
 //
-// The band carries the section's headline and nothing else. The small uppercase
-// label it used to show above that headline is gone; the section colour still
-// identifies the section, but through the ground and the washes rather than
-// through a word. Headlines are navy on light grounds and white on dark ones,
-// which is the rule the whole page follows.
+// It is a contained card, not a full-bleed strip. A strip spanning the whole
+// viewport cut the page into hard horizontal bands and fought the alternating
+// white and blush section grounds; a card sits inside the same content width as
+// everything below it, so the page reads as one column with a series of objects
+// in it. The generous radius, the soft shadow and the colour held inside an
+// edge are the same treatment as the brand's own colour cards.
+//
+// The section's colour lives in the card's ground and in the two washes
+// drifting behind the headline. It never sets the headline itself: navy on
+// light grounds, white on dark, which is the rule the whole page follows.
 function SectionBanner({
   color, title, kicker, onDark = false,
 }: {
-  /** Identity hue: tints the ground and the drifting washes. */
+  /** Identity hue: tints the card's ground and the drifting washes. */
   color: string
   title: string
   kicker?: string
-  /** Set on the navy sections so the headline flips to white. */
+  /** Set on the navy section so the headline flips to white. */
   onDark?: boolean
 }) {
   const ink = onDark ? INK_ON_DARK : INK_ON_LIGHT
   return (
-    <div
-      className="eq-band w-full border-b"
-      style={{
-        background: `linear-gradient(180deg, ${color}16 0%, ${color}07 100%)`,
-        borderColor: `${color}2E`,
-        boxShadow: `inset 0 -1px 0 ${color}14, 0 14px 36px -26px ${color}99`,
-      }}
-    >
-      {/* Motion field, decorative and hidden from assistive technology */}
-      <span className="eq-band-orb eq-band-orb-a" style={{ background: `${color}33` }} aria-hidden="true" />
-      <span className="eq-band-orb eq-band-orb-b" style={{ background: `${color}24` }} aria-hidden="true" />
-      <span className="eq-band-sheen" aria-hidden="true" />
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14">
+      <div
+        className="eq-band rounded-[24px] border"
+        style={{
+          background: onDark
+            ? `linear-gradient(160deg, ${color}22 0%, ${color}0D 100%)`
+            : `linear-gradient(160deg, ${color}1C 0%, ${color}08 100%)`,
+          borderColor: onDark ? `${color}3D` : `${color}2E`,
+          boxShadow: onDark
+            ? `inset 0 1px 0 ${color}26, 0 20px 48px -34px ${color}66`
+            : `inset 0 1px 0 #FFFFFF80, 0 18px 44px -30px ${color}80`,
+        }}
+      >
+        {/* Motion field, decorative and hidden from assistive technology */}
+        <span className="eq-band-orb eq-band-orb-a" style={{ background: `${color}33` }} aria-hidden="true" />
+        <span className="eq-band-orb eq-band-orb-b" style={{ background: `${color}24` }} aria-hidden="true" />
+        <span className="eq-band-sheen" aria-hidden="true" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-9 sm:py-12">
-        <h2
-          className="text-2xl sm:text-4xl font-black tracking-tight"
-          style={{ color: ink, letterSpacing: '-0.02em' }}
-        >
-          {title}
-        </h2>
-        {kicker && (
-          <p
-            className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed"
-            style={{ color: ink, opacity: onDark ? 0.8 : 0.72 }}
+        <div className="px-6 sm:px-10 py-8 sm:py-11">
+          <h2
+            className="text-2xl sm:text-4xl font-black tracking-tight"
+            style={{ color: ink, letterSpacing: '-0.02em' }}
           >
-            {kicker}
-          </p>
-        )}
+            {title}
+          </h2>
+          {kicker && (
+            <p
+              className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed"
+              style={{ color: ink, opacity: onDark ? 0.82 : 0.72 }}
+            >
+              {kicker}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )

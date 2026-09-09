@@ -296,13 +296,6 @@ body {
 .eq-band     { position: relative; isolation: isolate; overflow: hidden; }
 .eq-band > * { position: relative; z-index: 1; }
 
-/* Hairline of light along the top edge — reads as a lit surface, not a slab. */
-.eq-band::before {
-  content: ''; position: absolute; inset-block-start: 0; inset-inline: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
-  z-index: 0; pointer-events: none;
-}
-
 .eq-band-orb   { position: absolute; border-radius: 9999px; filter: blur(72px); pointer-events: none; z-index: 0; }
 .eq-band-orb-a { inset-inline-start: -10%; top: -160%; width: 52%; height: 420%; animation: eq-band-drift-a 22s ease-in-out infinite; }
 .eq-band-orb-b { inset-inline-end:   -8%;  top: -140%; width: 44%; height: 380%; animation: eq-band-drift-b 28s ease-in-out infinite; }
