@@ -127,7 +127,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                               <p className="flex-1 text-fg text-sm">{q.text}</p>
                               {auto && (correct
                                 ? <span className="flex items-center gap-1 text-accent text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
-                                : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0 / {q.points} د</span>)}
+                                : <span className="flex items-center gap-1 text-error text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0 / {q.points} د</span>)}
                             </div>
                             <p className="text-sm ps-6">
                               <span className="text-fg-muted">إجابة الطالب: </span>

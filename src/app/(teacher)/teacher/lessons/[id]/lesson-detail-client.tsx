@@ -356,7 +356,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
               <div className="flex gap-2">
                 <select value={aiLevel} onChange={e => setAiLevel(e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                  className="px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent">
                   <option value="high_school">ثانوي</option>
                   <option value="undergraduate">جامعي</option>
                   <option value="graduate">دراسات عليا</option>
@@ -392,13 +392,13 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               <div className="space-y-1">
                 <label className="text-xs text-fg-muted">تعليمات إضافية (اختياري) — يمكنك تحديد التبويبات التي تريدها بنفسك</label>
                 <textarea value={aiInstructions} onChange={e => setAiInstructions(e.target.value)} rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent"
                   placeholder='مثال: "قسّم الدرس إلى: محادثة، استماع وفهم، قواعد، كلمات جديدة" — أو أي توجيه آخر. اتركه فارغاً وسيختار الذكاء الاصطناعي التبويبات المناسبة تلقائياً.' />
               </div>
 
               <AiProgress active={aiLoading} />
 
-              {aiError && <p className="text-red-400 text-sm">{aiError}</p>}
+              {aiError && <p className="text-error text-sm">{aiError}</p>}
             </div>
           )}
 
@@ -477,7 +477,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => deleteHomework(hw.id)}
-                      className="hover:text-red-400 hover:bg-red-500/10">
+                      className="hover:text-error hover:bg-error-subtle">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -523,9 +523,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
             <div className="flex gap-2">
               <input value={aiHwTopic} onChange={e => setAiHwTopic(e.target.value)}
                 placeholder="موضوع الأسئلة (مثل: مقدمة أمن المعلومات)"
-                className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent" />
               <input type="number" value={aiHwCount} onChange={e => setAiHwCount(Number(e.target.value))} min={1} max={20}
-                className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-accent" />
               <Button onClick={generateHwQuestions} loading={aiHwLoading} variant="secondary" size="sm">توليد</Button>
             </div>
           </div>
@@ -567,7 +567,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                       📄 {f.name}
                       <button type="button" title="إزالة هذا الملف"
                         onClick={() => setHwFiles(prev => prev.filter((_, j) => j !== i))}
-                        className="text-fg-muted hover:text-red-400"><X className="w-3 h-3" /></button>
+                        className="text-fg-muted hover:text-error"><X className="w-3 h-3" /></button>
                     </span>
                   ))}
                   <span className="text-fg-muted text-xs self-center">{hwFiles.length}/10</span>
@@ -605,7 +605,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على القسم الثاني من الملف واجعل الأسئلة قصيرة"' />
 
             <AiProgress active={hwFileLoading} />
-            {hwFileError && <p className="text-red-400 text-sm">{hwFileError}</p>}
+            {hwFileError && <p className="text-error text-sm">{hwFileError}</p>}
 
             <Button onClick={generateHwFromFile} loading={hwFileLoading} disabled={hwFiles.length === 0 || hwTypes.size === 0} variant="secondary" size="sm">
               <Sparkles className="w-4 h-4" /> توليد الأسئلة من الملف
@@ -660,7 +660,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   <span className="text-fg-muted text-xs font-mono mt-0.5">{i + 1}.</span>
                   <div className="flex-1">
                     <p className="text-fg-secondary text-sm">{q.text}</p>
-                    {q.correct_answer && <p className="text-green-500 text-xs mt-0.5">✓ {q.correct_answer}</p>}
+                    {q.correct_answer && <p className="text-success text-xs mt-0.5">✓ {q.correct_answer}</p>}
                   </div>
                   <Badge variant={q.type === 'mcq' ? 'info' : q.type === 'essay' ? 'warning' : 'neutral'}>
                     {q.type === 'mcq' ? 'اختيار' : q.type === 'essay' ? 'مقالي' : 'صح/خطأ'}
@@ -676,7 +676,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                     <span className="text-fg-muted text-xs">د</span>
                   </span>
                   <button onClick={() => setQuestions(p => p.filter(x => x.id !== q.id))}
-                    className="text-fg-muted hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                    className="text-fg-muted hover:text-error"><X className="w-3.5 h-3.5" /></button>
                 </div>
               ))}
             </div>

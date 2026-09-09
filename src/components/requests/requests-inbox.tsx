@@ -52,7 +52,7 @@ const STATUS_LABEL: Record<RequestRow['status'], string> = {
 const STATUS_CLASS: Record<RequestRow['status'], string> = {
   pending: 'text-accent bg-accent-subtle',
   accepted: 'text-accent bg-accent-subtle',
-  rejected: 'text-red-400 bg-red-500/10',
+  rejected: 'text-error bg-error-subtle',
   completed: 'text-accent bg-accent-subtle',
   cancelled: 'text-fg-secondary bg-surface',
 }
@@ -228,7 +228,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                   key={r.id}
                   onClick={() => setSelectedId(r.id)}
                   className={`w-full text-right p-3 rounded-lg border transition-colors ${
-                    selectedId === r.id ? 'bg-surface border-blue-600' : 'bg-surface border-border hover:bg-surface/50'
+                    selectedId === r.id ? 'bg-surface border-accent-border' : 'bg-surface border-border hover:bg-surface/50'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -293,7 +293,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                     onChange={e => setReply(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
                   />
-                  <Button loading={busy} onClick={sendReply} disabled={!reply.trim()}><Send className="w-4 h-4" /></Button>
+                  <Button loading={busy} onClick={sendReply} disabled={!reply.trim()} aria-label="إرسال الرد"><Send className="w-4 h-4" aria-hidden="true" /></Button>
                 </div>
               </div>
             ) : (

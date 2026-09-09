@@ -11,7 +11,7 @@
  *     regardless of how many consecutive failures occur — proves the
  *     breaker is scoped to aiRateLimit() only, not global.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock the Supabase admin client factory so we control RPC success/failure
 // without touching a real database.

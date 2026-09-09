@@ -243,7 +243,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                     className={group.is_active ? 'hover:text-accent hover:bg-accent-subtle' : 'text-accent hover:text-accent hover:bg-accent-subtle'}>
                     {group.is_active ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteGroup(group.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => deleteGroup(group.id)} className="hover:text-error hover:bg-error-subtle"><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
               <h3 className="text-fg font-semibold mb-1">
@@ -271,7 +271,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title={editing ? 'Edit Group' : 'New Group'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formError && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            <div className="p-3 rounded-lg bg-error-subtle border border-error/25 text-error text-sm">
               {formError}
             </div>
           )}
@@ -325,7 +325,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                     </div>
                     <button
                       onClick={() => removeStudentFromGroup(s.id)}
-                      className="p-1 rounded text-fg-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="p-1 rounded text-fg-secondary hover:text-error hover:bg-error-subtle transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>

@@ -75,7 +75,11 @@ export function StudentQuickAccessPanel() {
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (open && !data) fetchData()
+    if (!open || data) return
+    // Defer out of the render/effect-commit phase so the loading setState in
+    // fetchData() does not cascade a synchronous re-render.
+    const id = setTimeout(fetchData, 0)
+    return () => clearTimeout(id)
   }, [open, data, fetchData])
 
   const sections = data ? [

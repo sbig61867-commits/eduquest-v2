@@ -209,9 +209,9 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         <h3 className="text-fg font-semibold flex items-center gap-2">
           <User className="w-4 h-4 text-fg-secondary" /> Account
         </h3>
-        {nameError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{nameError}</p>}
+        {nameError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{nameError}</p>}
         {nameSaved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Name updated
           </div>
         )}
@@ -232,9 +232,9 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         <h3 className="text-fg font-semibold flex items-center gap-2">
           <KeyRound className="w-4 h-4 text-fg-secondary" /> Change Password
         </h3>
-        {pwError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{pwError}</p>}
+        {pwError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{pwError}</p>}
         {pwSaved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Password updated
           </div>
         )}
@@ -253,9 +253,9 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         <p className="text-fg-muted text-sm">
           Default link validity (in hours) per invited role, used when the inviter doesn&apos;t set one. The maximum caps every invitation.
         </p>
-        {invError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{invError}</p>}
+        {invError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{invError}</p>}
         {invSaved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Invitation defaults saved
           </div>
         )}
@@ -280,9 +280,9 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         <p className="text-fg-muted text-sm">
           Maximum AI generation calls per user per hour. Resets automatically every 60 minutes.
         </p>
-        {aiError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{aiError}</p>}
+        {aiError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{aiError}</p>}
         {aiSaved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> AI rate limits saved
           </div>
         )}
@@ -305,9 +305,9 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         <p className="text-fg-muted text-sm">
           Platform-wide defaults for new exams. Teachers can still toggle proctoring per exam.
         </p>
-        {examError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{examError}</p>}
+        {examError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{examError}</p>}
         {examSaved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Exam policies saved
           </div>
         )}
@@ -339,7 +339,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           Controls what happens when a teacher or admin deletes a group, lesson, exam, or homework across the whole platform.
         </p>
         {delSaved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Deletion policy saved
           </div>
         )}
@@ -353,12 +353,12 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
             </p>
           </div>
           <div onClick={() => !savingDel && saveDeletionPolicy(!del.hard_delete_enabled)}
-            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${del.hard_delete_enabled ? 'bg-red-600' : 'bg-border-strong'} ${savingDel ? 'opacity-60' : ''}`}>
+            className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${del.hard_delete_enabled ? 'bg-error' : 'bg-border-strong'} ${savingDel ? 'opacity-60' : ''}`}>
             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${del.hard_delete_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
           </div>
         </div>
         {del.hard_delete_enabled && (
-          <div className="flex items-start gap-2 text-error text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
+          <div className="flex items-start gap-2 text-error text-xs bg-error-subtle border border-error/30 rounded-lg px-3 py-2.5">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>Permanent deletion is active. Deleted groups/exams and their students’ submissions and grades will be erased for good and will NOT appear in the archive.</span>
           </div>

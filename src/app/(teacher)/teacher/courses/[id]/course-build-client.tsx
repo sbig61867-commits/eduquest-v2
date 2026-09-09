@@ -216,7 +216,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       <div key={item.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-surface/60 border border-border-strong/50 group">
         <span className="text-xs px-2 py-0.5 rounded bg-border-strong text-fg-secondary">{item.type}</span>
         <span className="text-fg-secondary text-sm flex-1 truncate">{item.title}</span>
-        <button onClick={() => deleteItem(item.id, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-fg-muted hover:text-red-400 p-1">
+        <button onClick={() => deleteItem(item.id, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-fg-muted hover:text-error p-1">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -235,7 +235,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           <button onClick={e => { e.stopPropagation(); setItemModal({ open: true, unitId: unit.id }) }} className="ml-1 p-1 rounded hover:bg-canvas text-fg-secondary hover:text-fg transition-colors" title="Add content">
             <Plus className="w-3.5 h-3.5" />
           </button>
-          <button onClick={e => { e.stopPropagation(); deleteUnit(unit.id, levelId) }} className="p-1 rounded hover:bg-red-500/10 text-fg-muted hover:text-red-400 transition-colors">
+          <button onClick={e => { e.stopPropagation(); deleteUnit(unit.id, levelId) }} className="p-1 rounded hover:bg-error-subtle text-fg-muted hover:text-error transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -290,7 +290,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
                 >
                   <Plus className="w-3.5 h-3.5" /> Unit
                 </button>
-                <button onClick={e => { e.stopPropagation(); deleteLevel(level.id) }} className="p-1 rounded hover:bg-red-500/10 text-fg-muted hover:text-red-400 transition-colors">
+                <button onClick={e => { e.stopPropagation(); deleteLevel(level.id) }} className="p-1 rounded hover:bg-error-subtle text-fg-muted hover:text-error transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>

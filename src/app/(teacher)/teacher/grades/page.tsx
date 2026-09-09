@@ -24,7 +24,7 @@ function gradeOf(pct: number) {
   if (pct >= 80) return { label: 'جيد جداً', color: 'text-accent', bar: 'bg-success', pass: true }
   if (pct >= 70) return { label: 'جيد', color: 'text-accent', bar: 'bg-accent', pass: true }
   if (pct >= 60) return { label: 'مقبول', color: 'text-accent', bar: 'bg-warning', pass: true }
-  return { label: 'راسب', color: 'text-red-400', bar: 'bg-red-500', pass: false }
+  return { label: 'راسب', color: 'text-error', bar: 'bg-error', pass: false }
 }
 
 export default async function TeacherGradesPage() {

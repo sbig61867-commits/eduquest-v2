@@ -166,7 +166,7 @@ export function TenantsClient({ initialTenants }: Props) {
                     variant="ghost" size="sm"
                     onClick={() => deleteTenant(tenant)}
                     title="حذف نهائي"
-                    className="hover:text-red-400 hover:bg-red-500/10"
+                    className="hover:text-error hover:bg-error-subtle"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -180,7 +180,7 @@ export function TenantsClient({ initialTenants }: Props) {
       {/* Create University Modal */}
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New University">
         <form onSubmit={handleAdd} className="space-y-4">
-          {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+          {error && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{error}</p>}
           <Input
             label="University Name"
             value={form.name}
@@ -208,8 +208,8 @@ export function TenantsClient({ initialTenants }: Props) {
       {/* Manual Add Admin Modal */}
       <Modal open={!!adminTarget} onClose={() => setAdminTarget(null)} title={`Add Admin — ${adminTarget?.name ?? ''}`}>
         <form onSubmit={handleAddAdmin} className="space-y-4">
-          {adminError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{adminError}</p>}
-          {adminSuccess && <p className="text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">{adminSuccess}</p>}
+          {adminError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{adminError}</p>}
+          {adminSuccess && <p className="text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">{adminSuccess}</p>}
           <p className="text-fg-secondary text-sm">
             This admin will manage teachers and students for <span className="text-fg font-medium">{adminTarget?.name}</span>.
           </p>

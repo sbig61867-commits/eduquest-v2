@@ -172,7 +172,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
         </div>
       )}
       {status === 'connecting' && <p className="text-fg-muted text-sm py-8 text-center">جاري الاتصال بغرفة المراقبة...</p>}
-      {status === 'error' && <p className="text-red-400 text-sm py-8 text-center">تعذّر الاتصال بالمراقبة الحية. حاول تحديث الصفحة.</p>}
+      {status === 'error' && <p className="text-error text-sm py-8 text-center">تعذّر الاتصال بالمراقبة الحية. حاول تحديث الصفحة.</p>}
 
       {status === 'live' && list.length === 0 && (
         <div className="text-center py-16 bg-surface border border-border rounded-lg">
@@ -244,8 +244,8 @@ function StudentTile({ feed, videoEl, zoomed, onClick }: { feed: Feed; videoEl?:
       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2 flex items-center justify-between">
         <span className="text-fg text-sm font-medium truncate">{feed.name}</span>
         <span className="flex items-center gap-1.5 shrink-0">
-          {feed.hasAudio ? <Mic className="w-3.5 h-3.5 text-accent" /> : <MicOff className="w-3.5 h-3.5 text-red-400" />}
-          {feed.hasVideo ? <Video className="w-3.5 h-3.5 text-accent" /> : <VideoOff className="w-3.5 h-3.5 text-red-400" />}
+          {feed.hasAudio ? <Mic className="w-3.5 h-3.5 text-accent" /> : <MicOff className="w-3.5 h-3.5 text-error" />}
+          {feed.hasVideo ? <Video className="w-3.5 h-3.5 text-accent" /> : <VideoOff className="w-3.5 h-3.5 text-error" />}
         </span>
       </div>
     </div>

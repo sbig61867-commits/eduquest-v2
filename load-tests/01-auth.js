@@ -21,7 +21,7 @@ export const options = {
   },
 };
 
-export default function () {
+export default function authScenario() {
   if (!EMAIL || !PASSWORD) {
     throw new Error('Set TEST_STUDENT_EMAIL / TEST_STUDENT_PASSWORD env vars to a dedicated staging/test account — never real user credentials.');
   }

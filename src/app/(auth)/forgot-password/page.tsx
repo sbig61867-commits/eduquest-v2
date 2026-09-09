@@ -39,11 +39,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <RevealOnScroll className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl" mode="mount">
+    <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+      <RevealOnScroll className="w-full max-w-md p-8 space-y-6 bg-elevated border border-border rounded-2xl shadow-xl" mode="mount">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent mb-2">
-            <span className="text-fg text-2xl font-bold">E</span>
+            <span className="text-accent-fg text-2xl font-bold">E</span>
           </div>
           <h1 className="text-2xl font-bold text-fg">Reset your password</h1>
           <p className="text-fg-secondary text-sm">
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
 
         {sent ? (
           <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm text-center leading-relaxed">
+            <div className="p-4 rounded-lg bg-success-subtle border border-success/25 text-success text-sm text-center leading-relaxed">
               If that email is registered, you will receive a reset link shortly.
               <br />
               <span className="text-fg-secondary text-xs mt-1 block">Check your spam folder if it doesn&apos;t arrive within a few minutes.</span>
@@ -72,7 +72,7 @@ export default function ForgotPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              <div className="p-3 rounded-lg bg-error-subtle border border-error/25 text-error text-sm">
                 {error}
               </div>
             )}
@@ -87,13 +87,13 @@ export default function ForgotPasswordPage() {
                 required
                 autoComplete="email"
                 placeholder="you@university.edu"
-                className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
+                className="w-full px-4 py-2.5 rounded-lg bg-canvas border border-border text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-accent hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-fg font-medium rounded-lg transition-colors"
+              className="w-full py-2.5 px-4 bg-accent hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-accent-fg font-medium rounded-lg transition-colors"
             >
               {loading ? 'Sending…' : 'Send reset link'}
             </button>

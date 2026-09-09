@@ -138,7 +138,7 @@ export function TeachersClient({ initialTeachers }: Props) {
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(teacher)}>
                       <ToggleLeft className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => deleteTeacher(teacher.id)} className="hover:text-red-400 hover:bg-red-500/10">
+                    <Button variant="ghost" size="sm" onClick={() => deleteTeacher(teacher.id)} className="hover:text-error hover:bg-error-subtle">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

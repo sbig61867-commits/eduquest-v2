@@ -26,13 +26,13 @@ toast.warning = (msg: string) => toast(msg, 'warning')
 
 const ICONS: Record<ToastType, React.ReactNode> = {
   success: <CheckCircle  className="w-4 h-4 text-accent shrink-0" />,
-  error:   <XCircle      className="w-4 h-4 text-red-400 shrink-0"     />,
+  error:   <XCircle      className="w-4 h-4 text-error shrink-0"     />,
   warning: <AlertTriangle className="w-4 h-4 text-accent shrink-0"  />,
 }
 const BORDERS: Record<ToastType, string> = {
-  success: 'border-emerald-500/30',
-  error:   'border-red-500/30',
-  warning: 'border-amber-500/30',
+  success: 'border-success/30',
+  error:   'border-error/30',
+  warning: 'border-warning/30',
 }
 
 function ToastItem({ toast: t, onRemove }: { toast: Toast; onRemove: (id: number) => void }) {

@@ -4,7 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { formatDate } from '@/lib/utils'
+import { formatDate, settle } from '@/lib/utils'
 import { PageTitle } from '@/components/shared/page-title'
 import { AnimatedStat, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
@@ -12,8 +12,8 @@ interface AdminLessonMeta { id: string; title: string; created_at: string; is_pu
 
 async function getStats(supabase: SupabaseClient, tenantId: string, lessons: number, exams: number) {
   const [{ count: teachers }, { count: students }] = await Promise.all([
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
+    settle(supabase.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'), 'admin/teachers'),
+    settle(supabase.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'), 'admin/students'),
   ])
   return { teachers: teachers ?? 0, students: students ?? 0, lessons, exams }
 }
@@ -27,8 +27,8 @@ export default async function AdminDashboard() {
   if (!tenantId) redirect('/login?error=no_tenant')
 
   const [{ data: lessonRows }, { data: examRows }] = await Promise.all([
-    supabase.rpc('get_admin_lessons'),
-    supabase.rpc('get_admin_exams'),
+    settle(supabase.rpc('get_admin_lessons'), 'admin/lessons'),
+    settle(supabase.rpc('get_admin_exams'), 'admin/exams'),
   ])
   const allLessons = (lessonRows ?? []) as unknown as AdminLessonMeta[]
   const stats = await getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length)
@@ -78,7 +78,7 @@ export default async function AdminDashboard() {
                     <p className="text-[13px] text-fg truncate">
                       <span className="font-medium">{a.teacher_name ?? 'Teacher'}</span>
                       {' '}{a.is_published ? 'published' : 'created'}{' '}
-                      <span className="text-fg-secondary">"{a.title}"</span>
+                      <span className="text-fg-secondary">&ldquo;{a.title}&rdquo;</span>
                     </p>
                     <p className="text-[11px] text-fg-muted mt-0.5">{formatDate(a.created_at)}</p>
                   </div>

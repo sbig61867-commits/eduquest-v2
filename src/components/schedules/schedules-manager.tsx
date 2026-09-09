@@ -214,7 +214,7 @@ export function SchedulesManager({
                 key={s.id}
                 onClick={() => { setSelectedId(s.id); setSlotOpen(false); setSlotForm({ ...EMPTY_SLOT }) }}
                 className={`w-full text-right p-3 rounded-lg border transition-colors ${
-                  selectedId === s.id ? 'bg-surface border-blue-600' : 'bg-surface border-border hover:bg-surface/50'
+                  selectedId === s.id ? 'bg-surface border-accent-border' : 'bg-surface border-border hover:bg-surface/50'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -364,7 +364,7 @@ export function SchedulesManager({
                                     <Pencil className="w-3 h-3" />
                                   </button>
                                   <button onClick={() => deleteSlot(slot.id)}
-                                    className="text-fg-secondary hover:text-red-400 p-1 rounded" title="حذف">
+                                    className="text-fg-secondary hover:text-error p-1 rounded" title="حذف">
                                     <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>

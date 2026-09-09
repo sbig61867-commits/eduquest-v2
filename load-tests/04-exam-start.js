@@ -30,7 +30,7 @@ export const options = {
   },
 };
 
-export default function () {
+export default function examStartScenario() {
   if (!EXAM_ID || !AUTH_TOKEN) {
     throw new Error('Set EXAM_ID and AUTH_TOKEN to a dedicated staging test exam + test student session — never a real production exam or real student.');
   }

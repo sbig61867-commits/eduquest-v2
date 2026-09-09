@@ -39,10 +39,10 @@ export default async function JoinPage({ params }: Props) {
 
   if (!invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="w-full max-w-md p-8 text-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl space-y-4">
-          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
-            <span className="text-red-400 text-2xl">✕</span>
+      <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+        <div className="w-full max-w-md p-8 text-center bg-elevated border border-border rounded-2xl shadow-xl space-y-4">
+          <div className="w-16 h-16 rounded-full bg-error-subtle border border-error/25 flex items-center justify-center mx-auto">
+            <span className="text-error text-2xl">✕</span>
           </div>
           <h1 className="text-xl font-bold text-fg">{ERROR_MESSAGES.title}</h1>
           <p className="text-fg-secondary text-sm">{ERROR_MESSAGES.body}</p>
@@ -62,7 +62,7 @@ export default async function JoinPage({ params }: Props) {
   const accentColor = invitation.is_public ? 'purple' : 'blue'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
       <div className="w-full max-w-md space-y-6">
 
         {/* Header */}
@@ -90,7 +90,7 @@ export default async function JoinPage({ params }: Props) {
           {invitation.is_public && (
             <div className="flex justify-between text-sm">
               <span className="text-fg-secondary">Link type</span>
-              <span className="text-purple-400 font-medium">Open to anyone</span>
+              <span className="text-info font-medium">Open to anyone</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
@@ -109,7 +109,7 @@ export default async function JoinPage({ params }: Props) {
           )}
           <div className="flex justify-between text-sm">
             <span className="text-fg-secondary">Expires</span>
-            <span className="text-amber-400 font-medium">{expiresLabel}</span>
+            <span className="text-warning font-medium">{expiresLabel}</span>
           </div>
         </div>
 

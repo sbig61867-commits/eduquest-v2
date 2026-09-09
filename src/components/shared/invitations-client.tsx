@@ -35,7 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending:   'text-accent bg-warning-subtle',
   accepted:  'text-accent bg-accent/10',
   revoked:   'text-fg-secondary bg-surface',
-  depleted:  'text-purple-400 bg-purple-400/10',
+  depleted:  'text-info bg-purple-400/10',
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
@@ -176,9 +176,10 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
         <div className="flex gap-2">
           <button
             onClick={load}
+            aria-label="Refresh invitations"
             className="p-2 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
           </button>
           <button
             onClick={() => { setShowForm(f => !f); setNewLink(null); setFormError('') }}
@@ -196,7 +197,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           <div className="flex items-center justify-between">
             <h2 className="text-fg font-semibold flex items-center gap-2">
               {isPublic
-                ? <><Link className="w-4 h-4 text-purple-400" /> Public Link</>
+                ? <><Link className="w-4 h-4 text-info" /> Public Link</>
                 : <><Mail className="w-4 h-4 text-accent" /> Private Invitation</>
               }
             </h2>
@@ -226,7 +227,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               title={!canBePublic ? 'University Admin invitations must be email-specific' : undefined}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
                 isPublic
-                  ? 'bg-purple-600 text-fg'
+                  ? 'bg-accent text-fg'
                   : canBePublic
                     ? 'text-fg-secondary hover:text-fg hover:bg-surface'
                     : 'text-fg-muted cursor-not-allowed'
@@ -238,7 +239,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           </div>
 
           {isPublic && (
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-4 py-3 text-purple-300 text-sm">
+            <div className="bg-info-subtle border border-purple-500/20 rounded-lg px-4 py-3 text-purple-300 text-sm">
               Anyone with this link can register as a <strong>{role.replace('_', ' ')}</strong>.
               {role === 'student' && groupId && ' They will automatically join the selected group.'}
             </div>
@@ -261,7 +262,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           )}
 
           {formError && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            <div className="bg-error-subtle border border-error/25 rounded-lg p-3 text-error text-sm">
               {formError}
             </div>
           )}
@@ -368,7 +369,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                 disabled={creating}
                 className={`px-4 py-2 rounded-lg text-fg text-sm font-medium transition-colors disabled:opacity-60 ${
                   isPublic
-                    ? 'bg-purple-600 hover:bg-purple-500'
+                    ? 'bg-accent hover:bg-accent-hover'
                     : 'bg-accent hover:bg-accent-hover'
                 }`}
               >
@@ -412,7 +413,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                   <tr key={inv.id} className="hover:bg-surface/30 transition-colors">
                     <td className="px-5 py-3">
                       {inv.is_public ? (
-                        <span className="inline-flex items-center gap-1.5 text-purple-400">
+                        <span className="inline-flex items-center gap-1.5 text-info">
                           <Link className="w-3.5 h-3.5" />
                           Public link
                         </span>
@@ -431,7 +432,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                         expired
-                          ? 'text-red-400 bg-red-400/10'
+                          ? 'text-error bg-red-400/10'
                           : STATUS_COLORS[inv.status]
                       }`}>
                         {expired ? <Clock className="w-3 h-3" /> : STATUS_ICONS[resolvedStatus(inv)] ?? STATUS_ICONS[inv.status]}
@@ -440,7 +441,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                     </td>
                     <td className="px-5 py-3 text-fg-secondary text-xs space-y-0.5">
                       {inv.is_public && (
-                        <div className="flex items-center gap-1 text-purple-400">
+                        <div className="flex items-center gap-1 text-info">
                           <Users className="w-3 h-3" />
                           {inv.use_count ?? 0}
                           {inv.max_uses != null ? ` / ${inv.max_uses}` : ' used'}
@@ -465,7 +466,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                             <button
                               onClick={() => revoke(inv.id)}
                               title="Revoke invitation"
-                              className="p-1.5 rounded-lg text-fg-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              className="p-1.5 rounded-lg text-fg-secondary hover:text-error hover:bg-error-subtle transition-colors"
                             >
                               <X className="w-4 h-4" />
                             </button>

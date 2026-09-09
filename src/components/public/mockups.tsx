@@ -5,8 +5,8 @@ import { CheckCircle2, Users, Volume2 } from 'lucide-react'
 
 // Seamless looping AI typewriter mockup
 export function AiTypingMockup({ lang }: { lang: string }) {
-  const PHASES = ['idle', 'typing', 'generating', 'done'] as const
-  const [phase, setPhase] = useState<typeof PHASES[number]>('idle')
+  type Phase = 'idle' | 'typing' | 'generating' | 'done'
+  const [phase, setPhase] = useState<Phase>('idle')
   const [typed, setTyped] = useState('')
   const topic = lang === 'ar' ? 'الدورة الدموية الصغرى والكبرى' : 'Pulmonary & systemic circulation'
   useEffect(() => {

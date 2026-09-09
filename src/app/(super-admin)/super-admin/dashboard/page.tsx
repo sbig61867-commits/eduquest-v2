@@ -3,19 +3,36 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Building2, Users } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDate, settle } from '@/lib/utils'
 import { PageTitle } from '@/components/shared/page-title'
 import { AnimatedStat, StaggerGrid, StaggerItem } from '@/components/shared/motion'
 
 interface TenantRow { id: string; name: string; created_at: string }
 
+// One failed query must not cost the whole page — settle() logs the reason and
+// resolves empty so the fallbacks below render a degraded dashboard instead of
+// throwing the user out to the error boundary.
 async function getStats() {
   const supabase = await createClient()
-  const [{ data: recentTenants, count: tenants }, { count: users }] = await Promise.all([
-    supabase.from('tenants').select('id, name, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(20),
-    supabase.from('users').select('*', { count: 'exact', head: true }),
+
+  const [tenantsResult, usersResult] = await Promise.all([
+    settle(
+      supabase
+        .from('tenants')
+        .select('id, name, created_at', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .limit(20),
+      'super-admin/tenants'
+    ),
+    settle(supabase.from('users').select('id', { count: 'exact', head: true }), 'super-admin/users'),
   ])
-  return { tenants: tenants ?? 0, users: users ?? 0, recentTenants: (recentTenants ?? []) as TenantRow[] }
+
+  return {
+    tenants: tenantsResult.count ?? 0,
+    users: usersResult.count ?? 0,
+    recentTenants: (tenantsResult.data ?? []) as TenantRow[],
+    degraded: Boolean(tenantsResult.error) || Boolean(usersResult.error),
+  }
 }
 
 export default async function SuperAdminDashboard() {
@@ -28,6 +45,12 @@ export default async function SuperAdminDashboard() {
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-fg">Platform Overview</h1>
       </div>
+
+      {stats.degraded && (
+        <p className="bg-warning-subtle border border-warning/25 text-warning rounded-lg px-4 py-3 text-sm">
+          Some platform figures could not be loaded just now. Refresh to try again.
+        </p>
+      )}
 
       {/* Aggregate strip */}
       <StaggerGrid className="grid grid-cols-2 gap-3 max-w-sm">

@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CoursesClient } from './courses-client'
 import { Lock, GraduationCap } from 'lucide-react'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function CoursesPage() {
   const supabase = await createClient()
@@ -42,10 +43,13 @@ export default async function CoursesPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <CoursesClient
-      initialCourses={courses ?? []}
-      teacherId={user.id}
-      tenantId={profile.tenant_id ?? ''}
-    />
+    <>
+      <PageTitle title={'Courses'} />
+      <CoursesClient
+        initialCourses={courses ?? []}
+        teacherId={user.id}
+        tenantId={profile.tenant_id ?? ''}
+      />
+    </>
   )
 }

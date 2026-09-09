@@ -620,3 +620,64 @@ Carried forward as open questions, deliberately unanswered here:
 ---
 
 *End of Phase 1. No code has been modified. Next: `DESIGN_DIRECTION.md`.*
+
+---
+
+# Addendum — re-audit 2026-09-09
+
+Phase 1 above was written on 2026-09-07 against commit `be209dd` and describes the
+pre-token state. The token system, the role-differentiated surfaces and the light
+theme have since landed. This addendum records what the same measurements say
+today, so the numbers above are read as history rather than current state.
+
+## What the earlier findings look like now
+
+**Finding 1, "there is no design system": resolved.** `globals.css` is no longer
+the starter file. It declares a full token set for surfaces, borders, foreground,
+accent and the four semantic states, with a light default, a
+`prefers-color-scheme` dark block and an explicit `data-theme` override, plus a
+static block for radius, type scale, elevation and motion.
+
+**Finding 2, "the five dashboards are one template": resolved.** Each route group
+has its own layout, sidebar navigation and dashboard composition.
+
+**Finding 3, "no notion of now": largely resolved, with one gap that this pass
+closed.** The student surfaces carry a quick-access panel, announcement banners
+and per-course progress. The gap was that "continue" had nowhere to go: the
+course card's primary button pointed at a route that did not exist. That is
+covered in `PRODUCT_COMPLETENESS_AUDIT.md`.
+
+**The `text-slate-500` contrast failure: resolved.** That utility no longer
+appears anywhere in the application shell.
+
+**The bilingual finding: still open, and still the largest piece of design debt.**
+Components continue to hardcode `dir="rtl"` on their own containers inside an
+`<html lang="en">` document. Question 2 in the open list above has not been
+answered, and everything in §6 still depends on it.
+
+## Current measurement
+
+Raw Tailwind palette utilities, meaning colours written as literal scale values
+rather than tokens, counted across `src/app`, `src/components` and `src/lib`,
+excluding the deliberately art-directed marketing pages under
+`src/components/public`:
+
+| Date | Raw palette utilities in the application shell |
+|---|---|
+| 2026-09-07 (Phase 1) | 370 |
+| 2026-09-09 (this addendum) | 48 |
+
+The 48 remaining are overlay scrims, the printed report surface and switch knobs.
+Each is justified individually in `DESIGN_OVERHAUL_REPORT.md`.
+
+## Newly found and fixed on this pass
+
+The single most damaging visual defect in the product was not in the earlier
+audit, because it only appears in light mode and the app was dark-only when
+Phase 1 was written. The authentication pages paint a hardcoded dark gradient
+and then set their text with theme tokens. Once the light theme shipped, that
+combination put deep navy text on a near-black background across sign-in,
+password reset and invitation acceptance. Details and the fix are in
+`DESIGN_OVERHAUL_REPORT.md`.
+
+*End of addendum.*

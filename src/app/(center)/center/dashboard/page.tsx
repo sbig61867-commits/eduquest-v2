@@ -6,6 +6,7 @@ import { GraduationCap, Users, Layers, Megaphone, ShieldCheck } from 'lucide-rea
 import { resolvePermissions, CAPABILITY_LABELS, CAPABILITIES } from '@/lib/permissions'
 import { PageTitle } from '@/components/shared/page-title'
 import { AnimatedStat, StaggerGrid, StaggerItem } from '@/components/shared/motion'
+import { settle } from '@/lib/utils'
 
 export default async function CenterDashboard() {
   const supabase = await createClient()
@@ -17,10 +18,10 @@ export default async function CenterDashboard() {
   const perms = resolvePermissions(profile?.role, profile?.permissions)
 
   const [{ count: teachers }, { count: students }, { count: groups }, { count: announcements }] = await Promise.all([
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id).eq('role', 'teacher'),
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id).eq('role', 'student'),
-    supabase.from('groups').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id),
-    supabase.from('announcements').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id),
+    settle(supabase.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id).eq('role', 'teacher'), 'center/teachers'),
+    settle(supabase.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id).eq('role', 'student'), 'center/students'),
+    settle(supabase.from('groups').select('id', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id), 'center/groups'),
+    settle(supabase.from('announcements').select('id', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id), 'center/announcements'),
   ])
 
   const granted = CAPABILITIES.filter(c => perms[c])

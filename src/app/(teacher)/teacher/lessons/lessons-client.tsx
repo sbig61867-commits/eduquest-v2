@@ -149,7 +149,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                     {lesson.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(lesson)}><Pencil className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteLesson(lesson.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => deleteLesson(lesson.id)} className="hover:text-error hover:bg-error-subtle"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             </div>
@@ -160,7 +160,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Lesson' : 'New Lesson'} size="xl">
         <div className="space-y-5">
           {/* AI Generator */}
-          <div className="bg-accent-subtle border border-blue-500/20 rounded-lg p-4 space-y-3">
+          <div className="bg-accent-subtle border border-accent-border rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-accent" />
@@ -188,7 +188,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
               <Button onClick={generateWithAI} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
             </div>
 
-            {aiError && <p className="text-red-400 text-sm">{aiError}</p>}
+            {aiError && <p className="text-error text-sm">{aiError}</p>}
 
             {showAiInstructions && (
               <div className="space-y-1.5">
@@ -214,7 +214,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-fg-secondary">Group</label>
                 {groups.length === 0 ? (
-                  <div className="px-4 py-3 rounded-lg bg-accent-subtle border border-amber-500/20 text-accent text-sm">
+                  <div className="px-4 py-3 rounded-lg bg-accent-subtle border border-warning/25 text-accent text-sm">
                     You don&apos;t have any groups yet. Create a group first from{' '}
                     <button type="button" onClick={() => router.push('/teacher/groups')} className="underline underline-offset-2 font-medium">My Groups</button>
                     {' '}— lessons must belong to a group so students can see them.
@@ -230,7 +230,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
               <label className="block text-sm font-medium text-fg-secondary">Content (Markdown supported)</label>
               <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={10} required className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none font-mono" placeholder="Write lesson content or generate with AI above..." />
             </div>
-            {formError && <p className="text-red-400 text-sm">{formError}</p>}
+            {formError && <p className="text-error text-sm">{formError}</p>}
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
               <Button type="submit" loading={loading} disabled={!editing && groups.length === 0} className="flex-1">{editing ? 'Save Changes' : 'Create Lesson'}</Button>

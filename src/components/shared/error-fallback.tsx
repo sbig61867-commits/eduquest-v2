@@ -25,9 +25,9 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'Go 
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <div className="w-full max-w-md p-8 space-y-5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-red-600/20 mb-1">
-          <span className="text-red-400 text-3xl">!</span>
+      <div className="w-full max-w-md p-8 space-y-5 bg-elevated border border-border rounded-lg shadow-xl text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-error-subtle border border-error/25 mb-1">
+          <span className="text-error text-3xl" aria-hidden="true">!</span>
         </div>
         <h1 className="text-xl font-bold text-fg">Something went wrong</h1>
         <p className="text-fg-secondary text-sm leading-relaxed">
@@ -40,17 +40,17 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'Go 
         <div className="flex items-center justify-center gap-3 pt-1">
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-hover text-fg font-medium rounded-lg transition-colors text-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-hover text-accent-fg font-medium rounded-lg transition-colors text-sm"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
             Try again
           </button>
           {homeHref && (
             <a
               href={homeHref}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-fg font-medium rounded-lg transition-colors text-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-elevated border border-border hover:bg-surface text-fg font-medium rounded-lg transition-colors text-sm"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-4 h-4" aria-hidden="true" />
               {homeLabel}
             </a>
           )}

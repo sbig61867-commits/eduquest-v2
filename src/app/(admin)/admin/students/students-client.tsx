@@ -82,7 +82,7 @@ export function StudentsClient({ initialStudents }: Props) {
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1 justify-end">
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(student)}><ToggleLeft className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => deleteStudent(student.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteStudent(student.id)} className="hover:text-error hover:bg-error-subtle"><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </td>
               </tr>

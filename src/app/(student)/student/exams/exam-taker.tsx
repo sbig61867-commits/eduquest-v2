@@ -416,7 +416,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             </span>
           )}
           {!untimed && (
-            <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-400' : 'text-fg'}`}>
+            <span className={`flex items-center gap-1.5 font-mono font-bold text-lg ${timeLeft < 300 ? 'text-error' : 'text-fg'}`}>
               <Clock className="w-4 h-4" />{formatTime(timeLeft)}
             </span>
           )}
@@ -428,14 +428,14 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
       {/* Violation alert */}
       {violationAlert && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm font-medium animate-pulse">
+        <div className="bg-error-subtle border border-error/30 rounded-lg px-4 py-3 text-error text-sm font-medium animate-pulse">
           {violationAlert}
         </div>
       )}
 
       {/* Persistent warning once the violation threshold is reached */}
       {exam.proctoring_enabled && violations.length >= violationWarningThreshold && (
-        <div className="bg-red-600/20 border border-red-500 rounded-lg px-4 py-3 flex items-center gap-2 text-red-300 text-sm font-semibold">
+        <div className="bg-error-subtle border border-error rounded-lg px-4 py-3 flex items-center gap-2 text-error text-sm font-semibold">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           {violations.length} proctoring violations recorded. Your teacher will review all of them — further violations may invalidate this exam.
         </div>

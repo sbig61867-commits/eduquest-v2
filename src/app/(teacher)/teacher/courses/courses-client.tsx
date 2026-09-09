@@ -261,7 +261,7 @@ export function CoursesClient({ initialCourses }: Props) {
                       ? <><EyeOff className="w-3.5 h-3.5" /> Unpublish</>
                       : <><Eye className="w-3.5 h-3.5" /> Publish</>}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteCourse(course.id)} className="hover:text-red-400 hover:bg-red-500/10">
+                  <Button variant="ghost" size="sm" onClick={() => deleteCourse(course.id)} className="hover:text-error hover:bg-error-subtle">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -380,7 +380,7 @@ export function CoursesClient({ initialCourses }: Props) {
             />
 
             {pptxError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+              <div className="bg-error-subtle border border-error/30 rounded-lg px-4 py-3 text-error text-sm">
                 {pptxError}
               </div>
             )}
@@ -412,9 +412,9 @@ export function CoursesClient({ initialCourses }: Props) {
         {/* Step 2: Preview & Edit */}
         {pptxStep === 'preview' && generatedCourse && (
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-green-400 shrink-0" />
-              <p className="text-green-400 text-sm">تم توليد هيكل الكورس. راجع المحتوى وعدّل ما تريد قبل الإنشاء.</p>
+            <div className="bg-success-subtle border border-success/25 rounded-lg px-4 py-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-success shrink-0" />
+              <p className="text-success text-sm">تم توليد هيكل الكورس. راجع المحتوى وعدّل ما تريد قبل الإنشاء.</p>
             </div>
 
             {/* Course info */}

@@ -8,7 +8,7 @@ import {
   ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
   ChevronDown, Users, BookOpen, ClipboardList, BarChart2, Radio, CheckCircle2, Plus, Zap,
   GraduationCap, Megaphone, CalendarClock, Sparkles, TrendingUp, Award,
-  Lock, Clock, Archive, Headphones, Volume2,
+  Lock, Clock, Archive, Headphones,
 } from 'lucide-react'
 
 const dict = {
@@ -268,12 +268,55 @@ const icons = {
   Lock, Clock, Archive, Headphones,
 } as const
 
-function SectionBanner({ label, color, textColor }: { label: string; color: string; textColor?: string }) {
+// The band that opens every section. It is the section's own colour rendered as
+// a full-width banner — two drifting radial washes and a slow sheen behind a
+// translucent tint, with a hairline and a soft shadow separating it from the
+// content below. `label` is the section name; `title` and `kicker` are optional
+// and let the band carry the section's headline instead of repeating it below.
+function SectionBanner({
+  label, color, textColor, title, kicker,
+}: {
+  label: string
+  color: string
+  textColor?: string
+  title?: string
+  kicker?: string
+}) {
+  const ink = textColor ?? color
   return (
-    <div className="w-full py-2.5 border-b" style={{ background: `${color}12`, borderColor: `${color}28` }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-        <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: textColor ?? color }}>{label}</span>
+    <div
+      className="eq-band w-full border-b"
+      style={{
+        background: `linear-gradient(180deg, ${color}16 0%, ${color}07 100%)`,
+        borderColor: `${color}2E`,
+        boxShadow: `inset 0 -1px 0 ${color}14, 0 14px 36px -26px ${color}99`,
+      }}
+    >
+      {/* Motion field — decorative, hidden from assistive technology */}
+      <span className="eq-band-orb eq-band-orb-a" style={{ background: `${color}33` }} aria-hidden="true" />
+      <span className="eq-band-orb eq-band-orb-b" style={{ background: `${color}24` }} aria-hidden="true" />
+      <span className="eq-band-sheen" aria-hidden="true" />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
+        <div className="flex items-center gap-2.5">
+          <span className="h-4 w-[3px] rounded-full shrink-0" style={{ background: ink }} aria-hidden="true" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: ink }}>
+            {label}
+          </span>
+        </div>
+        {title && (
+          <h2
+            className="mt-3 text-2xl sm:text-4xl font-black tracking-tight"
+            style={{ color: ink, letterSpacing: '-0.02em' }}
+          >
+            {title}
+          </h2>
+        )}
+        {kicker && (
+          <p className="mt-2.5 max-w-2xl text-sm sm:text-base leading-relaxed" style={{ color: ink, opacity: 0.72 }}>
+            {kicker}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -439,11 +482,12 @@ function useFadeIn(deps: unknown[] = []) {
 
 // Count-up for a single number stat
 function useCountUp(target: string, inView: boolean) {
+  const numeric = parseInt(target.replace(/\D/g, ''), 10)
+  const isNumeric = !isNaN(numeric)
   const [display, setDisplay] = useState('0')
   useEffect(() => {
-    if (!inView) return
-    const num = parseInt(target.replace(/\D/g, ''), 10)
-    if (isNaN(num)) { setDisplay(target); return }
+    if (!inView || !isNumeric) return
+    const num = numeric
     let start = 0
     const step = Math.ceil(num / 40)
     const id = setInterval(() => {
@@ -452,8 +496,8 @@ function useCountUp(target: string, inView: boolean) {
       if (start >= num) clearInterval(id)
     }, 30)
     return () => clearInterval(id)
-  }, [inView, target])
-  return display
+  }, [inView, target, numeric, isNumeric])
+  return isNumeric ? display : target
 }
 
 function StatCard({ value, label, sub }: { value: string; label: string; sub: string }) {
@@ -522,10 +566,14 @@ export function Landing() {
         </div>
       </section>
       <section className="bg-surface border-y border-border">
-        <SectionBanner label={SECTION_COLORS.transform.label[lang]} color={SECTION_COLORS.transform.color} />
+        <SectionBanner
+          label={SECTION_COLORS.transform.label[lang]}
+          color={SECTION_COLORS.transform.color}
+          textColor="#0b3658"
+          title={t.transformTitle}
+          kicker={t.transformSub}
+        />
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-fg text-center mb-2" style={{letterSpacing: '-0.01em'}}>{t.transformTitle}</h2>
-          <p className="text-fg-secondary text-center max-w-xl mx-auto mb-10">{t.transformSub}</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-0 rounded-[24px] overflow-hidden border border-border shadow-[0_12px_48px_rgba(11,54,88,0.08)]">
             <div className="bg-elevated p-6 sm:p-8">
@@ -552,9 +600,13 @@ export function Landing() {
         </div>
       </section>
       <section style={{ background: 'linear-gradient(135deg, #0b3658 0%, #0e4a7a 100%)' }}>
-        <SectionBanner label={SECTION_COLORS.stats.label[lang]} color="#7ec8f0" textColor="#7ec8f0" />
+        <SectionBanner
+          label={SECTION_COLORS.stats.label[lang]}
+          color="#7ec8f0"
+          textColor="#7ec8f0"
+          title={t.statsTitle}
+        />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white text-center mb-12" style={{letterSpacing: '-0.01em'}}>{t.statsTitle}</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {t.stats.map((s, i) => (
               <StatCard key={i} value={s.value} label={s.label} sub={s.sub} />
@@ -563,12 +615,12 @@ export function Landing() {
         </div>
       </section>
       <section className="bg-canvas">
-        <SectionBanner label={SECTION_COLORS.platform.label[lang]} color={SECTION_COLORS.platform.color} />
+        <SectionBanner
+          label={SECTION_COLORS.platform.label[lang]}
+          color={SECTION_COLORS.platform.color}
+          title={t.teaserTitle}
+        />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-          <div className="text-center mb-12">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">المنصة</span>
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.teaserTitle}</h2>
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {t.teaser.map((f, i) => {
               const Icon = icons[f.icon as keyof typeof icons]
@@ -597,22 +649,16 @@ export function Landing() {
       </section>
 
       <section className="bg-canvas overflow-hidden">
-        <SectionBanner label={SECTION_COLORS.demo.label[lang]} color={SECTION_COLORS.demo.color} />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-6">
-          <div className="text-center">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">
-              {lang === 'ar' ? 'استعراض المنصة' : 'Platform walkthrough'}
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.03em'}}>
-              {lang === 'ar' ? 'تجربة حية لما ستتعامل معه داخل المنصة' : 'A live experience of what you will work with inside the platform'}
-            </h2>
-            <p className="text-fg-secondary mt-4 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
-              {lang === 'ar'
-                ? 'لقطات توضيحية حقيقية من واجهات المنصة — دون تجميل أو حذف.'
-                : 'Genuine screen recordings from the platform interfaces — unfiltered and unscripted.'}
-            </p>
-          </div>
-        </div>
+        <SectionBanner
+          label={SECTION_COLORS.demo.label[lang]}
+          color={SECTION_COLORS.demo.color}
+          title={lang === 'ar'
+            ? 'تجربة حية لما ستتعامل معه داخل المنصة'
+            : 'A live experience of what you will work with inside the platform'}
+          kicker={lang === 'ar'
+            ? 'لقطات توضيحية حقيقية من واجهات المنصة — دون تجميل أو حذف.'
+            : 'Genuine screen recordings from the platform interfaces — unfiltered and unscripted.'}
+        />
       </section>
 
       <section className="bg-canvas pb-0">

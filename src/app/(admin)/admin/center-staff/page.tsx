@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
-import { PageTitle } from '@/components/shared/page-title'
 import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
 import { can, resolvePermissions } from '@/lib/permissions'
 import { ShieldAlert } from 'lucide-react'
+import { PageTitle } from '@/components/shared/page-title'
 
 // The university_admin grants capabilities to their centre managers.
 // The escalation guard (you cannot grant what you don't hold) is enforced
@@ -48,18 +48,21 @@ export default async function AdminCenterStaffPage() {
   }))
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
-        <h2 className="text-xl font-semibold text-fg">مديرو المراكز</h2>
-        <p className="text-fg-secondary mt-1">
-          امنح كل مدير مركز الصلاحيات التي تريدها — لا يمكنك منح صلاحية لا تملكها أنت.
-        </p>
+    <>
+      <PageTitle title={'مديرو المراكز'} />
+      <div className="space-y-6" dir="rtl">
+        <div>
+          <h2 className="text-xl font-semibold text-fg">مديرو المراكز</h2>
+          <p className="text-fg-secondary mt-1">
+            امنح كل مدير مركز الصلاحيات التي تريدها — لا يمكنك منح صلاحية لا تملكها أنت.
+          </p>
+        </div>
+        <PermissionsEditor
+          staff={staff}
+          grantable={resolvePermissions(me?.role, me?.permissions)}
+          emptyHint="لا يوجد مديرو مراكز بعد — ادعُهم من صفحة الدعوات بدور «مدير مركز»."
+        />
       </div>
-      <PermissionsEditor
-        staff={staff}
-        grantable={resolvePermissions(me?.role, me?.permissions)}
-        emptyHint="لا يوجد مديرو مراكز بعد — ادعُهم من صفحة الدعوات بدور «مدير مركز»."
-      />
-    </div>
+    </>
   )
 }

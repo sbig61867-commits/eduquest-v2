@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, ClipboardList } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDate, settle } from '@/lib/utils'
 import { SurveyCard } from '@/components/student/survey-card'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
 import { PageTitle } from '@/components/shared/page-title'
@@ -40,23 +40,23 @@ export default async function StudentDashboard() {
   ] = await Promise.all([
     groupIds.length === 0
       ? Promise.resolve({ data: [], count: 0 } as { data: LessonRow[]; count: number })
-      : supabase
+      : settle(supabase
           .from('lessons')
           .select('id, title, created_at, groups(name)', { count: 'exact' })
           .eq('is_published', true)
           .in('group_id', groupIds)
           .order('created_at', { ascending: false })
-          .limit(5),
-    supabase.rpc('get_student_exams'),
-    supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''),
-    supabase
+          .limit(5), 'student/recentLessons'),
+    settle(supabase.rpc('get_student_exams'), 'student/exams'),
+    settle(supabase.from('exam_submissions').select('id', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''), 'student/submissionCount'),
+    settle(supabase
       .from('exam_submissions')
       .select('id, score, max_score, submitted_at, exams(title)')
       .eq('student_id', user?.id ?? '')
       .not('score', 'is', null)
       .order('submitted_at', { ascending: false })
-      .limit(5),
-    supabase.rpc('get_student_announcements'),
+      .limit(5), 'student/recentGrades'),
+    settle(supabase.rpc('get_student_announcements'), 'student/announcements'),
   ])
 
   const exams = (examRows ?? []).length

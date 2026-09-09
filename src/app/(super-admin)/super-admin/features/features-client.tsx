@@ -102,7 +102,7 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
                   <button onClick={() => toggleFlag(flag)} className={`relative w-12 h-6 rounded-full transition-colors ${flag.is_enabled ? 'bg-accent' : 'bg-border-strong'}`}>
                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${flag.is_enabled ? 'translate-x-7' : 'translate-x-1'}`} />
                   </button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteFlag(flag.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => deleteFlag(flag.id)} className="hover:text-error hover:bg-error-subtle"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             ))}

@@ -80,16 +80,16 @@ export default async function ProctoringReportsPage() {
       </div>
 
       {(liveExams ?? []).length > 0 && (
-        <div className="bg-surface border border-red-900/40 rounded-lg p-5">
+        <div className="bg-surface border border-error/30 rounded-lg p-5">
           <div className="flex items-center gap-2 mb-3">
-            <Radio className="w-4 h-4 text-red-400" />
+            <Radio className="w-4 h-4 text-error" />
             <p className="text-fg font-semibold">Live Monitoring</p>
             <span className="text-fg-muted text-xs">Watch students in real time during a proctored exam</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {(liveExams ?? []).map(e => (
               <Link key={e.id} href={`/teacher/proctoring/live/${e.id}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600/15 border border-red-600/40 text-red-300 hover:bg-red-600/25 text-sm font-medium transition-colors">
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-error/15 border border-red-600/40 text-error hover:opacity-90/25 text-sm font-medium transition-colors">
                 <Radio className="w-3.5 h-3.5" /> {e.title}
               </Link>
             ))}
@@ -102,9 +102,9 @@ export default async function ProctoringReportsPage() {
           <p className="text-fg-secondary text-sm mb-1">Total Submissions</p>
           <p className="text-3xl font-bold text-fg">{submissions.length}</p>
         </div>
-        <div className="bg-surface border border-red-900/40 rounded-lg p-5">
+        <div className="bg-surface border border-error/30 rounded-lg p-5">
           <p className="text-fg-secondary text-sm mb-1">Flagged</p>
-          <p className="text-3xl font-bold text-red-400">{flagged.length}</p>
+          <p className="text-3xl font-bold text-error">{flagged.length}</p>
         </div>
         <div className="bg-surface border border-emerald-900/40 rounded-lg p-5">
           <p className="text-fg-secondary text-sm mb-1">Clean</p>
@@ -146,10 +146,10 @@ export default async function ProctoringReportsPage() {
                       {events.map((ev, i) => {
                         const Icon = VIOLATION_ICONS[ev.type as ViolationIconKey] ?? AlertTriangle
                         return (
-                          <div key={i} className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-                            <Icon className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <div key={i} className="flex items-start gap-2 bg-error-subtle border border-error/25 rounded-lg p-3">
+                            <Icon className="w-4 h-4 text-error shrink-0 mt-0.5" />
                             <div className="min-w-0">
-                              <p className="text-red-300 text-sm font-medium">{VIOLATION_LABELS[ev.type] ?? ev.type}</p>
+                              <p className="text-error text-sm font-medium">{VIOLATION_LABELS[ev.type] ?? ev.type}</p>
                               {ev.details && <p className="text-fg-muted text-xs truncate">{ev.details}</p>}
                               {ev.timestamp && <p className="text-fg-muted text-xs">{formatDateTime(ev.timestamp)}</p>}
                             </div>

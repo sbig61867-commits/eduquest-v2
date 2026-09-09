@@ -103,6 +103,8 @@ export default async function AdminExamsPage() {
   const submissions = all.reduce((s, e) => s + (e.submission_count ?? 0), 0)
 
   return (
+    <>
+      <PageTitle title="Exams" />
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-fg">Exams &amp; Homework</h2>
@@ -134,5 +136,6 @@ export default async function AdminExamsPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

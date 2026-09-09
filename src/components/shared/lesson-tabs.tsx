@@ -255,7 +255,7 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
             checked
               ? selfCheck
                 ? 'border-sky-500/40 bg-sky-500/5'
-                : correct ? 'border-success/40 bg-success/5' : 'border-red-500/40 bg-red-500/5'
+                : correct ? 'border-success/40 bg-success/5' : 'border-error/40 bg-error-subtle'
               : 'border-border-strong bg-surface/40'
           }`}>
             <div className="flex items-start gap-2">
@@ -263,7 +263,7 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
               <div className="flex-1 text-sm text-fg"><Markdown content={q.text} /></div>
               {checked && !selfCheck && (correct
                 ? <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
-                : <XCircle className="w-5 h-5 text-red-400 shrink-0" />)}
+                : <XCircle className="w-5 h-5 text-error shrink-0" />)}
             </div>
 
             {q.options.length > 0 ? (
@@ -282,7 +282,7 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                           ? 'border-success bg-success/15 text-success'
                           : selected
                             ? checked
-                              ? 'border-red-500 bg-red-500/15 text-red-300'
+                              ? 'border-error bg-error-subtle text-error'
                               : 'border-accent bg-accent-subtle text-fg'
                             : 'border-border-strong bg-surface/60 text-fg-secondary hover:border-border-strong'
                       }`}
@@ -300,8 +300,8 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                   onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}
                   placeholder="اكتب إجابتك هنا..."
                   dir="auto"
-                  className={`w-full sm:w-80 px-3 py-2 rounded-lg border bg-surface/60 text-sm text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-violet-500 ${
-                    checked ? (correct ? 'border-success' : 'border-red-500') : 'border-border-strong'
+                  className={`w-full sm:w-80 px-3 py-2 rounded-lg border bg-surface/60 text-sm text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-accent ${
+                    checked ? (correct ? 'border-success' : 'border-error') : 'border-border-strong'
                   }`}
                 />
                 {wrong && <p className="text-accent text-xs">الإجابة الصحيحة: {q.answer}</p>}
@@ -326,7 +326,7 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
         ) : (
           <>
             <div className={`px-4 py-2 rounded-lg text-sm font-bold ${
-              score === gradable.length ? 'bg-success/15 text-accent' : score >= gradable.length / 2 ? 'bg-warning-subtle text-accent' : 'bg-red-500/15 text-red-400'
+              score === gradable.length ? 'bg-success/15 text-accent' : score >= gradable.length / 2 ? 'bg-warning-subtle text-accent' : 'bg-error-subtle text-error'
             }`}>
               نتيجتك: {score} / {gradable.length}
               {gradable.length < questions.length && <span className="font-normal opacity-70"> (+{questions.length - gradable.length} سؤال تقييم ذاتي)</span>}

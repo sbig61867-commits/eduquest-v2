@@ -102,7 +102,7 @@ function UserRow({ u, onToggle, onDelete }: {
               : <ToggleLeft  className="w-4 h-4 text-fg-muted"  />}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onDelete(u.id)}
-            className="hover:text-red-400 hover:bg-red-500/10">
+            className="hover:text-error hover:bg-error-subtle">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -189,7 +189,7 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
     <Modal open={open} onClose={onClose} title="Add New User">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+          <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{error}</p>
         )}
         <Input label="Full Name" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Ahmed Hassan" />
         <Input label="Email" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@university.edu" />
@@ -317,8 +317,8 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-lg hover:bg-surface text-fg-secondary hover:text-fg transition-colors">
-          <ArrowLeft className="w-5 h-5" />
+        <button onClick={onBack} aria-label="Back to all users" className="p-2 rounded-lg hover:bg-surface text-fg-secondary hover:text-fg transition-colors">
+          <ArrowLeft className="w-5 h-5" aria-hidden="true" />
         </button>
         <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
           <Building2 className="w-5 h-5 text-accent" />

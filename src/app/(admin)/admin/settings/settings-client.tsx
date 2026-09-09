@@ -74,7 +74,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
         </div>
         <div className="flex justify-between">
           <span className="text-fg-secondary">Status</span>
-          <span className={tenant.is_active ? 'text-accent' : 'text-red-400'}>
+          <span className={tenant.is_active ? 'text-accent' : 'text-error'}>
             {tenant.is_active ? 'Active' : 'Suspended'}
           </span>
         </div>
@@ -88,10 +88,10 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
         <h3 className="text-fg font-semibold">Edit Profile</h3>
 
         {error && (
-          <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+          <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{error}</p>
         )}
         {saved && (
-          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-emerald-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">
             <CheckCircle2 className="w-4 h-4" /> Settings saved successfully
           </div>
         )}

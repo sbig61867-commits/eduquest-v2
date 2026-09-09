@@ -80,18 +80,18 @@ export default function ResetPasswordPage() {
 
   if (sessionReady === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (sessionReady === 'expired') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="w-full max-w-md p-8 space-y-5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-600/20 mb-2">
-            <span className="text-red-400 text-3xl">✕</span>
+      <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+        <div className="w-full max-w-md p-8 space-y-5 bg-elevated border border-border rounded-2xl shadow-xl text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-error-subtle border border-error/25 mb-2">
+            <span className="text-error text-3xl">✕</span>
           </div>
           <h1 className="text-xl font-bold text-fg">Link expired or invalid</h1>
           <p className="text-fg-secondary text-sm leading-relaxed">
@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
           </p>
           <a
             href="/forgot-password"
-            className="inline-block px-6 py-2.5 bg-accent hover:bg-blue-500 text-fg font-medium rounded-lg transition-colors text-sm"
+            className="inline-block px-6 py-2.5 bg-accent hover:bg-accent-hover text-accent-fg font-medium rounded-lg transition-colors text-sm"
           >
             Request a new link
           </a>
@@ -111,10 +111,10 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="w-full max-w-md p-8 space-y-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600/20 mb-2">
-            <span className="text-emerald-400 text-3xl">✓</span>
+      <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+        <div className="w-full max-w-md p-8 space-y-4 bg-elevated border border-border rounded-2xl shadow-xl text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-success-subtle border border-success/25 mb-2">
+            <span className="text-success text-3xl">✓</span>
           </div>
           <h1 className="text-xl font-bold text-fg">Password updated</h1>
           <p className="text-fg-secondary text-sm">
@@ -129,11 +129,11 @@ export default function ResetPasswordPage() {
   // ── Form ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <RevealOnScroll className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl" mode="mount">
+    <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+      <RevealOnScroll className="w-full max-w-md p-8 space-y-6 bg-elevated border border-border rounded-2xl shadow-xl" mode="mount">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent mb-2">
-            <span className="text-fg text-2xl font-bold">E</span>
+            <span className="text-accent-fg text-2xl font-bold">E</span>
           </div>
           <h1 className="text-2xl font-bold text-fg">Set new password</h1>
           <p className="text-fg-secondary text-sm">
@@ -142,7 +142,7 @@ export default function ResetPasswordPage() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="p-3 rounded-lg bg-error-subtle border border-error/25 text-error text-sm">
             {error}
           </div>
         )}
@@ -162,7 +162,7 @@ export default function ResetPasswordPage() {
                 minLength={MIN_PW_LEN}
                 autoComplete="new-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 pr-10 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
+                className="w-full px-4 py-2.5 pe-10 rounded-lg bg-canvas border border-border text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               />
               <button
                 type="button"
@@ -175,7 +175,7 @@ export default function ResetPasswordPage() {
             </div>
             {/* Strength hint */}
             {password.length > 0 && password.length < MIN_PW_LEN && (
-              <p className="text-xs text-amber-400 mt-1">
+              <p className="text-xs text-warning mt-1">
                 {MIN_PW_LEN - password.length} more character{MIN_PW_LEN - password.length !== 1 ? 's' : ''} needed
               </p>
             )}
@@ -194,7 +194,7 @@ export default function ResetPasswordPage() {
                 required
                 autoComplete="new-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 pr-10 rounded-lg bg-white/10 border border-white/10 text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
+                className="w-full px-4 py-2.5 pe-10 rounded-lg bg-canvas border border-border text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               />
               <button
                 type="button"
@@ -207,7 +207,7 @@ export default function ResetPasswordPage() {
             </div>
             {/* Live match indicator */}
             {confirm.length > 0 && (
-              <p className={`text-xs mt-1 ${password === confirm ? 'text-emerald-400' : 'text-red-400'}`}>
+              <p className={`text-xs mt-1 ${password === confirm ? 'text-success' : 'text-error'}`}>
                 {password === confirm ? 'Passwords match ✓' : 'Passwords do not match'}
               </p>
             )}
@@ -216,7 +216,7 @@ export default function ResetPasswordPage() {
           <button
             type="submit"
             disabled={loading || password.length < MIN_PW_LEN || password !== confirm}
-            className="w-full py-2.5 px-4 bg-accent hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-fg font-medium rounded-lg transition-colors"
+            className="w-full py-2.5 px-4 bg-accent hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-accent-fg font-medium rounded-lg transition-colors"
           >
             {loading ? 'Updating…' : 'Update password'}
           </button>

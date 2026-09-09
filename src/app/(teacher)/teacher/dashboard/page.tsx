@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Users, BookOpen, ClipboardList, Clock, Eye, EyeOff } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDate, settle } from '@/lib/utils'
 import Link from 'next/link'
 import { PageTitle } from '@/components/shared/page-title'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
@@ -27,28 +27,28 @@ export default async function TeacherDashboard() {
     { data: upcomingExams },
     { data: announcementRows },
   ] = await Promise.all([
-    supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
-    supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
-    supabase.from('exams').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
-    supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).eq('status', 'submitted'),
-    supabase.from('lessons')
+    settle(supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null), 'teacher/groups'),
+    settle(supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null), 'teacher/lessons'),
+    settle(supabase.from('exams').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null), 'teacher/exams'),
+    settle(supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).eq('status', 'submitted'), 'teacher/ungraded'),
+    settle(supabase.from('lessons')
       .select('id, title, is_published, created_at, groups(name)')
       .eq('teacher_id', user.id).is('deleted_at', null)
-      .order('created_at', { ascending: false }).limit(8),
-    supabase.from('exams')
+      .order('created_at', { ascending: false }).limit(8), 'teacher/recentLessons'),
+    settle(supabase.from('exams')
       .select('id, title, ends_at, groups(name)')
       .eq('teacher_id', user.id).is('deleted_at', null)
       .eq('is_published', true)
       .gte('ends_at', now)
-      .order('ends_at', { ascending: true }).limit(5),
-    supabase.from('announcements')
+      .order('ends_at', { ascending: true }).limit(5), 'teacher/upcomingExams'),
+    settle(supabase.from('announcements')
       .select('id, title, body, image_url, link_url, cta_label')
       .eq('is_published', true)
       .or(`starts_at.is.null,starts_at.lte.${now}`)
       .or(`ends_at.is.null,ends_at.gte.${now}`)
       .order('created_at', { ascending: false })
-      .limit(10),
-  ])
+      .limit(10), 'teacher/announcements'),
+    ])
 
   const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
 

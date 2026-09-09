@@ -151,7 +151,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
           </select>
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-error text-sm">{error}</p>}
 
         <div className="flex gap-2">
           <Button onClick={generate} loading={loading} disabled={!entityId}>
@@ -177,13 +177,13 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
         const rtl = rlang === 'ar'
         const cellAlign = rtl ? 'text-right' : 'text-left'
         return (
-        <div id="report-print" className="bg-white text-slate-900 rounded-lg p-8 space-y-5" dir={rtl ? 'rtl' : 'ltr'}>
+        <div id="report-print" className="bg-white text-fg rounded-lg p-8 space-y-5" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Official letterhead ── */}
           <div className="border-b-4 border-blue-700 pb-4">
             <div className="flex items-start justify-between gap-4">
               {/* Platform identity */}
               <div className="flex items-center gap-3">
-                <div className="print-color w-14 h-14 rounded-lg bg-blue-700 flex items-center justify-center shrink-0">
+                <div className="print-color w-14 h-14 rounded-lg bg-accent-hover flex items-center justify-center shrink-0">
                   <span className="text-fg text-3xl font-bold">E</span>
                 </div>
                 <div>
@@ -219,14 +219,14 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                 {ui.uniLabel}: {report.university}
               </p>
             )}
-            <h1 className="text-2xl font-bold text-slate-900">{report.title}</h1>
+            <h1 className="text-2xl font-bold text-fg">{report.title}</h1>
             <p className="text-fg-muted text-sm mt-1.5">{report.subtitle}</p>
-            <div className="print-color w-24 h-0.5 bg-blue-700 mx-auto mt-3" />
+            <div className="print-color w-24 h-0.5 bg-accent-hover mx-auto mt-3" />
           </div>
 
           {report.tables.map((t, i) => (
             <div key={i} className="space-y-2">
-              <h3 className="font-semibold text-slate-800">{t.heading}</h3>
+              <h3 className="font-semibold text-fg">{t.heading}</h3>
               {t.rows.length === 0 ? (
                 <p className="text-fg-secondary text-sm">{rtl ? 'لا توجد بيانات.' : 'No data.'}</p>
               ) : (
@@ -235,7 +235,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                     <thead>
                       <tr>
                         {t.columns.map((c, j) => (
-                          <th key={j} className={`border border-slate-300 bg-slate-100 px-3 py-2 ${cellAlign} font-semibold`}>{c}</th>
+                          <th key={j} className={`border border-border bg-slate-100 px-3 py-2 ${cellAlign} font-semibold`}>{c}</th>
                         ))}
                       </tr>
                     </thead>
@@ -243,7 +243,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                       {t.rows.map((row, r) => (
                         <tr key={r} className={r % 2 ? 'bg-slate-50' : ''}>
                           {row.map((cell, c) => (
-                            <td key={c} className={`border border-slate-300 px-3 py-2 ${cellAlign}`}>{cell}</td>
+                            <td key={c} className={`border border-border px-3 py-2 ${cellAlign}`}>{cell}</td>
                           ))}
                         </tr>
                       ))}
@@ -259,22 +259,22 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <p className="text-sm font-semibold text-slate-700 mb-6">{ui.sigTitle}</p>
             <div className="flex items-end justify-between gap-8 max-w-2xl">
               <div className="flex-1">
-                <div className="border-b border-slate-400 h-8" />
+                <div className="border-b border-border-strong h-8" />
                 <p className="text-xs text-fg-muted mt-1.5">{ui.sigName}</p>
               </div>
               <div className="flex-1">
-                <div className="border-b border-slate-400 h-8" />
+                <div className="border-b border-border-strong h-8" />
                 <p className="text-xs text-fg-muted mt-1.5">{ui.sigSignature}</p>
               </div>
               <div className="flex-1">
-                <div className="border-b border-slate-400 h-8" />
+                <div className="border-b border-border-strong h-8" />
                 <p className="text-xs text-fg-muted mt-1.5">{ui.sigDate}</p>
               </div>
             </div>
           </div>
 
           {/* ── Official footer ── */}
-          <div className="border-t-2 border-slate-300 pt-3 mt-6 flex items-center justify-between text-[11px] text-fg-muted">
+          <div className="border-t-2 border-border pt-3 mt-6 flex items-center justify-between text-[11px] text-fg-muted">
             <p>{ui.footerAuto}</p>
             <p>{ui.footerConf}</p>
           </div>

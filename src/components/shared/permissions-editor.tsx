@@ -70,7 +70,7 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!member.is_active && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">معطّل</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-error-subtle text-error">معطّل</span>
                 )}
                 <Button size="sm" loading={savingId === member.id} disabled={!dirty} onClick={() => save(member)}>
                   <ShieldCheck className="w-3.5 h-3.5" /> حفظ

@@ -242,7 +242,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                   <Button variant="ghost" size="sm" onClick={() => setViewQuestions(exam)} title="عرض الأسئلة"><FileQuestion className="w-4 h-4" /></Button>
                   <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> Results</Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-error hover:bg-error-subtle"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             </div>
@@ -271,8 +271,8 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <span className="text-accent text-sm font-medium">AI Question Generator</span>
               </div>
               <div className="flex gap-2">
-                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-                <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
+                <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm text-center focus:outline-none focus:ring-2 focus:ring-accent" />
                 <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
               </div>
             </div>
@@ -311,7 +311,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                         📄 {f.name}
                         <button type="button" title="إزالة هذا الملف"
                           onClick={() => setExamFiles(prev => prev.filter((_, j) => j !== i))}
-                          className="text-fg-muted hover:text-red-400"><X className="w-3 h-3" /></button>
+                          className="text-fg-muted hover:text-error"><X className="w-3 h-3" /></button>
                       </span>
                     ))}
                     <span className="text-fg-muted text-xs self-center">{examFiles.length}/10</span>
@@ -349,7 +349,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على الفصلين 3 و4"' />
 
               <AiProgress active={examFileLoading} />
-              {examFileError && <p className="text-red-400 text-sm">{examFileError}</p>}
+              {examFileError && <p className="text-error text-sm">{examFileError}</p>}
 
               <Button onClick={generateExamFromFile} loading={examFileLoading} disabled={examFiles.length === 0 || examQTypes.size === 0} variant="secondary" size="sm">
                 <Sparkles className="w-4 h-4" /> توليد الأسئلة من الملف
@@ -424,7 +424,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                             className="w-14 px-1.5 py-1 rounded bg-surface border border-border-strong text-fg text-xs text-center focus:outline-none focus:ring-1 focus:ring-accent" />
                           <span className="text-fg-muted text-xs">د</span>
                         </span>
-                        <button onClick={() => removeQuestion(q.id)} className="text-fg-muted hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => removeQuestion(q.id)} className="text-fg-muted hover:text-error shrink-0"><X className="w-3.5 h-3.5" /></button>
                       </div>
                     )
                   })}
@@ -494,7 +494,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                             <td className="px-4 py-3">
                               {!r.submitted ? <span className="text-fg-muted">—</span>
                                 : r.grading_status === 'published' && r.score != null
-                                  ? <span className={`font-bold ${pct! >= 60 ? 'text-accent' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
+                                  ? <span className={`font-bold ${pct! >= 60 ? 'text-accent' : 'text-error'}`}>{r.score}/{r.max_score} ({pct}%)</span>
                                   : <span className="text-accent text-xs">pending grading</span>}
                             </td>
                             <td className="px-4 py-3 hidden sm:table-cell text-fg-secondary text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
@@ -502,7 +502,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                               {!r.submitted ? <Badge variant="neutral">Not taken</Badge>
                                 : <span className="flex items-center gap-2">
                                     <Badge variant="success">Submitted</Badge>
-                                    {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
+                                    {r.violations > 0 && <span className="flex items-center gap-1 text-error text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
                                   </span>}
                             </td>
                           </tr>
@@ -523,7 +523,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                           <p className="flex-1 text-fg text-sm">{q.text}</p>
                                           {auto && (correct
                                             ? <span className="flex items-center gap-1 text-accent text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
-                                            : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0/{q.points} د</span>)}
+                                            : <span className="flex items-center gap-1 text-error text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0/{q.points} د</span>)}
                                         </div>
                                         <p className="text-sm ps-6">
                                           <span className="text-fg-muted">إجابة الطالب: </span>

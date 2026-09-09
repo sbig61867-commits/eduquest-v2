@@ -254,7 +254,7 @@ export function AnnouncementsManager({ announcements, groups }: {
                         group_ids: on ? f.group_ids.filter(x => x !== g.id) : [...f.group_ids, g.id],
                       }))}
                       className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                        on ? 'bg-accent-subtle border-blue-600 text-accent' : 'bg-surface border-border-strong text-fg-secondary'
+                        on ? 'bg-accent-subtle border-accent-border text-accent' : 'bg-surface border-border-strong text-fg-secondary'
                       }`}
                     >{g.name}</button>
                   )

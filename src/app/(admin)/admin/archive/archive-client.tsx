@@ -98,7 +98,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       ) : (
         <div className="space-y-2.5">
           {filtered.map(r => (
-            <div key={r.id} className={`bg-surface border rounded-lg p-4 ${r.is_archived ? 'border-amber-500/30' : 'border-border'}`}>
+            <div key={r.id} className={`bg-surface border rounded-lg p-4 ${r.is_archived ? 'border-warning/30' : 'border-border'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${r.kind === 'group' ? 'bg-accent-subtle text-accent' : 'bg-accent-subtle text-accent'}`}>

@@ -87,8 +87,9 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
                   </button>
                 )}
                 <button onClick={() => remove(m.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                  aria-label="Delete message"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-error-subtle hover:bg-error/20 text-error text-xs font-medium transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete
                 </button>
               </div>
             </div>
