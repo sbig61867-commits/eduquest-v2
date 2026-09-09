@@ -55,3 +55,8 @@ backups/
 # .env.local and may embed test credentials — never commit or deploy them.
 _tmp_*
 *.local.mjs
+
+# Scratch output from the page-capture tool. It lives under public/, so
+# committing it would publish internal screenshots and agent instruction files
+# at /capture-admin/... on the deployed site.
+public/capture-admin/
