@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
-import { aiChat } from '@/lib/ai/chat'
+import { aiChatDetailed } from '@/lib/ai/chat'
+import { logAiUsage } from '@/lib/ai/usage'
 import { getAiRateLimits } from '@/lib/settings'
 
 export const maxDuration = 300
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: profile } = await supabase
-    .from('users').select('role').eq('id', user.id).single()
+    .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -192,6 +193,7 @@ ${sourceText.slice(0, 30000)}`
     const maxRounds = Math.ceil(count / BATCH) + 2
     const seen = new Set<string>()
     const collected: GeneratedQuestion[] = []
+    let lastProvider = 'none'
 
     // Questions already in the teacher's draft (earlier generation runs) —
     // seed both dedup layers so new runs never repeat them.
@@ -202,11 +204,12 @@ ${sourceText.slice(0, 30000)}`
 
     for (let round = 0; round < maxRounds && collected.length < count; round++) {
       const need = Math.min(count - collected.length, BATCH)
-      const content = await aiChat(
+      const { content, provider } = await aiChatDetailed(
         buildPrompt(need, [...priorTexts, ...collected.map(q => q.text)]),
         'Return only valid JSON arrays, no markdown, no explanations.',
         { temperature: 0.3 } // strict source-grounding, not creative writing
       )
+      lastProvider = provider
       const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
       const match = text.match(/\[[\s\S]*\]/)
       if (!match) continue
@@ -234,6 +237,7 @@ ${sourceText.slice(0, 30000)}`
     }
 
     if (collected.length === 0) throw new Error('No valid questions after validation')
+    void logAiUsage(user.id, profile.tenant_id, 'homework-from-file', lastProvider)
     return NextResponse.json({ questions: collected, requested: count, delivered: collected.length })
   } catch (e) {
     console.error('[generate-homework-from-file] AI:', e)

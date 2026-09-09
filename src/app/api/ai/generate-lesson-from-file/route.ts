@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { aiChat } from '@/lib/ai/chat'
+import { aiChatDetailed } from '@/lib/ai/chat'
+import { logAiUsage } from '@/lib/ai/usage'
 import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: profile } = await supabase
-    .from('users').select('role').eq('id', user.id).single()
+    .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -80,7 +81,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const content = await composeLesson(fullText, level, customInstructions, questionTypes)
+    const { content, provider } = await composeLesson(fullText, level, customInstructions, questionTypes)
+    void logAiUsage(user.id, profile.tenant_id, 'lesson-from-file', provider)
     return NextResponse.json({ content })
   } catch (e) {
     console.error('[generate-lesson-from-file] AI:', e)
@@ -225,24 +227,28 @@ async function composeWithGemini(fullText: string, level: string, customInstruct
   return parts.join('\n\n')
 }
 
-async function composeWithFallbackChain(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<string> {
+async function composeWithFallbackChain(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<{ content: string; provider: string }> {
   const chunks = splitIntoChunks(fullText, GROQ_CHUNK_CHAR_TARGET)
   const system = 'You transcribe source material into Markdown lesson pages faithfully, without adding or omitting content.'
 
   const parts: string[] = []
+  let provider = 'none'
   for (let i = 0; i < chunks.length; i++) {
     const part = chunks.length > 1 ? { index: i, total: chunks.length } : undefined
-    parts.push(await aiChat(buildPrompt(chunks[i], level, customInstructions, qTypes, part), system))
+    const result = await aiChatDetailed(buildPrompt(chunks[i], level, customInstructions, qTypes, part), system)
+    parts.push(result.content)
+    provider = result.provider
   }
-  return parts.join('\n\n')
+  return { content: parts.join('\n\n'), provider }
 }
 
-async function composeLesson(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<string> {
+async function composeLesson(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<{ content: string; provider: string }> {
   // Gemini first (larger output window), then the aiChat chain
-  // (Groq → Cerebras → OpenRouter) — e.g. when the Gemini free-tier quota
-  // is exhausted (429) the teacher still gets a lesson.
+  // (Groq → xKiro → Cohere → OpenRouter) — e.g. when the Gemini free-tier
+  // quota is exhausted (429) the teacher still gets a lesson.
   try {
-    return await composeWithGemini(fullText, level, customInstructions, qTypes)
+    const content = await composeWithGemini(fullText, level, customInstructions, qTypes)
+    return { content, provider: 'gemini' }
   } catch (e) {
     console.error('[composeLesson] Gemini failed, falling back to aiChat chain:', e instanceof Error ? e.message : e)
     return composeWithFallbackChain(fullText, level, customInstructions, qTypes)

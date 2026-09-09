@@ -546,3 +546,17 @@ CREATE TABLE survey_responses (
   submitted_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(survey_id, student_id)
 );
+
+-- ============================================================
+-- AI usage log (see supabase/ai_usage_log_migration.sql for the full
+-- migration with the get_tenant_ai_usage() aggregate feed — applied
+-- separately on live DB)
+-- ============================================================
+CREATE TABLE ai_usage_log (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+  feature     TEXT NOT NULL,
+  provider    TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -4,7 +4,7 @@ import { groqChat } from './groq'
 // ── Unified AI chat with provider fallback ────────────────────────
 // Tries providers in order and moves to the next on any error (quota
 // exhausted, outage, etc.), so no single free tier is a point of failure:
-//   Groq → Cohere → Gemini → OpenRouter
+//   Groq → xKiro → Cohere → Gemini → OpenRouter
 // A provider is skipped when its key is missing or still a placeholder,
 // so new providers activate simply by adding their env var.
 
@@ -68,6 +68,19 @@ function cohereChat(prompt: string, systemPrompt?: string, temperature?: number)
   })
 }
 
+// xKiro (api.xkiro.com) — OpenAI-compatible aggregator, free tier verified
+// live against GET /v1/models 2026-09-08 (40+ free-tier models, 5M
+// tokens/day). deepseek/deepseek-v4-flash: free, 1M context, not a
+// promo-tagged ":free" model, so less likely to be pulled than the others.
+function xkiroChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
+  return openAiCompatChat({
+    url: 'https://api.xkiro.com/v1/chat/completions',
+    apiKey: process.env.XKIRO_API_KEY!,
+    model: 'deepseek/deepseek-v4-flash',
+    prompt, systemPrompt, temperature,
+  })
+}
+
 function openRouterChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   return openAiCompatChat({
     url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -119,6 +132,7 @@ export async function aiChatDetailed(
   const temperature = options?.temperature
   const legs: Array<[string, () => Promise<string>]> = []
   if (hasKey('GROQ_API_KEY')) legs.push(['groq', () => groqChat(prompt, systemPrompt, temperature ?? 0.7)])
+  if (hasKey('XKIRO_API_KEY')) legs.push(['xkiro', () => xkiroChat(prompt, systemPrompt, temperature)])
   if (hasKey('COHERE_API_KEY')) legs.push(['cohere', () => cohereChat(prompt, systemPrompt, temperature)])
   if (hasKey('GEMINI_API_KEY')) legs.push(['gemini', () => geminiChat(prompt, systemPrompt, temperature)])
   if (hasKey('OPENROUTER_API_KEY')) legs.push(['openrouter', () => openRouterChat(prompt, systemPrompt, temperature)])

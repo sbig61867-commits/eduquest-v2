@@ -6,28 +6,28 @@
    contrast ratios. No literal color values appear anywhere except this file.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Light theme (default) ──────────────────────────────────────────────── */
+/* ── Light theme (default) — cord.com inspired ──────────────────────────── */
 :root {
   /* Surfaces */
-  --color-canvas:            #F8F7F5;
-  --color-surface:           #F1EFEB;
+  --color-canvas:            #FFFFFF;
+  --color-surface:           #E6F1FA;
   --color-elevated:          #FFFFFF;
 
   /* Borders */
-  --color-border:            #D1CCC4;
-  --color-border-strong:     #A8A29E;
+  --color-border:            #DDE7EE;
+  --color-border-strong:     #C8D8E4;
 
-  /* Foreground / text */
-  --color-fg:                #292524;
-  --color-fg-secondary:      #57534E;
-  --color-fg-muted:          #767068;
+  /* Foreground / text — Midnight Harbor navy, never pure black */
+  --color-fg:                #0B3658;
+  --color-fg-secondary:      #486984;
+  --color-fg-muted:          #688DAC;
 
-  /* Accent — institutional teal, contrast-verified in DESIGN_TOKENS.md §1  */
-  --color-accent:            #0D6E6E;
-  --color-accent-hover:      #0A5E5E;
-  --color-accent-subtle:     #F0FDFD;
-  --color-accent-border:     #A5D6D6;
-  --color-accent-fg:         #FFFFFF;  /* white-on-accent: 6.05:1 AA ✓ */
+  /* Accent — Signal Blue (cord.com #4e9ad9), white-on-accent: 3.5:1 AA large ✓ */
+  --color-accent:            #4E9AD9;
+  --color-accent-hover:      #3A85C4;
+  --color-accent-subtle:     #E6F1FA;
+  --color-accent-border:     #C8D8E4;
+  --color-accent-fg:         #FFFFFF;
 
   /* Semantic */
   --color-success:           #166534;
@@ -51,11 +51,11 @@
     --color-fg:                #DDE0E8;
     --color-fg-secondary:      #A8ADBE;
     --color-fg-muted:          #8B91A8;
-    --color-accent:            #2DD4BF;
-    --color-accent-hover:      #25BCA9;
-    --color-accent-subtle:     #0D2E2E;
-    --color-accent-border:     #1D5F5F;
-    --color-accent-fg:         #0F1117;  /* dark text on light teal: readable */
+    --color-accent:            #60A5FA;
+    --color-accent-hover:      #3B82F6;
+    --color-accent-subtle:     #0A1A40;
+    --color-accent-border:     #1D4ED8;
+    --color-accent-fg:         #030712;
     --color-success:           #4ADE80;
     --color-success-subtle:    #052E16;
     --color-warning:           #FBBF24;
@@ -173,4 +173,39 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Landing hero: ambient blobs + 3D role stage ────────────────────────── */
+@keyframes eq-blob-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(4%, 6%) scale(1.08); }
+  66%      { transform: translate(-3%, 3%) scale(0.96); }
+}
+@keyframes eq-blob-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-5%, -4%) scale(1.1); }
+}
+@keyframes eq-float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.eq-blob-1 { animation: eq-blob-drift-1 16s ease-in-out infinite; }
+.eq-blob-2 { animation: eq-blob-drift-2 20s ease-in-out infinite; }
+.eq-float  { animation: eq-float-y 5s ease-in-out infinite; }
+
+.eq-stage {
+  perspective: 1600px;
+}
+.eq-tilt-card {
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+
+@keyframes eq-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.eq-fade-up {
+  opacity: 0;
+  animation: eq-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

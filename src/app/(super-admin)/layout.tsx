@@ -25,6 +25,7 @@ const groups: NavGroup[] = [
       { label: 'Invitations',   href: '/super-admin/invitations', icon: 'Mail' },
       { label: 'Messages',      href: '/super-admin/messages',    icon: 'Inbox' },
       { label: 'Reports',       href: '/super-admin/reports',     icon: 'BarChart2' },
+      { label: 'AI Usage',      href: '/super-admin/ai-usage',    icon: 'Sparkles' },
       { label: 'Feature Flags', href: '/super-admin/features',    icon: 'Flag' },
       { label: 'Settings',      href: '/super-admin/settings',    icon: 'Settings' },
     ],

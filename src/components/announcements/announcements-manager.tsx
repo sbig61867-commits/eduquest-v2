@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { confirmDialog } from '@/lib/confirm-dialog'
 import { formatDate } from '@/lib/utils'
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe } from 'lucide-react'
+import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Link2 } from 'lucide-react'
 
 export interface AnnouncementRow {
   id: string
@@ -38,8 +38,31 @@ export function AnnouncementsManager({ announcements, groups }: {
   const [composing, setComposing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  async function importFromUrl() {
+    const url = form.link_url.trim()
+    if (!url) return toast.error('أدخل الرابط أولاً في حقل "رابط"')
+    setImporting(true)
+    const res = await fetch('/api/announcements/preview-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    })
+    const data = await res.json()
+    setImporting(false)
+    if (!res.ok) return toast.error(data.error ?? 'تعذّر جلب بيانات الرابط')
+    setForm(f => ({
+      ...f,
+      title: f.title || data.title || f.title,
+      body: f.body || data.description || f.body,
+      image_url: f.image_url || data.image || f.image_url,
+      cta_label: f.cta_label || 'اعرف المزيد',
+    }))
+    toast.success('تم استيراد البيانات من الرابط')
+  }
 
   async function uploadImage(file: File) {
     setUploading(true)
@@ -168,15 +191,28 @@ export function AnnouncementsManager({ announcements, groups }: {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="text-sm text-fg-secondary space-y-1.5 block">
-              <span>رابط (اختياري)</span>
-              <input
-                className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
-                value={form.link_url}
-                onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
-                placeholder="https://…"
-              />
-            </label>
+            <div className="space-y-1.5">
+              <span className="text-sm text-fg-secondary block">رابط (اختياري)</span>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm min-w-0"
+                  value={form.link_url}
+                  onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
+                  placeholder="https://…"
+                />
+                <Button
+                  variant="ghost"
+                  loading={importing}
+                  onClick={importFromUrl}
+                  title="استيراد العنوان والصورة من الرابط تلقائياً"
+                  className="shrink-0 text-xs gap-1"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  استيراد
+                </Button>
+              </div>
+              <p className="text-fg-muted text-xs">الصق رابطاً ثم اضغط «استيراد» لملء البيانات تلقائياً</p>
+            </div>
             <label className="text-sm text-fg-secondary space-y-1.5 block">
               <span>نص الزر (اختياري)</span>
               <input

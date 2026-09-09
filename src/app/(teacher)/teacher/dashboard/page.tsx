@@ -6,6 +6,7 @@ import { Users, BookOpen, ClipboardList, Clock, Eye, EyeOff } from 'lucide-react
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { PageTitle } from '@/components/shared/page-title'
+import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
 
 interface RecentLesson { id: string; title: string; is_published: boolean; created_at: string; groups: { name: string } | null }
 interface UpcomingExam  { id: string; title: string; ends_at: string | null; groups: { name: string } | null }
@@ -15,6 +16,7 @@ export default async function TeacherDashboard() {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
+  const now = new Date().toISOString()
   const [
     { count: groups },
     { count: lessons },
@@ -22,6 +24,7 @@ export default async function TeacherDashboard() {
     { count: ungraded },
     { data: recentLessons },
     { data: upcomingExams },
+    { data: announcementRows },
   ] = await Promise.all([
     supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
     supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
@@ -35,9 +38,18 @@ export default async function TeacherDashboard() {
       .select('id, title, ends_at, groups(name)')
       .eq('teacher_id', user.id).is('deleted_at', null)
       .eq('is_published', true)
-      .gte('ends_at', new Date().toISOString())
+      .gte('ends_at', now)
       .order('ends_at', { ascending: true }).limit(5),
+    supabase.from('announcements')
+      .select('id, title, body, image_url, link_url, cta_label')
+      .eq('is_published', true)
+      .or(`starts_at.is.null,starts_at.lte.${now}`)
+      .or(`ends_at.is.null,ends_at.gte.${now}`)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ])
+
+  const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
 
   const stats = [
     { label: 'Groups',   value: groups   ?? 0, href: '/teacher/groups',  icon: Users },
@@ -51,6 +63,8 @@ export default async function TeacherDashboard() {
       <PageTitle title="Dashboard" />
 
       <div className="max-w-5xl mx-auto">
+        <AnnouncementsBanner announcements={announcements} />
+
         {/* Stat strip — text-only, no decorative cards */}
         <div className="flex items-center gap-6 mb-8 pb-7 border-b border-border flex-wrap">
           {stats.map(({ label, value, href, icon: Icon }, i) => (

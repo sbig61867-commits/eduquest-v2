@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
+import { HelperMascot } from '@/components/public/helper-mascot'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -155,6 +156,7 @@ function LoginForm() {
           {googleLoading ? 'جارٍ التحويل إلى Google...' : 'تسجيل الدخول باستخدام Google'}
         </button>
       </div>
+      <HelperMascot lang="ar" />
     </div>
   )
 }

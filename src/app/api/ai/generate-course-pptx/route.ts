@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
-import { aiChat } from '@/lib/ai/chat'
+import { aiChatDetailed } from '@/lib/ai/chat'
+import { logAiUsage } from '@/lib/ai/usage'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 
 // ── AI response parser ───────────────────────────────────────────
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: profile } = await supabase
-    .from('users').select('role, can_create_courses').eq('id', user.id).single()
+    .from('users').select('role, can_create_courses, tenant_id').eq('id', user.id).single()
   if (!profile?.can_create_courses) {
     return NextResponse.json({ error: 'Forbidden: course creation not enabled for your account' }, { status: 403 })
   }
@@ -100,7 +101,8 @@ Document content:
 ${truncatedText}`
 
   try {
-    const aiResponse = await aiChat(prompt, 'Return only valid JSON. No markdown. No explanation.')
+    const { content: aiResponse, provider } = await aiChatDetailed(prompt, 'Return only valid JSON. No markdown. No explanation.')
+    void logAiUsage(user.id, profile.tenant_id, 'course-pptx', provider)
     const course = parseAiJsonResponse(aiResponse)
 
     if (!course.title || !Array.isArray(course.units) || course.units.length === 0) {

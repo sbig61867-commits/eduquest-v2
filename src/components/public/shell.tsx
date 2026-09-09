@@ -30,18 +30,18 @@ export function PublicNav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
     ? { login: 'تسجيل الدخول', toggle: 'English', features: 'المميزات', contact: 'تواصل معنا' }
     : { login: 'Sign In', toggle: 'العربية', features: 'Features', contact: 'Contact' }
   return (
-    <nav className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur border-b border-slate-800">
+    <nav className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-[#dde7ee] shadow-[0_1px_8px_rgba(11,54,88,0.06)]">
       <div className="max-w-6xl mx-auto px-2 sm:px-6 h-16 flex items-center justify-between gap-1">
         <div className="flex items-center gap-0.5 sm:gap-6 min-w-0">
           <Link href="/" className="flex items-center gap-2.5 shrink-0 px-1">
-            <span className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">E</span>
-            <span className="text-white font-bold text-lg hidden md:inline">EduQuest</span>
+            <span className="w-9 h-9 rounded-[12px] bg-[#4e9ad9] flex items-center justify-center text-white font-black text-lg shrink-0">E</span>
+            <span className="text-[#0b3658] font-black text-lg hidden md:inline" style={{letterSpacing: '-0.01em'}}>EduQuest</span>
           </Link>
           <div className="flex items-center gap-0.5 sm:gap-2">
-            <Link href="/features" className="px-1.5 sm:px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm transition-colors whitespace-nowrap">
+            <Link href="/features" className="px-1.5 sm:px-3 py-2 rounded-lg text-[#486984] hover:text-[#0b3658] hover:bg-[#e6f1fa] text-sm font-medium transition-colors whitespace-nowrap">
               {t.features}
             </Link>
-            <Link href="/contact" className="px-1.5 sm:px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm transition-colors whitespace-nowrap">
+            <Link href="/contact" className="px-1.5 sm:px-3 py-2 rounded-lg text-[#486984] hover:text-[#0b3658] hover:bg-[#e6f1fa] text-sm font-medium transition-colors whitespace-nowrap">
               {t.contact}
             </Link>
           </div>
@@ -49,14 +49,14 @@ export function PublicNav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
         <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
-            className="flex items-center gap-1.5 px-1.5 sm:px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-1.5 sm:px-3 py-2 rounded-lg text-[#486984] hover:text-[#0b3658] hover:bg-[#e6f1fa] text-sm font-medium transition-colors whitespace-nowrap"
             aria-label={t.toggle}
           >
             <Languages className="w-4 h-4" /> <span className="hidden lg:inline">{t.toggle}</span>
           </button>
           <Link
             href="/login"
-            className="px-2.5 sm:px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors whitespace-nowrap"
+            className="px-2.5 sm:px-4 py-2 rounded-[20px] bg-[#4e9ad9] hover:bg-[#3a85c4] text-white text-sm font-semibold transition-colors whitespace-nowrap shadow-[0_2px_8px_rgba(78,154,217,0.25)]"
           >
             {t.login}
           </Link>
@@ -68,16 +68,18 @@ export function PublicNav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
 
 export function PublicFooter({ lang }: { lang: Lang }) {
   const t = lang === 'ar'
-    ? { rights: 'جميع الحقوق محفوظة', privacy: 'سياسة الخصوصية', terms: 'شروط الاستخدام', contact: 'تواصل معنا' }
-    : { rights: 'All rights reserved', privacy: 'Privacy Policy', terms: 'Terms of Use', contact: 'Contact Us' }
+    ? { rights: 'جميع الحقوق محفوظة', privacy: 'سياسة الخصوصية', terms: 'شروط الاستخدام', cookies: 'سياسة الكوكيز', pricing: 'الأسعار', contact: 'تواصل معنا' }
+    : { rights: 'All rights reserved', privacy: 'Privacy Policy', terms: 'Terms of Use', cookies: 'Cookie Policy', pricing: 'Pricing', contact: 'Contact Us' }
   return (
-    <footer className="border-t border-slate-800 mt-20">
+    <footer className="border-t border-[#dde7ee] bg-[#f5f9fd] mt-0">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-slate-500 text-sm">© {new Date().getFullYear()} EduQuest — {t.rights}</p>
-        <div className="flex items-center gap-5 text-sm">
-          <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">{t.privacy}</Link>
-          <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">{t.terms}</Link>
-          <Link href="/contact" className="text-slate-400 hover:text-white transition-colors">{t.contact}</Link>
+        <p className="text-[#688dac] text-sm">© {new Date().getFullYear()} EduQuest — {t.rights}</p>
+        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5 text-sm">
+          <Link href="/pricing" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.pricing}</Link>
+          <Link href="/privacy" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.privacy}</Link>
+          <Link href="/terms" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.terms}</Link>
+          <Link href="/cookies" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.cookies}</Link>
+          <Link href="/contact" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.contact}</Link>
         </div>
       </div>
     </footer>

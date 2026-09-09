@@ -11,7 +11,7 @@ import {
   LogOut, ChevronLeft,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
   GraduationCap, BookOpen, ClipboardList, BarChart2, Bell, Mail,
-  Layers, Inbox, Archive, CalendarDays, Megaphone,
+  Layers, Inbox, Archive, CalendarDays, Megaphone, Sparkles,
 } from 'lucide-react'
 
 const ICONS = {
@@ -32,6 +32,7 @@ const ICONS = {
   Archive,
   CalendarDays,
   Megaphone,
+  Sparkles,
 } as const
 
 export type IconName = keyof typeof ICONS

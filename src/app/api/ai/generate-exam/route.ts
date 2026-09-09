@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
-import { aiChat } from '@/lib/ai/chat'
+import { aiChatDetailed } from '@/lib/ai/chat'
+import { logAiUsage } from '@/lib/ai/usage'
 
 interface Question {
   id: string
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -84,7 +85,8 @@ Return ONLY a valid JSON array, no markdown:
 Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] and 5 points. correct_answer must match an option exactly.`
 
   try {
-    const content = await aiChat(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
+    const { content, provider } = await aiChatDetailed(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
+    void logAiUsage(user.id, profile.tenant_id, 'exam', provider)
 
     const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
     const jsonMatch = text.match(/\[[\s\S]*\]/)

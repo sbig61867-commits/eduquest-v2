@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateLessonContentAI } from '@/lib/ai/chat'
+import { logAiUsage } from '@/lib/ai/usage'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
 
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -41,10 +42,11 @@ export async function POST(request: Request) {
   if (!topic) return NextResponse.json({ error: 'Topic contains invalid characters' }, { status: 400 })
   const customInstructions = rawInstructions.replace(/[<>{}[\]`\\'"]/g, '').trim() || undefined
 
-  // aiChat tries Groq → Cerebras → Gemini → OpenRouter, skipping providers
-  // whose keys are not configured.
+  // aiChat tries Groq → xKiro → Cohere → Gemini → OpenRouter, skipping
+  // providers whose keys are not configured.
   try {
     const { content, provider } = await generateLessonContentAI(topic, level, customInstructions)
+    void logAiUsage(user.id, profile.tenant_id, 'lesson', provider)
     return NextResponse.json({ content, provider })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
