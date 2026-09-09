@@ -56,14 +56,14 @@ export default async function NotificationsPage() {
       id: `lesson-${l.id}`,
       type: 'lesson' as const,
       title: `New lesson: ${l.title}`,
-      subtitle: `In group: ${Array.isArray(l.groups) ? (l.groups[0]?.name ?? '—') : (l.groups?.name ?? '—')}`,
+      subtitle: `In group: ${Array.isArray(l.groups) ? (l.groups[0]?.name ?? '·') : (l.groups?.name ?? '·')}`,
       date: l.created_at,
     })),
     ...(recentExams ?? []).map((e: RpcExamRow & { groups: { name: string } | null }) => ({
       id: `exam-${e.id}`,
       type: 'exam' as const,
       title: `New exam: ${e.title}`,
-      subtitle: `In group: ${e.groups?.name ?? '—'}`,
+      subtitle: `In group: ${e.groups?.name ?? '·'}`,
       date: e.created_at,
     })),
     ...(recentGrades ?? [] as GradeRow[]).map((g: GradeRow) => ({

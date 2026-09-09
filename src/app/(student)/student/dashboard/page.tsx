@@ -100,7 +100,7 @@ export default async function StudentDashboard() {
                   {resumeLesson.title}
                 </h2>
                 <p className="text-[13px] text-fg-muted mt-1.5">
-                  {resumeLesson.groups?.name ?? '—'}
+                  {resumeLesson.groups?.name ?? '·'}
                   <span className="mx-2 text-border-strong">·</span>
                   {formatDate(resumeLesson.created_at)}
                 </p>

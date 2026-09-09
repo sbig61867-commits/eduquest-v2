@@ -69,7 +69,7 @@ export async function GET(request: Request) {
   // Submitted first, then by score desc.
   results.sort((a, b) => Number(b.submitted) - Number(a.submitted) || (b.score ?? -1) - (a.score ?? -1))
 
-  const groupName = (exam.groups as unknown as { name: string } | null)?.name ?? '—'
+  const groupName = (exam.groups as unknown as { name: string } | null)?.name ?? '·'
   return NextResponse.json({
     title: exam.title, group_name: groupName, max_score: maxScore,
     submitted_count: subs?.length ?? 0, roster_count: roster?.length ?? 0,

@@ -25,8 +25,8 @@ export function TenantWatcher() {
       if (stopped) return
       try {
         const res = await fetch('/api/session/check', { cache: 'no-store' })
-        if (res.status === 401) return // no session yet — leave it to the proxy
-        if (!res.ok) return             // transient error — try again next tick
+        if (res.status === 401) return // no session yet, leave it to the proxy
+        if (!res.ok) return             // transient error, try again next tick
         const data = await res.json() as { ok: boolean; reason?: string }
         if (!data.ok) {
           stopped = true

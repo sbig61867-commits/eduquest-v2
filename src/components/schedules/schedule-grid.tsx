@@ -38,7 +38,7 @@ export function ScheduleGrid({
 
               <div className="p-2 space-y-2 min-h-[72px]">
                 {daySlots.length === 0 ? (
-                  <p className="text-fg-muted text-xs text-center py-4">—</p>
+                  <p className="text-fg-muted text-xs text-center py-4">·</p>
                 ) : (
                   daySlots.map(slot => (
                     <div key={slot.id} className="rounded-lg bg-surface/70 border border-border-strong/60 p-2.5">

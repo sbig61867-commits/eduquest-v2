@@ -81,8 +81,8 @@ const dict = {
     faqs: [
       { q: 'هل هناك رسوم إعداد؟', a: 'لا، نجهّز بيئة جامعتك بأنفسنا ونرافقكم خطوة بخطوة دون أي رسوم إضافية.' },
       { q: 'هل يمكن تغيير الباقة لاحقاً؟', a: 'نعم، يمكن الترقية أو التخفيض في أي وقت بالتواصل مع فريقنا.' },
-      { q: 'ماذا يحدث لبياناتنا إذا ألغينا الاشتراك؟', a: 'تحتفظون ببياناتكم كاملة — نوفر لكم نسخة احتياطية شاملة قبل إغلاق البيئة بـ 30 يوماً من الإشعار.' },
-      { q: 'هل التسعير بالطالب أم بالمؤسسة؟', a: 'التسعير بالمؤسسة الجامعية — يمكنكم إضافة أي عدد من الطلاب ضمن حدود الباقة.' },
+      { q: 'ماذا يحدث لبياناتنا إذا ألغينا الاشتراك؟', a: 'تحتفظون ببياناتكم كاملة، ونوفر لكم نسخة احتياطية شاملة قبل إغلاق البيئة بـ 30 يوماً من الإشعار.' },
+      { q: 'هل التسعير بالطالب أم بالمؤسسة؟', a: 'التسعير بالمؤسسة الجامعية، ويمكنكم إضافة أي عدد من الطلاب ضمن حدود الباقة.' },
     ],
   },
   en: {
@@ -155,9 +155,9 @@ const dict = {
     faqTitle: 'Pricing FAQ',
     faqs: [
       { q: 'Are there setup fees?', a: 'No. We set up your university environment ourselves and guide you step by step at no extra cost.' },
-      { q: 'Can I change plans later?', a: 'Yes — upgrade or downgrade at any time by contacting our team.' },
-      { q: 'What happens to our data if we cancel?', a: 'You keep all your data — we provide a full backup before closing your environment with 30 days notice.' },
-      { q: 'Is pricing per student or per institution?', a: 'Pricing is per institution — you can add any number of students within your plan limits.' },
+      { q: 'Can I change plans later?', a: 'Yes, upgrade or downgrade at any time by contacting our team.' },
+      { q: 'What happens to our data if we cancel?', a: 'You keep all your data, and we provide a full backup before closing your environment with 30 days notice.' },
+      { q: 'Is pricing per student or per institution?', a: 'Pricing is per institution, and you can add any number of students within your plan limits.' },
     ],
   },
 }

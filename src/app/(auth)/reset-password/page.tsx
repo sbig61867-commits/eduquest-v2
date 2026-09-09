@@ -137,7 +137,7 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-2xl font-bold text-fg">Set new password</h1>
           <p className="text-fg-secondary text-sm">
-            Choose a strong password — at least {MIN_PW_LEN} characters.
+            Choose a strong password, at least {MIN_PW_LEN} characters.
           </p>
         </div>
 

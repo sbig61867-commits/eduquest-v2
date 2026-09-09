@@ -132,7 +132,7 @@ function Pagination({ page, total, pageSize, onChange }: {
           return (
             <button key={p} onClick={() => onChange(p)}
               className={`w-8 h-8 rounded text-sm transition-colors ${
-                p === page ? 'bg-accent text-fg' : 'text-fg-secondary hover:text-fg hover:bg-surface'
+                p === page ? 'bg-accent text-accent-fg' : 'text-fg-secondary hover:text-fg hover:bg-surface'
               }`}>
               {p}
             </button>
@@ -206,7 +206,7 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
             <label className="block text-sm font-medium text-fg-secondary">University</label>
             <select value={form.tenant_id} onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value }))} required
               className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-              <option value="">— Select university —</option>
+              <option value="">Select university</option>
               {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
@@ -459,7 +459,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
       {localSuperAdmins.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider">Platform Administrators</h3>
-          <div className="bg-surface border border-blue-900/40 rounded-lg overflow-hidden">
+          <div className="bg-surface border border-accent-border rounded-lg overflow-hidden">
             <table className="w-full">
               <tbody className="divide-y divide-border">
                 {localSuperAdmins.map(u => (

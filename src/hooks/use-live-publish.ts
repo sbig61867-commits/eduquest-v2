@@ -51,8 +51,8 @@ export function useLivePublish(examId: string, active: boolean) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ examId, role: 'student' }),
           })
-          if (res.status === 503) return // LiveKit not configured — skip silently
-          if (!res.ok) continue          // transient error — retry
+          if (res.status === 503) return // LiveKit not configured, skip silently
+          if (!res.ok) continue          // transient error, retry
           const json = await res.json()
           token = json.token; url = json.url
           break

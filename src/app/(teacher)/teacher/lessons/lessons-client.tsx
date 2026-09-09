@@ -138,7 +138,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                     <h3 className="text-fg font-semibold truncate">{lesson.title}</h3>
                     <Badge variant={lesson.is_published ? 'success' : 'neutral'}>{lesson.is_published ? 'Published' : 'Draft'}</Badge>
                   </div>
-                  <p className="text-fg-secondary text-sm">{lesson.groups?.name ?? '—'} · {formatDate(lesson.created_at)}</p>
+                  <p className="text-fg-secondary text-sm">{lesson.groups?.name ?? '·'} · {formatDate(lesson.created_at)}</p>
                   {lesson.content && <p className="text-fg-muted text-sm mt-2 line-clamp-2">{lesson.content.replace(/[#*`]/g, '').slice(0, 150)}...</p>}
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -217,7 +217,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                   <div className="px-4 py-3 rounded-lg bg-accent-subtle border border-warning/25 text-accent text-sm">
                     You don&apos;t have any groups yet. Create a group first from{' '}
                     <button type="button" onClick={() => router.push('/teacher/groups')} className="underline underline-offset-2 font-medium">My Groups</button>
-                    {' '}— lessons must belong to a group so students can see them.
+                    {' '}, lessons must belong to a group so students can see them.
                   </div>
                 ) : (
                   <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} required className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent">

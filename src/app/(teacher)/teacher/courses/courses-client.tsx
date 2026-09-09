@@ -57,7 +57,7 @@ export function CoursesClient({ initialCourses }: Props) {
   const [pptxLoading, setPptxLoading] = useState(false)
   const [pptxError, setPptxError] = useState('')
   const [generatedCourse, setGeneratedCourse] = useState<GeneratedCourse | null>(null)
-  const [sourceText, setSourceText] = useState('') // extracted file text — bound to AI content generation
+  const [sourceText, setSourceText] = useState('') // extracted file text, bound to AI content generation
   const [expandedUnits, setExpandedUnits] = useState<Set<number>>(new Set([0]))
   const [creating, setCreating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -335,7 +335,7 @@ export function CoursesClient({ initialCourses }: Props) {
             <div key={step} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                 pptxStep === step ? 'bg-accent text-accent-fg' :
-                (['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? 'bg-green-600 text-fg' :
+                (['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? 'bg-success text-accent-fg' :
                 'bg-surface text-fg-muted'
               }`}>
                 {(['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? <Check className="w-3.5 h-3.5" /> : i + 1}
@@ -367,7 +367,7 @@ export function CoursesClient({ initialCourses }: Props) {
                 <div className="flex flex-col items-center gap-2">
                   <Upload className="w-10 h-10 text-fg-muted" />
                   <p className="text-fg-secondary font-medium">Click to select a file</p>
-                  <p className="text-fg-muted text-sm">PPTX · DOCX · PDF — Maximum 20 MB</p>
+                  <p className="text-fg-muted text-sm">PPTX · DOCX · PDF · Maximum 20 MB</p>
                 </div>
               )}
             </div>

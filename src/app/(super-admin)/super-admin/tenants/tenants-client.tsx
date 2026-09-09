@@ -66,7 +66,7 @@ export function TenantsClient({ initialTenants }: Props) {
 
   async function deleteTenant(tenant: Tenant) {
     if (!(await confirmDialog(`حذف نهائي لجامعة "${tenant.name}"؟\n\nسيُمحى كل شيء للأبد: المستخدمون وحساباتهم، المجموعات، الدروس، الاختبارات، والعلامات. لا يمكن التراجع.\n\nللإيقاف المؤقت استخدم "أرشفة" بدلاً من ذلك.`))) return
-    if (!(await confirmDialog(`تأكيد أخير: اكتب نعم في ذهنك — هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`))) return
+    if (!(await confirmDialog(`تأكيد أخير: اكتب نعم في ذهنك، هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`))) return
     const res = await fetch(`/api/admin/delete-tenant?id=${tenant.id}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) { toast.error(data.error ?? 'Failed to delete university'); return }
@@ -104,7 +104,7 @@ export function TenantsClient({ initialTenants }: Props) {
     if (!res.ok) {
       setAdminError(data.error ?? 'Failed to create admin')
     } else {
-      setAdminSuccess(`✓ Admin "${data.user.full_name}" created — they can now log in with ${adminForm.email}`)
+      setAdminSuccess(`✓ Admin "${data.user.full_name}" created, they can now log in with ${adminForm.email}`)
       setAdminForm({ full_name: '', email: '', password: '' })
     }
     setAdminLoading(false)
@@ -206,7 +206,7 @@ export function TenantsClient({ initialTenants }: Props) {
       </Modal>
 
       {/* Manual Add Admin Modal */}
-      <Modal open={!!adminTarget} onClose={() => setAdminTarget(null)} title={`Add Admin — ${adminTarget?.name ?? ''}`}>
+      <Modal open={!!adminTarget} onClose={() => setAdminTarget(null)} title={`Add Admin · ${adminTarget?.name ?? ''}`}>
         <form onSubmit={handleAddAdmin} className="space-y-4">
           {adminError && <p className="text-error text-sm bg-error-subtle border border-error/25 rounded-lg px-3 py-2">{adminError}</p>}
           {adminSuccess && <p className="text-accent text-sm bg-accent-subtle border border-success/25 rounded-lg px-3 py-2">{adminSuccess}</p>}

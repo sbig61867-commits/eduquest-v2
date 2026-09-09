@@ -89,17 +89,17 @@ export async function GET(request: Request) {
       const score = sub?.score ?? null
 
       const colName = `${exam.type === 'homework' ? '[واجب]' : '[اختبار]'} ${exam.title} (من ${maxScore})`
-      row[colName] = score !== null ? `${score}/${maxScore}` : '—'
+      row[colName] = score !== null ? `${score}/${maxScore}` : '·'
 
       if (score !== null) { totalScore += Number(score); totalMax += maxScore }
     }
 
-    row['المجموع'] = totalMax > 0 ? totalScore : '—'
+    row['المجموع'] = totalMax > 0 ? totalScore : '·'
     row['من أصل'] = exams.reduce((s, e) => {
       const max = (e.questions as Array<{ points?: number }>).reduce((a, q) => a + (q.points ?? 0), 0)
       return s + max
     }, 0)
-    row['النسبة %'] = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : '—'
+    row['النسبة %'] = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : '·'
 
     return row
   })
@@ -117,13 +117,13 @@ export async function GET(request: Request) {
   const today = new Date().toISOString().slice(0, 10)
 
   const numeric = (v: string | number | null): Cell => {
-    if (v === null || v === '' || v === '—') return v ?? ''
+    if (v === null || v === '' || v === '·') return v ?? ''
     const n = Number(v)
     return Number.isFinite(n) && String(v).trim() !== '' ? n : v
   }
 
   const sheet: Cell[][] = [
-    [`كشف علامات — المجموعة: ${group.name}`],
+    [`كشف علامات، المجموعة: ${group.name}`],
     [`تاريخ التصدير: ${today}`],
     [],
     headers.map(h => HEADER_LABEL[h] ?? h),

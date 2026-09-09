@@ -71,12 +71,12 @@ export async function sendInvitationEmail({
   inviterName?: string
 }) {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('[email] RESEND_API_KEY not set — skipping email')
+    console.warn('[email] RESEND_API_KEY not set, skipping email')
     return
   }
 
   if (!process.env.EMAIL_FROM && process.env.NODE_ENV === 'production') {
-    console.warn('[email] EMAIL_FROM not set — using resend.dev sandbox address which only delivers to the account owner. Set EMAIL_FROM to your verified domain.')
+    console.warn('[email] EMAIL_FROM not set, using resend.dev sandbox address which only delivers to the account owner. Set EMAIL_FROM to your verified domain.')
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY)

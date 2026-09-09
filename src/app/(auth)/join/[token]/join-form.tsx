@@ -113,7 +113,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
           {isDev && debugInfo && (
             <details className="rounded-lg bg-elevated border border-border-strong text-xs">
               <summary className="px-3 py-2 text-warning cursor-pointer select-none font-mono">
-                🛠 Dev — تفاصيل الخطأ
+                🛠 Dev · تفاصيل الخطأ
               </summary>
               <pre className="px-3 pb-3 text-fg-secondary overflow-x-auto whitespace-pre-wrap break-all">
                 {debugInfo}

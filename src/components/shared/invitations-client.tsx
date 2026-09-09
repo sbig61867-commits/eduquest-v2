@@ -35,7 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending:   'text-accent bg-warning-subtle',
   accepted:  'text-accent bg-accent/10',
   revoked:   'text-fg-secondary bg-surface',
-  depleted:  'text-info bg-purple-400/10',
+  depleted:  'text-info bg-info-subtle',
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
@@ -183,7 +183,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           </button>
           <button
             onClick={() => { setShowForm(f => !f); setNewLink(null); setFormError('') }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-fg text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-accent-fg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Invitation
@@ -227,7 +227,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               title={!canBePublic ? 'University Admin invitations must be email-specific' : undefined}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
                 isPublic
-                  ? 'bg-accent text-fg'
+                  ? 'bg-accent text-accent-fg'
                   : canBePublic
                     ? 'text-fg-secondary hover:text-fg hover:bg-surface'
                     : 'text-fg-muted cursor-not-allowed'
@@ -239,7 +239,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           </div>
 
           {isPublic && (
-            <div className="bg-info-subtle border border-purple-500/20 rounded-lg px-4 py-3 text-purple-300 text-sm">
+            <div className="bg-info-subtle border border-info/25 rounded-lg px-4 py-3 text-info text-sm">
               Anyone with this link can register as a <strong>{role.replace('_', ' ')}</strong>.
               {role === 'student' && groupId && ' They will automatically join the selected group.'}
             </div>
@@ -351,7 +351,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                   onChange={e => setMaxUses(e.target.value === '' ? '' : Number(e.target.value))}
                   min={1}
                   placeholder="Unlimited"
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent text-sm"
                 />
               </div>
             )}
@@ -384,7 +384,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       <div className="bg-surface border border-border rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : invitations.length === 0 ? (
           <div className="text-center py-16 space-y-2">
@@ -426,13 +426,13 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                     </td>
                     {callerRole === 'super_admin' && (
                       <td className="px-5 py-3 text-fg-secondary">
-                        {(inv as unknown as { tenants: { name: string } }).tenants?.name ?? '—'}
+                        {(inv as unknown as { tenants: { name: string } }).tenants?.name ?? '·'}
                       </td>
                     )}
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                         expired
-                          ? 'text-error bg-red-400/10'
+                          ? 'text-error bg-error-subtle'
                           : STATUS_COLORS[inv.status]
                       }`}>
                         {expired ? <Clock className="w-3 h-3" /> : STATUS_ICONS[resolvedStatus(inv)] ?? STATUS_ICONS[inv.status]}

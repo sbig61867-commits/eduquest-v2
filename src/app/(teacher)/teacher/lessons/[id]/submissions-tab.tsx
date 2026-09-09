@@ -67,7 +67,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
 
   const STATUS: Record<Submission['grading_status'], { label: string; variant: 'warning' | 'info' | 'success' }> = {
     pending: { label: 'بانتظار التصحيح', variant: 'warning' },
-    reviewing: { label: 'مُصحَّح — غير منشور', variant: 'info' },
+    reviewing: { label: 'مُصحَّح، غير منشور', variant: 'info' },
     published: { label: 'منشور للطالب', variant: 'success' },
   }
 
@@ -109,7 +109,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                       <p className="text-fg text-sm font-medium truncate">{sub.student_name}</p>
                       <p className="text-fg-muted text-xs truncate">{sub.student_email} · {new Date(sub.submitted_at).toLocaleString('ar')}</p>
                     </div>
-                    <span className="text-fg-secondary text-sm font-mono shrink-0">{sub.score ?? '—'} / {sub.max_score ?? '—'}</span>
+                    <span className="text-fg-secondary text-sm font-mono shrink-0">{sub.score ?? '·'} / {sub.max_score ?? '·'}</span>
                     <Badge variant={st.variant}>{st.label}</Badge>
                     {open ? <ChevronUp className="w-4 h-4 text-fg-muted shrink-0" /> : <ChevronDown className="w-4 h-4 text-fg-muted shrink-0" />}
                   </button>
@@ -131,7 +131,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                             </div>
                             <p className="text-sm ps-6">
                               <span className="text-fg-muted">إجابة الطالب: </span>
-                              <span className={auto ? (correct ? 'text-success' : 'text-error') : 'text-fg'} dir="auto">{ans || '— لم يجب —'}</span>
+                              <span className={auto ? (correct ? 'text-success' : 'text-error') : 'text-fg'} dir="auto">{ans || 'لم يجب'}</span>
                             </p>
                             {auto && !correct && (
                               <p className="text-xs ps-6 text-accent">الإجابة الصحيحة: {q.correct_answer}</p>

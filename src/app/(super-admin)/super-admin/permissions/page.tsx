@@ -35,8 +35,8 @@ export default async function SuperAdminPermissionsPage() {
 
   const staff: StaffMember[] = staffRows.map(r => ({
     id: r.id,
-    full_name: `${r.full_name ?? '—'} · ${r.tenants?.name ?? 'بلا مؤسسة'}`,
-    email: `${r.email} — ${r.role === 'university_admin' ? 'مدير مؤسسة' : 'مدير مركز'}`,
+    full_name: `${r.full_name ?? '·'} · ${r.tenants?.name ?? 'بلا مؤسسة'}`,
+    email: `${r.email} · ${r.role === 'university_admin' ? 'مدير مؤسسة' : 'مدير مركز'}`,
     role: r.role,
     is_active: r.is_active,
     effective: resolvePermissions(r.role, r.permissions),

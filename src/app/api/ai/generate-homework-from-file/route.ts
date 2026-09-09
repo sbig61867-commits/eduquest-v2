@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
   const typeList = [...allowed].map(t => TYPE_LABEL[t]).join(', ')
   const instructionsBlock = customInstructions
-    ? `\nThe teacher added these instructions — follow them (they may narrow the topic focus or style, but questions must STILL be answerable from the source alone):\n"""\n${customInstructions}\n"""`
+    ? `\nThe teacher added these instructions, follow them (they may narrow the topic focus or style, but questions must STILL be answerable from the source alone):\n"""\n${customInstructions}\n"""`
     : ''
 
   function buildPrompt(n: number, avoid: string[]): string {
@@ -158,11 +158,11 @@ export async function POST(request: Request) {
 
 STRICT RULES:
 - Every question MUST be answerable using ONLY the source material below. Do not use outside knowledge, do not invent facts.
-- Read the source material's actual subject first. Every question must be about THAT subject — e.g. if the source is an English-language course, do not write questions about biology, physics, history, or any other unrelated subject. If you find yourself writing a question that does not quote or directly reference something literally present in the source text below, do not write it.
+- Read the source material's actual subject first. Every question must be about THAT subject, e.g. if the source is an English-language course, do not write questions about biology, physics, history, or any other unrelated subject. If you find yourself writing a question that does not quote or directly reference something literally present in the source text below, do not write it.
 - If the source material is too short or repetitive to produce ${n} truly unique questions from, generate FEWER questions instead of inventing unrelated content to reach the count.
 - Use the SAME language as the source material.
 - Generate exactly ${n} questions, using ONLY these types: ${typeList}. Mix the allowed types naturally.
-- EVERY question must be UNIQUE — never ask the same thing twice. If the material is small and you must revisit the same point, change the FORMAT (e.g. ask it as multiple choice once and as true/false or essay the other time) and change the angle.${avoidBlock}
+- EVERY question must be UNIQUE, never ask the same thing twice. If the material is small and you must revisit the same point, change the FORMAT (e.g. ask it as multiple choice once and as true/false or essay the other time) and change the angle.${avoidBlock}
 - Return ONLY a valid JSON array, no markdown, no explanation:
 [
   {"text":"Question?","type":"mcq","options":["A","B","C","D"],"correct_answer":"A"},

@@ -52,14 +52,14 @@ export function SurveyCard() {
 
   return (
     <>
-      <div className="bg-gradient-to-l from-blue-600/20 to-blue-600/5 border border-blue-500/30 rounded-lg p-5 flex items-center justify-between gap-4">
+      <div className="bg-accent-subtle border border-accent-border rounded-lg p-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
             <ClipboardList className="w-5 h-5 text-accent" />
           </div>
           <div>
             <p className="text-fg font-semibold text-sm">قيّم تجربتك مع المنصة</p>
-            <p className="text-fg-secondary text-xs mt-0.5">مجموعة {survey.groupName} — يستغرق أقل من دقيقة</p>
+            <p className="text-fg-secondary text-xs mt-0.5">مجموعة {survey.groupName}، يستغرق أقل من دقيقة</p>
           </div>
         </div>
         <Button size="sm" onClick={() => setOpen(true)}>ابدأ التقييم</Button>

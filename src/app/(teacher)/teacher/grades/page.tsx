@@ -90,8 +90,8 @@ export default async function TeacherGradesPage() {
             {rows.map(r => (
               <div key={r.id} className="bg-surface border border-border rounded-lg p-4 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
-                  <p className="text-fg font-medium truncate">{r.users?.full_name ?? '—'}</p>
-                  <p className="text-fg-muted text-xs truncate">{r.exams?.title ?? '—'} · {formatDate(r.submitted_at)}</p>
+                  <p className="text-fg font-medium truncate">{r.users?.full_name ?? '·'}</p>
+                  <p className="text-fg-muted text-xs truncate">{r.exams?.title ?? '·'} · {formatDate(r.submitted_at)}</p>
                   {/* progress bar */}
                   <div className="mt-2 h-1.5 bg-surface rounded-full overflow-hidden max-w-xs">
                     <div className={`h-full rounded-full ${r.grade.bar}`} style={{ width: `${r.pct}%` }} />

@@ -199,7 +199,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
         setQuestions(prev => [...prev, ...withPoints])
         if (!hwForm.title && hwFiles[0]) setHwForm(p => ({ ...p, title: `واجب: ${hwFiles[0].name.replace(/\.\w+$/, '')}` }))
         if (data.delivered < data.requested) {
-          setHwFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
+          setHwFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً، محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
         }
       } else {
         setHwFileError(data.error ?? 'فشل التوليد')
@@ -278,10 +278,10 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-fg">{lesson.title}</h1>
-          <p className="text-fg-secondary text-sm">{lesson.groups?.name ?? '—'}</p>
+          <p className="text-fg-secondary text-sm">{lesson.groups?.name ?? '·'}</p>
         </div>
         <Badge variant={published ? 'success' : 'warning'}>
-          {published ? 'منشور للطلاب' : 'مسودة — غير ظاهر للطلاب'}
+          {published ? 'منشور للطلاب' : 'مسودة، غير ظاهرة للطلاب'}
         </Badge>
         <Button size="sm" variant={published ? 'secondary' : 'primary'} loading={publishing} onClick={togglePublish}>
           {published ? 'إلغاء النشر' : '📢 نشر للطلاب'}
@@ -348,7 +348,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                     <span className="text-fg-muted text-xs">({(uploadedFile.size / 1024 / 1024).toFixed(1)} MB)</span>
                   </div>
                 ) : (
-                  <p className="text-fg-secondary text-sm">اضغط لاختيار ملف — PDF / PPTX / DOCX / JPG / PNG (حتى 20 MB)</p>
+                  <p className="text-fg-secondary text-sm">اضغط لاختيار ملف، PDF / PPTX / DOCX / JPG / PNG (حتى 20 MB)</p>
                 )}
               </div>
               <input ref={fileRef} type="file" accept=".pdf,.pptx,.docx,.jpg,.jpeg,.png,.webp" className="hidden"
@@ -367,7 +367,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-fg-muted">طبيعة أسئلة الكويز والاختبار — فعّل ما تريد (واحد أو أكثر)</label>
+                <label className="text-xs text-fg-muted">طبيعة أسئلة الكويز والاختبار، فعّل ما تريد (واحد أو أكثر)</label>
                 <div className="flex flex-wrap gap-2">
                   {QTYPE_OPTIONS.map(opt => {
                     const on = qTypes.includes(opt.key)
@@ -390,10 +390,10 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs text-fg-muted">تعليمات إضافية (اختياري) — يمكنك تحديد التبويبات التي تريدها بنفسك</label>
+                <label className="text-xs text-fg-muted">تعليمات إضافية (اختياري)، يمكنك تحديد التبويبات التي تريدها بنفسك</label>
                 <textarea value={aiInstructions} onChange={e => setAiInstructions(e.target.value)} rows={2}
                   className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent"
-                  placeholder='مثال: "قسّم الدرس إلى: محادثة، استماع وفهم، قواعد، كلمات جديدة" — أو أي توجيه آخر. اتركه فارغاً وسيختار الذكاء الاصطناعي التبويبات المناسبة تلقائياً.' />
+                  placeholder='مثال: "قسّم الدرس إلى: محادثة، استماع وفهم، قواعد، كلمات جديدة"، أو أي توجيه آخر. اتركه فارغاً وسيختار الذكاء الاصطناعي التبويبات المناسبة تلقائياً.' />
               </div>
 
               <AiProgress active={aiLoading} />
@@ -534,7 +534,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           <div className="bg-accent-subtle border border-accent/30 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Upload className="w-4 h-4 text-accent" />
-              <span className="text-accent-hover text-sm font-medium">توليد واجب من ملف — الأسئلة من محتوى الملف فقط</span>
+              <span className="text-accent-hover text-sm font-medium">توليد واجب من ملف، الأسئلة من محتوى الملف فقط</span>
             </div>
 
             <div className="space-y-2">
@@ -597,12 +597,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   </div>
                 ))}
               </div>
-              <p className="text-fg-muted text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً.</p>
+              <p className="text-fg-muted text-xs">حدد علامة كل سؤال حسب نوعه، وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً.</p>
             </div>
 
             <textarea value={hwFileInstructions} onChange={e => setHwFileInstructions(e.target.value)} rows={2}
               className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على القسم الثاني من الملف واجعل الأسئلة قصيرة"' />
+              placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري)، مثال: "ركّز على القسم الثاني من الملف واجعل الأسئلة قصيرة"' />
 
             <AiProgress active={hwFileLoading} />
             {hwFileError && <p className="text-error text-sm">{hwFileError}</p>}
@@ -641,8 +641,8 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   <span className="text-fg font-medium">نشر النتائج تلقائياً فور التسليم</span>
                   <span className="block text-fg-muted text-xs mt-0.5">
                     {hasEssay
-                      ? 'غير متاح — الواجب يحتوي أسئلة مقالية تتطلب تصحيحك اليدوي ثم نشر النتائج من تبويب التسليمات.'
-                      : 'أسئلة الاختيار والصح/خطأ تُصحح آلياً — يرى الطالب علامته مباشرة بعد التسليم.'}
+                      ? 'غير متاح، الواجب يحتوي أسئلة مقالية تتطلب تصحيحك اليدوي ثم نشر النتائج من تبويب التسليمات.'
+                      : 'أسئلة الاختيار والصح/خطأ تُصحح آلياً، يرى الطالب علامته مباشرة بعد التسليم.'}
                   </span>
                 </span>
               </label>
@@ -653,7 +653,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
           {questions.length > 0 && (
             <div className="space-y-2">
               <p className="text-fg-secondary text-sm font-medium">
-                {questions.length} سؤال — العلامة الكاملة: <span className="text-fg font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
+                {questions.length} سؤال، العلامة الكاملة: <span className="text-fg font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
               </p>
               {questions.map((q, i) => (
                 <div key={q.id} className="flex items-start gap-3 bg-surface rounded-lg p-3">
@@ -712,7 +712,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                   ))}
                   <input value={newQ.correct_answer ?? ''} placeholder="الإجابة الصحيحة"
                     onChange={e => setNewQ(p => ({ ...p, correct_answer: e.target.value }))}
-                    className="col-span-2 px-3 py-2 rounded-lg bg-surface border border-green-600/50 text-fg text-sm focus:outline-none focus:ring-1 focus:ring-green-500" />
+                    className="col-span-2 px-3 py-2 rounded-lg bg-surface border border-success/50 text-fg text-sm focus:outline-none focus:ring-1 focus:ring-success" />
                 </div>
               )}
               {newQ.type === 'true_false' && (

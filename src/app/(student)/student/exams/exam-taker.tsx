@@ -106,7 +106,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     const messages: Record<string, string> = {
       tab_switch: '⚠️ Tab switch detected!',
       fullscreen_exit: '⚠️ Please return to fullscreen mode!',
-      face_not_detected: '⚠️ Face not detected — look at the camera!',
+      face_not_detected: '⚠️ Face not detected, look at the camera!',
       multiple_faces: '⚠️ Multiple faces detected!',
       audio_detected: '⚠️ Loud audio detected!',
       looking_away: '⚠️ Please look at the screen!',
@@ -344,7 +344,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           {finalScore ? (
             <p className="text-fg-secondary">Your score: <span className="text-fg font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
           ) : (
-            <p className="text-accent text-sm">تم استلام إجاباتك — ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
+            <p className="text-accent text-sm">تم استلام إجاباتك، ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
           )}
           {violations.length > 0 && <p className="text-accent text-sm">{violations.length} proctoring violation(s) recorded</p>}
           <Button onClick={onFinish} className="mt-4">Back to Exams</Button>
@@ -361,14 +361,14 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             <h2 className="text-2xl font-bold text-fg mb-2">{exam.title}</h2>
             <p className="text-fg-secondary">
               {exam.questions.length} questions · {untimed
-                ? (exam.ends_at ? `واجب — سلّمه قبل ${new Date(exam.ends_at).toLocaleString('ar')}` : 'واجب — بدون وقت محدد')
+                ? (exam.ends_at ? `واجب، سلّمه قبل ${new Date(exam.ends_at).toLocaleString('ar')}` : 'واجب، بدون وقت محدد')
                 : `${exam.duration_minutes} minutes`}
             </p>
           </div>
           <div className="space-y-3">
             {[
               untimed
-                ? 'هذا واجب بدون مؤقت — خذ وقتك في الحل.'
+                ? 'هذا واجب بدون مؤقت، خذ وقتك في الحل.'
                 : `You have ${exam.duration_minutes} minutes to complete this exam.`,
               untimed
                 ? (exam.ends_at ? `آخر موعد للتسليم: ${new Date(exam.ends_at).toLocaleString('ar')}` : null)
@@ -437,7 +437,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       {exam.proctoring_enabled && violations.length >= violationWarningThreshold && (
         <div className="bg-error-subtle border border-error rounded-lg px-4 py-3 flex items-center gap-2 text-error text-sm font-semibold">
           <AlertTriangle className="w-5 h-5 shrink-0" />
-          {violations.length} proctoring violations recorded. Your teacher will review all of them — further violations may invalidate this exam.
+          {violations.length} proctoring violations recorded. Your teacher will review all of them, further violations may invalidate this exam.
         </div>
       )}
 

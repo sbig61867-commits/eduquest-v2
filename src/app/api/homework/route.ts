@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   // which class session the homework belongs to.
   const cleanTitle = title.trim()
   const fullTitle = lesson.title && !cleanTitle.includes(lesson.title)
-    ? `${cleanTitle} — درس: ${lesson.title}`
+    ? `${cleanTitle}، درس: ${lesson.title}`
     : cleanTitle
 
   const row: Record<string, unknown> = {

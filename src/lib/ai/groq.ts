@@ -55,7 +55,7 @@ export async function generateLessonContentGroq(
   customInstructions?: string
 ): Promise<string> {
   const structureBlock = customInstructions?.trim()
-    ? `The teacher has provided specific instructions for how to structure this content — follow them exactly:
+    ? `The teacher has provided specific instructions for how to structure this content, follow them exactly:
 """
 ${customInstructions.trim()}
 """

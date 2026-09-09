@@ -67,7 +67,7 @@ export function useEvidenceCapture(
         capturedRef.current -= 1
       }
     } catch {
-      capturedRef.current -= 1 // network failure — don't burn the budget
+      capturedRef.current -= 1 // network failure, don't burn the budget
     }
   }, [examId, videoRef])
 

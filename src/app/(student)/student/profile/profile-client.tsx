@@ -82,7 +82,7 @@ export function StudentProfileClient({ profile, groups }: Props) {
           <Building2 className="w-5 h-5 text-fg-secondary" />
           <div>
             <p className="text-xs text-fg-muted">Institution</p>
-            <p className="text-fg text-sm font-medium">{profile.tenants?.name ?? '—'}</p>
+            <p className="text-fg text-sm font-medium">{profile.tenants?.name ?? '·'}</p>
           </div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4 flex items-center gap-3">
@@ -143,7 +143,7 @@ export function StudentProfileClient({ profile, groups }: Props) {
                 <div>
                   <p className="text-fg text-sm font-medium">{g.name}</p>
                   <p className="text-fg-secondary text-xs">
-                    Teacher: {g.teacher?.full_name ?? '—'}
+                    Teacher: {g.teacher?.full_name ?? '·'}
                   </p>
                   {g.description && (
                     <p className="text-fg-muted text-xs mt-0.5">{g.description}</p>

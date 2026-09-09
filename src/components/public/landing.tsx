@@ -6,7 +6,7 @@ import { useLang, PublicNav, PublicFooter } from './shell'
 import { AiTypingMockup, LiveProctoringGrid } from './mockups'
 import {
   ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
-  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, Radio, CheckCircle2, Plus, Zap,
+  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, CheckCircle2, Plus, Zap,
   GraduationCap, Megaphone, CalendarClock, Sparkles, TrendingUp, Award,
   Lock, Clock, Archive, Headphones,
 } from 'lucide-react'
@@ -14,8 +14,8 @@ import {
 const dict = {
   ar: {
     heroBadge: '✦ للجامعات والمراكز التعليمية',
-    heroTitle: 'بيئة أكاديمية متكاملة — من الدرس إلى العلامة',
-    heroDesc: 'من إنشاء الدرس بالذكاء الاصطناعي، إلى مراقبة الاختبار لحظة بلحظة، إلى العلامة النهائية — EduQuest تصنع مساراً واحداً واضحاً لكل من يدير عملية تعليمية: جامعة، مركزاً، أو صفاً واحداً.',
+    heroTitle: 'بيئة أكاديمية متكاملة من الدرس إلى العلامة',
+    heroDesc: 'من إنشاء الدرس بالذكاء الاصطناعي، إلى مراقبة الاختبار لحظة بلحظة، إلى العلامة النهائية. تصنع EduQuest مساراً واحداً واضحاً لكل من يدير عملية تعليمية: جامعة، مركزاً، أو صفاً واحداً.',
     heroCta: 'اطلب اشتراكاً',
     heroLogin: 'تسجيل الدخول',
     roleStageTitle: 'واجهة مختلفة لكل شخص، بيانات واحدة موثوقة',
@@ -77,12 +77,12 @@ const dict = {
     ],
     trustTitle: 'لماذا EduQuest؟',
     trust: [
-      { icon: 'Lock', title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً — لا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
-      { icon: 'Clock', title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا — تحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
-      { icon: 'Archive', title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ — كل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
+      { icon: 'Lock', title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً، فلا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
+      { icon: 'Clock', title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا، فتحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
+      { icon: 'Archive', title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ، فكل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
       { icon: 'Headphones', title: 'مرافقة كاملة عند البدء', desc: 'نجهّز بيئة جامعتك بأنفسنا ونرافق فريقك خطوة بخطوة حتى تستقر العملية التعليمية.' },
     ],
-    teaserTitle: 'LMS كامل + إدارة أكاديمية في منصة واحدة',
+    teaserTitle: 'نظام تعلّم كامل وإدارة أكاديمية في منصة واحدة',
     teaser: [
       { icon: 'BookOpen', title: 'كورسات ودروس منظّمة', desc: 'أنشئ مواد دراسية بمستويات ووحدات، وشارك المحتوى مع مجموعاتك فوراً.' },
       { icon: 'ClipboardList', title: 'واجبات واختبارات متكاملة', desc: 'اختبارات موقوتة، تصحيح تلقائي، ودرجات مباشرة في كتاب العلامات.' },
@@ -101,7 +101,7 @@ const dict = {
     ],
     liveCta: 'استعراض تفاصيل المراقبة الحية',
     aiTitle: 'المساعد الأكاديمي في إعداد المحتوى التعليمي',
-    aiDesc: 'يرافق المعلمَ في كل مرحلة من مراحل إعداد المحتوى التعليمي — من صياغة الدروس إلى بناء الاختبارات — مع إمكانية المراجعة والتعديل الكامل قبل النشر.',
+    aiDesc: 'يرافق المعلمَ في كل مرحلة من مراحل إعداد المحتوى التعليمي، من صياغة الدروس إلى بناء الاختبارات، مع إمكانية المراجعة والتعديل الكامل قبل النشر.',
     aiPoints: [
       'إعداد درس أو اختبار متكامل في وقت قياسي',
       'مراجعة وتعديل كامل للمحتوى المولَّد قبل نشره',
@@ -113,14 +113,14 @@ const dict = {
       { title: 'اطلب اشتراكاً', desc: 'راسلنا عبر النموذج وأخبرنا عن جامعتك.' },
       { title: 'نجهّز بيئتك', desc: 'ننشئ بيئة معزولة خاصة بجامعتك ونسلّمك لوحة إدارتها.' },
       { title: 'ادعُ فريقك', desc: 'أضف المعلمين بروابط دعوة، وهم يدعون طلابهم لمجموعاتهم.' },
-      { title: 'ابدأ التدريس', desc: 'ولّد الدروس والاختبارات، راقب، وصحّح — كله من مكان واحد.' },
+      { title: 'ابدأ التدريس', desc: 'ولّد الدروس والاختبارات، راقب، وصحّح، كله من مكان واحد.' },
     ],
     faqTitle: 'أسئلة شائعة',
     faqs: [
-      { q: 'هل بيانات جامعتنا معزولة عن غيرها؟', a: 'نعم، تماماً. كل جامعة لها بيئتها المعزولة على مستوى قاعدة البيانات — لا يرى أحد بيانات أحد.' },
+      { q: 'هل بيانات جامعتنا معزولة عن غيرها؟', a: 'نعم، تماماً. كل جامعة لها بيئتها المعزولة على مستوى قاعدة البيانات، فلا يرى أحد بيانات أحد.' },
       { q: 'كيف تمنعون الغش في الاختبارات عن بُعد؟', a: 'مراقبة مزدوجة: ذكاء اصطناعي يرصد المخالفات ويسجّلها، ومراقبة حية يرى فيها المعلم ويسمع كل الطلاب مباشرة أثناء الاختبار.' },
       { q: 'هل نحتاج خبرة تقنية لتشغيل المنصة؟', a: 'لا. الواجهة بسيطة لكل الأدوار، ونحن نجهّز بيئتكم ونرافقكم في البداية خطوة بخطوة.' },
-      { q: 'هل يمكن توليد الدروس والاختبارات تلقائياً؟', a: 'نعم، بالذكاء الاصطناعي من ملفاتكم أو من عنوان — وكلها قابلة للمراجعة والتعديل قبل النشر.' },
+      { q: 'هل يمكن توليد الدروس والاختبارات تلقائياً؟', a: 'نعم، بالذكاء الاصطناعي من ملفاتكم أو من عنوان، وكلها قابلة للمراجعة والتعديل قبل النشر.' },
     ],
     mock: {
       title: 'حدود الاستخدام للمعلم',
@@ -138,8 +138,8 @@ const dict = {
   },
   en: {
     heroBadge: '✦ For universities & educational centers',
-    heroTitle: 'A complete academic environment — from lesson to final grade',
-    heroDesc: "From an AI-drafted lesson, to a live-monitored exam, to the final grade — EduQuest gives everyone running an educational operation, a university, a center, or a single classroom, one clear path.",
+    heroTitle: 'A complete academic environment, from lesson to final grade',
+    heroDesc: "From an AI-drafted lesson, to a live-monitored exam, to the final grade. EduQuest gives everyone running an educational operation, a university, a center, or a single classroom, one clear path.",
     heroCta: 'Request a subscription',
     heroLogin: 'Sign In',
     roleStageTitle: 'A different view for every person, one trusted dataset',
@@ -188,7 +188,7 @@ const dict = {
     transformAfter: 'With EduQuest',
     transformPairs: [
       { from: 'Lessons here, exams there, grades in a spreadsheet', to: 'Everything in one place, lesson to grade' },
-      { from: 'Remote exams with zero supervision', to: 'Live monitoring + AI protecting integrity' },
+      { from: 'Remote exams with zero supervision', to: 'Live monitoring and AI protecting integrity' },
       { from: 'Hours to prepare every lesson and exam', to: 'Minutes, with AI doing the drafting' },
       { from: "Every institution's data in one basket", to: "Full isolation for each university's data" },
     ],
@@ -197,16 +197,16 @@ const dict = {
       { value: '4', label: 'Integrated roles', sub: 'University admin, center, teacher, student' },
       { value: 'Seconds', label: 'To generate a full lesson or exam', sub: 'AI-powered, editable before publishing' },
       { value: '100%', label: 'Data isolation between universities', sub: 'Enforced at the database level itself' },
-      { value: 'Live', label: 'Exam monitoring', sub: 'Audio + video of all students at once' },
+      { value: 'Live', label: 'Exam monitoring', sub: 'Audio and video of all students at once' },
     ],
     trustTitle: 'Why EduQuest?',
     trust: [
-      { icon: 'Lock', title: 'Grading on the server, not the browser', desc: "Correct answers never leave the server — students can't see or tamper with them, no matter what." },
-      { icon: 'Clock', title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers — refreshing the page or changing the device clock changes nothing.' },
-      { icon: 'Archive', title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake — every delete goes to an archive the admin can restore anytime.' },
+      { icon: 'Lock', title: 'Grading on the server, not the browser', desc: "Correct answers never leave the server, so students cannot see or tamper with them, no matter what." },
+      { icon: 'Clock', title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers, so refreshing the page or changing the device clock changes nothing.' },
+      { icon: 'Archive', title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake. Every delete goes to an archive the admin can restore anytime.' },
       { icon: 'Headphones', title: 'Full onboarding support', desc: "We set up your university's environment ourselves and guide your team step by step until everything runs smoothly." },
     ],
-    teaserTitle: 'Full LMS + Academic management in one platform',
+    teaserTitle: 'A full learning system and academic management in one platform',
     teaser: [
       { icon: 'BookOpen', title: 'Courses & structured lessons', desc: 'Build curricula with levels and units, share content with your groups instantly.' },
       { icon: 'ClipboardList', title: 'Assignments & exams', desc: 'Timed exams, auto-grading, and instant results in the grade book.' },
@@ -217,7 +217,7 @@ const dict = {
     ],
     allFeatures: 'Explore all features',
     liveTitle: 'Live visual access to examination rooms via video technology',
-    liveDesc: 'Direct visual connection between the proctor and all candidates, with the ability to issue instructions in real time — no third-party application required.',
+    liveDesc: 'Direct visual connection between the proctor and all candidates, with the ability to issue instructions in real time. No third-party application required.',
     livePoints: [
       'Real-time alerts with automated handling of any candidate violation',
       'Dedicated monitoring of a specific candidate for a more comprehensive view',
@@ -225,7 +225,7 @@ const dict = {
     ],
     liveCta: 'Explore live monitoring in detail',
     aiTitle: 'Academic assistant for educational content preparation',
-    aiDesc: 'Accompanies instructors through every stage of content preparation — from lesson drafting to exam construction — with full review and editing capabilities before publishing.',
+    aiDesc: 'Accompanies instructors through every stage of content preparation, from lesson drafting to exam construction, with full review and editing capabilities before publishing.',
     aiPoints: [
       'Complete lesson or exam preparation in record time',
       'Full review and editing of generated content before publishing',
@@ -237,14 +237,14 @@ const dict = {
       { title: 'Request access', desc: 'Message us through the form and tell us about your university.' },
       { title: 'We set you up', desc: 'We create your isolated environment and hand you its admin dashboard.' },
       { title: 'Invite your team', desc: 'Add teachers via invite links; they invite their students into groups.' },
-      { title: 'Start teaching', desc: 'Generate lessons and exams, proctor, and grade — all from one place.' },
+      { title: 'Start teaching', desc: 'Generate lessons and exams, proctor, and grade, all from one place.' },
     ],
     faqTitle: 'Frequently asked questions',
     faqs: [
-      { q: "Is our university's data isolated from others?", a: "Yes, completely. Each university has its own isolated environment at the database level — no one can see anyone else's data." },
+      { q: "Is our university's data isolated from others?", a: "Yes, completely. Each university has its own isolated environment at the database level, so no one can see anyone else's data." },
       { q: 'How do you prevent cheating in remote exams?', a: 'Dual proctoring: AI detects and logs violations, plus live monitoring where the teacher sees and hears all students in real time during the exam.' },
       { q: 'Do we need technical expertise to run it?', a: 'No. The interface is simple for every role, and we set up your environment and guide you step by step at the start.' },
-      { q: 'Can lessons and exams be generated automatically?', a: 'Yes, with AI from your files or from a topic — all reviewable and editable before publishing.' },
+      { q: 'Can lessons and exams be generated automatically?', a: 'Yes, with AI from your files or from a topic, all reviewable and editable before publishing.' },
     ],
     mock: {
       title: 'Teacher usage allowances',
@@ -268,21 +268,31 @@ const icons = {
   Lock, Clock, Archive, Headphones,
 } as const
 
-// The band that opens every section. It is the section's own colour rendered as
-// a full-width banner — two drifting radial washes and a slow sheen behind a
-// translucent tint, with a hairline and a soft shadow separating it from the
-// content below. `label` is the section name; `title` and `kicker` are optional
-// and let the band carry the section's headline instead of repeating it below.
+// Ground colours the landing page actually runs on: white, the pale blue
+// surface, and the navy used by the two dark sections.
+const INK_ON_LIGHT = '#0b3658'
+const INK_ON_DARK  = '#ffffff'
+
+// The banner that opens every section. Two drifting radial washes and a slow
+// sheen behind a translucent tint, with a hairline of light along the top and a
+// soft shadow separating it from the content below.
+//
+// The band carries the section's headline and nothing else. The small uppercase
+// label it used to show above that headline is gone; the section colour still
+// identifies the section, but through the ground and the washes rather than
+// through a word. Headlines are navy on light grounds and white on dark ones,
+// which is the rule the whole page follows.
 function SectionBanner({
-  label, color, textColor, title, kicker,
+  color, title, kicker, onDark = false,
 }: {
-  label: string
+  /** Identity hue: tints the ground and the drifting washes. */
   color: string
-  textColor?: string
-  title?: string
+  title: string
   kicker?: string
+  /** Set on the navy sections so the headline flips to white. */
+  onDark?: boolean
 }) {
-  const ink = textColor ?? color
+  const ink = onDark ? INK_ON_DARK : INK_ON_LIGHT
   return (
     <div
       className="eq-band w-full border-b"
@@ -292,28 +302,23 @@ function SectionBanner({
         boxShadow: `inset 0 -1px 0 ${color}14, 0 14px 36px -26px ${color}99`,
       }}
     >
-      {/* Motion field — decorative, hidden from assistive technology */}
+      {/* Motion field, decorative and hidden from assistive technology */}
       <span className="eq-band-orb eq-band-orb-a" style={{ background: `${color}33` }} aria-hidden="true" />
       <span className="eq-band-orb eq-band-orb-b" style={{ background: `${color}24` }} aria-hidden="true" />
       <span className="eq-band-sheen" aria-hidden="true" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-9">
-        <div className="flex items-center gap-2.5">
-          <span className="h-4 w-[3px] rounded-full shrink-0" style={{ background: ink }} aria-hidden="true" />
-          <span className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: ink }}>
-            {label}
-          </span>
-        </div>
-        {title && (
-          <h2
-            className="mt-3 text-2xl sm:text-4xl font-black tracking-tight"
-            style={{ color: ink, letterSpacing: '-0.02em' }}
-          >
-            {title}
-          </h2>
-        )}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-9 sm:py-12">
+        <h2
+          className="text-2xl sm:text-4xl font-black tracking-tight"
+          style={{ color: ink, letterSpacing: '-0.02em' }}
+        >
+          {title}
+        </h2>
         {kicker && (
-          <p className="mt-2.5 max-w-2xl text-sm sm:text-base leading-relaxed" style={{ color: ink, opacity: 0.72 }}>
+          <p
+            className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed"
+            style={{ color: ink, opacity: onDark ? 0.8 : 0.72 }}
+          >
             {kicker}
           </p>
         )}
@@ -322,18 +327,21 @@ function SectionBanner({
   )
 }
 
+// Each section's identity hue. It tints its banner's ground and the drifting
+// washes behind the headline, so a section still reads as "the rose one" or
+// "the teal one" without needing a word to say so.
 const SECTION_COLORS = {
-  transform:  { color: '#64748b', label: { ar: 'قبل وبعد', en: 'Before & After' } },
-  stats:      { color: '#4E9AD9', label: { ar: 'أرقام المنصة', en: 'Platform Numbers' } },
-  platform:   { color: '#0b3658', label: { ar: 'ما تقدمه المنصة', en: 'What the platform offers' } },
-  demo:       { color: '#0b3658', label: { ar: 'استعراض المنصة', en: 'Platform walkthrough' } },
-  admin:      { color: '#4E9AD9', label: { ar: 'مدير المؤسسة', en: 'Institution Admin' } },
-  teacher:    { color: '#2DD4BF', label: { ar: 'عضو هيئة التدريس', en: 'Instructor' } },
-  live:       { color: '#F43F5E', label: { ar: 'المراقبة الحية', en: 'Live Monitoring' } },
-  ai:         { color: '#7C3AED', label: { ar: 'المساعد الأكاديمي', en: 'Academic AI Assistant' } },
-  steps:      { color: '#0b3658', label: { ar: 'البدء بالمنصة', en: 'Getting started' } },
-  trust:      { color: '#059669', label: { ar: 'الأمان والموثوقية', en: 'Security & Trust' } },
-  faq:        { color: '#F2B84B', label: { ar: 'الأسئلة الشائعة', en: 'FAQ' } },
+  transform:  { color: '#64748b' },
+  stats:      { color: '#4E9AD9' },
+  platform:   { color: '#0b3658' },
+  demo:       { color: '#0b3658' },
+  admin:      { color: '#4E9AD9' },
+  teacher:    { color: '#2DD4BF' },
+  live:       { color: '#F43F5E' },
+  ai:         { color: '#7C3AED' },
+  steps:      { color: '#0b3658' },
+  trust:      { color: '#059669' },
+  faq:        { color: '#F2B84B' },
 } as const
 
 const TEASER_ACCENTS = [
@@ -567,9 +575,7 @@ export function Landing() {
       </section>
       <section className="bg-surface border-y border-border">
         <SectionBanner
-          label={SECTION_COLORS.transform.label[lang]}
           color={SECTION_COLORS.transform.color}
-          textColor="#0b3658"
           title={t.transformTitle}
           kicker={t.transformSub}
         />
@@ -601,10 +607,9 @@ export function Landing() {
       </section>
       <section style={{ background: 'linear-gradient(135deg, #0b3658 0%, #0e4a7a 100%)' }}>
         <SectionBanner
-          label={SECTION_COLORS.stats.label[lang]}
           color="#7ec8f0"
-          textColor="#7ec8f0"
           title={t.statsTitle}
+          onDark
         />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -616,7 +621,6 @@ export function Landing() {
       </section>
       <section className="bg-canvas">
         <SectionBanner
-          label={SECTION_COLORS.platform.label[lang]}
           color={SECTION_COLORS.platform.color}
           title={t.teaserTitle}
         />
@@ -650,19 +654,23 @@ export function Landing() {
 
       <section className="bg-canvas overflow-hidden">
         <SectionBanner
-          label={SECTION_COLORS.demo.label[lang]}
           color={SECTION_COLORS.demo.color}
           title={lang === 'ar'
             ? 'تجربة حية لما ستتعامل معه داخل المنصة'
             : 'A live experience of what you will work with inside the platform'}
           kicker={lang === 'ar'
-            ? 'لقطات توضيحية حقيقية من واجهات المنصة — دون تجميل أو حذف.'
-            : 'Genuine screen recordings from the platform interfaces — unfiltered and unscripted.'}
+            ? 'لقطات توضيحية حقيقية من واجهات المنصة، دون تجميل أو حذف.'
+            : 'Genuine screen recordings from the platform interfaces, unfiltered and unscripted.'}
         />
       </section>
 
       <section className="bg-canvas pb-0">
-        <SectionBanner label={SECTION_COLORS.admin.label[lang]} color={SECTION_COLORS.admin.color} />
+        <SectionBanner
+          color={SECTION_COLORS.admin.color}
+          title={lang === 'ar'
+            ? 'إدارة المؤسسة التعليمية بالكامل من مكان واحد'
+            : 'Manage the entire institution from a single place'}
+        />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div data-fadein="0" className="rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
@@ -677,16 +685,10 @@ export function Landing() {
               <video src="/demo-admin.mp4" autoPlay muted loop playsInline className="w-full block" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
             </div>
             <div data-fadein="120">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5 border" style={{ background: '#e6f1fa', color: '#4e9ad9', borderColor: '#c3dff5' }}>
-                {lang === 'ar' ? 'مدير المؤسسة' : 'Institution Admin'}
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-fg mb-4" style={{letterSpacing: '-0.02em'}}>
-                {lang === 'ar' ? 'إدارة المؤسسة التعليمية بالكامل من مكان واحد' : 'Manage the entire institution from a single place'}
-              </h3>
               <p className="text-fg-secondary leading-relaxed mb-6 text-base">
                 {lang === 'ar'
-                  ? 'لوحة إدارية شاملة تتيح للمسؤول متابعة أعضاء هيئة التدريس، إدارة صلاحياتهم، واستعراض المؤشرات الأكاديمية للمؤسسة بالكامل — دون الحاجة للتنقل بين أنظمة متعددة.'
-                  : 'A comprehensive administrative panel that allows the responsible party to track faculty members, manage their permissions, and review the institution\'s academic indicators in full — without switching between multiple systems.'}
+                  ? 'لوحة إدارية شاملة تتيح للمسؤول متابعة أعضاء هيئة التدريس، إدارة صلاحياتهم، واستعراض المؤشرات الأكاديمية للمؤسسة بالكامل، دون الحاجة للتنقل بين أنظمة متعددة.'
+                  : 'A comprehensive administrative panel that allows the responsible party to track faculty members, manage their permissions, and review the institution\'s academic indicators in full, without switching between multiple systems.'}
               </p>
               <ul className="space-y-3">
                 {(lang === 'ar'
@@ -704,7 +706,12 @@ export function Landing() {
       </section>
 
       <section className="bg-surface">
-        <SectionBanner label={SECTION_COLORS.teacher.label[lang]} color={SECTION_COLORS.teacher.color} />
+        <SectionBanner
+          color={SECTION_COLORS.teacher.color}
+          title={lang === 'ar'
+            ? 'من إعداد المحتوى إلى نشر النتائج في مسار واحد'
+            : 'From content preparation to results publishing in one workflow'}
+        />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             <div data-fadein="0" className="order-1 lg:order-2 rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
@@ -719,16 +726,10 @@ export function Landing() {
               <video src="/demo-teacher.mp4" autoPlay muted loop playsInline className="w-full block" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
             </div>
             <div data-fadein="120" className="order-2 lg:order-1">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-5 border" style={{ background: '#d1fae5', color: '#059669', borderColor: '#a7f3d0' }}>
-                {lang === 'ar' ? 'عضو هيئة التدريس' : 'Instructor'}
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-fg mb-4" style={{letterSpacing: '-0.02em'}}>
-                {lang === 'ar' ? 'من إعداد المحتوى إلى نشر النتائج في مسار واحد' : 'From content preparation to results publishing in one workflow'}
-              </h3>
               <p className="text-fg-secondary leading-relaxed mb-6 text-base">
                 {lang === 'ar'
-                  ? 'يتابع عضو هيئة التدريس مساره الأكاديمي بالكامل من لوحة واحدة: إعداد المحتوى وتصحيح الاختبارات ونشر النتائج — مع دعم الذكاء الاصطناعي في كل مرحلة.'
-                  : 'Instructors manage their entire academic workflow from a single panel: content preparation, exam grading, and results publishing — with AI support at every stage.'}
+                  ? 'يتابع عضو هيئة التدريس مساره الأكاديمي بالكامل من لوحة واحدة: إعداد المحتوى وتصحيح الاختبارات ونشر النتائج، مع دعم الذكاء الاصطناعي في كل مرحلة.'
+                  : 'Instructors manage their entire academic workflow from a single panel: content preparation, exam grading, and results publishing, with AI support at every stage.'}
               </p>
               <ul className="space-y-3">
                 {(lang === 'ar'
@@ -746,16 +747,12 @@ export function Landing() {
       </section>
 
       <section className="bg-canvas">
-        <SectionBanner label={SECTION_COLORS.live.label[lang]} color={SECTION_COLORS.live.color} />
+        <SectionBanner color={SECTION_COLORS.live.color} title={t.liveTitle} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
             <div className="absolute -top-24 -end-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #F43F5E, transparent 70%)' }} />
             <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div>
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-error-subtle border border-error/20 text-error text-xs font-bold uppercase tracking-widest mb-6">
-                  <Radio className="w-3.5 h-3.5 animate-pulse" /> {lang === 'ar' ? 'المراقبة الحية' : 'Live Monitoring'}
-                </span>
-                <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg mb-4" style={{letterSpacing: '-0.02em'}}>{t.liveTitle}</h2>
                 <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.liveDesc}</p>
                 <ul className="space-y-3 mb-8">
                   {t.livePoints.map((p, i) => (
@@ -776,7 +773,7 @@ export function Landing() {
       </section>
 
       <section className="bg-surface">
-        <SectionBanner label={SECTION_COLORS.ai.label[lang]} color={SECTION_COLORS.ai.color} />
+        <SectionBanner color={SECTION_COLORS.ai.color} title={t.aiTitle} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
             <div className="absolute -bottom-24 -start-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #2DD4BF, transparent 70%)' }} />
@@ -785,10 +782,6 @@ export function Landing() {
                 <AiTypingMockup lang={lang} />
               </div>
               <div className="order-1 lg:order-2">
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent-subtle border border-accent-border text-accent text-xs font-bold uppercase tracking-widest mb-6">
-                  <Sparkles className="w-3.5 h-3.5" /> {lang === 'ar' ? 'ذكاء اصطناعي أكاديمي' : 'Academic AI'}
-                </span>
-                <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg mb-4" style={{letterSpacing: '-0.02em'}}>{t.aiTitle}</h2>
                 <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.aiDesc}</p>
                 <ul className="space-y-3 mb-8">
                   {t.aiPoints.map((p, i) => (
@@ -807,12 +800,8 @@ export function Landing() {
         </div>
       </section>
       <section className="bg-surface border-y border-border">
-        <SectionBanner label={SECTION_COLORS.steps.label[lang]} color={SECTION_COLORS.steps.color} />
+        <SectionBanner color={SECTION_COLORS.steps.color} title={t.stepsTitle} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-          <div className="text-center mb-12">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">{lang === 'ar' ? 'البدء' : 'Getting started'}</span>
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.stepsTitle}</h2>
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
             <div className="hidden lg:block absolute top-9 start-[12.5%] end-[12.5%] h-px bg-border z-0" />
             {t.steps.map((s, i) => (
@@ -826,12 +815,8 @@ export function Landing() {
         </div>
       </section>
       <section className="bg-canvas">
-        <SectionBanner label={SECTION_COLORS.trust.label[lang]} color={SECTION_COLORS.trust.color} />
+        <SectionBanner color={SECTION_COLORS.trust.color} title={t.trustTitle} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-          <div className="text-center mb-12">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">{lang === 'ar' ? 'الثقة' : 'Trust'}</span>
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.trustTitle}</h2>
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {t.trust.map((item, i) => {
               const TrustIcon = icons[item.icon as keyof typeof icons] ?? ShieldCheck
@@ -859,12 +844,8 @@ export function Landing() {
       </section>
 
       <section className="bg-canvas">
-        <SectionBanner label={SECTION_COLORS.faq.label[lang]} color={SECTION_COLORS.faq.color} />
+        <SectionBanner color={SECTION_COLORS.faq.color} title={t.faqTitle} />
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-          <div className="text-center mb-12">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest text-accent mb-3">{lang === 'ar' ? 'الأسئلة الشائعة' : 'FAQ'}</span>
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-fg" style={{letterSpacing: '-0.02em'}}>{t.faqTitle}</h2>
-          </div>
           <div className="space-y-3">
             {t.faqs.map((f, i) => (
               <details key={i} className="group bg-white border border-border rounded-[20px] overflow-hidden shadow-[0_2px_8px_rgba(11,54,88,0.05)]">

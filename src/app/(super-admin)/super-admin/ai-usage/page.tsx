@@ -47,7 +47,7 @@ export default async function AiUsagePage() {
 
         {error ? (
           <div className="bg-error-subtle border border-error/20 rounded-lg p-5 text-sm text-error">
-            Could not load usage data — run <code className="font-mono">supabase/ai_usage_log_migration.sql</code> on the database first.
+            Could not load usage data, run <code className="font-mono">supabase/ai_usage_log_migration.sql</code> on the database first.
           </div>
         ) : (
           <>
@@ -91,11 +91,11 @@ export default async function AiUsagePage() {
                           </td>
                           <td className="px-5 py-3 text-fg-muted text-xs">
                             {Object.keys(r.by_feature ?? {}).length === 0
-                              ? '—'
+                              ? '·'
                               : Object.entries(r.by_feature).map(([f, n]) => `${FEATURE_LABEL[f] ?? f}: ${n}`).join(' · ')}
                           </td>
                           <td className="px-5 py-3 text-end font-medium text-fg">{r.total_calls}</td>
-                          <td className="px-5 py-3 text-end text-fg-muted">{r.last_used_at ? formatDate(r.last_used_at) : '—'}</td>
+                          <td className="px-5 py-3 text-end text-fg-muted">{r.last_used_at ? formatDate(r.last_used_at) : '·'}</td>
                         </tr>
                       ))}
                     </tbody>

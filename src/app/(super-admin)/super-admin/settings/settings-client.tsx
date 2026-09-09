@@ -223,7 +223,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
               className="w-full px-4 py-2.5 rounded-lg bg-surface/50 border border-border-strong text-fg-secondary text-sm cursor-not-allowed" />
           </div>
         </div>
-        <p className="text-xs text-fg-muted">Super admin since {profile ? formatDate(profile.created_at) : '—'}</p>
+        <p className="text-xs text-fg-muted">Super admin since {profile ? formatDate(profile.created_at) : '·'}</p>
         <Button type="submit" loading={savingName}>Save</Button>
       </form>
 
@@ -348,8 +348,8 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
             <p className="text-fg-secondary text-sm font-medium">Allow permanent deletion</p>
             <p className="text-fg-muted text-xs">
               {del.hard_delete_enabled
-                ? 'ON — deletes permanently erase data (with all submissions & grades). Irreversible.'
-                : 'OFF — deletes move items to the archive (data preserved, recoverable). Recommended.'}
+                ? 'ON, deletes permanently erase data (with all submissions & grades). Irreversible.'
+                : 'OFF, deletes move items to the archive (data preserved, recoverable). Recommended.'}
             </p>
           </div>
           <div onClick={() => !savingDel && saveDeletionPolicy(!del.hard_delete_enabled)}
@@ -392,7 +392,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
             <span className="flex items-center gap-2 text-fg-secondary text-sm">
               <Globe className="w-4 h-4 text-fg-muted" /> App base URL (invitation links)
             </span>
-            <span className="text-fg-secondary text-xs font-mono truncate max-w-[220px]">{config.appUrl ?? 'not set — falls back to Vercel/localhost'}</span>
+            <span className="text-fg-secondary text-xs font-mono truncate max-w-[220px]">{config.appUrl ?? 'not set, falls back to Vercel/localhost'}</span>
           </div>
         </div>
         <p className="text-xs text-fg-muted">

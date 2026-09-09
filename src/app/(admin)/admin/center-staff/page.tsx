@@ -54,13 +54,13 @@ export default async function AdminCenterStaffPage() {
         <div>
           <h2 className="text-xl font-semibold text-fg">مديرو المراكز</h2>
           <p className="text-fg-secondary mt-1">
-            امنح كل مدير مركز الصلاحيات التي تريدها — لا يمكنك منح صلاحية لا تملكها أنت.
+            امنح كل مدير مركز الصلاحيات التي تريدها، لا يمكنك منح صلاحية لا تملكها أنت.
           </p>
         </div>
         <PermissionsEditor
           staff={staff}
           grantable={resolvePermissions(me?.role, me?.permissions)}
-          emptyHint="لا يوجد مديرو مراكز بعد — ادعُهم من صفحة الدعوات بدور «مدير مركز»."
+          emptyHint="لا يوجد مديرو مراكز بعد، ادعُهم من صفحة الدعوات بدور «مدير مركز»."
         />
       </div>
     </>

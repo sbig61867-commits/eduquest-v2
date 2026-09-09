@@ -13,8 +13,8 @@ const dict = {
     send: 'إرسال الرسالة',
     sending: 'جارٍ الإرسال...',
     success: 'وصلتنا رسالتك! سنرد عليك على بريدك قريباً.',
-    error: 'تعذر الإرسال — تأكد من الحقول وحاول مجدداً.',
-    rateLimit: 'وصلت الحد الأقصى للرسائل — حاول لاحقاً.',
+    error: 'تعذر الإرسال، تأكد من الحقول وحاول مجدداً.',
+    rateLimit: 'وصلت الحد الأقصى للرسائل، حاول لاحقاً.',
   },
   en: {
     name: 'Name',
@@ -24,8 +24,8 @@ const dict = {
     send: 'Send Message',
     sending: 'Sending...',
     success: 'Message received! We’ll reply to your email soon.',
-    error: 'Could not send — check the fields and try again.',
-    rateLimit: 'Message limit reached — please try again later.',
+    error: 'Could not send. Check the fields and try again.',
+    rateLimit: 'Message limit reached. Please try again later.',
   },
 }
 

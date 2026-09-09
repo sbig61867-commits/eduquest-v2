@@ -89,7 +89,7 @@ export default async function ProctoringReportsPage() {
           <div className="flex flex-wrap gap-2">
             {(liveExams ?? []).map(e => (
               <Link key={e.id} href={`/teacher/proctoring/live/${e.id}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-error/15 border border-red-600/40 text-error hover:opacity-90/25 text-sm font-medium transition-colors">
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-error-subtle border border-error/40 text-error hover:bg-error/20 text-sm font-medium transition-colors">
                 <Radio className="w-3.5 h-3.5" /> {e.title}
               </Link>
             ))}
@@ -106,7 +106,7 @@ export default async function ProctoringReportsPage() {
           <p className="text-fg-secondary text-sm mb-1">Flagged</p>
           <p className="text-3xl font-bold text-error">{flagged.length}</p>
         </div>
-        <div className="bg-surface border border-emerald-900/40 rounded-lg p-5">
+        <div className="bg-surface border border-success/30 rounded-lg p-5">
           <p className="text-fg-secondary text-sm mb-1">Clean</p>
           <p className="text-3xl font-bold text-accent">{clean.length}</p>
         </div>
@@ -127,11 +127,11 @@ export default async function ProctoringReportsPage() {
             const pct = Math.round(((sub.score ?? 0) / max) * 100)
 
             return (
-              <div key={sub.id} className={`bg-surface border rounded-lg p-5 ${isFlagged ? 'border-red-900/50' : 'border-border'}`}>
+              <div key={sub.id} className={`bg-surface border rounded-lg p-5 ${isFlagged ? 'border-error/40' : 'border-border'}`}>
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-fg font-semibold">{sub.users?.full_name ?? '—'}</h3>
+                      <h3 className="text-fg font-semibold">{sub.users?.full_name ?? '·'}</h3>
                       <Badge variant={isFlagged ? 'error' : 'success'}>{isFlagged ? `${events.length} violations` : 'Clean'}</Badge>
                     </div>
                     <p className="text-fg-secondary text-sm">{sub.users?.email} · {sub.exams?.title}</p>

@@ -65,7 +65,7 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
           <div key={member.id} className="bg-surface border border-border rounded-lg p-5">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div className="min-w-0">
-                <p className="text-fg font-semibold truncate">{member.full_name ?? '—'}</p>
+                <p className="text-fg font-semibold truncate">{member.full_name ?? '·'}</p>
                 <p className="text-fg-muted text-xs truncate">{member.email}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

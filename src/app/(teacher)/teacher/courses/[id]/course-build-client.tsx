@@ -242,7 +242,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
         {isOpen && (
           <div className="px-3 pb-3 space-y-1.5 border-t border-border-strong/50 pt-2">
             {unit.unit_items.length === 0
-              ? <p className="text-fg-muted text-xs py-2 text-center">No content yet — add items above</p>
+              ? <p className="text-fg-muted text-xs py-2 text-center">No content yet, add items above</p>
               : unit.unit_items.map(item => renderItem(item, unit.id))
             }
           </div>
@@ -298,7 +298,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
                 <div className="px-4 pb-4 space-y-2 border-t border-border">
                   <div className="pt-3 space-y-2">
                     {level.course_units.length === 0
-                      ? <p className="text-fg-muted text-sm text-center py-4">No units yet — add a unit above</p>
+                      ? <p className="text-fg-muted text-sm text-center py-4">No units yet, add a unit above</p>
                       : level.course_units.map(unit => renderUnit(unit, level.id))
                     }
                   </div>
@@ -379,7 +379,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
               <span className="text-accent text-sm font-medium">توليد المحتوى من ملف الكورس</span>
             </div>
             <p className="text-fg-secondary text-xs">
-              اكتب عنوان القسم في خانة Title بالأسفل، ثم اضغط توليد — سيُكتب المحتوى من ملفك المرفوع فقط، بلا أي معلومات خارجية.
+              اكتب عنوان القسم في خانة Title بالأسفل، ثم اضغط توليد، سيُكتب المحتوى من ملفك المرفوع فقط، بلا أي معلومات خارجية.
             </p>
             <Button type="button" onClick={generateItemContent} loading={aiLoading} variant="secondary" size="sm">
               <Sparkles className="w-4 h-4" /> توليد من ملف الكورس

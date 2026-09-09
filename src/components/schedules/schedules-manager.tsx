@@ -173,7 +173,7 @@ export function SchedulesManager({
                 value={createForm.target_id}
                 onChange={e => setCreateForm(f => ({ ...f, target_id: e.target.value }))}
               >
-                <option value="">— اختر —</option>
+                <option value="">اختر</option>
                 {availableTargets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </label>
@@ -221,7 +221,7 @@ export function SchedulesManager({
                   {s.kind === 'group'
                     ? <Users className="w-3.5 h-3.5 text-accent shrink-0" />
                     : <User className="w-3.5 h-3.5 text-accent shrink-0" />}
-                  <span className="text-fg text-sm font-medium truncate">{s.target_name ?? '—'}</span>
+                  <span className="text-fg text-sm font-medium truncate">{s.target_name ?? '·'}</span>
                 </div>
                 <p className="text-fg-muted text-xs mt-1 truncate">{s.title}</p>
                 <div className="flex items-center gap-2 mt-1.5">
@@ -243,13 +243,13 @@ export function SchedulesManager({
                 <div className="bg-surface border border-border rounded-lg p-4">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
-                      <h3 className="text-fg font-semibold">{selected.target_name ?? '—'}</h3>
+                      <h3 className="text-fg font-semibold">{selected.target_name ?? '·'}</h3>
                       <p className="text-fg-muted text-xs mt-0.5">
                         {selected.title} · {selected.kind === 'group' ? 'جدول رسمي' : 'جدول خاص بالمعلم'}
                       </p>
                       {selected.kind === 'teacher' && (
                         <p className="text-accent/80 text-[11px] mt-1">
-                          هذا الجدول لا يظهر للطلاب — مخصص لاختبارات المعلم غير الرسمية.
+                          هذا الجدول لا يظهر للطلاب، مخصص لاختبارات المعلم غير الرسمية.
                         </p>
                       )}
                     </div>
@@ -304,7 +304,7 @@ export function SchedulesManager({
                           value={slotForm.teacher_id}
                           onChange={e => setSlotForm(f => ({ ...f, teacher_id: e.target.value }))}
                         >
-                          <option value="">— بدون —</option>
+                          <option value="">بدون</option>
                           {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                       </label>
@@ -349,7 +349,7 @@ export function SchedulesManager({
                           </div>
                           <div className="p-2 space-y-2 min-h-[72px]">
                             {daySlots.length === 0 ? (
-                              <p className="text-fg-muted text-xs text-center py-4">—</p>
+                              <p className="text-fg-muted text-xs text-center py-4">·</p>
                             ) : daySlots.map(slot => (
                               <div key={slot.id} className="rounded-lg bg-surface/70 border border-border-strong/60 p-2.5">
                                 <p className="text-fg text-sm font-medium leading-tight">{slot.title}</p>

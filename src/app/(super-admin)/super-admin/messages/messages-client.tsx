@@ -50,7 +50,7 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
       <div>
         <h2 className="text-xl font-semibold text-fg">Contact Messages</h2>
         <p className="text-fg-secondary mt-1">
-          {messages.length} total · {unread} unread — sent from the public landing page
+          {messages.length} total · {unread} unread, sent from the public landing page
         </p>
       </div>
 

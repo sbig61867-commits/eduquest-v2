@@ -65,7 +65,7 @@ function VocabItem({ term, explanation, translation }: { term: string; explanati
       </button>
       <div className="flex-1 min-w-0 text-sm">
         <span className="font-bold text-fg">{term}</span>
-        <span className="text-fg-muted mx-2">—</span>
+        <span className="text-fg-muted mx-2">·</span>
         <span className="text-fg-secondary">{explanation}</span>
         {translation && (
           showTr
@@ -73,7 +73,7 @@ function VocabItem({ term, explanation, translation }: { term: string; explanati
             : (
               <button
                 onClick={() => setShowTr(true)}
-                title="لم أفهم — أظهر الترجمة العربية"
+                title="لم أفهم، أظهر الترجمة العربية"
                 className="ms-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border-strong text-fg-secondary hover:text-fg hover:border-accent hover:bg-accent-subtle text-sm transition-colors align-middle"
               >
                 <Languages className="w-4 h-4" /> ترجمة
@@ -254,7 +254,7 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
           <div key={i} className={`rounded-lg border p-4 space-y-3 ${
             checked
               ? selfCheck
-                ? 'border-sky-500/40 bg-sky-500/5'
+                ? 'border-info/40 bg-info-subtle'
                 : correct ? 'border-success/40 bg-success/5' : 'border-error/40 bg-error-subtle'
               : 'border-border-strong bg-surface/40'
           }`}>
@@ -306,7 +306,7 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                 />
                 {wrong && <p className="text-accent text-xs">الإجابة الصحيحة: {q.answer}</p>}
                 {checked && selfCheck && (
-                  <p className="text-sky-300 text-xs bg-sky-500/10 rounded px-2 py-1.5 mt-1">الإجابة النموذجية للمقارنة: {q.answer}</p>
+                  <p className="text-info text-xs bg-info-subtle rounded px-2 py-1.5 mt-1">الإجابة النموذجية للمقارنة: {q.answer}</p>
                 )}
               </div>
             )}
@@ -370,7 +370,7 @@ export function LessonTabs({ content }: { content: string }) {
             onClick={() => setActive(i)}
             className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               i === active
-                ? 'bg-accent text-fg'
+                ? 'bg-accent text-accent-fg'
                 : 'bg-surface text-fg-secondary hover:bg-canvas hover:text-fg'
             }`}
           >

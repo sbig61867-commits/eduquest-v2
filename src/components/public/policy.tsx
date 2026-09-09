@@ -69,7 +69,7 @@ const privacy: Record<'ar' | 'en', PolicyDict> = {
         'We never sell your data or share it with third parties for marketing.',
       ]},
       { h: 'Data isolation between institutions', body: [
-        'Every university is fully isolated at the database level (Row Level Security) — no user can access another university\'s data.',
+        'Every university is fully isolated at the database level (Row Level Security), so no user can access another university\'s data.',
         'Students see only their own group\'s content; teachers see only their own groups.',
         'Even the platform owner does not view lesson or exam content unless explicitly requested for support.',
       ]},
@@ -119,7 +119,7 @@ const terms: Record<'ar' | 'en', PolicyDict> = {
       ]},
       { h: 'المحتوى والملكية الفكرية', body: [
         'المحتوى التعليمي الذي ينشئه المعلمون ملك لجامعاتهم.',
-        'المحتوى المولّد بالذكاء الاصطناعي أداة مساعدة — مسؤولية مراجعته واعتماده تقع على المعلم قبل نشره.',
+        'المحتوى المولّد بالذكاء الاصطناعي أداة مساعدة، ومسؤولية مراجعته واعتماده تقع على المعلم قبل نشره.',
         'الكود البرمجي للمنصة وتصميمها حقوق محفوظة لـ EduQuest.',
       ]},
       { h: 'الاشتراك والإيقاف', body: [
@@ -162,7 +162,7 @@ const terms: Record<'ar' | 'en', PolicyDict> = {
       ]},
       { h: 'Content & intellectual property', body: [
         'Educational content created by teachers belongs to their universities.',
-        'AI-generated content is an assistive tool — the teacher is responsible for reviewing and approving it before publishing.',
+        'AI-generated content is an assistive tool, and the teacher is responsible for reviewing and approving it before publishing.',
         'The platform\'s code and design are the intellectual property of EduQuest.',
       ]},
       { h: 'Subscription & suspension', body: [

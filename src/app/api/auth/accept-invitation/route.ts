@@ -123,7 +123,7 @@ export async function POST(request: Request) {
         // Someone else consumed the last use (or it expired) between our
         // fail-fast check and this atomic accept — not a server error.
         await admin.auth.admin.deleteUser(userId).catch(e =>
-          console.error('[accept-invitation] ROLLBACK FAILED — orphaned user:', userId, e)
+          console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
         )
         return NextResponse.json(
           { error: 'This invitation link is invalid, expired, or has reached its maximum number of uses.' },
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
   } catch (err) {
     // Rollback: delete the auth user so the email can be used again
     await admin.auth.admin.deleteUser(userId).catch(e =>
-      console.error('[accept-invitation] ROLLBACK FAILED — orphaned user:', userId, e)
+      console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
     )
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[accept-invitation] error after auth user created:', detail)

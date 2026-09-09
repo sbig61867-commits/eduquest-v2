@@ -24,7 +24,7 @@ export default async function CoursesPage() {
         <div className="w-16 h-16 rounded-lg bg-surface flex items-center justify-center mb-5">
           <Lock className="w-8 h-8 text-fg-muted" />
         </div>
-        <h2 className="text-xl font-bold text-fg mb-2">Courses — Permission Required</h2>
+        <h2 className="text-xl font-bold text-fg mb-2">Courses · Permission Required</h2>
         <p className="text-fg-secondary max-w-sm">
           You need your university admin to enable course creation for your account before you can access this section.
         </p>

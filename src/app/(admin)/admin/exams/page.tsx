@@ -63,10 +63,10 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
                   </div>
                 </div>
               </td>
-              <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{exam.teacher_name ?? '—'}</td>
+              <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{exam.teacher_name ?? '·'}</td>
               <td className="px-5 py-4 hidden lg:table-cell">
                 <span className="text-fg-secondary text-sm flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-fg-muted" />{exam.group_name ?? '—'}
+                  <Users className="w-3.5 h-3.5 text-fg-muted" />{exam.group_name ?? '·'}
                 </span>
               </td>
               <td className="px-5 py-4 text-fg-secondary text-sm">{exam.submission_count ?? 0}</td>

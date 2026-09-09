@@ -37,7 +37,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
   return (
     <div
       dir="rtl"
-      className="relative overflow-hidden rounded-lg border border-border bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/40"
+      className="relative overflow-hidden rounded-lg border border-accent-border bg-elevated bg-[linear-gradient(135deg,var(--color-accent-subtle),var(--color-elevated)_65%)]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -69,7 +69,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
               href={a.link_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-fg transition-colors"
+              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-accent-fg transition-colors"
             >
               {a.cta_label?.trim() || 'اعرف المزيد'}
               <ExternalLink className="w-3.5 h-3.5" />

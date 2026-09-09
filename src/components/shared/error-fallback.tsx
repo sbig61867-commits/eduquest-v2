@@ -31,7 +31,7 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'Go 
         </div>
         <h1 className="text-xl font-bold text-fg">Something went wrong</h1>
         <p className="text-fg-secondary text-sm leading-relaxed">
-          An unexpected error occurred. Your data is safe — try again, and if
+          An unexpected error occurred. Your data is safe, try again, and if
           the problem persists, contact your administrator.
         </p>
         {error.digest && (

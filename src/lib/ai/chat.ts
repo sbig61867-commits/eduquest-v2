@@ -170,7 +170,7 @@ export async function aiChat(prompt: string, systemPrompt?: string, options?: Ai
 
 export function buildLessonPrompt(topic: string, level: string, customInstructions?: string): string {
   const structureBlock = customInstructions?.trim()
-    ? `The teacher has provided specific instructions for how to structure this content — follow them exactly:
+    ? `The teacher has provided specific instructions for how to structure this content, follow them exactly:
 """
 ${customInstructions.trim()}
 """

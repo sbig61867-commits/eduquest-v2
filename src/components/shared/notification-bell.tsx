@@ -15,8 +15,8 @@ const ICONS: Record<string, typeof Bell> = {
 const COLORS: Record<string, string> = {
   lesson: 'bg-accent-subtle text-accent', exam: 'bg-warning-subtle text-accent',
   grade: 'bg-success-subtle text-accent', submission: 'bg-accent-subtle text-accent',
-  user: 'bg-cyan-600/20 text-info', message: 'bg-pink-600/20 text-pink-400',
-  tenant: 'bg-indigo-600/20 text-indigo-400',
+  user: 'bg-info-subtle text-info', message: 'bg-accent-subtle text-accent',
+  tenant: 'bg-accent-subtle text-accent',
 }
 const SEEN_KEY = 'eq_notif_seen_at'
 
@@ -83,7 +83,7 @@ export function NotificationBell() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.4, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-error text-fg text-[10px] font-bold flex items-center justify-center"
+              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-error text-accent-fg text-[10px] font-bold flex items-center justify-center"
             >
               {unread > 9 ? '9+' : unread}
             </motion.span>

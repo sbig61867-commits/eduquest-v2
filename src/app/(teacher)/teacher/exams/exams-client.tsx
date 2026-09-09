@@ -89,7 +89,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
         setQuestions(prev => [...prev, ...withPoints])
         if (!form.title && examFiles[0]) setForm(p => ({ ...p, title: examFiles[0].name.replace(/\.\w+$/, '') }))
         if (data.delivered < data.requested) {
-          setExamFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
+          setExamFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً، محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
         }
       } else {
         setExamFileError(data.error ?? 'فشل التوليد')
@@ -234,7 +234,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     {exam.proctoring_enabled && <Badge variant="info"><ShieldCheck className="w-3 h-3 mr-1" />Proctored</Badge>}
                   </div>
                   <p className="text-fg-secondary text-sm flex items-center gap-1.5 flex-wrap">
-                    <Users className="w-3.5 h-3.5" /> <span className="text-fg-secondary">{exam.groups?.name ?? '—'}</span>
+                    <Users className="w-3.5 h-3.5" /> <span className="text-fg-secondary">{exam.groups?.name ?? '·'}</span>
                     · {exam.duration_minutes} min · {exam.questions.length} questions · {formatDate(exam.created_at)}
                   </p>
                 </div>
@@ -280,7 +280,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             <div className="bg-accent-subtle border border-accent/30 rounded-lg p-4 space-y-3" dir="rtl">
               <div className="flex items-center gap-2">
                 <Upload className="w-4 h-4 text-accent" />
-                <span className="text-accent-hover text-sm font-medium">توليد اختبار من ملف — الأسئلة من محتوى الملف فقط</span>
+                <span className="text-accent-hover text-sm font-medium">توليد اختبار من ملف، الأسئلة من محتوى الملف فقط</span>
               </div>
 
               <div className="space-y-2">
@@ -341,12 +341,12 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     </div>
                   ))}
                 </div>
-                <p className="text-fg-muted text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً أو جماعياً.</p>
+                <p className="text-fg-muted text-xs">حدد علامة كل سؤال حسب نوعه، وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً أو جماعياً.</p>
               </div>
 
               <textarea value={examFileInstructions} onChange={e => setExamFileInstructions(e.target.value)} rows={2}
                 className="w-full px-3 py-2 rounded-lg bg-surface border border-border-strong text-fg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent"
-                placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على الفصلين 3 و4"' />
+                placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري)، مثال: "ركّز على الفصلين 3 و4"' />
 
               <AiProgress active={examFileLoading} />
               {examFileError && <p className="text-error text-sm">{examFileError}</p>}
@@ -372,7 +372,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
               <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-accent' : 'bg-canvas'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.proctoring_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-fg-secondary text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-accent" />Enable Proctoring (camera + tab detection)</span>
+              <span className="text-fg-secondary text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-accent" />Enable Proctoring (camera and tab detection)</span>
             </label>
 
             {/* Questions Preview */}
@@ -381,7 +381,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <p className="text-fg-secondary text-sm font-medium">{questions.length} Questions Generated</p>
 
                 {/* Bulk-grade bar: set a uniform mark for selected (or all) questions
-                    at once — no need to edit 100 questions one by one. */}
+                    at once, no need to edit 100 questions one by one. */}
                 <div className="flex flex-wrap items-center gap-2 bg-surface/60 border border-border-strong rounded-lg px-3 py-2" dir="rtl">
                   <button type="button"
                     onClick={() => setSelectedQ(selectedQ.size === questions.length ? new Set() : new Set(questions.map(q => q.id)))}
@@ -389,7 +389,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     {selectedQ.size === questions.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
                   </button>
                   <span className="text-fg-secondary text-xs">
-                    {selectedQ.size > 0 ? `${selectedQ.size} محدد` : 'حدّد أسئلة'} — ضع درجة موحّدة:
+                    {selectedQ.size > 0 ? `${selectedQ.size} محدد` : 'حدّد أسئلة'}، ضع درجة موحّدة:
                   </span>
                   <input type="number" min={1} max={100} value={bulkPts}
                     onChange={e => setBulkPts(Math.max(1, Number(e.target.value)))}
@@ -431,7 +431,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 </div>
                 <p className="text-fg-secondary text-xs mt-2">
                   {questions.length} سؤالاً · العلامة الكاملة: <span className="text-fg font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
-                  <span className="text-fg-muted"> — عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة</span>
+                  <span className="text-fg-muted">، عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة</span>
                 </p>
               </div>
             )}
@@ -492,12 +492,12 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                               <p className="text-fg-muted text-xs">{r.email}</p>
                             </td>
                             <td className="px-4 py-3">
-                              {!r.submitted ? <span className="text-fg-muted">—</span>
+                              {!r.submitted ? <span className="text-fg-muted">·</span>
                                 : r.grading_status === 'published' && r.score != null
                                   ? <span className={`font-bold ${pct! >= 60 ? 'text-accent' : 'text-error'}`}>{r.score}/{r.max_score} ({pct}%)</span>
                                   : <span className="text-accent text-xs">pending grading</span>}
                             </td>
-                            <td className="px-4 py-3 hidden sm:table-cell text-fg-secondary text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
+                            <td className="px-4 py-3 hidden sm:table-cell text-fg-secondary text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '·'}</td>
                             <td className="px-4 py-3">
                               {!r.submitted ? <Badge variant="neutral">Not taken</Badge>
                                 : <span className="flex items-center gap-2">
@@ -527,7 +527,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                         </div>
                                         <p className="text-sm ps-6">
                                           <span className="text-fg-muted">إجابة الطالب: </span>
-                                          <span className={auto ? (correct ? 'text-success' : 'text-error') : 'text-fg'} dir="auto">{ans || '— لم يجب —'}</span>
+                                          <span className={auto ? (correct ? 'text-success' : 'text-error') : 'text-fg'} dir="auto">{ans || 'لم يجب'}</span>
                                         </p>
                                         {auto && !correct && <p className="text-xs ps-6 text-accent">الإجابة الصحيحة: {q.correct_answer}</p>}
                                         {!auto && (
@@ -552,7 +552,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                       <>
                                         <span className="text-fg-secondary text-sm">
                                           المجموع النهائي: <span className="text-fg font-bold">{totalFor(r)} / {r.max_score}</span>
-                                          <span className="text-fg-muted text-xs"> (آلي {autoScore(r)} + يدوي)</span>
+                                          <span className="text-fg-muted text-xs"> (آلي {autoScore(r)} ويدوي)</span>
                                         </span>
                                         <Button size="sm" loading={gradeBusy === r.submission_id}
                                           onClick={() => patchSubmission(r.submission_id!, { score: totalFor(r), grading_status: 'reviewing' }, resultsExamId)}>

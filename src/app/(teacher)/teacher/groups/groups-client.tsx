@@ -239,7 +239,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(group)}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => toggleArchive(group)}
-                    title={group.is_active ? 'أرشفة — إخفاء عن الطلاب مع حفظ السجلات' : 'استرجاع المجموعة'}
+                    title={group.is_active ? 'أرشفة، إخفاء عن الطلاب مع حفظ السجلات' : 'استرجاع المجموعة'}
                     className={group.is_active ? 'hover:text-accent hover:bg-accent-subtle' : 'text-accent hover:text-accent hover:bg-accent-subtle'}>
                     {group.is_active ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
                   </Button>
@@ -294,7 +294,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       </Modal>
 
       {/* Manage Students Modal */}
-      <Modal open={!!managingGroup} onClose={() => setManagingGroup(null)} title={`Manage Students — ${managingGroup?.name ?? ''}`}>
+      <Modal open={!!managingGroup} onClose={() => setManagingGroup(null)} title={`Manage Students · ${managingGroup?.name ?? ''}`}>
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-muted" />
@@ -367,7 +367,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       </Modal>
 
       {/* Survey Modal */}
-      <Modal open={!!surveyGroup} onClose={() => setSurveyGroup(null)} title={`استبيان التجربة — ${surveyGroup?.name ?? ''}`}>
+      <Modal open={!!surveyGroup} onClose={() => setSurveyGroup(null)} title={`استبيان التجربة · ${surveyGroup?.name ?? ''}`}>
         <div className="space-y-4">
           {surveyLoading ? (
             <p className="text-fg-secondary text-sm py-4 text-center">جارٍ التحميل...</p>

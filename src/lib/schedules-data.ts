@@ -89,11 +89,11 @@ export async function loadSchedulesPage(
   ])
 
   const groupNames = new Map((groups ?? []).map(g => [g.id as string, g.name as string]))
-  const teacherNames = new Map((teachers ?? []).map(t => [t.id as string, (t.full_name as string) ?? '—']))
+  const teacherNames = new Map((teachers ?? []).map(t => [t.id as string, (t.full_name as string) ?? '·']))
 
   const targets: TargetOption[] = [
     ...(groups ?? []).map(g => ({ id: g.id as string, name: g.name as string, kind: 'group' as const })),
-    ...(teachers ?? []).map(t => ({ id: t.id as string, name: (t.full_name as string) ?? '—', kind: 'teacher' as const })),
+    ...(teachers ?? []).map(t => ({ id: t.id as string, name: (t.full_name as string) ?? '·', kind: 'teacher' as const })),
   ]
 
   return {
@@ -120,7 +120,7 @@ export async function loadTeacherSchedules(
   ])
 
   const groupNames = new Map((groups ?? []).map(g => [g.id as string, g.name as string]))
-  const teacherNames = new Map((teachers ?? []).map(t => [t.id as string, (t.full_name as string) ?? '—']))
+  const teacherNames = new Map((teachers ?? []).map(t => [t.id as string, (t.full_name as string) ?? '·']))
 
   return toRows((raw ?? []) as unknown as RawSchedule[], groupNames, teacherNames)
 }

@@ -13,12 +13,12 @@ const dict = {
   ar: {
     badge: 'مباشر',
     title: 'تشوف كل طالب وتسمعه، لحظة بلحظة',
-    desc: 'أثناء الاختبار يفتح المعلم جداراً مباشراً واحداً — صورة وصوت كل الطلاب في آنٍ واحد، بدون أي تطبيق خارجي أو رابط اجتماع منفصل.',
+    desc: 'أثناء الاختبار يفتح المعلم جداراً مباشراً واحداً، صورة وصوت كل الطلاب في آنٍ واحد، بدون أي تطبيق خارجي أو رابط اجتماع منفصل.',
     demoLabel: 'جدار المراقبة أثناء اختبار حي',
     demoSpeaking: 'يتكلم',
     demoStudent: 'طالب',
     features: [
-      { icon: 'Volume2', title: 'يعرف مين يتكلم فوراً', desc: 'أي صوت يصدر عن طالب تظهر علامة "يتكلم" فوق إطاره مباشرة — يميّز محاولة الغش من ضجيج الغرفة المحيطة، فما حدا يُظلم.' },
+      { icon: 'Volume2', title: 'يعرف مين يتكلم فوراً', desc: 'أي صوت يصدر عن طالب تظهر علامة "يتكلم" فوق إطاره مباشرة، ويميّز محاولة الغش من ضجيج الغرفة المحيطة، فما حدا يُظلم.' },
       { icon: 'ZoomIn', title: 'كبّر أي طالب لحاله', desc: 'اضغط على أي مربع لتكبيره بجودة أعلى ومتابعته وحده دون تشتيت بباقي الشبكة.' },
       { icon: 'WifiOff', title: 'ثابتة حتى على إنترنت ضعيف', desc: 'الاتصال مصمم ليتكيف مع سرعة الشبكة، فلا ينقطع البث عند أي طالب بسبب إنترنت بطيء.' },
       { icon: 'ShieldCheck', title: 'مسجّلة مع الأحداث المشبوهة', desc: 'كل حدث مراقبة (وجه غائب، نافذة أخرى، وجه إضافي) يُسجَّل تلقائياً ويظهر بجانب إجابة الطالب بعد الاختبار.' },
@@ -36,12 +36,12 @@ const dict = {
   en: {
     badge: 'LIVE',
     title: 'See and hear every student, live',
-    desc: 'During an exam, the teacher opens one live wall — video and audio of every student at once, with no third-party app or separate meeting link.',
+    desc: 'During an exam, the teacher opens one live wall, video and audio of every student at once, with no third-party app or separate meeting link.',
     demoLabel: 'The monitoring wall during a live exam',
     demoSpeaking: 'speaking',
     demoStudent: 'Student',
     features: [
-      { icon: 'Volume2', title: 'Knows who is speaking, instantly', desc: 'The moment a student makes a sound, a "speaking" marker appears on their tile — telling a cheating attempt from ambient room noise, so no one is treated unfairly.' },
+      { icon: 'Volume2', title: 'Knows who is speaking, instantly', desc: 'The moment a student makes a sound, a "speaking" marker appears on their tile, telling a cheating attempt from ambient room noise, so no one is treated unfairly.' },
       { icon: 'ZoomIn', title: 'Zoom into any student alone', desc: 'Click any tile to enlarge it at higher quality and follow that student without the rest of the grid distracting you.' },
       { icon: 'WifiOff', title: 'Stable even on weak internet', desc: "The connection adapts to network speed, so one student's slow connection never breaks the stream for others." },
       { icon: 'ShieldCheck', title: 'Recorded alongside flagged events', desc: 'Every proctoring event (missing face, another window, an extra face) is logged automatically and shown next to that answer after the exam.' },

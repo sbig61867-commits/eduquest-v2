@@ -98,7 +98,7 @@ export function PublicFooter({ lang }: { lang: Lang }) {
   return (
     <footer className="border-t border-[#dde7ee] bg-[#f5f9fd] mt-0">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-[#688dac] text-sm">© {new Date().getFullYear()} EduQuest — {t.rights}</p>
+        <p className="text-[#688dac] text-sm">© {new Date().getFullYear()} EduQuest · {t.rights}</p>
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5 text-sm">
           <Link href="/pricing" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.pricing}</Link>
           <Link href="/privacy" className="text-[#486984] hover:text-[#0b3658] transition-colors">{t.privacy}</Link>

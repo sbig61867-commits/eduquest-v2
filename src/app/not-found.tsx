@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Compass, Home } from 'lucide-react'
 
 export const metadata = {
-  title: 'Page not found — EduQuest',
+  title: 'Page not found · EduQuest',
 }
 
 /**

@@ -23,7 +23,7 @@ export default async function TeacherSchedulePage() {
     <div className="max-w-4xl mx-auto space-y-6" dir="rtl">
       <div className="mb-7">
         <h1 className="text-xl font-semibold text-fg">جداول المواعيد</h1>
-        <p className="text-[13px] text-fg-muted mt-1.5">جداول مجموعاتك وجدولك الخاص — يرتّبها مدير المؤسسة بالتنسيق معك.</p>
+        <p className="text-[13px] text-fg-muted mt-1.5">جداول مجموعاتك وجدولك الخاص، يرتّبها مدير المؤسسة بالتنسيق معك.</p>
       </div>
 
       {schedules.length === 0 ? (
@@ -41,7 +41,7 @@ export default async function TeacherSchedulePage() {
                 {s.kind === 'group'
                   ? <Users className="w-4 h-4 text-accent" />
                   : <User className="w-4 h-4 text-accent" />}
-                <h3 className="text-fg font-semibold">{s.target_name ?? '—'}</h3>
+                <h3 className="text-fg font-semibold">{s.target_name ?? '·'}</h3>
                 <span className="text-fg-muted text-xs">{s.title}</span>
                 {s.kind === 'group' && (
                   <span className={`text-[11px] px-2 py-0.5 rounded-full ${
@@ -52,7 +52,7 @@ export default async function TeacherSchedulePage() {
                 )}
                 {s.kind === 'teacher' && (
                   <span className="text-[11px] px-2 py-0.5 rounded-full text-accent bg-accent-subtle">
-                    خاص بك — لا يراه الطلاب
+                    خاص بك، لا يراه الطلاب
                   </span>
                 )}
               </div>

@@ -73,7 +73,7 @@ export function Markdown({ content, className }: { content: string; className?: 
     flushList()
     if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) { blocks.push(<hr key={key++} className="my-4 border-border" />); continue }
     const bq = line.match(/^>\s?(.*)/)
-    if (bq) { blocks.push(<blockquote key={key++} className="my-2 ps-3 border-s-2 border-blue-500/50 text-fg-secondary italic">{renderInline(bq[1], `q${key}`)}</blockquote>); continue }
+    if (bq) { blocks.push(<blockquote key={key++} className="my-2 ps-3 border-s-2 border-accent/50 text-fg-secondary italic">{renderInline(bq[1], `q${key}`)}</blockquote>); continue }
     if (line.trim() === '') continue
     blocks.push(<p key={key++} className="my-2 leading-relaxed">{renderInline(line, `p${key}`)}</p>)
   }

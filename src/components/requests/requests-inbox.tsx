@@ -155,8 +155,8 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 value={form.to_user_id}
                 onChange={e => setForm(f => ({ ...f, to_user_id: e.target.value, group_id: '' }))}
               >
-                <option value="">— اختر —</option>
-                {recipients.map(r => <option key={r.id} value={r.id}>{r.full_name ?? '—'}</option>)}
+                <option value="">اختر</option>
+                {recipients.map(r => <option key={r.id} value={r.id}>{r.full_name ?? '·'}</option>)}
               </select>
             </label>
             <label className="text-sm text-fg-secondary space-y-1.5 block">
@@ -178,7 +178,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
               className="w-full bg-surface border border-border-strong rounded-lg px-3 py-2 text-fg text-sm"
               value={form.subject}
               onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-              placeholder="مثال: كشف علامات مجموعة الرياضيات — الفصل الأول"
+              placeholder="مثال: كشف علامات مجموعة الرياضيات، الفصل الأول"
             />
           </label>
           {formGroups.length > 0 && (
@@ -189,7 +189,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 value={form.group_id}
                 onChange={e => setForm(f => ({ ...f, group_id: e.target.value }))}
               >
-                <option value="">— بدون —</option>
+                <option value="">بدون</option>
                 {formGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </label>
@@ -238,7 +238,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                   <div className="flex items-center gap-2 mt-1 text-xs text-fg-muted">
                     <span>{TYPE_LABEL[r.type]}</span>
                     <span>·</span>
-                    <span>{outgoing ? 'إلى' : 'من'} {counterpart ?? '—'}</span>
+                    <span>{outgoing ? 'إلى' : 'من'} {counterpart ?? '·'}</span>
                     {r.messages.length > 0 && (
                       <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{r.messages.length}</span>
                     )}
@@ -267,7 +267,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
 
                 <div className="p-4 space-y-3 max-h-[420px] overflow-y-auto">
                   {selected.messages.length === 0 ? (
-                    <p className="text-fg-muted text-sm text-center py-6">لا توجد رسائل — ابدأ المحادثة.</p>
+                    <p className="text-fg-muted text-sm text-center py-6">لا توجد رسائل، ابدأ المحادثة.</p>
                   ) : (
                     [...selected.messages]
                       .sort((a, b) => a.created_at.localeCompare(b.created_at))

@@ -111,7 +111,7 @@ export default async function TeacherDashboard() {
                           {l.title}
                         </p>
                         <p className="text-[11px] text-fg-muted mt-0.5">
-                          {l.groups?.name ?? '—'} · {formatDate(l.created_at)}
+                          {l.groups?.name ?? '·'} · {formatDate(l.created_at)}
                         </p>
                       </div>
                     </Link>
@@ -143,7 +143,7 @@ export default async function TeacherDashboard() {
                 {(upcomingExams as unknown as UpcomingExam[]).map(e => (
                   <li key={e.id} className="px-5 py-3.5">
                     <p className="text-[13px] font-medium text-fg truncate">{e.title}</p>
-                    <p className="text-[11px] text-fg-muted mt-0.5">{e.groups?.name ?? '—'}</p>
+                    <p className="text-[11px] text-fg-muted mt-0.5">{e.groups?.name ?? '·'}</p>
                     {e.ends_at && (
                       <p className="text-[11px] text-accent mt-0.5">{formatDate(e.ends_at)}</p>
                     )}

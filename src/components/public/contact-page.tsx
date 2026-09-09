@@ -7,11 +7,11 @@ import { RevealOnScroll } from '@/components/shared/motion'
 const dict = {
   ar: {
     title: 'تواصل معنا',
-    desc: 'اترك رسالتك وسنرد عليك على بريدك في أقرب وقت — سواء كنت جامعة تريد الاشتراك أو لديك أي استفسار.',
+    desc: 'اترك رسالتك وسنرد عليك على بريدك في أقرب وقت، سواء كنت جامعة تريد الاشتراك أو لديك أي استفسار.',
   },
   en: {
     title: 'Contact Us',
-    desc: 'Leave your message and we’ll reply to your email as soon as possible — whether you’re a university looking to subscribe or you have any question.',
+    desc: 'Leave your message and we’ll reply to your email as soon as possible, whether you’re a university looking to subscribe or you have any question.',
   },
 }
 

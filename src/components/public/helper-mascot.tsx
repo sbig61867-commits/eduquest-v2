@@ -10,12 +10,12 @@ const dict = {
     label: 'المساعد',
     greeting: 'محتاج مساعدة بتسجيل الدخول؟',
     tiredGreeting: 'خلص خلص، بساعدك تسجّل دخول',
-    newUserGreeting: 'أهلاً فيك معنا! تم تفعيل حسابك — جاهز تبدأ؟',
-    returningGreeting: 'مرحباً بعودتك! لنبدأ تسجيل الدخول — يبدو إنه عندك مهام ودروس غير منجزة، أسرع!',
+    newUserGreeting: 'أهلاً فيك معنا! تم تفعيل حسابك، جاهز تبدأ؟',
+    returningGreeting: 'مرحباً بعودتك! لنبدأ تسجيل الدخول، يبدو إنه عندك مهام ودروس غير منجزة، أسرع!',
     strongPassword: 'أووه، كلمة سر قوية!',
     items: [
       { icon: 'KeyRound', title: 'نسيت كلمة السر؟', desc: 'اضغط "نسيت كلمة السر" تحت الحقل وبنرسلك رابط تصفير.', href: '/forgot-password' },
-      { icon: 'UserPlus', title: 'ما عندك حساب؟', desc: 'التسجيل هون يتم فقط برابط دعوة من جامعتك أو مركزك — تواصل مع الإدارة عندك.' },
+      { icon: 'UserPlus', title: 'ما عندك حساب؟', desc: 'التسجيل هون يتم فقط برابط دعوة من جامعتك أو مركزك، تواصل مع الإدارة عندك.' },
       { icon: 'Mail', title: 'لسا في مشكلة؟', desc: 'راسلنا وبنساعدك بأسرع وقت.', href: '/contact' },
     ] as Help[],
     close: 'إغلاق',
@@ -24,12 +24,12 @@ const dict = {
     label: 'Assistant',
     greeting: 'Need help signing in?',
     tiredGreeting: 'Okay okay, let me help you sign in',
-    newUserGreeting: 'Welcome aboard! Your account is active — ready to start?',
-    returningGreeting: "Welcome back! Let's sign you in — looks like you have unfinished tasks and lessons, hurry up!",
+    newUserGreeting: 'Welcome aboard! Your account is active, ready to start?',
+    returningGreeting: "Welcome back! Let's sign you in, looks like you have unfinished tasks and lessons, hurry up!",
     strongPassword: "Oh, that's a strong password!",
     items: [
       { icon: 'KeyRound', title: 'Forgot your password?', desc: 'Use "Forgot password" below the field and we\'ll send a reset link.', href: '/forgot-password' },
-      { icon: 'UserPlus', title: "Don't have an account?", desc: 'Sign-up here only happens via an invite link from your university or center — contact your admin.' },
+      { icon: 'UserPlus', title: "Don't have an account?", desc: 'Sign-up here only happens via an invite link from your university or center, contact your admin.' },
       { icon: 'Mail', title: 'Still stuck?', desc: "Message us and we'll help right away.", href: '/contact' },
     ] as Help[],
     close: 'Close',
@@ -41,7 +41,7 @@ const icons = { KeyRound, Mail, UserPlus } as const
 const SIZE = 56
 const MARGIN = 16
 const COMFORT_DIST = 220 // px the mascot tries to keep from the cursor while trailing it
-const DODGE_DIST = 110   // px — inside this, it panics and jumps away
+const DODGE_DIST = 110   // px, inside this it panics and jumps away
 const TIRED_AFTER = 5    // dodges before it gives up and offers help
 const POPOVER_W = 288
 const POPOVER_H = 230

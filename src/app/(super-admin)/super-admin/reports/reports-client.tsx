@@ -21,7 +21,7 @@ const UI = {
     refLabel: 'الرقم المرجعي', dateLabel: 'التاريخ', timeLabel: 'وقت الإصدار',
     uniLabel: 'الجامعة',
     sigTitle: 'الاعتماد', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
-    footerAuto: 'وثيقة صادرة آلياً من منصة EduQuest', footerConf: 'سري — للاستخدام الإداري فقط',
+    footerAuto: 'وثيقة صادرة آلياً من منصة EduQuest', footerConf: 'سري، للاستخدام الإداري فقط',
     locale: 'ar',
   },
   en: {
@@ -29,7 +29,7 @@ const UI = {
     refLabel: 'Reference No.', dateLabel: 'Date', timeLabel: 'Issued At',
     uniLabel: 'University',
     sigTitle: 'Approval', sigName: 'Name', sigSignature: 'Signature', sigDate: 'Date',
-    footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
+    footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential, for administrative use only',
     locale: 'en-GB',
   },
 } as const
@@ -54,8 +54,8 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
 
   const entities = useMemo(() => {
     if (scope === 'university') return tenants.map(t => ({ id: t.id, label: t.name }))
-    if (scope === 'teacher') return teachers.map(t => ({ id: t.id, label: `${t.full_name} — ${t.email}` }))
-    if (scope === 'student') return students.map(s => ({ id: s.id, label: `${s.full_name} — ${s.email}` }))
+    if (scope === 'teacher') return teachers.map(t => ({ id: t.id, label: `${t.full_name} · ${t.email}` }))
+    if (scope === 'student') return students.map(s => ({ id: s.id, label: `${s.full_name} · ${s.email}` }))
     // 'group' and 'pilot' both select from the same groups list.
     return groups.map(g => ({ id: g.id, label: g.name }))
   }, [scope, tenants, teachers, groups, students])
@@ -146,7 +146,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             onChange={e => setEntityId(e.target.value)}
             className="w-full px-4 py-2.5 rounded-lg bg-surface border border-border-strong text-fg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
           >
-            <option value="">— اختر —</option>
+            <option value="">اختر</option>
             {entities.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
           </select>
         </div>
@@ -179,7 +179,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
         return (
         <div id="report-print" className="bg-white text-fg rounded-lg p-8 space-y-5" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Official letterhead ── */}
-          <div className="border-b-4 border-blue-700 pb-4">
+          <div className="border-b-4 border-accent pb-4">
             <div className="flex items-start justify-between gap-4">
               {/* Platform identity */}
               <div className="flex items-center gap-3">
@@ -187,7 +187,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                   <span className="text-fg text-3xl font-bold">E</span>
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-blue-900 leading-tight">EduQuest</p>
+                  <p className="text-xl font-bold text-[#0b3658] leading-tight">EduQuest</p>
                   <p className="text-fg-muted text-xs">{ui.tagline}</p>
                   <p className="text-fg-secondary text-[10px] mt-0.5" dir="ltr">eduquest-v2.vercel.app</p>
                 </div>
@@ -215,7 +215,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
           {/* ── Report title block ── */}
           <div className="text-center py-2">
             {report.university && (
-              <p className="text-sm font-semibold text-blue-800 mb-1">
+              <p className="text-sm font-semibold text-[#0e4a7a] mb-1">
                 {ui.uniLabel}: {report.university}
               </p>
             )}
@@ -235,13 +235,13 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                     <thead>
                       <tr>
                         {t.columns.map((c, j) => (
-                          <th key={j} className={`border border-border bg-slate-100 px-3 py-2 ${cellAlign} font-semibold`}>{c}</th>
+                          <th key={j} className={`border border-[#dde7ee] bg-[#eef2f6] px-3 py-2 ${cellAlign} font-semibold`}>{c}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {t.rows.map((row, r) => (
-                        <tr key={r} className={r % 2 ? 'bg-slate-50' : ''}>
+                        <tr key={r} className={r % 2 ? 'bg-[#f7f9fb]' : ''}>
                           {row.map((cell, c) => (
                             <td key={c} className={`border border-border px-3 py-2 ${cellAlign}`}>{cell}</td>
                           ))}
@@ -256,7 +256,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
 
           {/* ── Signature block ── */}
           <div className="pt-8">
-            <p className="text-sm font-semibold text-slate-700 mb-6">{ui.sigTitle}</p>
+            <p className="text-sm font-semibold text-[#486984] mb-6">{ui.sigTitle}</p>
             <div className="flex items-end justify-between gap-8 max-w-2xl">
               <div className="flex-1">
                 <div className="border-b border-border-strong h-8" />

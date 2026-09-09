@@ -110,7 +110,7 @@ export default async function AdminCoursesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{course.teacher?.full_name ?? '—'}</td>
+                    <td className="px-5 py-4 hidden md:table-cell text-fg-secondary text-sm">{course.teacher?.full_name ?? '·'}</td>
                     <td className="px-5 py-4 hidden lg:table-cell text-fg-secondary text-sm">
                       {course.has_levels ? `${count(course.course_levels)} levels · ` : ''}{count(course.course_units)} units
                     </td>

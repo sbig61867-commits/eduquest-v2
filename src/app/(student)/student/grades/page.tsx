@@ -45,7 +45,7 @@ export default async function GradesPage() {
       ?? 1
     return {
       ...sub,
-      title: exam?.title ?? '—',
+      title: exam?.title ?? '·',
       homework: isHomework(exam),
       max,
       pct: Math.round(((sub.score ?? 0) / (max || 1)) * 100),
