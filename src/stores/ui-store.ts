@@ -17,5 +17,5 @@ export const useUIStore = create<UIState>((set) => ({
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
-  setPageTitle: (title) => set({ pageTitle: title }),
+  setPageTitle: (pageTitle) => set({ pageTitle }),
 }))

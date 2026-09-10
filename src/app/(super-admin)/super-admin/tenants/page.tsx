@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { PageTitle } from '@/components/shared/page-title'
 import { TenantsClient } from './tenants-client'
 
 export default async function TenantsPage() {
@@ -11,5 +10,5 @@ export default async function TenantsPage() {
     .select('*')
     .order('created_at', { ascending: false })
 
-  return (<><PageTitle title="Tenants" /><TenantsClient initialTenants={tenants ?? []} /></>)
+  return <TenantsClient initialTenants={tenants ?? []} />
 }

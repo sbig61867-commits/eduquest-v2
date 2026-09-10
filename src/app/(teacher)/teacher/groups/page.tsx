@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GroupsClient } from './groups-client'
-import { PageTitle } from '@/components/shared/page-title'
 
 export default async function GroupsPage() {
   const supabase = await createClient()
@@ -38,14 +37,11 @@ export default async function GroupsPage() {
     .order('full_name')
 
   return (
-    <>
-      <PageTitle title="Groups" />
-      <GroupsClient
-        initialGroups={groups ?? []}
-        tenantStudents={tenantStudents ?? []}
-        teacherId={user.id}
-        tenantId={profile.tenant_id}
-      />
-    </>
+    <GroupsClient
+      initialGroups={groups ?? []}
+      tenantStudents={tenantStudents ?? []}
+      teacherId={user.id}
+      tenantId={profile.tenant_id}
+    />
   )
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AnimatePresence, motion } from 'framer-motion'
 import { Bell, BookOpen, ClipboardList, BarChart2, Send, UserPlus, Mail, Building2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
@@ -13,10 +12,10 @@ const ICONS: Record<string, typeof Bell> = {
   submission: Send, user: UserPlus, message: Mail, tenant: Building2,
 }
 const COLORS: Record<string, string> = {
-  lesson: 'bg-accent-subtle text-accent', exam: 'bg-warning-subtle text-accent',
-  grade: 'bg-success-subtle text-accent', submission: 'bg-accent-subtle text-accent',
-  user: 'bg-info-subtle text-info', message: 'bg-accent-subtle text-accent',
-  tenant: 'bg-accent-subtle text-accent',
+  lesson: 'bg-violet-600/20 text-violet-400', exam: 'bg-amber-600/20 text-amber-400',
+  grade: 'bg-emerald-600/20 text-emerald-400', submission: 'bg-blue-600/20 text-blue-400',
+  user: 'bg-cyan-600/20 text-cyan-400', message: 'bg-pink-600/20 text-pink-400',
+  tenant: 'bg-indigo-600/20 text-indigo-400',
 }
 const SEEN_KEY = 'eq_notif_seen_at'
 
@@ -73,38 +72,29 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={ref}>
       <button onClick={toggle} aria-label="Notifications"
-        className="relative p-2 rounded-lg text-fg-secondary hover:text-fg hover:bg-surface transition-colors">
+        className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
         <Bell className="w-5 h-5" />
-        <AnimatePresence>
-          {unread > 0 && (
-            <motion.span
-              key={unread}
-              initial={{ scale: 0.4, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.4, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-error text-accent-fg text-[10px] font-bold flex items-center justify-center"
-            >
-              {unread > 9 ? '9+' : unread}
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {unread > 0 && (
+          <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
       </button>
 
       {open && (
         // Pin the panel to the viewport's right edge (LTR anchor) so it never
         // spills off-screen regardless of the page's RTL/LTR direction; on
         // mobile it spans almost the full width with a small margin.
-        <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 right-3 sm:right-0 sm:left-auto w-[calc(100vw-1.5rem)] sm:w-80 bg-surface border border-border-strong rounded-lg shadow-2xl overflow-hidden z-50" dir="rtl">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <span className="text-fg font-semibold text-sm">الإشعارات</span>
-            {loading && <span className="text-fg-muted text-xs">تحديث...</span>}
+        <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 right-3 sm:right-0 sm:left-auto w-[calc(100vw-1.5rem)] sm:w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50" dir="rtl">
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+            <span className="text-white font-semibold text-sm">الإشعارات</span>
+            {loading && <span className="text-slate-500 text-xs">تحديث...</span>}
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
             {items.length === 0 ? (
               <div className="px-4 py-10 text-center">
-                <Bell className="w-8 h-8 text-fg-muted mx-auto mb-2" />
-                <p className="text-fg-secondary text-sm">لا توجد إشعارات بعد</p>
+                <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-slate-400 text-sm">لا توجد إشعارات بعد</p>
               </div>
             ) : items.map(n => {
               const Icon = ICONS[n.type] ?? Bell
@@ -112,16 +102,16 @@ export function NotificationBell() {
               return (
                 <button key={n.id}
                   onClick={() => { setOpen(false); router.push(n.href) }}
-                  className={`w-full text-start flex items-start gap-3 px-4 py-3 border-b border-border/60 hover:bg-surface/50 transition-colors ${isNew ? 'bg-surface/30' : ''}`}>
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${COLORS[n.type] ?? 'bg-canvas text-fg-secondary'}`}>
+                  className={`w-full text-start flex items-start gap-3 px-4 py-3 border-b border-slate-800/60 hover:bg-slate-800/50 transition-colors ${isNew ? 'bg-slate-800/30' : ''}`}>
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${COLORS[n.type] ?? 'bg-slate-700 text-slate-300'}`}>
                     <Icon className="w-4 h-4" />
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-fg text-sm truncate">{n.title}</span>
-                    {n.subtitle && <span className="block text-fg-secondary text-xs truncate">{n.subtitle}</span>}
-                    <span className="block text-fg-muted text-[11px] mt-0.5">{formatDate(n.date)}</span>
+                    <span className="block text-white text-sm truncate">{n.title}</span>
+                    {n.subtitle && <span className="block text-slate-400 text-xs truncate">{n.subtitle}</span>}
+                    <span className="block text-slate-500 text-[11px] mt-0.5">{formatDate(n.date)}</span>
                   </span>
-                  {isNew && <span className="w-2 h-2 rounded-full bg-error shrink-0 mt-1.5" />}
+                  {isNew && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1.5" />}
                 </button>
               )
             })}

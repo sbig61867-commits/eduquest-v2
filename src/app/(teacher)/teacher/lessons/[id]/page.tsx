@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { LessonDetailClient } from './lesson-detail-client'
-import { PageTitle } from '@/components/shared/page-title'
 
 export default async function LessonDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -33,13 +32,10 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
   if (!lesson) notFound()
 
   return (
-    <>
-      <PageTitle title={'Lesson'} />
-      <LessonDetailClient
-        lesson={lesson}
-        initialHomework={homework ?? []}
-        groups={groups ?? []}
-      />
-    </>
+    <LessonDetailClient
+      lesson={lesson}
+      initialHomework={homework ?? []}
+      groups={groups ?? []}
+    />
   )
 }

@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { PageTitle } from '@/components/shared/page-title'
 import { AdminSettingsClient } from './settings-client'
 
 export default async function AdminSettingsPage() {
@@ -22,5 +21,5 @@ export default async function AdminSettingsPage() {
     .eq('id', profile?.tenant_id ?? '')
     .single()
 
-  return (<><PageTitle title="Settings" /><AdminSettingsClient tenant={tenant} /></>)
+  return <AdminSettingsClient tenant={tenant} />
 }

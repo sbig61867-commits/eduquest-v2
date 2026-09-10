@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClipboardList, ShieldCheck, Clock, Play, CheckCircle2, RotateCcw, BookOpen, GraduationCap } from 'lucide-react'
 import { ExamTaker } from './exam-taker'
-import { PageTitle } from '@/components/shared/page-title'
-import { EmptyState } from '@/components/ui/empty-state'
 import type { Exam } from '@/types'
 
 type ExamWithContext = Exam & {
@@ -23,16 +21,24 @@ interface Submission {
 
 interface Props {
   availableExams: ExamWithContext[]
-  completedExams: ExamWithContext[]
+  completedExams:  ExamWithContext[]
   submissions: Submission[]
   userId: string
   violationWarningThreshold?: number
 }
 
+// Homework is stored in the exams table with a sentinel duration (43200 =
+// untimed; legacy rows 0) — it is split from formal timed exams so students
+// don't mistake lesson homework for an exam.
 const isHomework = (e: ExamWithContext) => e.duration_minutes <= 0 || e.duration_minutes >= 43200
-const untimedLabel = (e: ExamWithContext) => isHomework(e) ? 'Untimed' : `${e.duration_minutes} min`
-const subjectOf = (e: ExamWithContext) => e.courses?.title ?? e.groups?.name ?? 'Other'
-const isCourse = (e: ExamWithContext) => !!e.courses?.title
+const untimedLabel = (e: ExamWithContext) => isHomework(e) ? 'بدون مؤقت' : `${e.duration_minutes} min`
+
+// A student enrolled in several subjects (e.g. an English course AND a
+// trainer-preparation course) must see each one in its own section, never a
+// single merged list — an exam belongs to either a course or a group, and
+// that is what identifies the subject it came from.
+const subjectOf = (e: ExamWithContext) => e.courses?.title ?? e.groups?.name ?? 'أخرى'
+const isCourse  = (e: ExamWithContext) => !!e.courses?.title
 
 interface SubjectBucket {
   name: string
@@ -51,6 +57,8 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
 
   const submissionMap = Object.fromEntries(submissions.map(s => [s.exam_id, s]))
 
+  // Group everything by subject, preserving the order each subject first
+  // appears in (the server already sorts newest-first).
   const subjects = new Map<string, SubjectBucket>()
   const bucketFor = (e: ExamWithContext): SubjectBucket => {
     const name = subjectOf(e)
@@ -72,31 +80,22 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
   function ActiveCard({ exam, homework }: { exam: ExamWithContext; homework: boolean }) {
     const isRetake = !!submissionMap[exam.id]
     return (
-      <div className="bg-surface border border-border rounded-lg p-4 hover:border-border-strong transition-colors">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <p className="text-[14px] font-medium text-fg leading-snug flex-1 min-w-0">{exam.title}</p>
-          {isRetake && <Badge variant="warning" className="shrink-0">Retake</Badge>}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="text-white font-semibold flex-1 min-w-0">{exam.title}</h3>
+          {isRetake && <Badge variant="yellow">Retake</Badge>}
         </div>
-        <div className="flex items-center gap-3 flex-wrap mb-4">
-          <span className="flex items-center gap-1.5 text-[12px] text-fg-muted">
-            <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-            {untimedLabel(exam)}
-          </span>
-          <span className="flex items-center gap-1.5 text-[12px] text-fg-muted">
-            <ClipboardList className="w-3.5 h-3.5" aria-hidden="true" />
-            {exam.questions.length} questions
-          </span>
+        <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
+          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{untimedLabel(exam)}</span>
+          <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{exam.questions.length} questions</span>
           {exam.proctoring_enabled && (
-            <span className="flex items-center gap-1.5 text-[12px] text-accent">
-              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-              Proctored
-            </span>
+            <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="w-3.5 h-3.5" />Proctored</span>
           )}
         </div>
         <Button className="w-full" onClick={() => setActiveExam(exam)}>
           {isRetake
-            ? <><RotateCcw className="w-3.5 h-3.5" /> {homework ? 'Redo Homework' : 'Retake Exam'}</>
-            : <><Play className="w-3.5 h-3.5" /> {homework ? 'Start Homework' : 'Start Exam'}</>}
+            ? <><RotateCcw className="w-4 h-4" /> {homework ? 'إعادة حل الواجب' : 'Retake Exam'}</>
+            : <><Play className="w-4 h-4" /> {homework ? 'حل الواجب' : 'Start Exam'}</>}
         </Button>
       </div>
     )
@@ -106,106 +105,85 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
     const sub = submissionMap[exam.id]
     const published = sub?.grading_status === 'published'
     return (
-      <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-canvas transition-colors">
-        <CheckCircle2 className="w-4 h-4 text-success shrink-0" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] text-fg-secondary truncate">{exam.title}</p>
-          <p className="text-[11px] text-fg-muted mt-0.5">{untimedLabel(exam)}</p>
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 opacity-75">
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="text-white font-semibold flex-1 min-w-0">{exam.title}</h3>
+          <Badge variant="green"><CheckCircle2 className="w-3 h-3" /> Submitted</Badge>
         </div>
-        {published && sub?.score != null ? (
-          <span className={`text-[13px] font-semibold shrink-0 ${Math.round(((sub.score ?? 0) / (sub.max_score ?? 1)) * 100) >= 60 ? 'text-accent' : 'text-error'}`}>
-            {sub.score}{sub.max_score ? `/${sub.max_score}` : ''}
-          </span>
-        ) : (
-          <span className="text-[11px] text-fg-muted shrink-0">Pending</span>
-        )}
+        <div className="flex items-center gap-4 text-sm text-slate-500">
+          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{untimedLabel(exam)}</span>
+          {published && sub?.score != null ? (
+            <span className="text-emerald-400 font-medium">
+              العلامة: {sub.score}{sub.max_score ? ` / ${sub.max_score} (${Math.round(((sub.score ?? 0) / sub.max_score) * 100)}%)` : ''}
+            </span>
+          ) : (
+            <span className="text-amber-400 text-xs">Results pending</span>
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <>
-      <PageTitle title="Exams" />
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold text-white">My Exams</h2>
+        <p className="text-slate-400 mt-1">
+          {availableExams.length} available · {completedExams.length} completed
+          {subjects.size > 1 && ` · ${subjects.size} مواد`}
+        </p>
+      </div>
 
-      <div className="max-w-3xl mx-auto">
-        {/* Page header */}
-        <div className="mb-7">
-          <h1 className="text-xl font-semibold text-fg">Exams</h1>
-          <p className="text-[13px] text-fg-muted mt-1.5">
-            {availableExams.length} available · {completedExams.length} completed
-          </p>
+      {nothingAtAll ? (
+        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
+          <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-400">No exams available yet.</p>
         </div>
+      ) : (
+        [...subjects.values()].map(subject => {
+          const pending = subject.homework.length + subject.exams.length
+          return (
+            <section key={subject.name} className="border border-slate-800 rounded-2xl overflow-hidden">
+              {/* One clearly-separated block per subject, so two courses never blur together */}
+              <header className="flex items-center gap-2.5 px-5 py-3.5 bg-slate-900/80 border-b border-slate-800" dir="rtl">
+                {subject.fromCourse
+                  ? <BookOpen className="w-4 h-4 text-violet-400 shrink-0" />
+                  : <GraduationCap className="w-4 h-4 text-blue-400 shrink-0" />}
+                <h3 className="text-white font-semibold truncate">{subject.name}</h3>
+                <span className="text-slate-500 text-xs mr-auto shrink-0">
+                  {pending > 0 ? `${pending} بانتظارك` : 'مكتملة'}
+                  {subject.completed.length > 0 && ` · ${subject.completed.length} مُسلَّمة`}
+                </span>
+              </header>
 
-        {nothingAtAll ? (
-          <EmptyState
-            icon={ClipboardList}
-            title="No exams yet"
-            description="Your teacher will assign exams as the course progresses."
-          />
-        ) : (
-          <div className="space-y-8">
-            {[...subjects.values()].map(subject => {
-              const pending = subject.homework.length + subject.exams.length
-              return (
-                <section key={subject.name}>
-                  {/* Subject heading — only when there are multiple subjects */}
-                  {subjects.size > 1 && (
-                    <div className="flex items-center gap-2 mb-3">
-                      {subject.fromCourse
-                        ? <BookOpen className="w-3.5 h-3.5 text-fg-muted" aria-hidden="true" />
-                        : <GraduationCap className="w-3.5 h-3.5 text-fg-muted" aria-hidden="true" />}
-                      <h2 className="text-[13px] font-semibold text-fg">{subject.name}</h2>
-                      <span className="text-[11px] text-fg-muted">
-                        {pending > 0 ? `${pending} pending` : 'all done'}
-                        {subject.completed.length > 0 && ` · ${subject.completed.length} submitted`}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Available — grid of action cards */}
-                  {(subject.homework.length > 0 || subject.exams.length > 0) && (
-                    <div className="space-y-4 mb-4">
-                      {[
-                        { label: 'Homework', list: subject.homework, homework: true },
-                        { label: 'Timed Exams', list: subject.exams, homework: false },
-                      ].filter(s => s.list.length > 0).map(section => (
-                        <div key={section.label}>
-                          {(subject.homework.length > 0 && subject.exams.length > 0) && (
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted mb-2">
-                              {section.label}
-                            </p>
-                          )}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {section.list.map(exam => (
-                              <ActiveCard key={exam.id} exam={exam} homework={section.homework} />
-                            ))}
-                          </div>
-                        </div>
+              <div className="p-5 space-y-5">
+                {[
+                  { label: '📋 الواجبات', list: subject.homework, homework: true },
+                  { label: '🕒 الاختبارات', list: subject.exams, homework: false },
+                ].filter(s => s.list.length > 0).map(section => (
+                  <div key={section.label} className="space-y-3">
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{section.label}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {section.list.map(exam => (
+                        <ActiveCard key={exam.id} exam={exam} homework={section.homework} />
                       ))}
                     </div>
-                  )}
+                  </div>
+                ))}
 
-                  {/* Completed — compact list */}
-                  {subject.completed.length > 0 && (
-                    <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                      <div className="px-4 py-3 border-b border-border">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">
-                          Submitted · {subject.completed.length}
-                        </p>
-                      </div>
-                      <div className="divide-y divide-border">
-                        {subject.completed.map(exam => (
-                          <CompletedCard key={exam.id} exam={exam} />
-                        ))}
-                      </div>
+                {subject.completed.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">✅ مكتملة</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {subject.completed.map(exam => <CompletedCard key={exam.id} exam={exam} />)}
                     </div>
-                  )}
-                </section>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </>
+                  </div>
+                )}
+              </div>
+            </section>
+          )
+        })
+      )}
+    </div>
   )
 }
