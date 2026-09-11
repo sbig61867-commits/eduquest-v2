@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function CookiesPage() {
-  return <PolicyPage kind="cookies" />
+  return <PolicyPage kind="privacy" />
 }

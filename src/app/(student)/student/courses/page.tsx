@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StudentCoursesClient } from './courses-client'
-import { PageTitle } from '@/components/shared/page-title'
 
 export default async function StudentCoursesPage() {
   const supabase = await createClient()
@@ -19,12 +18,7 @@ export default async function StudentCoursesPage() {
   const courseIds = (enrollments ?? []).map(e => e.course_id)
 
   if (courseIds.length === 0) {
-    return (
-      <>
-        <PageTitle title="Courses" />
-        <StudentCoursesClient courses={[]} progressMap={{}} />
-      </>
-    )
+    return <StudentCoursesClient courses={[]} progressMap={{}} />
   }
 
   const { data: courses } = await supabase
@@ -46,10 +40,5 @@ export default async function StudentCoursesPage() {
   )
   const progressMap = Object.fromEntries(progressResults)
 
-  return (
-    <>
-      <PageTitle title="Courses" />
-      <StudentCoursesClient courses={courses ?? []} progressMap={progressMap} />
-    </>
-  )
+  return <StudentCoursesClient courses={courses ?? []} progressMap={progressMap} />
 }
