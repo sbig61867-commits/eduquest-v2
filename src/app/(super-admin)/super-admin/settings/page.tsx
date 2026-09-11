@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { PageTitle } from '@/components/shared/page-title'
 import { SettingsClient } from './settings-client'
 import { getInvitationDefaults, getAiRateLimits, getExamPolicies, getDeletionPolicy } from '@/lib/settings'
 
@@ -34,5 +33,5 @@ export default async function SettingsPage() {
     serverProctoring: process.env.NEXT_PUBLIC_SERVER_PROCTORING === 'true',
   }
 
-  return (<><PageTitle title="Settings" /><SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} /></>)
+  return <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} />
 }

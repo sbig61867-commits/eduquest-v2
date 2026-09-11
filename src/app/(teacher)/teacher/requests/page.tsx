@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RequestsInbox } from '@/components/requests/requests-inbox'
-import { PageTitle } from '@/components/shared/page-title'
 import { loadRequestsData } from '@/lib/requests-data'
 
 export default async function TeacherRequestsPage() {
@@ -16,15 +15,12 @@ export default async function TeacherRequestsPage() {
   )
 
   return (
-    <>
-      <PageTitle title="Requests" />
-      <RequestsInbox
-        me={{ id: user.id, role: user.role }}
-        requests={requests}
-        recipients={recipients}
-        groups={groups}
-        recipientLabel="المدير"
-      />
-    </>
+    <RequestsInbox
+      me={{ id: user.id, role: user.role }}
+      requests={requests}
+      recipients={recipients}
+      groups={groups}
+      recipientLabel="المدير"
+    />
   )
 }

@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { PageTitle } from '@/components/shared/page-title'
 import { SchedulesManager } from '@/components/schedules/schedules-manager'
 import { loadSchedulesPage } from '@/lib/schedules-data'
 import { ShieldAlert } from 'lucide-react'
@@ -16,12 +15,12 @@ export default async function CenterSchedulesPage() {
 
   if (!allowed) {
     return (
-      <div className="text-center py-20 bg-surface border border-border rounded-lg" dir="rtl">
-        <ShieldAlert className="w-12 h-12 text-fg-muted mx-auto mb-3" />
-        <p className="text-fg-secondary">لا تملك صلاحية إدارة جداول المواعيد.</p>
+      <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl" dir="rtl">
+        <ShieldAlert className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+        <p className="text-slate-400">لا تملك صلاحية إدارة جداول المواعيد.</p>
       </div>
     )
   }
 
-  return (<><PageTitle title="Schedules" /><SchedulesManager schedules={schedules} targets={targets} /></>)
+  return <SchedulesManager schedules={schedules} targets={targets} />
 }
