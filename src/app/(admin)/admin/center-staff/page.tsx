@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
 import { can, resolvePermissions } from '@/lib/permissions'
 import { ShieldAlert } from 'lucide-react'
+import { PageTitle } from '@/components/shared/page-title'
 
 // The university_admin grants capabilities to their centre managers.
 // The escalation guard (you cannot grant what you don't hold) is enforced
@@ -20,9 +21,9 @@ export default async function AdminCenterStaffPage() {
 
   if (!can(me?.role, me?.permissions, 'manage_center_staff')) {
     return (
-      <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl" dir="rtl">
-        <ShieldAlert className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-        <p className="text-slate-400">لا تملك صلاحية إدارة مديري المراكز.</p>
+      <div className="text-center py-20 bg-surface border border-border rounded-lg" dir="rtl">
+        <ShieldAlert className="w-12 h-12 text-fg-muted mx-auto mb-3" />
+        <p className="text-fg-secondary">لا تملك صلاحية إدارة مديري المراكز.</p>
       </div>
     )
   }
@@ -47,18 +48,21 @@ export default async function AdminCenterStaffPage() {
   }))
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
-        <h2 className="text-2xl font-bold text-white">مديرو المراكز</h2>
-        <p className="text-slate-400 mt-1">
-          امنح كل مدير مركز الصلاحيات التي تريدها — لا يمكنك منح صلاحية لا تملكها أنت.
-        </p>
+    <>
+      <PageTitle title={'مديرو المراكز'} />
+      <div className="space-y-6" dir="rtl">
+        <div>
+          <h2 className="text-xl font-semibold text-fg">مديرو المراكز</h2>
+          <p className="text-fg-secondary mt-1">
+            امنح كل مدير مركز الصلاحيات التي تريدها، لا يمكنك منح صلاحية لا تملكها أنت.
+          </p>
+        </div>
+        <PermissionsEditor
+          staff={staff}
+          grantable={resolvePermissions(me?.role, me?.permissions)}
+          emptyHint="لا يوجد مديرو مراكز بعد، ادعُهم من صفحة الدعوات بدور «مدير مركز»."
+        />
       </div>
-      <PermissionsEditor
-        staff={staff}
-        grantable={resolvePermissions(me?.role, me?.permissions)}
-        emptyHint="لا يوجد مديرو مراكز بعد — ادعُهم من صفحة الدعوات بدور «مدير مركز»."
-      />
-    </div>
+    </>
   )
 }

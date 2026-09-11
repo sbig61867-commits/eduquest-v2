@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ExamsClient } from './exams-client'
+import { PageTitle } from '@/components/shared/page-title'
 import { getExamPolicies } from '@/lib/settings'
 
 export default async function ExamsPage() {
@@ -18,5 +19,10 @@ export default async function ExamsPage() {
     getExamPolicies(supabase),
   ])
 
-  return <ExamsClient initialExams={exams ?? []} groups={groups ?? []} proctoringDefault={policies.proctoring_default_enabled} />
+  return (
+    <>
+      <PageTitle title="Exams" />
+      <ExamsClient initialExams={exams ?? []} groups={groups ?? []} proctoringDefault={policies.proctoring_default_enabled} />
+    </>
+  )
 }

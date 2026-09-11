@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ArchiveClient, type ArchiveRow } from './archive-client'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function AdminArchivePage() {
   const supabase = await createClient()
@@ -19,5 +20,5 @@ export default async function AdminArchivePage() {
     p_year: null,
   })
 
-  return <ArchiveClient rows={(data ?? []) as ArchiveRow[]} />
+  return (<><PageTitle title="Archive" /><ArchiveClient rows={(data ?? []) as ArchiveRow[]} /></>)
 }

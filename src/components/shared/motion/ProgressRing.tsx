@@ -1,13 +1,50 @@
-export function ProgressRing({ value, size = 48, className }: { value: number; size?: number; className?: string }) {
-  const r = (size - 4) / 2
-  const circ = 2 * Math.PI * r
-  const offset = circ - (value / 100) * circ
+'use client'
+
+import { useRef } from 'react'
+import { motion, useInView, useReducedMotion } from 'framer-motion'
+
+type Props = {
+  value: number
+  max?: number
+  size?: number
+  strokeWidth?: number
+  accent?: string
+  label?: string
+  className?: string
+}
+
+export function ProgressRing({ value, max = 100, size = 88, strokeWidth = 8, accent, label, className }: Props) {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, amount: 0.5 })
+  const reduced = useReducedMotion()
+  const pct = Math.max(0, Math.min(100, (value / max) * 100))
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (pct / 100) * circumference
+
   return (
-    <svg width={size} height={size} className={className} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={4} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#2563eb" strokeWidth={4}
-        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-    </svg>
+    <div ref={ref} className={`relative inline-flex items-center justify-center ${className ?? ''}`} style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-surface)" strokeWidth={strokeWidth} />
+        <motion.circle
+          className="eq-progress-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={accent ?? 'var(--color-accent)'}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: reduced ? offset : circumference }}
+          animate={{ strokeDashoffset: (inView || reduced) ? offset : circumference }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-fg font-bold text-sm tabular-nums">{Math.round(pct)}%</span>
+        {label && <span className="text-fg-muted text-[10px] mt-0.5">{label}</span>}
+      </div>
+    </div>
   )
 }

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
+import { PageTitle } from '@/components/shared/page-title'
 import { resolvePermissions, CAPABILITIES } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
 
@@ -34,8 +35,8 @@ export default async function SuperAdminPermissionsPage() {
 
   const staff: StaffMember[] = staffRows.map(r => ({
     id: r.id,
-    full_name: `${r.full_name ?? '—'} · ${r.tenants?.name ?? 'بلا مؤسسة'}`,
-    email: `${r.email} — ${r.role === 'university_admin' ? 'مدير مؤسسة' : 'مدير مركز'}`,
+    full_name: `${r.full_name ?? '·'} · ${r.tenants?.name ?? 'بلا مؤسسة'}`,
+    email: `${r.email} · ${r.role === 'university_admin' ? 'مدير مؤسسة' : 'مدير مركز'}`,
     role: r.role,
     is_active: r.is_active,
     effective: resolvePermissions(r.role, r.permissions),
@@ -45,10 +46,12 @@ export default async function SuperAdminPermissionsPage() {
   const grantable = Object.fromEntries(CAPABILITIES.map(c => [c, true])) as Record<Capability, boolean>
 
   return (
-    <div className="space-y-6" dir="rtl">
-      <div>
-        <h2 className="text-2xl font-bold text-white">الصلاحيات</h2>
-        <p className="text-slate-400 mt-1">
+    <>
+    <PageTitle title="Permissions" />
+    <div className="max-w-4xl mx-auto space-y-6" dir="rtl">
+      <div className="mb-7">
+        <h1 className="text-xl font-semibold text-fg">الصلاحيات</h1>
+        <p className="text-fg-secondary mt-1">
           حدّد ما يستطيع كل مدير مؤسسة ومدير مركز فعله. المدير بدوره لا يستطيع منح صلاحية لا يملكها.
         </p>
       </div>
@@ -58,5 +61,6 @@ export default async function SuperAdminPermissionsPage() {
         emptyHint="لا يوجد مديرو مؤسسات أو مراكز بعد."
       />
     </div>
+    </>
   )
 }

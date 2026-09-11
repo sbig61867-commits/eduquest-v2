@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PageTitle } from '@/components/shared/page-title'
 import { TeachersClient } from './teachers-client'
 
 export default async function TeachersPage() {
@@ -16,5 +17,5 @@ export default async function TeachersPage() {
     .eq('tenant_id', user.tenant_id)
     .order('created_at', { ascending: false })
 
-  return <TeachersClient initialTeachers={teachers ?? []} />
+  return (<><PageTitle title="Teachers" /><TeachersClient initialTeachers={teachers ?? []} /></>)
 }

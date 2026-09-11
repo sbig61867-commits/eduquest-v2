@@ -75,6 +75,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
     () => Object.fromEntries(levels.map((l, i) => [l.id, i === 0]))
   )
 
+  // A flat reading order across every level and unit — drives prev/next.
   const flat = useMemo(
     () =>
       levels.flatMap(level =>
@@ -85,6 +86,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
     [levels]
   )
 
+  // Resume where the student left off: first item they have not finished.
   const [activeIndex, setActiveIndex] = useState(() => {
     const done = new Set(completedIds)
     const next = flat.findIndex(entry => !done.has(entry.item.id))
@@ -99,6 +101,8 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
   async function markComplete() {
     if (!current || completed.has(current.item.id)) return
     setSaving(true)
+    // student_progress RLS pins student_id = auth.uid() and tenant_id =
+    // current_tenant_id(), so neither value can be forged from the client.
     const { error } = await supabase
       .from('student_progress')
       .upsert(
@@ -122,7 +126,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
       <div className="max-w-3xl mx-auto">
         <BackLink />
         <div className="mb-7">
-          <h1 className="text-xl font-semibold text-gray-900">{course.title}</h1>
+          <h1 className="text-xl font-semibold text-fg">{course.title}</h1>
         </div>
         <EmptyState
           icon={GraduationCap}
@@ -141,14 +145,14 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 
       {/* Course header + overall progress */}
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">{course.title}</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-xl font-semibold text-fg">{course.title}</h1>
+        <p className="text-[13px] text-fg-muted mt-1.5">
           {course.teacherName && <>{course.teacherName} · </>}
           {doneCount} of {total} sections complete
         </p>
-        <div className="mt-3 w-full bg-gray-200 rounded-full h-1.5">
+        <div className="mt-3 w-full bg-border rounded-full h-1.5">
           <div
-            className="bg-blue-600 h-1.5 rounded-full transition-all"
+            className="bg-accent h-1.5 rounded-full transition-all"
             style={{ width: `${percent}%` }}
             role="progressbar"
             aria-label="Course progress"
@@ -161,7 +165,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
         {/* Outline */}
-        <nav aria-label="Course outline" className="bg-white border border-gray-200 rounded-lg p-2 lg:sticky lg:top-4">
+        <nav aria-label="Course outline" className="bg-surface border border-border rounded-lg p-2 lg:sticky lg:top-4">
           {levels.map(level => {
             const isOpen = level.title === '' ? true : openLevels[level.id] !== false
             return (
@@ -171,11 +175,11 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
                     type="button"
                     onClick={() => setOpenLevels(p => ({ ...p, [level.id]: !isOpen }))}
                     aria-expanded={isOpen}
-                    className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-sm font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-[13px] font-medium text-fg hover:bg-canvas transition-colors"
                   >
                     <span className="truncate text-start">{level.title}</span>
                     <ChevronDown
-                      className={cn('w-4 h-4 shrink-0 text-gray-400 transition-transform', !isOpen && '-rotate-90 rtl:rotate-90')}
+                      className={cn('w-4 h-4 shrink-0 text-fg-muted transition-transform', !isOpen && '-rotate-90 rtl:rotate-90')}
                       aria-hidden="true"
                     />
                   </button>
@@ -183,7 +187,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 
                 {isOpen && level.units.map(unit => (
                   <div key={unit.id} className="mt-1">
-                    <p className="px-2.5 py-1 text-xs uppercase tracking-wide text-gray-400 truncate">
+                    <p className="px-2.5 py-1 text-[11px] uppercase tracking-wide text-fg-muted truncate">
                       {unit.title}
                     </p>
                     <ul>
@@ -198,13 +202,13 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
                               onClick={() => setActiveIndex(index)}
                               aria-current={isActive ? 'true' : undefined}
                               className={cn(
-                                'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-start transition-colors',
-                                isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[13px] text-start transition-colors',
+                                isActive ? 'bg-accent-subtle text-accent font-medium' : 'text-fg-secondary hover:bg-canvas hover:text-fg'
                               )}
                             >
                               {isDone
-                                ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-green-600" aria-hidden="true" />
-                                : <PlayCircle className="w-3.5 h-3.5 shrink-0 text-gray-400" aria-hidden="true" />}
+                                ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-success" aria-hidden="true" />
+                                : <PlayCircle className="w-3.5 h-3.5 shrink-0 text-fg-muted" aria-hidden="true" />}
                               <span className="truncate">{item.title}</span>
                               {isDone && <span className="sr-only">(completed)</span>}
                             </button>
@@ -220,20 +224,20 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
         </nav>
 
         {/* Reader */}
-        <article className="bg-white border border-gray-200 rounded-lg p-6 min-w-0">
-          <div className="flex items-start gap-3 pb-4 mb-5 border-b border-gray-200">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-              <Icon className="w-4 h-4 text-blue-600" aria-hidden="true" />
+        <article className="bg-surface border border-border rounded-lg p-6 min-w-0">
+          <div className="flex items-start gap-3 pb-4 mb-5 border-b border-border">
+            <div className="w-9 h-9 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+              <Icon className="w-[17px] h-[17px] text-accent" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs uppercase tracking-wide text-gray-500">
+              <p className="text-[11px] uppercase tracking-wide text-fg-muted">
                 {TYPE_LABEL[current.item.type] ?? current.item.type}
                 {current.unitTitle && <> · {current.unitTitle}</>}
               </p>
-              <h2 className="text-base font-semibold text-gray-900 leading-snug mt-0.5">{current.item.title}</h2>
+              <h2 className="text-[15px] font-semibold text-fg leading-snug mt-0.5">{current.item.title}</h2>
             </div>
             {completed.has(current.item.id) && (
-              <span className="flex items-center gap-1.5 text-xs text-green-600 shrink-0">
+              <span className="flex items-center gap-1.5 text-[12px] text-success shrink-0">
                 <Check className="w-3.5 h-3.5" aria-hidden="true" />
                 Done
               </span>
@@ -242,10 +246,10 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 
           {current.item.body.trim()
             ? <Markdown content={current.item.body} />
-            : <p className="text-sm text-gray-500">This section has no written content yet.</p>}
+            : <p className="text-[13px] text-fg-muted">This section has no written content yet.</p>}
 
           {/* Section navigation */}
-          <div className="flex flex-wrap items-center gap-3 mt-8 pt-5 border-t border-gray-200">
+          <div className="flex flex-wrap items-center gap-3 mt-8 pt-5 border-t border-border">
             <Button
               variant="secondary"
               size="sm"
@@ -273,7 +277,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
               </Button>
             )}
 
-            <span className="text-xs text-gray-500 ms-auto">
+            <span className="text-[12px] text-fg-muted ms-auto">
               Section {activeIndex + 1} of {total}
             </span>
           </div>
@@ -287,7 +291,7 @@ function BackLink() {
   return (
     <Link
       href="/student/courses"
-      className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4"
+      className="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors mb-4"
     >
       <ArrowLeft className="w-3.5 h-3.5 rtl:hidden" aria-hidden="true" />
       <ArrowRight className="w-3.5 h-3.5 hidden rtl:inline" aria-hidden="true" />

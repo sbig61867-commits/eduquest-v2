@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
+import { HelperMascot } from '@/components/public/helper-mascot'
+import { RevealOnScroll } from '@/components/shared/motion'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -65,30 +67,30 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-canvas bg-[radial-gradient(ellipse_at_top,var(--color-accent-subtle),var(--color-canvas)_60%)] p-4">
+      <RevealOnScroll className="w-full max-w-md p-8 space-y-6 bg-elevated border border-border rounded-2xl shadow-xl" mode="mount">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
-            <span className="text-white text-2xl font-bold">E</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent mb-2">
+            <span className="text-accent-fg text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">EduQuest</h1>
-          <p className="text-slate-400 text-sm">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-fg">EduQuest</h1>
+          <p className="text-fg-secondary text-sm">Sign in to your account</p>
         </div>
 
         {registered && (
-          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+          <div className="p-3 rounded-lg bg-success-subtle border border-success/25 text-success text-sm">
             Account created successfully! Please sign in.
           </div>
         )}
 
         {searchParams.get('reset') === 'success' && (
-          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+          <div className="p-3 rounded-lg bg-success-subtle border border-success/25 text-success text-sm">
             Password updated successfully. Please sign in with your new password.
           </div>
         )}
 
         {(error || errorMsg) && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="p-3 rounded-lg bg-error-subtle border border-error/25 text-error text-sm">
             {error || (
               errorMsg === 'account_disabled'      ? 'Your account has been disabled. Contact your administrator.' :
               errorMsg === 'university_removed'    ? 'Your university has been removed from the platform. Contact support.' :
@@ -101,31 +103,31 @@ function LoginForm() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-fg-secondary mb-1.5">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-2.5 rounded-lg bg-canvas border border-border text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               placeholder="you@university.edu"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+            <label className="block text-sm font-medium text-fg-secondary mb-1.5">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-2.5 rounded-lg bg-canvas border border-border text-fg placeholder-fg-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition"
               placeholder="••••••••"
             />
           </div>
           <div className="flex justify-end">
             <a
               href="/forgot-password"
-              className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
+              className="text-accent hover:text-accent text-xs transition-colors"
             >
               Forgot password?
             </a>
@@ -133,28 +135,29 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+            className="w-full py-2.5 px-4 bg-accent hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-accent-fg font-medium rounded-lg transition-colors"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-slate-500">أو</span>
-          <div className="flex-1 h-px bg-white/10" />
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-fg-muted">أو</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
         <button
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-medium rounded-lg transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-elevated border border-border-strong hover:bg-surface disabled:opacity-60 disabled:cursor-not-allowed text-fg font-medium rounded-lg transition-colors"
         >
           <GoogleIcon />
           {googleLoading ? 'جارٍ التحويل إلى Google...' : 'تسجيل الدخول باستخدام Google'}
         </button>
-      </div>
+      </RevealOnScroll>
+      <HelperMascot lang="ar" />
     </div>
   )
 }
@@ -173,8 +176,8 @@ function GoogleIcon() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <LoginForm />

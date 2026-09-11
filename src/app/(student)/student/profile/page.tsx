@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StudentProfileClient } from './profile-client'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function StudentProfilePage() {
   const supabase = await createClient()
@@ -29,5 +30,10 @@ export default async function StudentProfilePage() {
     return { id: g.id, name: g.name, description: g.description, teacher: teacher ? { full_name: teacher.full_name } : null }
   }).filter((g): g is NonNullable<typeof g> => g !== null)
 
-  return <StudentProfileClient profile={profile as unknown as Parameters<typeof StudentProfileClient>[0]['profile']} groups={myGroups} />
+  return (
+    <>
+      <PageTitle title="Profile" />
+      <StudentProfileClient profile={profile as unknown as Parameters<typeof StudentProfileClient>[0]['profile']} groups={myGroups} />
+    </>
+  )
 }
