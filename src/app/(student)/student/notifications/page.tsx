@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -55,14 +56,14 @@ export default async function NotificationsPage() {
       id: `lesson-${l.id}`,
       type: 'lesson' as const,
       title: `New lesson: ${l.title}`,
-      subtitle: `In group: ${Array.isArray(l.groups) ? (l.groups[0]?.name ?? '—') : (l.groups?.name ?? '—')}`,
+      subtitle: `In group: ${Array.isArray(l.groups) ? (l.groups[0]?.name ?? '·') : (l.groups?.name ?? '·')}`,
       date: l.created_at,
     })),
     ...(recentExams ?? []).map((e: RpcExamRow & { groups: { name: string } | null }) => ({
       id: `exam-${e.id}`,
       type: 'exam' as const,
       title: `New exam: ${e.title}`,
-      subtitle: `In group: ${e.groups?.name ?? '—'}`,
+      subtitle: `In group: ${e.groups?.name ?? '·'}`,
       date: e.created_at,
     })),
     ...(recentGrades ?? [] as GradeRow[]).map((g: GradeRow) => ({
@@ -81,48 +82,54 @@ export default async function NotificationsPage() {
   }
 
   const colorMap = {
-    lesson: 'bg-violet-600/20 text-violet-400',
-    exam: 'bg-amber-600/20 text-amber-400',
-    grade: 'bg-emerald-600/20 text-emerald-400',
+    lesson: 'bg-accent-subtle text-accent',
+    exam: 'bg-accent-subtle text-accent',
+    grade: 'bg-accent-subtle text-accent',
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white">Notifications</h2>
-        <p className="text-slate-400 mt-1">Recent activity in your groups</p>
-      </div>
+    <>
+      <PageTitle title="Notifications" />
 
-      {notifications.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
-          <Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-white font-medium">No notifications yet</p>
-          <p className="text-slate-400 text-sm mt-1">
-            {groupIds.length === 0
-              ? 'You are not enrolled in any group yet.'
-              : 'New lessons and exams will appear here.'}
-          </p>
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-7">
+          <h1 className="text-xl font-semibold text-fg">Notifications</h1>
+          <p className="text-[13px] text-fg-muted mt-1.5">Recent activity in your groups</p>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {notifications.map(n => {
-            const Icon = iconMap[n.type as keyof typeof iconMap]
-            const color = colorMap[n.type as keyof typeof colorMap]
-            return (
-              <div key={n.id} className="flex items-start gap-4 bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 hover:border-slate-700 transition-colors">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-                  <Icon className="w-4 h-4" />
+
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+            <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center mb-4">
+              <Bell className="w-5 h-5 text-fg-muted" aria-hidden="true" />
+            </div>
+            <p className="text-[15px] font-medium text-fg">No notifications yet</p>
+            <p className="text-[13px] text-fg-muted mt-1.5 max-w-xs leading-relaxed">
+              {groupIds.length === 0
+                ? 'You are not enrolled in any group yet.'
+                : 'New lessons and exams will appear here.'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface border border-border rounded-lg overflow-hidden divide-y divide-border">
+            {notifications.map(n => {
+              const Icon = iconMap[n.type as keyof typeof iconMap]
+              const color = colorMap[n.type as keyof typeof colorMap]
+              return (
+                <div key={n.id} className="flex items-center gap-4 px-5 py-4 hover:bg-canvas transition-colors">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+                    <Icon className="w-[15px] h-[15px]" aria-hidden="true" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-fg truncate">{n.title}</p>
+                    <p className="text-[11px] text-fg-muted mt-0.5 truncate">{n.subtitle}</p>
+                  </div>
+                  <span className="text-[11px] text-fg-muted shrink-0">{formatDate(n.date)}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium">{n.title}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">{n.subtitle}</p>
-                </div>
-                <span className="text-slate-500 text-xs shrink-0">{formatDate(n.date)}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </>
   )
 }

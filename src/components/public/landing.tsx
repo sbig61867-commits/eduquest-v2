@@ -1,68 +1,127 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+import { gsap, ScrollTrigger, prefersMotion } from '@/lib/gsap'
 import Link from 'next/link'
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { AiTypingMockup, LiveProctoringGrid } from './mockups'
 import {
-  Sparkles, ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
-  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, Radio, Volume2, CheckCircle2, Plus,
+  ShieldCheck, Building2, Mail, XCircle, ArrowLeft, ArrowRight,
+  ChevronDown, Users, BookOpen, ClipboardList, BarChart2, CheckCircle2, Plus, Zap,
+  GraduationCap, Megaphone, CalendarClock, Sparkles, TrendingUp, Award,
+  Lock, Clock, Archive, Headphones,
 } from 'lucide-react'
 
 const dict = {
   ar: {
-    heroBadge: 'منصة تعليمية سحابية للجامعات',
-    heroTitle: 'أدر جامعتك التعليمية من مكان واحد',
-    heroDesc: 'EduQuest منصة متكاملة تجمع الدروس والاختبارات والعلامات والمراقبة الذكية — لكل جامعة بيئتها المعزولة الخاصة، ولكل معلم وطالب لوحته البسيطة.',
-    heroCta: 'اطلب اشتراكاً لجامعتك',
+    heroBadge: '✦ للجامعات والمراكز التعليمية',
+    heroTitle: 'بيئة أكاديمية متكاملة من الدرس إلى العلامة',
+    heroDesc: 'من إنشاء الدرس بالذكاء الاصطناعي، إلى مراقبة الاختبار لحظة بلحظة، إلى العلامة النهائية. تصنع EduQuest مساراً واحداً واضحاً لكل من يدير عملية تعليمية: جامعة، مركزاً، أو صفاً واحداً.',
+    heroCta: 'اطلب اشتراكاً',
     heroLogin: 'تسجيل الدخول',
-    problemTitle: 'المشكلة التي نحلها',
-    problems: [
-      'أدوات متفرقة: الدروس في مكان، الاختبارات في آخر، والعلامات في جداول يدوية',
-      'الغش في الاختبارات عن بُعد بلا أي وسيلة مراقبة',
-      'إعداد الدروس والاختبارات يستهلك ساعات من وقت المعلم',
-      'لا خصوصية بين المؤسسات — بيانات الجميع في سلة واحدة',
+    roleStageTitle: 'واجهة مختلفة لكل شخص، بيانات واحدة موثوقة',
+    roleStageDesc: 'بدّل بين الأدوار وشاهد كيف تبدو المنصة من كل زاوية.',
+    roles: [
+      {
+        key: 'admin', icon: 'Building2', label: 'مدير الجامعة',
+        title: 'نظرة كاملة على الجامعة', accent: '#062045',
+        stats: [
+          { icon: 'Users', label: 'معلم نشط', value: '128' },
+          { icon: 'GraduationCap', label: 'طالب مسجّل', value: '3,410' },
+          { icon: 'TrendingUp', label: 'معدل الإنجاز', value: '94%' },
+        ],
+      },
+      {
+        key: 'teacher', icon: 'BookOpen', label: 'المعلم',
+        title: 'من فكرة إلى اختبار جاهز خلال ثوانٍ', accent: '#0f8a7a',
+        stats: [
+          { icon: 'Sparkles', label: 'درس مولَّد بالذكاء الاصطناعي', value: 'الآن' },
+          { icon: 'ClipboardList', label: 'اختبار قيد المراقبة', value: 'مباشر' },
+          { icon: 'Award', label: 'علامات مصحَّحة تلقائياً', value: '312' },
+        ],
+      },
+      {
+        key: 'student', icon: 'GraduationCap', label: 'الطالب',
+        title: 'كل مادته، في مكان واحد بسيط', accent: '#8a5a06',
+        stats: [
+          { icon: 'BookOpen', label: 'دروس هذا الأسبوع', value: '6' },
+          { icon: 'ClipboardList', label: 'اختبار قادم', value: 'غداً 10ص' },
+          { icon: 'Award', label: 'آخر علامة', value: '96/100' },
+        ],
+      },
+      {
+        key: 'center', icon: 'CalendarClock', label: 'مركز التعليم المستمر',
+        title: 'جداول وإعلانات بلا فوضى واتساب', accent: '#5b3a9e',
+        stats: [
+          { icon: 'CalendarClock', label: 'جدول أسبوعي منشور', value: '14' },
+          { icon: 'Megaphone', label: 'إعلان جديد', value: '2 اليوم' },
+          { icon: 'Users', label: 'طاقم إداري متعاون', value: '5' },
+        ],
+      },
+    ],
+    transformTitle: 'قبل وبعد EduQuest',
+    transformSub: 'نفس اليوم الدراسي، نتيجة مختلفة تماماً.',
+    transformBefore: 'بدون EduQuest',
+    transformAfter: 'مع EduQuest',
+    transformPairs: [
+      { from: 'دروس في مكان، اختبارات بمكان تاني، وعلامات بجدول إكسل', to: 'كل شيء في مكان واحد، من الدرس حتى العلامة' },
+      { from: 'اختبار عن بُعد بلا أي رقابة', to: 'مراقبة حية وذكاء اصطناعي يحميان النزاهة' },
+      { from: 'ساعات لإعداد كل درس واختبار', to: 'دقائق، بمساعدة الذكاء الاصطناعي' },
+      { from: 'بيانات كل المؤسسات بسلة واحدة', to: 'عزل تام لبيانات كل جامعة' },
     ],
     statsTitle: 'أرقام تتحدث عن المنصة',
     stats: [
-      { value: '4', label: 'أدوار متكاملة', sub: 'مالك، مدير جامعة، معلم، طالب' },
+      { value: '4', label: 'أدوار متكاملة', sub: 'مدير جامعة، مركز، معلم، طالب' },
       { value: 'ثوانٍ', label: 'لتوليد درس أو اختبار كامل', sub: 'بالذكاء الاصطناعي، قابل للتعديل' },
       { value: '100%', label: 'عزل البيانات بين الجامعات', sub: 'على مستوى قاعدة البيانات نفسها' },
       { value: 'مباشر', label: 'مراقبة الاختبارات', sub: 'صوت وصورة لكل الطلاب في آنٍ واحد' },
     ],
     trustTitle: 'لماذا EduQuest؟',
     trust: [
-      { title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً — لا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
-      { title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا — تحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
-      { title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ — كل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
-      { title: 'مرافقة كاملة عند البدء', desc: 'نجهّز بيئة جامعتك بأنفسنا ونرافق فريقك خطوة بخطوة حتى تستقر العملية التعليمية.' },
+      { icon: 'Lock', title: 'التصحيح على الخادم، لا في المتصفح', desc: 'الإجابات الصحيحة لا تغادر الخادم أبداً، فلا يمكن للطالب رؤيتها أو التلاعب بها مهما حاول.' },
+      { icon: 'Clock', title: 'توقيت الاختبار محسوم من الخادم', desc: 'وقت البدء والانتهاء يسجَّل على خوادمنا، فتحديث الصفحة أو التلاعب بساعة الجهاز لا يغيّر شيئاً.' },
+      { icon: 'Archive', title: 'حذف آمن مع أرشيف كامل', desc: 'لا شيء يُحذف نهائياً بالخطأ، فكل حذف يذهب لأرشيف يمكن للمدير استعادته في أي وقت.' },
+      { icon: 'Headphones', title: 'مرافقة كاملة عند البدء', desc: 'نجهّز بيئة جامعتك بأنفسنا ونرافق فريقك خطوة بخطوة حتى تستقر العملية التعليمية.' },
     ],
-    teaserTitle: 'الحل: منصة واحدة تفعل كل شيء',
+    teaserTitle: 'نظام تعلّم كامل وإدارة أكاديمية في منصة واحدة',
     teaser: [
-      { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'دروس واختبارات كاملة في ثوانٍ، قابلة للتعديل قبل النشر.' },
-      { icon: 'ShieldCheck', title: 'مراقبة ذكية للاختبارات', desc: 'كاميرا وذكاء اصطناعي يحميان نزاهة الاختبار، والتصحيح على الخادم.' },
-      { icon: 'Building2', title: 'عزل كامل لكل جامعة', desc: 'بيانات كل جامعة معزولة تماماً على مستوى قاعدة البيانات.' },
+      { icon: 'BookOpen', title: 'كورسات ودروس منظّمة', desc: 'أنشئ مواد دراسية بمستويات ووحدات، وشارك المحتوى مع مجموعاتك فوراً.' },
+      { icon: 'ClipboardList', title: 'واجبات واختبارات متكاملة', desc: 'اختبارات موقوتة، تصحيح تلقائي، ودرجات مباشرة في كتاب العلامات.' },
+      { icon: 'BarChart2', title: 'تتبع تقدم الطالب', desc: 'درجات ونسب إنجاز لكل طالب، بصريات واضحة للمعلم والمدير.' },
+      { icon: 'Zap', title: 'مساعد أكاديمي بالذكاء الاصطناعي', desc: 'مساعد ذكاء اصطناعي يرافق المعلم خطوة بخطوة في إعداد الدروس والاختبارات، قابل للمراجعة والتعديل الكامل قبل النشر.' },
+      { icon: 'ShieldCheck', title: 'مراقبة حية للاختبارات', desc: 'كاميرا وذكاء اصطناعي يصونان نزاهة الاختبار، مع تصحيح آمن على الخادم لا يُخترق.' },
+      { icon: 'Building2', title: 'عزل تام بين المؤسسات', desc: 'بيانات كل مؤسسة تعليمية معزولة بالكامل على مستوى قاعدة البيانات، مع ضمان انعدام أي تداخل بين بيانات المستخدمين.' },
     ],
     allFeatures: 'استكشف كل المميزات',
-    liveTitle: 'مراقبة حية للاختبارات — كأنك في القاعة',
-    liveDesc: 'أثناء الاختبار، يفتح المعلم جداراً مباشراً يرى فيه كل الطلاب ويسمعهم في آنٍ واحد. عند صدور أي صوت تظهر علامة على إطار صاحبه — ليميّز محاولة الغش من الضجيج المحيط فلا يُظلم أحد.',
+    liveTitle: 'رؤية حية لقاعات الاختبار عبر تقنية الفيديو',
+    liveDesc: 'اتصال مرئي مباشر بين المراقب وجميع المتقدمين، مع إمكانية إعطاء التعليمات فورياً دون الحاجة إلى أي تطبيق خارجي.',
     livePoints: [
-      'فيديو حي لكل طالب في شبكة واحدة',
-      'مؤشر "يتكلم" يحدّد مصدر الصوت فوراً',
-      'اضغط أي طالب لتكبيره بجودة أعلى',
-      'يعمل بثبات حتى على الإنترنت الضعيف',
+      'تنبيهات حية مع معالجة آلية لأي مخالفة يرتكبها المتقدم',
+      'تتبع مراقبة مخصص لمتقدم معين للحصول على رؤية أشمل',
+      'مرونة في الاتصال تتكيف مع جودة شبكة المتقدم',
     ],
+    liveCta: 'استعراض تفاصيل المراقبة الحية',
+    aiTitle: 'المساعد الأكاديمي في إعداد المحتوى التعليمي',
+    aiDesc: 'يرافق المعلمَ في كل مرحلة من مراحل إعداد المحتوى التعليمي، من صياغة الدروس إلى بناء الاختبارات، مع إمكانية المراجعة والتعديل الكامل قبل النشر.',
+    aiPoints: [
+      'إعداد درس أو اختبار متكامل في وقت قياسي',
+      'مراجعة وتعديل كامل للمحتوى المولَّد قبل نشره',
+      'دعم كامل للغة العربية والإنجليزية',
+    ],
+    aiCta: 'استعراض إمكانيات المساعد الأكاديمي',
     stepsTitle: 'كيف تبدأ في 4 خطوات',
     steps: [
       { title: 'اطلب اشتراكاً', desc: 'راسلنا عبر النموذج وأخبرنا عن جامعتك.' },
-      { title: 'نجهّز بيئتك', desc: 'ننشئ بيئة معزولة خاصة بجامعتك ونسلّمك لوحة المالك.' },
+      { title: 'نجهّز بيئتك', desc: 'ننشئ بيئة معزولة خاصة بجامعتك ونسلّمك لوحة إدارتها.' },
       { title: 'ادعُ فريقك', desc: 'أضف المعلمين بروابط دعوة، وهم يدعون طلابهم لمجموعاتهم.' },
-      { title: 'ابدأ التدريس', desc: 'ولّد الدروس والاختبارات، راقب، وصحّح — كله من مكان واحد.' },
+      { title: 'ابدأ التدريس', desc: 'ولّد الدروس والاختبارات، راقب، وصحّح، كله من مكان واحد.' },
     ],
     faqTitle: 'أسئلة شائعة',
     faqs: [
-      { q: 'هل بيانات جامعتنا معزولة عن غيرها؟', a: 'نعم، تماماً. كل جامعة لها بيئتها المعزولة على مستوى قاعدة البيانات — لا يرى أحد بيانات أحد.' },
+      { q: 'هل بيانات جامعتنا معزولة عن غيرها؟', a: 'نعم، تماماً. كل جامعة لها بيئتها المعزولة على مستوى قاعدة البيانات، فلا يرى أحد بيانات أحد.' },
       { q: 'كيف تمنعون الغش في الاختبارات عن بُعد؟', a: 'مراقبة مزدوجة: ذكاء اصطناعي يرصد المخالفات ويسجّلها، ومراقبة حية يرى فيها المعلم ويسمع كل الطلاب مباشرة أثناء الاختبار.' },
       { q: 'هل نحتاج خبرة تقنية لتشغيل المنصة؟', a: 'لا. الواجهة بسيطة لكل الأدوار، ونحن نجهّز بيئتكم ونرافقكم في البداية خطوة بخطوة.' },
-      { q: 'هل يمكن توليد الدروس والاختبارات تلقائياً؟', a: 'نعم، بالذكاء الاصطناعي من ملفاتكم أو من عنوان — وكلها قابلة للمراجعة والتعديل قبل النشر.' },
+      { q: 'هل يمكن توليد الدروس والاختبارات تلقائياً؟', a: 'نعم، بالذكاء الاصطناعي من ملفاتكم أو من عنوان، وكلها قابلة للمراجعة والتعديل قبل النشر.' },
     ],
     mock: {
       title: 'حدود الاستخدام للمعلم',
@@ -79,60 +138,114 @@ const dict = {
     ctaButton: 'راسلنا الآن',
   },
   en: {
-    heroBadge: 'Cloud education platform for universities',
-    heroTitle: 'Run your university from one place',
-    heroDesc: 'EduQuest brings lessons, exams, grades and smart proctoring together — every university gets its own isolated environment, and every teacher and student a simple dashboard.',
+    heroBadge: '✦ For universities & educational centers',
+    heroTitle: 'A complete academic environment, from lesson to final grade',
+    heroDesc: "From an AI-drafted lesson, to a live-monitored exam, to the final grade. EduQuest gives everyone running an educational operation, a university, a center, or a single classroom, one clear path.",
     heroCta: 'Request a subscription',
     heroLogin: 'Sign In',
-    problemTitle: 'The problem we solve',
-    problems: [
-      'Scattered tools: lessons here, exams there, grades in manual spreadsheets',
-      'Cheating in remote exams with no way to monitor',
-      'Preparing lessons and exams eats hours of every teacher’s time',
-      'No privacy between institutions — everyone’s data in one basket',
+    roleStageTitle: 'A different view for every person, one trusted dataset',
+    roleStageDesc: 'Switch between roles and see the platform from every angle.',
+    roles: [
+      {
+        key: 'admin', icon: 'Building2', label: 'University Admin',
+        title: 'A complete view of the university', accent: '#062045',
+        stats: [
+          { icon: 'Users', label: 'Active teachers', value: '128' },
+          { icon: 'GraduationCap', label: 'Enrolled students', value: '3,410' },
+          { icon: 'TrendingUp', label: 'Completion rate', value: '94%' },
+        ],
+      },
+      {
+        key: 'teacher', icon: 'BookOpen', label: 'Teacher',
+        title: 'From idea to ready exam in seconds', accent: '#0f8a7a',
+        stats: [
+          { icon: 'Sparkles', label: 'AI-generated lesson', value: 'Now' },
+          { icon: 'ClipboardList', label: 'Exam being proctored', value: 'Live' },
+          { icon: 'Award', label: 'Auto-graded submissions', value: '312' },
+        ],
+      },
+      {
+        key: 'student', icon: 'GraduationCap', label: 'Student',
+        title: 'Every subject, in one simple place', accent: '#8a5a06',
+        stats: [
+          { icon: 'BookOpen', label: "This week's lessons", value: '6' },
+          { icon: 'ClipboardList', label: 'Upcoming exam', value: 'Tomorrow 10am' },
+          { icon: 'Award', label: 'Latest grade', value: '96/100' },
+        ],
+      },
+      {
+        key: 'center', icon: 'CalendarClock', label: 'Continuing-Ed Center',
+        title: 'Schedules and announcements, no WhatsApp chaos', accent: '#5b3a9e',
+        stats: [
+          { icon: 'CalendarClock', label: 'Published weekly schedules', value: '14' },
+          { icon: 'Megaphone', label: 'New announcement', value: '2 today' },
+          { icon: 'Users', label: 'Collaborating staff', value: '5' },
+        ],
+      },
+    ],
+    transformTitle: 'Before and after EduQuest',
+    transformSub: 'Same school day, a completely different outcome.',
+    transformBefore: 'Without EduQuest',
+    transformAfter: 'With EduQuest',
+    transformPairs: [
+      { from: 'Lessons here, exams there, grades in a spreadsheet', to: 'Everything in one place, lesson to grade' },
+      { from: 'Remote exams with zero supervision', to: 'Live monitoring and AI protecting integrity' },
+      { from: 'Hours to prepare every lesson and exam', to: 'Minutes, with AI doing the drafting' },
+      { from: "Every institution's data in one basket", to: "Full isolation for each university's data" },
     ],
     statsTitle: 'Numbers that speak for the platform',
     stats: [
-      { value: '4', label: 'Integrated roles', sub: 'Owner, university admin, teacher, student' },
+      { value: '4', label: 'Integrated roles', sub: 'University admin, center, teacher, student' },
       { value: 'Seconds', label: 'To generate a full lesson or exam', sub: 'AI-powered, editable before publishing' },
       { value: '100%', label: 'Data isolation between universities', sub: 'Enforced at the database level itself' },
-      { value: 'Live', label: 'Exam monitoring', sub: 'Audio + video of all students at once' },
+      { value: 'Live', label: 'Exam monitoring', sub: 'Audio and video of all students at once' },
     ],
     trustTitle: 'Why EduQuest?',
     trust: [
-      { title: 'Grading on the server, not the browser', desc: 'Correct answers never leave the server — students can’t see or tamper with them, no matter what.' },
-      { title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers — refreshing the page or changing the device clock changes nothing.' },
-      { title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake — every delete goes to an archive the admin can restore anytime.' },
-      { title: 'Full onboarding support', desc: 'We set up your university’s environment ourselves and guide your team step by step until everything runs smoothly.' },
+      { icon: 'Lock', title: 'Grading on the server, not the browser', desc: "Correct answers never leave the server, so students cannot see or tamper with them, no matter what." },
+      { icon: 'Clock', title: 'Exam timing decided by the server', desc: 'Start and end times are recorded on our servers, so refreshing the page or changing the device clock changes nothing.' },
+      { icon: 'Archive', title: 'Safe deletion with a full archive', desc: 'Nothing is ever destroyed by mistake. Every delete goes to an archive the admin can restore anytime.' },
+      { icon: 'Headphones', title: 'Full onboarding support', desc: "We set up your university's environment ourselves and guide your team step by step until everything runs smoothly." },
     ],
-    teaserTitle: 'The solution: one platform that does it all',
+    teaserTitle: 'A full learning system and academic management in one platform',
     teaser: [
-      { icon: 'Sparkles', title: 'AI-powered generation', desc: 'Full lessons and exams in seconds, editable before publishing.' },
-      { icon: 'ShieldCheck', title: 'Smart exam proctoring', desc: 'Camera + AI protect exam integrity, with grading on the server.' },
-      { icon: 'Building2', title: 'Full isolation per university', desc: 'Every university’s data is fully isolated at the database level.' },
+      { icon: 'BookOpen', title: 'Courses & structured lessons', desc: 'Build curricula with levels and units, share content with your groups instantly.' },
+      { icon: 'ClipboardList', title: 'Assignments & exams', desc: 'Timed exams, auto-grading, and instant results in the grade book.' },
+      { icon: 'BarChart2', title: 'Student progress tracking', desc: 'Grades and completion rates per student, clear visuals for teachers and admins.' },
+      { icon: 'Zap', title: 'AI academic assistant', desc: 'An AI assistant that guides instructors step by step through lesson and exam preparation, with full review and editing before publishing.' },
+      { icon: 'ShieldCheck', title: 'Live exam proctoring', desc: 'Camera and AI safeguard exam integrity, with server-side grading that cannot be tampered with.' },
+      { icon: 'Building2', title: 'Complete inter-institution isolation', desc: "Each institution's data is fully isolated at the database level, with zero possibility of cross-institution data leakage." },
     ],
     allFeatures: 'Explore all features',
-    liveTitle: 'Live exam monitoring — like being in the room',
-    liveDesc: 'During an exam the teacher opens a live wall seeing and hearing every student at once. When any sound is made, a marker appears on that student’s tile — telling a cheating attempt from ambient noise, so no one is treated unfairly.',
+    liveTitle: 'Live visual access to examination rooms via video technology',
+    liveDesc: 'Direct visual connection between the proctor and all candidates, with the ability to issue instructions in real time. No third-party application required.',
     livePoints: [
-      'Live video of every student in one grid',
-      'A “speaking” marker pinpoints the sound source instantly',
-      'Click any student to zoom in at higher quality',
-      'Stays stable even on weak internet',
+      'Real-time alerts with automated handling of any candidate violation',
+      'Dedicated monitoring of a specific candidate for a more comprehensive view',
+      'Adaptive connection quality that adjusts to each candidate\'s network conditions',
     ],
+    liveCta: 'Explore live monitoring in detail',
+    aiTitle: 'Academic assistant for educational content preparation',
+    aiDesc: 'Accompanies instructors through every stage of content preparation, from lesson drafting to exam construction, with full review and editing capabilities before publishing.',
+    aiPoints: [
+      'Complete lesson or exam preparation in record time',
+      'Full review and editing of generated content before publishing',
+      'Comprehensive support for Arabic and English',
+    ],
+    aiCta: 'Explore the academic assistant\'s capabilities',
     stepsTitle: 'Get started in 4 steps',
     steps: [
       { title: 'Request access', desc: 'Message us through the form and tell us about your university.' },
-      { title: 'We set you up', desc: 'We create your isolated environment and hand you the owner dashboard.' },
+      { title: 'We set you up', desc: 'We create your isolated environment and hand you its admin dashboard.' },
       { title: 'Invite your team', desc: 'Add teachers via invite links; they invite their students into groups.' },
-      { title: 'Start teaching', desc: 'Generate lessons and exams, proctor, and grade — all from one place.' },
+      { title: 'Start teaching', desc: 'Generate lessons and exams, proctor, and grade, all from one place.' },
     ],
     faqTitle: 'Frequently asked questions',
     faqs: [
-      { q: 'Is our university’s data isolated from others?', a: 'Yes, completely. Each university has its own isolated environment at the database level — no one can see anyone else’s data.' },
+      { q: "Is our university's data isolated from others?", a: "Yes, completely. Each university has its own isolated environment at the database level, so no one can see anyone else's data." },
       { q: 'How do you prevent cheating in remote exams?', a: 'Dual proctoring: AI detects and logs violations, plus live monitoring where the teacher sees and hears all students in real time during the exam.' },
       { q: 'Do we need technical expertise to run it?', a: 'No. The interface is simple for every role, and we set up your environment and guide you step by step at the start.' },
-      { q: 'Can lessons and exams be generated automatically?', a: 'Yes, with AI from your files or from a topic — all reviewable and editable before publishing.' },
+      { q: 'Can lessons and exams be generated automatically?', a: 'Yes, with AI from your files or from a topic, all reviewable and editable before publishing.' },
     ],
     mock: {
       title: 'Teacher usage allowances',
@@ -142,243 +255,654 @@ const dict = {
         { icon: 'Users', label: 'Student invitations', value: '50/hour' },
         { icon: 'BarChart2', label: 'Group size', value: 'Unlimited' },
       ],
-      chartLabel: 'Example: a group’s weekly activity',
+      chartLabel: "Example: a group's weekly activity",
     },
     ctaTitle: 'Ready to take your university to the next level?',
-    ctaDesc: 'Message us and we’ll set up your university’s environment and guide you step by step.',
+    ctaDesc: "Message us and we'll set up your university's environment and guide you step by step.",
     ctaButton: 'Message us now',
   },
 }
 
-const icons = { Sparkles, ShieldCheck, Building2, Users, BookOpen, ClipboardList, BarChart2 } as const
+const icons = {
+  Zap, ShieldCheck, Building2, Users, BookOpen, ClipboardList, BarChart2,
+  GraduationCap, Megaphone, CalendarClock, Sparkles, TrendingUp, Award,
+  Lock, Clock, Archive, Headphones,
+} as const
 
-// Fake weekly-activity bars for the hero dashboard mockup (pure CSS, no images)
-const CHART_BARS = [45, 70, 55, 90, 65, 100, 80]
+// Ground colours the landing page actually runs on: white, the pale blue
+// surface, and the navy used by the two dark sections.
+const INK_ON_LIGHT = '#062045'
+const INK_ON_DARK  = '#ffffff'
+
+// The banner that opens every section.
+//
+// It is a contained card, not a full-bleed strip. A strip spanning the whole
+// viewport cut the page into hard horizontal bands and fought the alternating
+// white and blush section grounds; a card sits inside the same content width as
+// everything below it, so the page reads as one column with a series of objects
+// in it. The generous radius, the soft shadow and the colour held inside an
+// edge are the same treatment as the brand's own colour cards.
+//
+// The section's colour lives in the card's ground and in the two washes
+// drifting behind the headline. It never sets the headline itself: navy on
+// light grounds, white on dark, which is the rule the whole page follows.
+function SectionBanner({
+  color, title, kicker, onDark = false,
+}: {
+  /** Identity hue: tints the card's ground and the drifting washes. */
+  color: string
+  title: string
+  kicker?: string
+  /** Set on the navy section so the headline flips to white. */
+  onDark?: boolean
+}) {
+  const ink = onDark ? INK_ON_DARK : INK_ON_LIGHT
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14">
+      <div
+        className="eq-band rounded-[24px] border"
+        style={{
+          background: onDark
+            ? `linear-gradient(160deg, ${color}22 0%, ${color}0D 100%)`
+            : `linear-gradient(160deg, ${color}1C 0%, ${color}08 100%)`,
+          borderColor: onDark ? `${color}3D` : `${color}2E`,
+          boxShadow: onDark
+            ? `inset 0 1px 0 ${color}26, 0 20px 48px -34px ${color}66`
+            : `inset 0 1px 0 #FFFFFF80, 0 18px 44px -30px ${color}80`,
+        }}
+      >
+        {/* Motion field, decorative and hidden from assistive technology */}
+        <span className="eq-band-orb eq-band-orb-a" style={{ background: `${color}33` }} aria-hidden="true" />
+        <span className="eq-band-orb eq-band-orb-b" style={{ background: `${color}24` }} aria-hidden="true" />
+        <span className="eq-band-sheen" aria-hidden="true" />
+
+        <div className="px-6 sm:px-10 py-8 sm:py-11">
+          <h2
+            className="text-2xl sm:text-4xl font-black tracking-tight"
+            style={{ color: ink, letterSpacing: '-0.02em' }}
+          >
+            {title}
+          </h2>
+          {kicker && (
+            <p
+              className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed"
+              style={{ color: ink, opacity: onDark ? 0.82 : 0.72 }}
+            >
+              {kicker}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Each section's identity hue. It tints its banner's ground and the drifting
+// washes behind the headline, so a section still reads as "the rose one" or
+// "the teal one" without needing a word to say so.
+// Each section's identity hue. It tints its banner's ground and the drifting
+// washes behind the headline, so a section still reads as "the rose one" or
+// "the green one" without needing a word to say so. All of them are tuned to
+// sit beside the blush ground rather than fight it; the headline on top is
+// always navy, or white on the one navy section.
+const SECTION_COLORS = {
+  transform:  { color: '#5F6E85' },
+  stats:      { color: '#F2C4CE' },
+  platform:   { color: '#062045' },
+  demo:       { color: '#062045' },
+  admin:      { color: '#0C3468' },
+  teacher:    { color: '#0F8A7A' },
+  live:       { color: '#C2325A' },
+  ai:         { color: '#5B3A9E' },
+  steps:      { color: '#062045' },
+  trust:      { color: '#0F6B45' },
+  faq:        { color: '#8A5A06' },
+} as const
+
+const TEASER_ACCENTS = [
+  { bg: '#f9e9ed', color: '#062045' },   // blue
+  { bg: '#efeafb', color: '#5b3a9e' },   // purple
+  { bg: '#eef8f2', color: '#0f6b45' },   // green
+  { bg: '#eef8f2', color: '#0f6b45' },   // teal
+  { bg: '#fdf0f3', color: '#a3123c' },   // red
+  { bg: '#edf4fa', color: '#0369a1' },   // deep blue
+]
+
+type Role = {
+  key: string; icon: keyof typeof icons; label: string; title: string; accent: string
+  stats: { icon: keyof typeof icons; label: string; value: string }[]
+}
+
+function RoleStage({ roles }: { roles: Role[] }) {
+  const [active, setActive] = useState(0)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const [paused, setPaused] = useState(false)
+  const stageRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (paused) return
+    const id = setInterval(() => setActive(a => (a + 1) % roles.length), 4200)
+    return () => clearInterval(id)
+  }, [paused, roles.length])
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = stageRef.current?.getBoundingClientRect()
+    if (!r) return
+    const px = (e.clientX - r.left) / r.width - 0.5
+    const py = (e.clientY - r.top) / r.height - 0.5
+    setTilt({ x: py * -8, y: px * 12 })
+  }
+  const onLeave = () => setTilt({ x: 0, y: 0 })
+
+  const role = roles[active]
+  const RoleIcon = icons[role.icon]
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+        {roles.map((r, i) => {
+          const Icon = icons[r.icon]
+          const isActive = i === active
+          return (
+            <button
+              key={r.key}
+              onClick={() => setActive(i)}
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+                isActive
+                  ? 'text-white shadow-[0_8px_24px_rgba(0,0,0,0.15)] scale-105'
+                  : 'bg-elevated border-border text-fg-secondary hover:border-accent-border'
+              }`}
+              style={isActive ? { backgroundColor: r.accent, borderColor: r.accent } : undefined}
+            >
+              <Icon className="w-4 h-4" /> {r.label}
+            </button>
+          )
+        })}
+      </div>
+      <div
+        ref={stageRef}
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}
+        className="eq-stage relative max-w-3xl mx-auto"
+      >
+        <div
+          className="absolute -inset-8 blur-3xl rounded-[40px] transition-colors duration-500"
+          style={{ backgroundColor: `${role.accent}22` }}
+        />
+        <div
+          className="eq-tilt-card relative bg-elevated border border-border rounded-[24px] overflow-hidden shadow-[0_24px_64px_rgba(11,54,88,0.16)]"
+          style={{ transform: `rotateX(${6 + tilt.x}deg) rotateY(${tilt.y}deg)` }}
+        >
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border" style={{ backgroundColor: `${role.accent}14` }}>
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
+            <span className="flex items-center gap-1.5 text-fg text-xs font-semibold ms-3">
+              <RoleIcon className="w-3.5 h-3.5" style={{ color: role.accent }} /> {role.title}
+            </span>
+          </div>
+          <div className="p-5 sm:p-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {role.stats.map((s, i) => {
+              const Icon = icons[s.icon]
+              return (
+                <div
+                  key={i}
+                  className="eq-float bg-surface border border-border rounded-2xl p-4"
+                  style={{ animationDelay: `${i * 0.5}s` }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-fg-muted text-[11px]">{s.label}</span>
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${role.accent}20` }}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: role.accent }} />
+                    </div>
+                  </div>
+                  <p className="text-fg text-lg font-bold">{s.value}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-center gap-1.5 mt-6">
+        {roles.map((r, i) => (
+          <span
+            key={r.key}
+            className="h-1.5 rounded-full transition-all duration-300"
+            style={{
+              width: i === active ? '24px' : '6px',
+              backgroundColor: i === active ? r.accent : 'var(--color-border-strong)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Reveal on scroll, driven by GSAP ScrollTrigger.
+//
+// The rule this follows: never hide content up front. The hand-rolled observer
+// this replaced set every element to opacity 0 and cleared it in a callback, so
+// any element the callback missed stayed invisible permanently. A first pass
+// with GSAP repeated the mistake with gsap.set(), and four sections stayed dark
+// on a full scroll through the page.
+//
+// gsap.from() inverts that. The start state is applied at the moment the tween
+// is built, which ScrollTrigger only does when the element actually enters. An
+// element whose trigger never fires is simply never touched, so the worst case
+// is content that appears without animating rather than content that never
+// appears at all.
+function useFadeIn(deps: unknown[] = []) {
+  useEffect(() => {
+    return prefersMotion(() => {
+      const els = gsap.utils.toArray<HTMLElement>('[data-fadein]')
+      if (!els.length) return
+
+      // batch groups everything crossing the line together into one stagger,
+      // instead of each element running its own timer.
+      ScrollTrigger.batch(els, {
+        start: 'top 90%',
+        once: true,
+        onEnter: batch =>
+          gsap.from(batch, {
+            opacity: 0,
+            y: 18,
+            duration: 0.55,
+            ease: 'power2.out',
+            stagger: 0.07,
+            overwrite: 'auto',
+          }),
+      })
+
+      // Fonts and lazy images settle after first paint and shift everything
+      // below them, so the trigger points have to be measured again.
+      ScrollTrigger.refresh()
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
+}
+
+// One stat tile. GSAP tweens a plain number and writes each frame into state,
+// so the count is tied to the same timeline as the reveal rather than running
+// on its own interval. Non-numeric values ("Live", "seconds") skip the count
+// and just fade in.
+function StatCard({ value, label, sub }: { value: string; label: string; sub: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const numeric = parseInt(value.replace(/\D/g, ''), 10)
+  const isNumeric = !isNaN(numeric)
+  const [display, setDisplay] = useState(isNumeric ? value.replace(/\d+/, '0') : value)
+
+  useEffect(() => prefersMotion(() => {
+    const el = ref.current
+    if (!el) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+    })
+
+    tl.from(el, { opacity: 0, y: 20, duration: 0.5, ease: 'power2.out' })
+
+    if (isNumeric) {
+      const counter = { n: 0 }
+      tl.to(counter, {
+        n: numeric,
+        duration: 1.1,
+        ease: 'power1.out',
+        onUpdate: () => setDisplay(value.replace(/\d+/, String(Math.round(counter.n)))),
+      }, '<0.15')
+    }
+  }, ref), [value, numeric, isNumeric])
+
+  return (
+    <div ref={ref} className="rounded-[20px] p-6 sm:p-8 text-center" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
+      <p className="text-4xl sm:text-5xl font-black text-white" style={{letterSpacing: '-0.02em'}}>{display}</p>
+      <p className="text-[#f2c4ce] text-sm font-semibold mt-3">{label}</p>
+      <p className="text-[#aebacc] text-xs mt-1 leading-relaxed">{sub}</p>
+    </div>
+  )
+}
 
 export function Landing() {
   const [lang, setLang] = useLang()
   const t = dict[lang]
   const Arrow = lang === 'ar' ? ArrowLeft : ArrowRight
 
-  return (
-    <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950">
-      <PublicNav lang={lang} setLang={setLang} />
+  // Force light mode on the landing page regardless of OS preference
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light')
+    return () => document.documentElement.removeAttribute('data-theme')
+  }, [])
 
-      {/* Hero */}
+  useFadeIn([lang])
+
+  return (
+    <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-canvas">
+      <PublicNav lang={lang} setLang={setLang} />
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.18),transparent_60%)]" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-6 text-center">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-5">
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="eq-blob-1 absolute -top-24 -start-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-40" style={{ background: 'radial-gradient(circle, #062045, transparent 70%)' }} />
+          <div className="eq-blob-2 absolute top-32 -end-32 w-[380px] h-[380px] rounded-full blur-3xl opacity-30" style={{ background: 'radial-gradient(circle, #0f8a7a, transparent 70%)' }} />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(78,154,217,0.10),transparent)]" />
+        </div>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-28 pb-6 text-center">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-accent-subtle border border-accent-border text-accent text-sm font-semibold mb-6 tracking-wide">
             {t.heroBadge}
           </span>
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-tight max-w-3xl mx-auto bg-gradient-to-b from-white via-white to-slate-400 bg-clip-text text-transparent">
-            {t.heroTitle}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black leading-tight max-w-2xl mx-auto text-fg" style={{letterSpacing: '-0.03em'}}>
+            EduQuest
           </h1>
-          <p className="text-slate-400 text-base sm:text-lg mt-4 sm:mt-6 max-w-2xl mx-auto leading-relaxed">
-            {t.heroDesc}
+          <p className="text-fg-secondary text-lg sm:text-xl mt-4 max-w-xl mx-auto font-medium leading-snug">
+            {t.heroTitle}
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-7">
+          <div className="mt-8">
             <Link href="/contact"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25">
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-[24px] bg-accent hover:bg-accent-hover text-accent-fg font-semibold text-base transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.30)]">
               {t.heroCta} <Arrow className="w-4 h-4" />
             </Link>
-            <Link href="/login"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 font-semibold transition-colors text-center">
-              {t.heroLogin}
+          </div>
+          <div className="mt-14 sm:mt-20" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <RoleStage roles={t.roles as Role[]} />
+          </div>
+
+          <div className="flex justify-center mt-10 pb-2">
+            <ChevronDown className="w-5 h-5 text-fg-muted animate-bounce" />
+          </div>
+        </div>
+      </section>
+      <section className="bg-surface border-y border-border">
+        <SectionBanner
+          color={SECTION_COLORS.transform.color}
+          title={t.transformTitle}
+          kicker={t.transformSub}
+        />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-0 rounded-[24px] overflow-hidden border border-border shadow-[0_12px_48px_rgba(11,54,88,0.08)]">
+            <div className="bg-elevated p-6 sm:p-8">
+              <span className="inline-flex items-center gap-1.5 text-error text-xs font-bold uppercase tracking-wide mb-5">
+                <XCircle className="w-4 h-4" /> {t.transformBefore}
+              </span>
+              <div className="space-y-4">
+                {t.transformPairs.map((pair, i) => (
+                  <p key={i} className="text-fg-muted text-sm leading-relaxed">{pair.from}</p>
+                ))}
+              </div>
+            </div>
+            <div className="bg-[#062045] p-6 sm:p-8">
+              <span className="inline-flex items-center gap-1.5 text-[#f2c4ce] text-xs font-bold uppercase tracking-wide mb-5">
+                <CheckCircle2 className="w-4 h-4" /> {t.transformAfter}
+              </span>
+              <div className="space-y-4">
+                {t.transformPairs.map((pair, i) => (
+                  <p key={i} className="text-white text-sm font-medium leading-relaxed">{pair.to}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section style={{ background: 'linear-gradient(135deg, #062045 0%, #0c3468 100%)' }}>
+        <SectionBanner
+          color={SECTION_COLORS.stats.color}
+          title={t.statsTitle}
+          onDark
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {t.stats.map((s, i) => (
+              <StatCard key={i} value={s.value} label={s.label} sub={s.sub} />
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="bg-canvas">
+        <SectionBanner
+          color={SECTION_COLORS.platform.color}
+          title={t.teaserTitle}
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {t.teaser.map((f, i) => {
+              const Icon = icons[f.icon as keyof typeof icons]
+              const acc = TEASER_ACCENTS[i] ?? TEASER_ACCENTS[0]
+              return (
+                <div key={i} data-fadein={i * 80} className="group bg-white border border-border rounded-[20px] p-6 hover:shadow-[0_12px_40px_rgba(11,54,88,0.12)] transition-all duration-300 hover:-translate-y-0.5 shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: acc.bg }}>
+                      <Icon className="w-5 h-5" style={{ color: acc.color }} />
+                    </div>
+                    <span className="text-xs font-black text-fg-muted tabular-nums">0{i + 1}</span>
+                  </div>
+                  <h3 className="text-fg font-bold mb-1.5">{f.title}</h3>
+                  <p className="text-fg-secondary text-sm leading-relaxed">{f.desc}</p>
+                </div>
+              )
+            })}
+          </div>
+          <div className="text-center mt-10">
+            <Link href="/features"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-[24px] border border-border hover:border-accent-border text-fg-secondary hover:text-accent font-semibold transition-colors">
+              {t.allFeatures} <Arrow className="w-4 h-4" />
             </Link>
           </div>
+        </div>
+      </section>
 
-          {/* Dashboard mockup — pure CSS preview of the product */}
-          <div className="relative max-w-3xl mx-auto mt-10 sm:mt-14 text-start" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-            <div className="absolute -inset-4 bg-blue-600/10 blur-2xl rounded-3xl" />
-            <div className="relative bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-2xl overflow-hidden shadow-2xl">
-              {/* window bar */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-900">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
-                <span className="text-slate-500 text-xs font-medium ms-2">{t.mock.title}</span>
+      <section className="bg-canvas overflow-hidden">
+        <SectionBanner
+          color={SECTION_COLORS.demo.color}
+          title={lang === 'ar'
+            ? 'تجربة حية لما ستتعامل معه داخل المنصة'
+            : 'A live experience of what you will work with inside the platform'}
+          kicker={lang === 'ar'
+            ? 'لقطات توضيحية حقيقية من واجهات المنصة، دون تجميل أو حذف.'
+            : 'Genuine screen recordings from the platform interfaces, unfiltered and unscripted.'}
+        />
+      </section>
+
+      <section className="bg-canvas pb-0">
+        <SectionBanner
+          color={SECTION_COLORS.admin.color}
+          title={lang === 'ar'
+            ? 'إدارة المؤسسة التعليمية بالكامل من مكان واحد'
+            : 'Manage the entire institution from a single place'}
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div data-fadein="0" className="rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#f9e9ed' }}>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+                <span className="text-xs font-medium ms-2" style={{ color: '#062045' }}>
+                  {lang === 'ar' ? 'لوحة إدارة المؤسسة التعليمية' : 'Institution Administration Dashboard'}
+                </span>
               </div>
-              <div className="p-4 sm:p-5">
-                {/* stat cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                  {t.mock.stats.map((s, i) => {
-                    const Icon = icons[s.icon as keyof typeof icons]
-                    return (
-                      <div key={i} className="bg-slate-800/70 border border-slate-700/50 rounded-xl p-3">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-slate-400 text-[11px]">{s.label}</span>
-                          <Icon className="w-3.5 h-3.5 text-blue-400" />
-                        </div>
-                        <p className="text-white text-lg font-bold">{s.value}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-                {/* activity bars */}
-                <div className="mt-3 bg-slate-800/70 border border-slate-700/50 rounded-xl p-3">
-                  <p className="text-slate-400 text-[11px] mb-2">{t.mock.chartLabel}</p>
-                  <div className="flex items-end gap-1.5 sm:gap-2 h-16">
-                    {CHART_BARS.map((h, i) => (
-                      <div key={i} className="flex-1 rounded-t-md bg-gradient-to-t from-blue-600/40 to-blue-500" style={{ height: `${h}%` }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <video src="/demo-admin.mp4" autoPlay muted loop playsInline className="w-full block" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
             </div>
-          </div>
-
-          {/* scroll cue */}
-          <div className="flex justify-center mt-6 pb-2">
-            <ChevronDown className="w-5 h-5 text-slate-500 animate-bounce" />
-          </div>
-        </div>
-      </section>
-
-      {/* Problem */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.problemTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-          {t.problems.map((p, i) => (
-            <div key={i} className="flex items-start gap-3 bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-slate-300 text-sm leading-relaxed">{p}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Stats strip */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.statsTitle}</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {t.stats.map((s, i) => (
-            <div key={i} className="bg-gradient-to-b from-slate-900 to-slate-900/50 border border-slate-800 rounded-xl p-5 sm:p-6 text-center hover:border-blue-500/40 transition-colors">
-              <p className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-b from-blue-300 to-blue-500 bg-clip-text text-transparent">{s.value}</p>
-              <p className="text-white text-sm font-semibold mt-2">{s.label}</p>
-              <p className="text-slate-500 text-xs mt-1 leading-relaxed">{s.sub}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Solution teaser */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.teaserTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {t.teaser.map((f, i) => {
-            const Icon = icons[f.icon as keyof typeof icons]
-            return (
-              <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors">
-                <div className="w-11 h-11 rounded-xl bg-blue-600/15 flex items-center justify-center mb-4">
-                  <Icon className="w-5 h-5 text-blue-400" />
-                </div>
-                <h3 className="text-white font-semibold mb-2">{f.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
-              </div>
-            )
-          })}
-        </div>
-        <div className="text-center mt-10">
-          <Link href="/features"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-700 hover:border-blue-500 text-slate-200 hover:text-white font-medium transition-colors">
-            {t.allFeatures} <Arrow className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Live proctoring highlight */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <div className="relative overflow-hidden bg-gradient-to-br from-red-600/10 via-slate-900 to-slate-900 border border-red-500/20 rounded-2xl p-6 sm:p-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-            <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold mb-4">
-                <Radio className="w-3.5 h-3.5" /> {lang === 'ar' ? 'مباشر' : 'LIVE'}
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t.liveTitle}</h2>
-              <p className="text-slate-300 leading-relaxed mb-5">{t.liveDesc}</p>
-              <ul className="space-y-2.5">
-                {t.livePoints.map((p, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-slate-200 text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /> {p}
+            <div data-fadein="120">
+              <p className="text-fg-secondary leading-relaxed mb-6 text-base">
+                {lang === 'ar'
+                  ? 'لوحة إدارية شاملة تتيح للمسؤول متابعة أعضاء هيئة التدريس، إدارة صلاحياتهم، واستعراض المؤشرات الأكاديمية للمؤسسة بالكامل، دون الحاجة للتنقل بين أنظمة متعددة.'
+                  : 'A comprehensive administrative panel that allows the responsible party to track faculty members, manage their permissions, and review the institution\'s academic indicators in full, without switching between multiple systems.'}
+              </p>
+              <ul className="space-y-3">
+                {(lang === 'ar'
+                  ? ['إضافة أعضاء هيئة التدريس وتعيين صلاحياتهم بدقة', 'نظرة كاملة على الأنشطة الأكاديمية للمؤسسة', 'عزل تام لبيانات المؤسسة عن أي مؤسسة أخرى']
+                  : ['Add faculty members and assign their permissions precisely', 'Full view of the institution\'s academic activities', 'Complete data isolation from all other institutions']
+                ).map((p, i) => (
+                  <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-[#062045] shrink-0 mt-0.5" /> {p}
                   </li>
                 ))}
               </ul>
             </div>
-            {/* Mini live-wall mockup (pure CSS) */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} className={`relative aspect-video rounded-lg bg-slate-800 border-2 overflow-hidden ${i === 1 ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.25)]' : 'border-slate-700'}`}>
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-700/40 to-slate-900" />
-                  <Users className="absolute inset-0 m-auto w-6 h-6 text-slate-600" />
-                  {i === 1 && (
-                    <span className="absolute top-1.5 end-1.5 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                      <Volume2 className="w-2.5 h-2.5" /> {lang === 'ar' ? 'يتكلم' : 'speaking'}
-                    </span>
-                  )}
-                  <span className="absolute bottom-1 start-1.5 text-white/80 text-[10px]">{lang === 'ar' ? `طالب ${i + 1}` : `Student ${i + 1}`}</span>
-                </div>
-              ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface">
+        <SectionBanner
+          color={SECTION_COLORS.teacher.color}
+          title={lang === 'ar'
+            ? 'من إعداد المحتوى إلى نشر النتائج في مسار واحد'
+            : 'From content preparation to results publishing in one workflow'}
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div data-fadein="0" className="order-1 lg:order-2 rounded-[20px] overflow-hidden border border-border shadow-[0_16px_56px_rgba(11,54,88,0.12)] bg-elevated">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border" style={{ background: '#e9f6f2' }}>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+                <span className="text-xs font-medium ms-2" style={{ color: '#0f6b45' }}>
+                  {lang === 'ar' ? 'لوحة عضو هيئة التدريس' : 'Instructor Dashboard'}
+                </span>
+              </div>
+              <video src="/demo-teacher.mp4" autoPlay muted loop playsInline className="w-full block" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+            </div>
+            <div data-fadein="120" className="order-2 lg:order-1">
+              <p className="text-fg-secondary leading-relaxed mb-6 text-base">
+                {lang === 'ar'
+                  ? 'يتابع عضو هيئة التدريس مساره الأكاديمي بالكامل من لوحة واحدة: إعداد المحتوى وتصحيح الاختبارات ونشر النتائج، مع دعم الذكاء الاصطناعي في كل مرحلة.'
+                  : 'Instructors manage their entire academic workflow from a single panel: content preparation, exam grading, and results publishing, with AI support at every stage.'}
+              </p>
+              <ul className="space-y-3">
+                {(lang === 'ar'
+                  ? ['تصحيح تلقائي لإجابات الطلاب مع نشر فوري للنتائج', 'مساعد ذكاء اصطناعي لإعداد الدروس والاختبارات', 'متابعة تقدم الطلاب ومؤشرات الأداء الأكاديمي']
+                  : ['Automatic grading of student answers with instant results publishing', 'AI assistant for preparing lessons and exams', 'Student progress tracking and academic performance indicators']
+                ).map((p, i) => (
+                  <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-[#0f6b45] shrink-0 mt-0.5" /> {p}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.stepsTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {t.steps.map((s, i) => (
-            <div key={i} className="relative bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white font-bold mb-4">{i + 1}</span>
-              <h3 className="text-white font-semibold mb-1.5">{s.title}</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Trust / why us */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.trustTitle}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {t.trust.map((item, i) => (
-            <div key={i} className="flex items-start gap-4 bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-emerald-500/30 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              </div>
+      <section className="bg-canvas">
+        <SectionBanner color={SECTION_COLORS.live.color} title={t.liveTitle} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
+            <div className="absolute -top-24 -end-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #c2325a, transparent 70%)' }} />
+            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div>
-                <h3 className="text-white font-semibold mb-1.5">{item.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
+                <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.liveDesc}</p>
+                <ul className="space-y-3 mb-8">
+                  {t.livePoints.map((p, i) => (
+                    <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" /> {p}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/features/live-monitoring"
+                  className="inline-flex items-center gap-3 px-6 py-3 rounded-[16px] bg-error text-white font-semibold text-sm hover:bg-error/90 transition-colors shadow-[0_4px_16px_rgba(239,68,68,0.30)]">
+                  {t.liveCta} <Arrow className="w-4 h-4" />
+                </Link>
+              </div>
+              <LiveProctoringGrid lang={lang} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-surface">
+        <SectionBanner color={SECTION_COLORS.ai.color} title={t.aiTitle} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="relative border border-border rounded-[28px] p-8 sm:p-12 bg-elevated shadow-[0_16px_64px_rgba(11,54,88,0.10)] overflow-hidden">
+            <div className="absolute -bottom-24 -start-24 w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none" style={{ background: 'radial-gradient(circle, #0f8a7a, transparent 70%)' }} />
+            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="order-2 lg:order-1">
+                <AiTypingMockup lang={lang} />
+              </div>
+              <div className="order-1 lg:order-2">
+                <p className="text-fg-secondary leading-relaxed mb-6 text-base">{t.aiDesc}</p>
+                <ul className="space-y-3 mb-8">
+                  {t.aiPoints.map((p, i) => (
+                    <li key={i} className="flex items-start gap-3 text-fg-secondary text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" /> {p}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/features/ai-assistant" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-3 px-6 py-3 rounded-[16px] bg-accent text-white font-semibold text-sm hover:bg-accent-hover transition-colors shadow-[0_4px_16px_rgba(78,154,217,0.30)]">
+                  {t.aiCta} <Arrow className="w-4 h-4" />
+                </Link>
               </div>
             </div>
-          ))}
+          </div>
+        </div>
+      </section>
+      <section className="bg-surface border-y border-border">
+        <SectionBanner color={SECTION_COLORS.steps.color} title={t.stepsTitle} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+            <div className="hidden lg:block absolute top-9 start-[12.5%] end-[12.5%] h-px bg-border z-0" />
+            {t.steps.map((s, i) => (
+              <div key={i} className="relative bg-white border border-border rounded-[20px] p-6 shadow-[0_4px_16px_rgba(11,54,88,0.06)] z-10">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#062045] text-white font-black text-sm mb-4 shadow-[0_4px_12px_rgba(11,54,88,0.25)]">{i + 1}</span>
+                <h3 className="text-fg font-bold mb-1.5">{s.title}</h3>
+                <p className="text-fg-secondary text-sm leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="bg-canvas">
+        <SectionBanner color={SECTION_COLORS.trust.color} title={t.trustTitle} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {t.trust.map((item, i) => {
+              const TrustIcon = icons[item.icon as keyof typeof icons] ?? ShieldCheck
+              const trustAccents = [
+                { bg: '#fdf0f3', color: '#a3123c' },
+                { bg: '#edf4fa', color: '#1d4ed8' },
+                { bg: '#eef8f2', color: '#0f6b45' },
+                { bg: '#eaeefb', color: '#4338ca' },
+              ]
+              const acc = trustAccents[i]
+              return (
+                <div key={i} className="flex items-start gap-4 bg-white border border-border rounded-[20px] p-6 hover:shadow-[0_12px_40px_rgba(11,54,88,0.10)] transition-all duration-300 shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: acc.bg }}>
+                    <TrustIcon className="w-5 h-5" style={{ color: acc.color }} />
+                  </div>
+                  <div>
+                    <h3 className="text-fg font-bold mb-1.5">{item.title}</h3>
+                    <p className="text-fg-secondary text-sm leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-10">{t.faqTitle}</h2>
-        <div className="space-y-3">
-          {t.faqs.map((f, i) => (
-            <details key={i} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-              <summary className="flex items-center justify-between gap-3 p-5 cursor-pointer list-none text-white font-medium">
-                {f.q}
-                <Plus className="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-45" />
-              </summary>
-              <p className="px-5 pb-5 -mt-1 text-slate-400 text-sm leading-relaxed">{f.a}</p>
-            </details>
-          ))}
+      <section className="bg-canvas">
+        <SectionBanner color={SECTION_COLORS.faq.color} title={t.faqTitle} />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+          <div className="space-y-3">
+            {t.faqs.map((f, i) => (
+              <details key={i} className="group bg-white border border-border rounded-[20px] overflow-hidden shadow-[0_2px_8px_rgba(11,54,88,0.05)]">
+                <summary className="flex items-center justify-between gap-4 px-6 py-5 cursor-pointer list-none text-fg font-semibold text-base">
+                  {f.q}
+                  <Plus className="w-5 h-5 text-fg-muted shrink-0 transition-transform group-open:rotate-45" />
+                </summary>
+                <p className="px-6 pb-6 -mt-1 text-fg-secondary text-base leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600/20 to-slate-900 border border-blue-500/20 rounded-2xl p-10 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t.ctaTitle}</h2>
-          <p className="text-slate-300 mb-8 max-w-xl mx-auto">{t.ctaDesc}</p>
+      <section className="bg-[#062045] mt-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center">
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-3" style={{letterSpacing: '-0.02em'}}>{t.ctaTitle}</h2>
+          <p className="text-[#a8c8e2] mb-8 max-w-xl mx-auto leading-relaxed">{t.ctaDesc}</p>
           <Link href="/contact"
-            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[24px] bg-[#062045] hover:bg-[#0c3468] text-white font-semibold transition-colors shadow-[0_8px_32px_rgba(78,154,217,0.35)]">
             <Mail className="w-4 h-4" /> {t.ctaButton}
           </Link>
         </div>

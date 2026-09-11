@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { LessonsClient } from './lessons-client'
+import { PageTitle } from '@/components/shared/page-title'
 
 export default async function LessonsPage() {
   const supabase = await createClient()
@@ -14,5 +15,10 @@ export default async function LessonsPage() {
     supabase.from('groups').select('id, name').eq('teacher_id', user.id),
   ])
 
-  return <LessonsClient initialLessons={lessons ?? []} groups={groups ?? []} />
+  return (
+    <>
+      <PageTitle title="Lessons" />
+      <LessonsClient initialLessons={lessons ?? []} groups={groups ?? []} />
+    </>
+  )
 }

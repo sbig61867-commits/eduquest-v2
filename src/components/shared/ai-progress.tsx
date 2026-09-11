@@ -47,17 +47,17 @@ export function AiProgress({ active }: { active: boolean }) {
     : [...STAGES].reverse().find(s => progress >= s.at)?.label ?? STAGES[0].label
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 space-y-2" dir="rtl">
+    <div className="bg-surface/60 border border-border-strong rounded-lg px-4 py-3 space-y-2" dir="rtl">
       <div className="flex items-center gap-2 text-sm">
         {done
-          ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          : <Loader2 className="w-4 h-4 text-violet-400 animate-spin shrink-0" />}
-        <span className={done ? 'text-emerald-400 font-medium' : 'text-slate-300'}>{stage}</span>
-        <span className="text-slate-500 mr-auto tabular-nums">{Math.round(progress)}%</span>
+          ? <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
+          : <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />}
+        <span className={done ? 'text-accent font-medium' : 'text-fg-secondary'}>{stage}</span>
+        <span className="text-fg-muted mr-auto tabular-nums">{Math.round(progress)}%</span>
       </div>
-      <div className="h-2 bg-slate-700/60 rounded-full overflow-hidden">
+      <div className="h-2 bg-canvas/60 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-300 ${done ? 'bg-emerald-500' : 'bg-violet-500'}`}
+          className={`h-full rounded-full transition-all duration-300 ${done ? 'bg-success' : 'bg-accent'}`}
           style={{ width: `${progress}%` }}
         />
       </div>
