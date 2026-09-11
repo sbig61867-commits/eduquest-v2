@@ -186,6 +186,10 @@ export function Landing() {
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 font-semibold transition-colors text-center">
               {t.heroLogin}
             </Link>
+            <Link href="/demo"
+              className="w-full sm:w-auto px-7 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 font-semibold transition-colors text-center">
+              {lang === 'ar' ? 'جرّب المنصة الآن' : 'Try the demo'}
+            </Link>
           </div>
 
           {/* Dashboard mockup — pure CSS preview of the product */}
