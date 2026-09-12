@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { safeFetch, BlockedUrlError } from '@/lib/safe-fetch'
 
 // Fetches Open Graph / meta tags from an external URL so the announcement
 // form can auto-fill title, description, and image — no paid API needed.
-// Auth is required to prevent open SSRF abuse.
+//
+// This route makes the SERVER fetch a URL the caller typed, which is an SSRF
+// primitive whose response is handed back to the caller. Requiring a session
+// bounds who can trigger it but does not make it safe: every signed-in user,
+// students included, could otherwise reach the loopback interface, the cloud
+// metadata endpoint, and the private network the database sits on. The URL is
+// therefore validated and every redirect hop re-validated in lib/safe-fetch,
+// and the route is rate limited so it cannot be used as a scanner.
 
 function extractMeta(html: string) {
   const og = (prop: string) => {
@@ -36,16 +45,17 @@ export async function POST(request: Request) {
   const raw = String(body.url ?? '').trim()
   if (!raw) return NextResponse.json({ error: 'url مطلوب' }, { status: 400 })
 
-  let url: URL
-  try { url = new URL(raw) } catch { return NextResponse.json({ error: 'رابط غير صالح' }, { status: 400 }) }
-  if (!['http:', 'https:'].includes(url.protocol)) {
-    return NextResponse.json({ error: 'يجب أن يبدأ الرابط بـ https://' }, { status: 400 })
+  // Without a limit, one account turns this into an internal port scanner.
+  const rl = await rateLimit(`preview-url:${user.id}`, { limit: 20, windowSecs: 600 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'محاولات كثيرة، حاول بعد قليل' }, { status: 429 })
   }
 
   try {
-    const res = await fetch(url.toString(), {
+    const res = await safeFetch(raw, {
+      timeoutMs: 6000,
+      maxRedirects: 3,
       headers: { 'User-Agent': 'EduQuest/1.0 (link preview)', Accept: 'text/html' },
-      signal: AbortSignal.timeout(6000),
     })
     if (!res.ok) return NextResponse.json({ error: `الموقع أعاد ${res.status}` }, { status: 422 })
     const ct = res.headers.get('content-type') ?? ''
@@ -66,6 +76,12 @@ export async function POST(request: Request) {
     const meta = extractMeta(html)
     return NextResponse.json(meta)
   } catch (e) {
+    // A blocked URL is the caller's mistake (or probe) — say so plainly and
+    // never echo the underlying network error, which would leak whether an
+    // internal host exists.
+    if (e instanceof BlockedUrlError) {
+      return NextResponse.json({ error: e.message }, { status: 400 })
+    }
     const msg = e instanceof Error ? e.message : String(e)
     return NextResponse.json({ error: `تعذّر جلب الرابط: ${msg}` }, { status: 422 })
   }

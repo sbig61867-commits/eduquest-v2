@@ -48,6 +48,13 @@ const read = (f: string) => readFileSync(f, 'utf8')
 const rel = (f: string) => relative(ROOT, f)
 
 const ROUTE_FILES = walk(join(SRC, 'app', 'api'), f => f === 'route.ts')
+
+/** Capability names as lib/permissions.ts declares them, read from source. */
+const CAPABILITY_NAMES: string[] = (() => {
+  const src = readFileSync(join(SRC, 'lib', 'permissions.ts'), 'utf8')
+  const block = src.split('export const CAPABILITIES')[1]?.split(']')[0] ?? ''
+  return [...block.matchAll(/'([a-z_]+)'/g)].map(m => m[1])
+})()
 const TS_FILES = walk(SRC, f => f.endsWith('.ts') || f.endsWith('.tsx'))
 const SQL_FILES = walk(SUPABASE_DIR, f => f.endsWith('.sql'))
 
@@ -336,5 +343,80 @@ describe('I6 — user input never lands unescaped in a PostgREST filter', () => 
       if (!verifies) offenders.push(rel(f))
     }
     expect(offenders).toEqual([])
+  })
+})
+
+/**
+ * Capabilities that lib/permissions.ts declares — with a label, a hint, and a
+ * toggle rendered in the admin UI — but which NO route handler or data module
+ * actually checks. A capability in this state is worse than a missing one: the
+ * owner switches it off, the UI reports it off, and the underlying route keeps
+ * allowing the action because it gates on a hardcoded role list instead.
+ *
+ * Verified 2026-09-12: the five below are declared and rendered but enforced
+ * nowhere; the routes they name (create-user, toggle-user, groups,
+ * group-students, invitations, reports) authorize by role only. That also
+ * means granting one to a center_manager does nothing, because those same
+ * role lists exclude center_manager entirely — the flag is inert in BOTH
+ * directions.
+ *
+ * This list must only ever shrink. Each entry removed is a capability that
+ * became a real control.
+ */
+const UNENFORCED_CAPABILITIES = new Set([
+  'manage_teachers',
+  'manage_students',
+  'manage_groups',
+  'manage_invitations',
+  'view_reports',
+])
+
+describe('I7 — every declared capability is actually enforced somewhere', () => {
+  /** Files that could enforce a capability: route handlers and data modules. */
+  const ENFORCEMENT_FILES = [
+    ...ROUTE_FILES,
+    ...walk(join(SRC, 'lib'), f => f.endsWith('.ts')),
+    ...walk(join(SRC, 'app'), f => f.endsWith('.tsx')),
+  ].filter(f => !f.includes('permissions.ts'))
+
+  function enforcedCapabilities(): Set<string> {
+    const found = new Set<string>()
+    const declared = read(join(SRC, 'lib', 'permissions.ts'))
+      .match(/^\s*'([a-z_]+)',$/gm)
+      ?.map(l => l.trim().replace(/[',]/g, '')) ?? []
+    for (const f of ENFORCEMENT_FILES) {
+      const src = read(f)
+      for (const cap of declared) {
+        if (src.includes(`'${cap}'`) || src.includes(`"${cap}"`)) found.add(cap)
+      }
+    }
+    return found
+  }
+
+  it('found the capability list and some enforcement sites', () => {
+    expect(CAPABILITY_NAMES.length).toBeGreaterThan(4)
+    expect(ENFORCEMENT_FILES.length).toBeGreaterThan(50)
+  })
+
+  it('introduces no NEW capability that is declared but never checked', () => {
+    const enforced = enforcedCapabilities()
+    const inert = CAPABILITY_NAMES
+      .filter(c => !enforced.has(c))
+      .filter(c => !UNENFORCED_CAPABILITIES.has(c))
+    expect(inert).toEqual([])
+  })
+
+  it('keeps the unenforced list honest — no stale entry that is now checked', () => {
+    // Once a capability gains a real check, it must leave the list, so the
+    // list always states the true size of the gap.
+    const enforced = enforcedCapabilities()
+    const stale = [...UNENFORCED_CAPABILITIES].filter(c => enforced.has(c))
+    expect(stale).toEqual([])
+  })
+
+  it('does not let the unenforced list grow to cover every capability', () => {
+    // A guard against "fixing" a failure by adding the name to the allowlist
+    // until the whole model is exempt.
+    expect(UNENFORCED_CAPABILITIES.size).toBeLessThan(CAPABILITY_NAMES.length)
   })
 })
