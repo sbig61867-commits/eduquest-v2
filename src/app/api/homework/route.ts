@@ -85,6 +85,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Verify the target group too — it is client-supplied and decides who the
+  // homework is served to. Without this check a teacher could post homework
+  // into a colleague's group, or into a group in another tenant entirely
+  // (the row would still be stamped with the caller's own tenant_id, so the
+  // tenant column alone never catches it). /api/exams and /api/lessons both
+  // already do this; homework was the one creator that skipped it.
+  const { data: group } = await adminClient()
+    .from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
+  if (!group || group.tenant_id !== profile.tenant_id) {
+    return NextResponse.json({ error: 'Group not found' }, { status: 404 })
+  }
+  if (profile.role === 'teacher' && group.teacher_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   // Students see homework in lists detached from the lesson (exams page,
   // grades) — bake the lesson name into the title so it's always clear
   // which class session the homework belongs to.

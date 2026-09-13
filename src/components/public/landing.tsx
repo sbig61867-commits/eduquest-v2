@@ -316,7 +316,7 @@ export function Landing() {
                   <div className="absolute inset-0 bg-gradient-to-br from-slate-700/40 to-slate-900" />
                   <Users className="absolute inset-0 m-auto w-6 h-6 text-slate-600" />
                   {i === 1 && (
-                    <span className="absolute top-1.5 end-1.5 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    <span className="absolute top-1.5 end-1.5 flex items-center gap-1 bg-emerald-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                       <Volume2 className="w-2.5 h-2.5" /> {lang === 'ar' ? 'يتكلم' : 'speaking'}
                     </span>
                   )}

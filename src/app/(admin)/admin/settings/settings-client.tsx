@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Settings, CheckCircle2 } from 'lucide-react'
@@ -24,7 +23,6 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
-  const supabase = createClient()
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -33,16 +31,24 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
     setError('')
     setSaved(false)
 
-    const { error: err } = await supabase
-      .from('tenants')
-      .update({ name: form.name.trim(), logo_url: form.logo_url.trim() || null })
-      .eq('id', tenant.id)
-
-    if (err) {
-      setError(err.message)
-    } else {
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+    // Goes through the API route: a direct browser update of `tenants` is
+    // silently filtered to 0 rows by RLS for a university_admin (no error),
+    // which used to show "saved" while nothing was stored.
+    try {
+      const res = await fetch('/api/admin/tenant-branding', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name.trim(), logo_url: form.logo_url.trim() }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error ?? 'تعذّر حفظ الإعدادات')
+      } else {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      }
+    } catch {
+      setError('خطأ في الشبكة، حاول مرة أخرى')
     }
     setLoading(false)
   }

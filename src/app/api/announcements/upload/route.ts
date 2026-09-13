@@ -17,6 +17,21 @@ const ALLOWED = new Map<string, string>([
   ['image/gif', 'gif'],
 ])
 
+// The client-supplied Content-Type header is not proof of the actual bytes —
+// check the real file signature (magic numbers) so a renamed/relabeled
+// non-image file can't ride through the MIME allowlist above.
+function sniffedType(bytes: Uint8Array): string | null {
+  if (bytes.length < 12) return null
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'image/gif'
+  if (
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) return 'image/webp'
+  return null
+}
+
 function adminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -55,13 +70,21 @@ export async function POST(request: Request) {
   if (!ext) return NextResponse.json({ error: 'صيغة غير مدعومة (JPG/PNG/WebP/GIF فقط)' }, { status: 400 })
   if (file.size > MAX_BYTES) return NextResponse.json({ error: 'حجم الصورة يتجاوز 4 ميغابايت' }, { status: 400 })
 
+  const bytes = new Uint8Array(await file.arrayBuffer())
+
+  // Verify the actual bytes match a real image signature — the declared
+  // Content-Type above is client-supplied and not trustworthy on its own.
+  const realType = sniffedType(bytes)
+  if (!realType || !ALLOWED.has(realType)) {
+    return NextResponse.json({ error: 'محتوى الملف لا يطابق صورة صالحة' }, { status: 400 })
+  }
+
   const admin = adminClient()
   // Tenant-scoped path keeps one institution's uploads out of another's folder.
   const path = `${profile.tenant_id}/${crypto.randomUUID()}.${ext}`
-  const bytes = new Uint8Array(await file.arrayBuffer())
 
   const { error } = await admin.storage.from(BUCKET).upload(path, bytes, {
-    contentType: file.type,
+    contentType: realType,
     upsert: false,
   })
   if (error) {

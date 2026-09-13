@@ -1,0 +1,43 @@
+name: CI
+
+# Added 2026-09-13 after the audit found the only workflow was secret-scan:
+# 63 unit tests existed but nothing ran them, so a change that broke them
+# could merge unnoticed (12 of them were in fact silently failing until the
+# same audit fixed them). This job runs the checks that need no secrets.
+#
+# Deliberately NOT here: tests/tenant-isolation.spec.ts and
+# tests/security-auth.spec.ts — both hit live production and the isolation
+# suite creates/deletes real accounts with the service-role key. Run those
+# by hand (see SECURITY_TEST_MATRIX.md), never automatically on every push.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: typecheck · lint · unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        # --pool=threads: the default fork pool intermittently fails to start
+        # a worker (documented in CLAUDE.md).
+        run: npx vitest run --pool=threads

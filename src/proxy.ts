@@ -3,7 +3,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
@@ -14,6 +14,14 @@ const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitatio
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
   return PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))
+}
+
+// A state-changing API call — the only requests worth spending a DB round-trip
+// on to re-verify account status against the live row rather than the JWT.
+const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
+
+function isMutatingApiRequest(request: NextRequest, pathname: string): boolean {
+  return pathname.startsWith('/api/') && MUTATING_METHODS.has(request.method)
 }
 
 const ROLE_ROUTES: Record<string, Role[]> = {
@@ -94,6 +102,27 @@ export async function proxy(request: NextRequest) {
 
   if (isActive === false) {
     return NextResponse.redirect(new URL('/login?error=account_disabled', request.url))
+  }
+
+  // `is_active` above came from the JWT, which is only re-minted when the
+  // access token refreshes (~1h). So an account disabled a minute ago still
+  // presents is_active: true, and every API route handler trusts the session
+  // without re-reading the flag — a suspended teacher could keep creating and
+  // grading for up to an hour with a stale-but-valid token. <TenantWatcher>
+  // catches this in ~60s, but only for a real browser sitting on a page; a
+  // script holding the token ignores it entirely.
+  //
+  // Re-read the live flag from the DB for WRITES only. Reads stay on the
+  // pure-JWT fast path, so the per-navigation latency win that motivated
+  // getClaims() is preserved — mutations are rare and already do DB work.
+  if (isMutatingApiRequest(request, pathname)) {
+    const { data: live } = await supabase
+      .from('users').select('is_active').eq('id', user.sub).single()
+    // Fail closed on an explicit false; a missing row or query error leaves
+    // the JWT verdict standing rather than locking everyone out on a blip.
+    if (live?.is_active === false) {
+      return NextResponse.json({ error: 'Account disabled' }, { status: 403 })
+    }
   }
 
   if (!role) {

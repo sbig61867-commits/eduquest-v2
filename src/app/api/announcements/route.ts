@@ -39,6 +39,30 @@ async function validateGroups(admin: ReturnType<typeof adminClient>, tenantId: s
   return (data ?? []).length === groupIds.length
 }
 
+/** Only accept image URLs actually hosted in our own public bucket. */
+function isOwnBucketImage(url: string): boolean {
+  try {
+    const base = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
+    const u = new URL(url)
+    return u.protocol === 'https:' && u.host === base.host &&
+      u.pathname.includes('/storage/v1/object/public/announcement-images/')
+  } catch { return false }
+}
+
+/** starts_at/ends_at must be valid ISO instants, end strictly after start. */
+function validateWindow(startsAt: unknown, endsAt: unknown): string | null {
+  const start = startsAt ? new Date(String(startsAt)) : null
+  const end = endsAt ? new Date(String(endsAt)) : null
+  if (start && isNaN(start.getTime())) return 'تاريخ البداية غير صالح'
+  if (end && isNaN(end.getTime())) return 'تاريخ النهاية غير صالح'
+  if (start && end && end.getTime() <= start.getTime()) return 'يجب أن يكون تاريخ النهاية بعد تاريخ البداية'
+  return null
+}
+
+const MAX_TITLE = 200
+const MAX_BODY = 4000
+const MAX_CTA = 60
+
 export async function POST(request: Request) {
   const auth = await authorize()
   if ('error' in auth) return auth.error
@@ -49,6 +73,9 @@ export async function POST(request: Request) {
 
   const title = String(body.title ?? '').trim()
   if (!title) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
+  if (title.length > MAX_TITLE) return NextResponse.json({ error: 'العنوان طويل جداً' }, { status: 400 })
+  if (body.body && String(body.body).length > MAX_BODY) return NextResponse.json({ error: 'النص طويل جداً' }, { status: 400 })
+  if (body.cta_label && String(body.cta_label).length > MAX_CTA) return NextResponse.json({ error: 'نص الزر طويل جداً' }, { status: 400 })
 
   if (body.link_url) {
     const scheme = String(body.link_url).trim().toLowerCase()
@@ -56,6 +83,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'رابط الزر يجب أن يبدأ بـ https:// أو http://' }, { status: 400 })
     }
   }
+
+  if (body.image_url && !isOwnBucketImage(String(body.image_url))) {
+    return NextResponse.json({ error: 'الصورة يجب رفعها عبر أداة الرفع' }, { status: 400 })
+  }
+
+  const windowError = validateWindow(body.starts_at, body.ends_at)
+  if (windowError) return NextResponse.json({ error: windowError }, { status: 400 })
 
   const audience = body.audience === 'groups' ? 'groups' : 'all'
   const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : []
@@ -118,7 +152,14 @@ export async function PATCH(request: Request) {
   if (body.title !== undefined) {
     const t = String(body.title).trim()
     if (!t) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
+    if (t.length > MAX_TITLE) return NextResponse.json({ error: 'العنوان طويل جداً' }, { status: 400 })
     update.title = t
+  }
+  if (body.body !== undefined && body.body && String(body.body).length > MAX_BODY) {
+    return NextResponse.json({ error: 'النص طويل جداً' }, { status: 400 })
+  }
+  if (body.cta_label !== undefined && body.cta_label && String(body.cta_label).length > MAX_CTA) {
+    return NextResponse.json({ error: 'نص الزر طويل جداً' }, { status: 400 })
   }
   if (body.link_url !== undefined && body.link_url) {
     const scheme = String(body.link_url).trim().toLowerCase()
@@ -126,11 +167,25 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'رابط الزر يجب أن يبدأ بـ https:// أو http://' }, { status: 400 })
     }
   }
+  if (body.image_url !== undefined && body.image_url && !isOwnBucketImage(String(body.image_url))) {
+    return NextResponse.json({ error: 'الصورة يجب رفعها عبر أداة الرفع' }, { status: 400 })
+  }
   for (const f of ['body', 'image_url', 'link_url', 'cta_label'] as const) {
     if (body[f] !== undefined) update[f] = body[f] ? String(body[f]) : null
   }
   for (const f of ['starts_at', 'ends_at'] as const) {
     if (body[f] !== undefined) update[f] = body[f] ? String(body[f]) : null
+  }
+  {
+    // Validate the effective window: merge any changed field(s) with the
+    // existing row so a partial PATCH (e.g. only ends_at) is still checked
+    // against the real start/end pair, not just the field(s) sent this call.
+    const { data: currentRow } = await admin
+      .from('announcements').select('starts_at, ends_at').eq('id', id).single()
+    const effectiveStart = 'starts_at' in update ? update.starts_at : currentRow?.starts_at ?? null
+    const effectiveEnd = 'ends_at' in update ? update.ends_at : currentRow?.ends_at ?? null
+    const windowError = validateWindow(effectiveStart, effectiveEnd)
+    if (windowError) return NextResponse.json({ error: windowError }, { status: 400 })
   }
   if (body.is_published !== undefined) update.is_published = body.is_published === true
 

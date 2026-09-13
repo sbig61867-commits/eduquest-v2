@@ -18,12 +18,12 @@ function adminClient() {
  *
  * Receives student answers + client-only proctoring events, calculates
  * score server-side from DB (never trusts client score), merges with
- * server-written proctoring_events already in DB, then writes final record.
+ * proctoring_events already persisted in DB by /api/proctor/events, then writes final record.
  *
  * Security properties:
  * - correct_answer never leaves the server — grading is authoritative
  * - score cannot be forged by the client
- * - proctoring_events from server (Gemini) are preserved and merged
+ * - proctoring_events already in DB (from the on-device detectors) are preserved and merged
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Merge server-written violations (already in DB from Gemini) with
+  // Merge violations already persisted by /api/proctor/events with
   // client-only events (tab_switch, fullscreen_exit, audio_detected).
   // Only accept client events with known safe types to prevent injection.
   const allowedClientTypes = new Set(['tab_switch', 'fullscreen_exit', 'audio_detected'])
@@ -170,5 +170,13 @@ export async function POST(request: Request) {
     if (!pubError) published = true
   }
 
-  return NextResponse.json({ score: out.score, maxScore: out.max_score, published })
+  // Withhold the score until it is actually published. The client already
+  // hides it (exam-taker only renders finalScore when published), but sending
+  // it anyway means a student can read their provisional mark straight out of
+  // the network tab before the teacher has reviewed the essay answers.
+  // Deciding this server-side makes the client check cosmetic rather than the
+  // only thing standing between the student and an unpublished grade.
+  return published
+    ? NextResponse.json({ score: out.score, maxScore: out.max_score, published: true })
+    : NextResponse.json({ published: false })
 }

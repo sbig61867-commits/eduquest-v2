@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { canManageAccountRole } from '@/lib/staff-auth'
 
 function adminClient() {
   return createAdminClient(
@@ -16,9 +17,9 @@ export async function PATCH(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: caller } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
+    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
-  if (!caller || !['university_admin', 'super_admin'].includes(caller.role)) {
+  if (!caller || !['university_admin', 'super_admin', 'center_manager'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -44,6 +45,10 @@ export async function PATCH(request: Request) {
   // Prevent disabling a super_admin
   if (target.role === 'super_admin') {
     return NextResponse.json({ error: 'Cannot modify a super admin account' }, { status: 403 })
+  }
+  // A centre manager may only (de)activate teachers/students, behind the matching flag.
+  if (caller.role === 'center_manager' && !canManageAccountRole(caller, target.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { error } = await adminClient()

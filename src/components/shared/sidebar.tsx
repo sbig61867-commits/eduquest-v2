@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   LogOut, ChevronLeft,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
-  GraduationCap, BookOpen, ClipboardList, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays,
+  GraduationCap, BookOpen, ClipboardList, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel,
 } from 'lucide-react'
 
 const ICONS = {
@@ -30,6 +30,7 @@ const ICONS = {
   Inbox,
   Archive,
   CalendarDays,
+  Gavel,
 } as const
 
 export type IconName = keyof typeof ICONS

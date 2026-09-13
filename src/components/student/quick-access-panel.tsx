@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
@@ -73,9 +73,10 @@ export function StudentQuickAccessPanel() {
     }
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (open && !data) fetchData()
-  }, [open, data, fetchData])
+  // Fetching is triggered from the toggle handler below, not from an effect
+  // reacting to `open` — calling setState (via fetchData) synchronously inside
+  // an effect body causes cascading renders; doing it from the user gesture
+  // that opens the panel avoids that entirely.
 
   const sections = data ? [
     {
@@ -105,7 +106,13 @@ export function StudentQuickAccessPanel() {
     <>
       {/* Toggle button — fixed to right edge */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => {
+          setOpen(v => {
+            const next = !v
+            if (next && !data) fetchData()
+            return next
+          })
+        }}
         className={cn(
           'fixed right-0 top-1/2 -translate-y-1/2 z-40',
           'bg-slate-800 hover:bg-slate-700 border border-slate-700 border-r-0',

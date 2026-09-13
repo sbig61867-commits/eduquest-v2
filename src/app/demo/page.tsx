@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { GraduationCap, Users, ShieldCheck, Building2 } from 'lucide-react'
+
+export const metadata: Metadata = {
+  title: 'العرض التجريبي — EduQuest',
+  description: 'تصفّح منصة EduQuest بأربعة أدوار ببيانات وهمية وبدون تسجيل دخول. EduQuest interactive demo.',
+}
 
 const roles = [
   { href: '/demo/admin', label: 'مدير الجامعة', desc: 'إدارة المعلمين، الطلاب، الكورسات والطلبات', icon: ShieldCheck, color: 'text-blue-400', bg: 'bg-blue-500/10' },

@@ -30,7 +30,6 @@ export default async function SettingsPage() {
     resend: !!process.env.RESEND_API_KEY,
     serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     appUrl: process.env.NEXT_PUBLIC_APP_URL ?? null,
-    serverProctoring: process.env.NEXT_PUBLIC_SERVER_PROCTORING === 'true',
   }
 
   return <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} />

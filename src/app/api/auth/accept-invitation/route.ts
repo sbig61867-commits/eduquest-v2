@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkStudentLimit, STUDENT_LIMIT_MESSAGE } from '@/lib/student-limit'
 
 function getAdminClient() {
   return createAdminClient(
@@ -72,6 +73,17 @@ export async function POST(request: Request) {
         { error: 'The email address does not match this invitation.' },
         { status: 403 }
       )
+    }
+  }
+
+  // ── Step 2b: plan seat cap (students only) ───────────────────
+  // Checked before the auth user is created so a refusal needs no rollback.
+  // Public multi-use links are the main way a tenant could silently exceed
+  // its plan, so this is the check that actually matters in practice.
+  if (inv.role === 'student') {
+    const seat = await checkStudentLimit(admin, inv.tenant_id)
+    if (!seat.allowed) {
+      return NextResponse.json({ error: STUDENT_LIMIT_MESSAGE }, { status: 403 })
     }
   }
 

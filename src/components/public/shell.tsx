@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Languages } from 'lucide-react'
+import { pricingEnabled } from '@/lib/pricing/plans'
 
 export type Lang = 'ar' | 'en'
 
@@ -18,6 +19,13 @@ export function useLang(): [Lang, (l: Lang) => void] {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved === 'en') setLangState('en')
   }, [])
+  // The root <html> is rendered lang="en" (dashboards are English-labelled),
+  // but public pages default to Arabic — keep the document language in step
+  // with what is actually on screen so screen readers pronounce it correctly
+  // (WCAG 3.1.1). Only the attribute; direction stays on each page wrapper.
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
   const setLang = (l: Lang) => {
     setLangState(l)
     localStorage.setItem('public-lang', l)
@@ -27,8 +35,8 @@ export function useLang(): [Lang, (l: Lang) => void] {
 
 export function PublicNav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
   const t = lang === 'ar'
-    ? { login: 'تسجيل الدخول', toggle: 'English', features: 'المميزات', contact: 'تواصل معنا' }
-    : { login: 'Sign In', toggle: 'العربية', features: 'Features', contact: 'Contact' }
+    ? { login: 'تسجيل الدخول', toggle: 'English', features: 'المميزات', pricing: 'الأسعار', contact: 'تواصل معنا' }
+    : { login: 'Sign In', toggle: 'العربية', features: 'Features', pricing: 'Pricing', contact: 'Contact' }
   return (
     <nav className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur border-b border-slate-800">
       <div className="max-w-6xl mx-auto px-2 sm:px-6 h-16 flex items-center justify-between gap-1">
@@ -41,6 +49,11 @@ export function PublicNav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
             <Link href="/features" className="px-1.5 sm:px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm transition-colors whitespace-nowrap">
               {t.features}
             </Link>
+            {pricingEnabled && (
+              <Link href="/pricing" className="px-1.5 sm:px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm transition-colors whitespace-nowrap">
+                {t.pricing}
+              </Link>
+            )}
             <Link href="/contact" className="px-1.5 sm:px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm transition-colors whitespace-nowrap">
               {t.contact}
             </Link>
@@ -68,13 +81,14 @@ export function PublicNav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
 
 export function PublicFooter({ lang }: { lang: Lang }) {
   const t = lang === 'ar'
-    ? { rights: 'جميع الحقوق محفوظة', privacy: 'سياسة الخصوصية', terms: 'شروط الاستخدام', contact: 'تواصل معنا' }
-    : { rights: 'All rights reserved', privacy: 'Privacy Policy', terms: 'Terms of Use', contact: 'Contact Us' }
+    ? { rights: 'جميع الحقوق محفوظة', pricing: 'الأسعار', privacy: 'سياسة الخصوصية', terms: 'شروط الاستخدام', contact: 'تواصل معنا' }
+    : { rights: 'All rights reserved', pricing: 'Pricing', privacy: 'Privacy Policy', terms: 'Terms of Use', contact: 'Contact Us' }
   return (
     <footer className="border-t border-slate-800 mt-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-slate-500 text-sm">© {new Date().getFullYear()} EduQuest — {t.rights}</p>
+        <p className="text-slate-400 text-sm">© {new Date().getFullYear()} EduQuest — {t.rights}</p>
         <div className="flex items-center gap-5 text-sm">
+          {pricingEnabled && <Link href="/pricing" className="text-slate-400 hover:text-white transition-colors">{t.pricing}</Link>}
           <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">{t.privacy}</Link>
           <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">{t.terms}</Link>
           <Link href="/contact" className="text-slate-400 hover:text-white transition-colors">{t.contact}</Link>

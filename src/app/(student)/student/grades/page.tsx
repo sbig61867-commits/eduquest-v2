@@ -6,6 +6,7 @@ import { BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import type { Question } from '@/types'
+import { AppealButton, type AppealSummary } from '@/components/student/appeal-panel'
 
 interface RawSubmission {
   id: string
@@ -13,6 +14,7 @@ interface RawSubmission {
   score: number
   max_score: number | null
   submitted_at: string
+  proctoring_events: Array<{ type?: string }> | null
 }
 interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[] }
 
@@ -27,12 +29,25 @@ export default async function GradesPage() {
   const [{ data: raw }, { data: rpcExams }] = await Promise.all([
     supabase
       .from('exam_submissions')
-      .select('id, exam_id, score, max_score, submitted_at')
+      .select('id, exam_id, score, max_score, submitted_at, proctoring_events')
       .eq('student_id', user.id)
       .not('score', 'is', null)
       .order('submitted_at', { ascending: false }),
     supabase.rpc('get_student_exams'),
   ])
+
+  // A student has no RLS read on exam_appeals rows other than their own
+  // (student_id = auth.uid()), so this is a direct, un-elevated query.
+  const submissionIds = (raw ?? []).map(s => s.id)
+  const { data: appeals } = submissionIds.length
+    ? await supabase
+        .from('exam_appeals')
+        .select('id, submission_id, status, student_message, teacher_response, created_at, resolved_at')
+        .in('submission_id', submissionIds)
+    : { data: [] as never[] }
+  const appealMap = new Map<string, AppealSummary>(
+    (appeals ?? []).map(a => [a.submission_id, a as unknown as AppealSummary])
+  )
 
   const examMap = new Map<string, RpcExam>(
     ((rpcExams ?? []) as RpcExam[]).map(e => [e.id, e])
@@ -50,6 +65,7 @@ export default async function GradesPage() {
       homework: isHomework(exam),
       max,
       pct: Math.round(((sub.score ?? 0) / (max || 1)) * 100),
+      flagged: (sub.proctoring_events ?? []).some(e => e.type !== 'detector_unavailable'),
     }
   })
 
@@ -97,6 +113,7 @@ export default async function GradesPage() {
                 <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Score</th>
                 <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Date</th>
                 <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Result</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مراقبة</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -115,6 +132,11 @@ export default async function GradesPage() {
                     </td>
                     <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(sub.submitted_at)}</td>
                     <td className="px-5 py-4"><Badge variant={passed ? 'green' : 'red'}>{passed ? 'Passed' : 'Failed'}</Badge></td>
+                    <td className="px-5 py-4">
+                      {sub.flagged && (
+                        <AppealButton submissionId={sub.id} existing={appealMap.get(sub.id) ?? null} />
+                      )}
+                    </td>
                   </tr>
                 )
               })}

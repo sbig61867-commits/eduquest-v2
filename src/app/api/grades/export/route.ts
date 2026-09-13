@@ -72,8 +72,8 @@ export async function GET(request: Request) {
     [key: string]: string | number | null
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: StudentRow[] = (members as any[]).map((m: any) => {
+  type MemberRow = { student_id: string; users: { full_name: string | null; email: string | null } | null }
+  const rows: StudentRow[] = (members as unknown as MemberRow[]).map((m) => {
     const row: StudentRow = {
       student_id: m.student_id,
       full_name: m.users?.full_name ?? 'Unknown',

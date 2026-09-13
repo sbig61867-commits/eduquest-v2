@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
 import type { ProctoringEvent, Question } from '@/types'
+import { AppealReviewList, type AppealRow } from '@/components/teacher/appeal-review-list'
 
 type ViolationIconKey = keyof typeof VIOLATION_ICONS
 
@@ -18,6 +19,7 @@ const VIOLATION_ICONS = {
   looking_away:      Eye,
   audio_detected:    Mic,
   suspicious_activity: AlertTriangle,
+  camera_stopped:    Eye,
 } as const
 
 const VIOLATION_LABELS: Record<string, string> = {
@@ -28,7 +30,15 @@ const VIOLATION_LABELS: Record<string, string> = {
   looking_away:        'Looking Away',
   audio_detected:      'Loud Audio',
   suspicious_activity: 'Suspicious Object',
+  camera_stopped:      'Camera/Mic Stopped',
 }
+
+// Proctoring runs on the student's device. If a detector fails to load there
+// (old browser, blocked CDN, no WebGL/CPU support), the attempt was only
+// partially monitored. That is recorded as `detector_unavailable` — it is NOT
+// a violation and must not flag the student, but the teacher must see it so
+// "no violations" is never read as "verified clean".
+const isMonitoringGap = (e: ProctoringEvent) => e.type === 'detector_unavailable'
 
 interface ExamRow { title: string; teacher_id: string; proctoring_enabled: boolean; questions: Question[] }
 interface UserRow  { full_name: string; email: string }
@@ -55,8 +65,18 @@ export default async function ProctoringReportsPage() {
 
   const submissions = (raw ?? []) as unknown as SubmissionRow[]
 
-  const flagged = submissions.filter(s => (s.proctoring_events ?? []).length > 0)
-  const clean   = submissions.filter(s => (s.proctoring_events ?? []).length === 0)
+  // Pending appeals directed at this teacher — exam_appeals_select already
+  // scopes to teacher_id = auth.uid(), no service-role needed.
+  const { data: pendingAppeals } = await supabase
+    .from('exam_appeals')
+    .select('id, student_name, exam_title, group_name, violation_type, student_message, created_at')
+    .eq('teacher_id', user.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+
+  const violationCount = (s: SubmissionRow) => (s.proctoring_events ?? []).filter(e => !isMonitoringGap(e)).length
+  const flagged = submissions.filter(s => violationCount(s) > 0)
+  const clean   = submissions.filter(s => violationCount(s) === 0)
 
   // Proctored exams the teacher can watch live right now.
   const { data: liveExams } = await supabase
@@ -75,6 +95,8 @@ export default async function ProctoringReportsPage() {
         <h2 className="text-2xl font-bold text-white">Proctoring Reports</h2>
         <p className="text-slate-400 mt-1">Exam integrity monitoring for all proctored exams</p>
       </div>
+
+      <AppealReviewList appeals={(pendingAppeals ?? []) as AppealRow[]} />
 
       {(liveExams ?? []).length > 0 && (
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
@@ -118,7 +140,9 @@ export default async function ProctoringReportsPage() {
       ) : (
         <div className="space-y-4">
           {submissions.map(sub => {
-            const events: ProctoringEvent[] = sub.proctoring_events ?? []
+            const allEvents: ProctoringEvent[] = sub.proctoring_events ?? []
+            const events = allEvents.filter(e => !isMonitoringGap(e))
+            const gaps = allEvents.filter(isMonitoringGap)
             const isFlagged = events.length > 0
             const max = sub.exams?.questions?.reduce((a, q) => a + q.points, 0) || 1
             const pct = Math.round(((sub.score ?? 0) / max) * 100)
@@ -135,6 +159,19 @@ export default async function ProctoringReportsPage() {
                     <p className="text-slate-500 text-xs mt-0.5">Score: {sub.score}/{max} ({pct}%) · {formatDateTime(sub.submitted_at)}</p>
                   </div>
                 </div>
+
+                {gaps.length > 0 && (
+                  <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-amber-300 text-sm font-medium">Monitoring incomplete on this student&apos;s device</p>
+                      <p className="text-slate-400 text-xs">
+                        A detector could not load ({gaps.map(g => g.details?.split(':')[0]).filter(Boolean).join(', ') || 'unknown'}).
+                        Not a violation — but a lack of flags here is not proof of a clean attempt.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {events.length > 0 && (
                   <div className="space-y-2">

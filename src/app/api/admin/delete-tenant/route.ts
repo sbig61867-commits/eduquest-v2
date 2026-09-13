@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { rateLimit } from '@/lib/rate-limit'
 
 function adminClient() {
   return createAdminClient(
@@ -23,6 +24,16 @@ export async function DELETE(request: Request) {
     .from('users').select('role').eq('id', caller.id).single()
   if (callerProfile?.role !== 'super_admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Catastrophic + irreversible: cap it even for super_admin, mainly as a
+  // circuit breaker against a compromised session or a scripting mistake.
+  const rl = await rateLimit(`delete-tenant:${caller.id}`, { limit: 5, windowSecs: 3600 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
   }
 
   const tenantId = new URL(request.url).searchParams.get('id')

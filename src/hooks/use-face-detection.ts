@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 
 type OnViolation = (type: string, details?: string) => void
+type OnUnavailable = (detector: string, reason: string) => void
 
 interface Keypoint { x: number; y: number }
 interface BoundingBox { originX: number; originY: number; width: number; height: number }
@@ -15,14 +16,28 @@ interface FaceDetectorInstance {
   close?(): void
 }
 
+// Pinned to the installed @mediapipe/tasks-vision version. This used to load
+// "@latest" from the CDN, so any future MediaPipe release with a breaking WASM
+// change would have silently disabled face detection for every exam (load
+// errors were swallowed). Bump together with package.json.
+const MEDIAPIPE_VERSION = '0.10.35'
+const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}/wasm`
+const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+const SAMPLE_INTERVAL_MS = 4000
+
+// Runs entirely on the student's device (WASM + WebGL/CPU). No frame ever
+// leaves the browser for analysis.
 export function useFaceDetection(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   enabled: boolean,
-  onViolation: OnViolation
+  onViolation: OnViolation,
+  onUnavailable?: OnUnavailable,
 ) {
   const detectorRef = useRef<FaceDetectorInstance | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const loadedRef = useRef(false)
+  // Latest callback without re-initialising the model when its identity changes.
+  const onUnavailableRef = useRef(onUnavailable)
+  useEffect(() => { onUnavailableRef.current = onUnavailable }, [onUnavailable])
 
   const analyze = useCallback(async () => {
     if (!videoRef.current || !detectorRef.current) return
@@ -78,32 +93,37 @@ export function useFaceDetection(
 
   useEffect(() => {
     if (!enabled) return
-    loadedRef.current = true
     let cancelled = false
 
     async function init() {
       const { FaceDetector, FilesetResolver } = await import('@mediapipe/tasks-vision')
-      const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-      )
+      const vision = await FilesetResolver.forVisionTasks(WASM_BASE)
       if (cancelled) return
-      detectorRef.current = await FaceDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
-          delegate: 'GPU',
-        },
+
+      const create = (delegate: 'GPU' | 'CPU') => FaceDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate },
         runningMode: 'VIDEO',
         minDetectionConfidence: 0.5,
       })
+
+      // GPU first; low-end or WebGL-less devices fall back to CPU instead of
+      // silently running with no face detection at all.
+      try {
+        detectorRef.current = await create('GPU')
+      } catch {
+        detectorRef.current = await create('CPU')
+      }
       if (cancelled) { detectorRef.current?.close?.(); return }
-      intervalRef.current = setInterval(analyze, 4000)
+      intervalRef.current = setInterval(analyze, SAMPLE_INTERVAL_MS)
     }
 
-    init().catch(() => {})
+    init().catch(err => {
+      if (cancelled) return
+      onUnavailableRef.current?.('face_detection', err instanceof Error ? err.message : String(err))
+    })
 
     return () => {
       cancelled = true
-      loadedRef.current = false
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
       detectorRef.current?.close?.()
       detectorRef.current = null

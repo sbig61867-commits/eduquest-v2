@@ -4,6 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { sendInvitationEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
 import { getInvitationDefaults } from '@/lib/settings'
+import { canManageAccountRole } from '@/lib/staff-auth'
 
 function getAdminClient() {
   return createAdminClient(
@@ -17,6 +18,7 @@ function getAdminClient() {
 const ROLE_CEILING: Record<string, string[]> = {
   super_admin:      ['university_admin', 'center_manager', 'teacher', 'student'],
   university_admin: ['center_manager', 'teacher', 'student'],
+  center_manager:   ['teacher', 'student'],
   teacher:          ['student'],
 }
 
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: caller } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
+    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
   if (!caller) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
 
   if (!ROLE_CEILING[caller.role]) {
@@ -114,6 +116,9 @@ export async function POST(request: Request) {
       { error: `Your role (${caller.role}) cannot invite a ${role}` },
       { status: 403 }
     )
+  }
+  if (caller.role === 'center_manager' && !canManageAccountRole(caller, role)) {
+    return NextResponse.json({ error: 'لا تملك صلاحية دعوة هذا النوع من الحسابات' }, { status: 403 })
   }
 
   // ── Public link rules ────────────────────────────────────

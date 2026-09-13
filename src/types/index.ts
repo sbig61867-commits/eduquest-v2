@@ -81,7 +81,7 @@ export interface ExamSubmission {
 }
 
 export interface ProctoringEvent {
-  type: 'tab_switch' | 'fullscreen_exit' | 'face_not_detected' | 'multiple_faces' | 'audio_detected' | 'looking_away' | 'suspicious_activity'
+  type: 'tab_switch' | 'fullscreen_exit' | 'face_not_detected' | 'multiple_faces' | 'audio_detected' | 'looking_away' | 'suspicious_activity' | 'detector_unavailable' | 'camera_stopped'
   timestamp: string
   details?: string
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { staffCan } from '@/lib/staff-auth'
 
 function adminClient() {
   return createAdminClient(
@@ -16,11 +17,12 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role, tenant_id')
+    .select('role, tenant_id, permissions')
     .eq('id', userId)
     .single()
 
-  if (!profile?.tenant_id || !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? '')) {
+  const managerAllowed = profile?.role === 'center_manager' && staffCan(profile, 'manage_groups')
+  if (!profile?.tenant_id || (!managerAllowed && !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? ''))) {
     return { error: 'Forbidden', status: 403, profile: null, group: null }
   }
 

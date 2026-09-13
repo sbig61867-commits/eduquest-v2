@@ -3,11 +3,10 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
-import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic, Monitor } from 'lucide-react'
 import type { Exam, Question, ProctoringEvent } from '@/types'
 import { useFaceDetection } from '@/hooks/use-face-detection'
 import { useObjectDetection } from '@/hooks/use-object-detection'
-import { useServerProctoring } from '@/hooks/use-server-proctoring'
 import { useLivePublish } from '@/hooks/use-live-publish'
 import { useProctorRecorder } from '@/hooks/use-proctor-recorder'
 import { useEvidenceCapture } from '@/hooks/use-evidence-capture'
@@ -39,13 +38,13 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const [submitted, setSubmitted] = useState(false)
   const [finalScore, setFinalScore] = useState<{ score: number; maxScore: number } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const analyzerRef = useRef<AnalyserNode | null>(null)
   const audioIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const handleSubmitRef = useRef<() => void>(() => {})
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'active' | 'error'>('idle')
+  const [consentGiven, setConsentGiven] = useState(false)
 
   const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
 
@@ -87,8 +86,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   }, [answers, started, submitted, draftKey])
 
   // ── Event recorder: persists local detections to the DB, batched + deduped,
-  //    with ZERO AI. This is the new primary record path (replaces the Gemini
-  //    frame layer, which is now disabled behind NEXT_PUBLIC_SERVER_PROCTORING). ──
+  //    with ZERO AI. The only proctoring data that reaches the server is these
+  //    compact event records (plus capped evidence snapshots below). ──
   const { record: recordEvent, flush: flushEvents } = useProctorRecorder(exam.id, proctoringActive)
 
   // ── Evidence capture: one snapshot on SEVERE violations only (no AI, no
@@ -107,6 +106,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       tab_switch: '⚠️ Tab switch detected!',
       fullscreen_exit: '⚠️ Please return to fullscreen mode!',
       face_not_detected: '⚠️ Face not detected — look at the camera!',
+      camera_stopped: '⚠️ Camera/microphone disconnected — please reconnect immediately!',
       multiple_faces: '⚠️ Multiple faces detected!',
       audio_detected: '⚠️ Loud audio detected!',
       looking_away: '⚠️ Please look at the screen!',
@@ -120,24 +120,22 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   //    in real time (no-ops when LiveKit isn't configured). ──
   useLivePublish(exam.id, proctoringActive)
 
-  // ── Local detection layers (in-browser, no API) — now the PRIMARY monitors ──
-  // MediaPipe: face detection + gaze direction
-  useFaceDetection(videoRef, proctoringActive, addViolation)
-  // TensorFlow COCO-SSD: phone, book, extra person detection
-  useObjectDetection(videoRef, proctoringActive, addViolation)
+  // A detector that fails to load on this device is NOT the student's fault,
+  // so it is recorded for the teacher (so "no events" is never mistaken for a
+  // clean attempt) but not shown as a violation or counted against them.
+  const onDetectorUnavailable = useCallback((detector: string, reason: string) => {
+    recordEvent('detector_unavailable', `${detector}: ${reason}`)
+  }, [recordEvent])
 
-  // ── Legacy Gemini frame layer — DISABLED behind NEXT_PUBLIC_SERVER_PROCTORING
-  //    (kept intact for rollback). Inert while the flag is off: flushAsync no-ops
-  //    and no frame is ever sent to /api/proctor/analyze. ──
-  const { flushAsync } = useServerProctoring(
-    videoRef,
-    canvasRef,
-    exam.id,
-    proctoringActive,
-    (types, description) => {
-      types.forEach(violationType => addViolation(violationType, `[Server] ${description}`))
-    }
-  )
+  // ── Proctoring runs ENTIRELY on the student's device ──
+  // No camera frame is ever sent to a server or an AI model for analysis: the
+  // former Gemini frame layer (/api/proctor/analyze) was removed on
+  // 2026-09-13. The server only receives batched event records and, for
+  // severe violations, a capped number of evidence snapshots.
+  // MediaPipe: face detection + gaze direction
+  useFaceDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
+  // TensorFlow COCO-SSD: phone, book, extra person detection
+  useObjectDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
 
   // Cleanup camera on unmount
   useEffect(() => {
@@ -213,6 +211,12 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   }, [addViolation])
 
   async function startExam() {
+    // The in-app consent screen (below) must be explicitly checked before
+    // this runs for a proctored exam — startExam() is only reachable via its
+    // Start button, which stays disabled until consentGiven is true, so this
+    // is a defensive re-check, not the primary gate.
+    if (exam.proctoring_enabled && !consentGiven) return
+
     if (exam.proctoring_enabled) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -220,6 +224,16 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         setCameraStatus('active')
         if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play() }
         startAudioMonitor(stream)
+        // A track can stop mid-exam (device unplugged, OS-level camera kill,
+        // permission revoked from the browser's own UI) without the app ever
+        // calling stop() itself — that's a real monitoring gap the proctor
+        // must see, not a silent camera-status flip.
+        stream.getTracks().forEach(track => {
+          track.addEventListener('ended', () => {
+            setCameraStatus('error')
+            addViolation('camera_stopped', `${track.kind} track ended unexpectedly`)
+          })
+        })
         await document.documentElement.requestFullscreen()
       } catch {
         setCameraStatus('error')
@@ -273,7 +287,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     if (submitting || submitted) return
     setSubmitting(true)
 
-    // Stop audio monitoring (doesn't affect camera — camera needed for flushAsync)
+    // Stop audio monitoring first (camera stays on until events are flushed)
     if (audioIntervalRef.current) { clearInterval(audioIntervalRef.current); audioIntervalRef.current = null }
     if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
       audioCtxRef.current.close().catch(() => {})
@@ -282,10 +296,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
     // Persist any buffered local proctoring events BEFORE submit — the
     // append RPC only writes while the attempt is 'in_progress'. This is the
-    // recorder's final flush (no AI). flushAsync() is the legacy Gemini flush,
-    // now a no-op while server proctoring is disabled (kept for rollback).
+    // recorder's final flush (no AI).
     await flushEvents()
-    await flushAsync()
 
     // Now safe to stop camera and exit fullscreen
     streamRef.current?.getTracks().forEach(t => t.stop())
@@ -383,13 +395,50 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
               </div>
             ))}
           </div>
+
+          {/* Advisory, not a blocker — a laptop/phone works fine, desktop/tablet
+              is just steadier for a proctored session (stable camera framing,
+              less battery/thermal throttling during on-device detection). */}
+          <div className="flex items-start gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
+            <Monitor className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+            <p className="text-slate-400 text-xs leading-relaxed">
+              يُفضَّل استخدام جهاز سطح مكتب أو لوحي لتجربة أكثر استقراراً، خصوصاً في الاختبارات الرسمية —
+              هذه نصيحة لتفادي مشاكل محتملة، وليست شرطاً؛ يمكنك أداء الاختبار من أي جهاز يدعم الكاميرا والميكروفون.
+            </p>
+          </div>
+
           {exam.proctoring_enabled && (
-            <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
-              <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
-              <p className="text-blue-300 text-sm">This exam is proctored. Camera monitoring is active.</p>
-            </div>
+            <>
+              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
+                <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
+                <p className="text-blue-300 text-sm">This exam is proctored. Camera monitoring is active.</p>
+              </div>
+
+              {/* Explicit in-app consent — required before the Start button
+                  enables. The browser's own camera-permission prompt is not
+                  informed consent on its own: it never explains that
+                  detection runs on-device, or that severe violations save an
+                  evidence snapshot. */}
+              <label className="flex items-start gap-3 bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consentGiven}
+                  onChange={e => setConsentGiven(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0"
+                />
+                <span className="text-slate-300 text-xs leading-relaxed">
+                  أوافق على تفعيل مراقبة الاختبار: الكشف عن الوجه والاتجاه والأجسام المشبوهة يعمل بالكامل على
+                  جهازي، ولا تُرسَل أي صورة للتحليل خارج جهازي. عند حدوث مخالفة شديدة (مثل ظهور شخص إضافي أو
+                  خروج من الشاشة الكاملة)، تُحفَظ لقطة واحدة كدليل يراجعه معلم المادة فقط. إن توقفت الكاميرا أو
+                  الميكروفون أثناء الاختبار، سيُسجَّل ذلك تلقائياً للمراقِب.
+                </span>
+              </label>
+            </>
           )}
-          <Button onClick={startExam} className="w-full" size="lg">Start Exam</Button>
+
+          <Button onClick={startExam} className="w-full" size="lg" disabled={exam.proctoring_enabled && !consentGiven}>
+            Start Exam
+          </Button>
         </div>
       </div>
     )
@@ -397,9 +446,6 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
   return (
     <div className="space-y-4">
-      {/* Hidden canvas for frame capture */}
-      <canvas ref={canvasRef} className="hidden" />
-
       {/* Header */}
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-5 py-3 sticky top-0 z-10">
         <h2 className="text-white font-semibold truncate flex-1">{exam.title}</h2>

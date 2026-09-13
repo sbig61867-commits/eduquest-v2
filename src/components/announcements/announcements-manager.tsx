@@ -6,7 +6,41 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { confirmDialog } from '@/lib/confirm-dialog'
 import { formatDate } from '@/lib/utils'
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe } from 'lucide-react'
+import { AnnouncementsBanner } from '@/components/student/announcements-banner'
+import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil } from 'lucide-react'
+
+// datetime-local inputs carry no timezone — the browser means "local time"
+// but a bare string like "2026-09-13T22:13" is stored by Postgres as UTC,
+// silently shifting every window by the viewer's UTC offset. Convert
+// explicitly at the boundary in both directions.
+function localInputToIso(value: string): string | null {
+  if (!value) return null
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
+function isoToLocalInput(value: string | null): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+type Status = 'draft' | 'scheduled' | 'live' | 'ended'
+function announcementStatus(a: Pick<AnnouncementRow, 'is_published' | 'starts_at' | 'ends_at'>): Status {
+  if (!a.is_published) return 'draft'
+  const now = Date.now()
+  if (a.starts_at && new Date(a.starts_at).getTime() > now) return 'scheduled'
+  if (a.ends_at && new Date(a.ends_at).getTime() < now) return 'ended'
+  return 'live'
+}
+const STATUS_LABEL: Record<Status, string> = { draft: 'مسودة', scheduled: 'مجدول', live: 'ظاهر الآن', ended: 'منتهٍ' }
+const STATUS_CLASS: Record<Status, string> = {
+  draft: 'text-slate-400 bg-slate-500/10',
+  scheduled: 'text-amber-400 bg-amber-500/10',
+  live: 'text-emerald-400 bg-emerald-500/10',
+  ended: 'text-rose-400 bg-rose-500/10',
+}
 
 export interface AnnouncementRow {
   id: string
@@ -36,10 +70,34 @@ export function AnnouncementsManager({ announcements, groups }: {
 }) {
   const router = useRouter()
   const [composing, setComposing] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function startCreate() {
+    setEditingId(null)
+    setForm(EMPTY)
+    setComposing(true)
+  }
+
+  function startEdit(a: AnnouncementRow) {
+    setEditingId(a.id)
+    setForm({
+      title: a.title,
+      body: a.body ?? '',
+      image_url: a.image_url ?? '',
+      link_url: a.link_url ?? '',
+      cta_label: a.cta_label ?? '',
+      audience: a.audience,
+      group_ids: a.group_ids,
+      starts_at: isoToLocalInput(a.starts_at),
+      ends_at: isoToLocalInput(a.ends_at),
+      is_published: a.is_published,
+    })
+    setComposing(true)
+  }
 
   async function uploadImage(file: File) {
     setUploading(true)
@@ -53,26 +111,32 @@ export function AnnouncementsManager({ announcements, groups }: {
     toast.success('تم رفع الصورة')
   }
 
-  async function create() {
+  async function save() {
     if (!form.title.trim()) return toast.error('اكتب عنوان الإعلان')
     if (form.audience === 'groups' && form.group_ids.length === 0) {
       return toast.error('اختر مجموعة واحدة على الأقل')
     }
+    const starts_at = localInputToIso(form.starts_at)
+    const ends_at = localInputToIso(form.ends_at)
+    if (form.starts_at && !starts_at) return toast.error('تاريخ البداية غير صالح')
+    if (form.ends_at && !ends_at) return toast.error('تاريخ النهاية غير صالح')
+    if (starts_at && ends_at && new Date(ends_at).getTime() <= new Date(starts_at).getTime()) {
+      return toast.error('يجب أن يكون تاريخ النهاية بعد تاريخ البداية')
+    }
+
     setBusy(true)
+    const editing = editingId
     const res = await fetch('/api/announcements', {
-      method: 'POST',
+      method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        starts_at: form.starts_at || null,
-        ends_at: form.ends_at || null,
-      }),
+      body: JSON.stringify({ ...form, ...(editing ? { id: editing } : {}), starts_at, ends_at }),
     })
     const data = await res.json()
     setBusy(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر إنشاء الإعلان')
-    toast.success('تم نشر الإعلان')
+    if (!res.ok) return toast.error(data.error ?? (editing ? 'تعذّر تحديث الإعلان' : 'تعذّر إنشاء الإعلان'))
+    toast.success(editing ? 'تم حفظ التعديلات' : (form.is_published ? 'تم نشر الإعلان' : 'تم حفظ المسودة'))
     setForm(EMPTY)
+    setEditingId(null)
     setComposing(false)
     router.refresh()
   }
@@ -112,12 +176,16 @@ export function AnnouncementsManager({ announcements, groups }: {
             {announcements.length} إعلان · {announcements.filter(a => a.is_published).length} منشور
           </p>
         </div>
-        <Button onClick={() => setComposing(v => !v)}><Plus className="w-4 h-4" /> إعلان جديد</Button>
+        <Button onClick={() => {
+          if (composing) { setComposing(false); setEditingId(null); setForm(EMPTY) } else { startCreate() }
+        }}>
+          <Plus className="w-4 h-4" /> إعلان جديد
+        </Button>
       </div>
 
       {composing && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">إعلان جديد</h3>
+          <h3 className="text-white font-semibold">{editingId ? 'تعديل الإعلان' : 'إعلان جديد'}</h3>
 
           <label className="text-sm text-slate-300 space-y-1.5 block">
             <span>العنوان</span>
@@ -252,9 +320,23 @@ export function AnnouncementsManager({ announcements, groups }: {
             نشر مباشرةً
           </label>
 
+          {(form.title.trim() || form.body.trim() || form.image_url) && (
+            <div className="space-y-1.5">
+              <span className="text-sm text-slate-300">معاينة (كما يظهر للطالب)</span>
+              <AnnouncementsBanner announcements={[{
+                id: 'preview',
+                title: form.title.trim() || 'عنوان الإعلان',
+                body: form.body.trim() || null,
+                image_url: form.image_url || null,
+                link_url: form.link_url || null,
+                cta_label: form.cta_label || null,
+              }]} />
+            </div>
+          )}
+
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" onClick={() => { setComposing(false); setForm(EMPTY) }}>إلغاء</Button>
-            <Button loading={busy} onClick={create}>حفظ</Button>
+            <Button variant="ghost" onClick={() => { setComposing(false); setEditingId(null); setForm(EMPTY) }}>إلغاء</Button>
+            <Button loading={busy} onClick={save}>{editingId ? 'حفظ التعديلات' : 'حفظ'}</Button>
           </div>
         </div>
       )}
@@ -267,7 +349,9 @@ export function AnnouncementsManager({ announcements, groups }: {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {announcements.map(a => (
+          {announcements.map(a => {
+            const status = announcementStatus(a)
+            return (
             <div key={a.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               {a.image_url && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -276,9 +360,9 @@ export function AnnouncementsManager({ announcements, groups }: {
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-white font-semibold">{a.title}</h3>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${
-                    a.is_published ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 bg-slate-500/10'
-                  }`}>{a.is_published ? 'منشور' : 'مسودة'}</span>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${STATUS_CLASS[status]}`}>
+                    {STATUS_LABEL[status]}
+                  </span>
                 </div>
                 {a.body && <p className="text-slate-400 text-sm mt-1 line-clamp-2">{a.body}</p>}
                 <p className="text-slate-500 text-xs mt-2 flex items-center gap-1.5">
@@ -287,7 +371,10 @@ export function AnnouncementsManager({ announcements, groups }: {
                     : <><Users className="w-3 h-3" /> {a.group_ids.length} مجموعة</>}
                   {' · '}{formatDate(a.created_at)}
                 </p>
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <Button size="sm" variant="ghost" loading={busy} onClick={() => startEdit(a)}>
+                    <Pencil className="w-3.5 h-3.5" /> تعديل
+                  </Button>
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => togglePublish(a)}>
                     {a.is_published ? <><EyeOff className="w-3.5 h-3.5" /> إخفاء</> : <><Eye className="w-3.5 h-3.5" /> نشر</>}
                   </Button>
@@ -297,7 +384,8 @@ export function AnnouncementsManager({ announcements, groups }: {
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

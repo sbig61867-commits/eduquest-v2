@@ -16,6 +16,14 @@ function adminClient() {
 const ALLOWED_TYPES = new Set([
   'face_not_detected', 'multiple_faces', 'looking_away', 'suspicious_activity',
   'tab_switch', 'fullscreen_exit', 'audio_detected',
+  // Not a violation: an on-device detector failed to load on this student's
+  // machine, so monitoring for this attempt was partial. Recorded so the
+  // teacher never mistakes "no events" for "clean attempt".
+  'detector_unavailable',
+  // A real violation: the camera/mic track stopped (device unplugged,
+  // permission revoked mid-exam, OS-level camera kill) — monitoring blind
+  // for whatever followed.
+  'camera_stopped',
 ])
 
 interface IncomingEvent {

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkStudentLimit, STUDENT_LIMIT_MESSAGE } from '@/lib/student-limit'
+import { canManageAccountRole } from '@/lib/staff-auth'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -29,9 +31,9 @@ export async function POST(request: Request) {
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: callerProfile } = await supabase
-      .from('users').select('role, tenant_id').eq('id', caller.id).single()
+      .from('users').select('role, tenant_id, permissions').eq('id', caller.id).single()
 
-    if (!callerProfile || !['university_admin', 'super_admin'].includes(callerProfile.role)) {
+    if (!callerProfile || !['university_admin', 'super_admin', 'center_manager'].includes(callerProfile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -60,9 +62,14 @@ export async function POST(request: Request) {
     const ALLOWED: Record<string, string[]> = {
       super_admin: ['university_admin', 'teacher', 'student'],
       university_admin: ['teacher', 'student'],
+      center_manager: ['teacher', 'student'],
     }
     if (!ALLOWED[callerProfile.role]?.includes(role)) {
       return NextResponse.json({ error: `Your role cannot create a ${role} account` }, { status: 403 })
+    }
+    // A centre manager additionally needs the matching per-user capability.
+    if (callerProfile.role === 'center_manager' && !canManageAccountRole(callerProfile, role)) {
+      return NextResponse.json({ error: 'لا تملك صلاحية إضافة هذا النوع من الحسابات' }, { status: 403 })
     }
 
     const tenant_id = callerProfile.role === 'super_admin'
@@ -74,6 +81,15 @@ export async function POST(request: Request) {
     }
 
     const adminClient = getAdminClient()
+
+    // Plan seat cap — enforced server-side before the auth identity exists,
+    // so a refused request leaves nothing to roll back.
+    if (role === 'student') {
+      const seat = await checkStudentLimit(adminClient, tenant_id)
+      if (!seat.allowed) {
+        return NextResponse.json({ error: STUDENT_LIMIT_MESSAGE, limit: seat.limit }, { status: 403 })
+      }
+    }
 
     // Step 1: create the auth identity (trigger will insert a placeholder profile)
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({

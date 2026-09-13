@@ -43,14 +43,63 @@ prove the *logic* is correct in isolation; they do not independently prove
 the deployed production code path behaves identically (though the deployed
 code is the same source these tests import).
 
+## Cross-tenant isolation — ✅ now LIVE EXPLOIT VERIFIED (2026-09-13), no longer a gap
+
+The caveat that used to live in this section ("no second real tenant exists
+in production, and creating one was explicitly withheld... NOT LIVE
+CROSS-TENANT EXPLOIT VERIFIED") is **resolved**. With the project owner's
+explicit approval, a full audit created two real tenants + 7 real Supabase
+Auth accounts (admin/teacher/student × 2 tenants) directly in production,
+attempted 9 concrete cross-tenant reads/writes/forgeries as real authenticated
+HTTP requests against the live PostgREST/RPC endpoints, and deleted every
+trace afterward (verified: 0 leftover rows across `tenants`, `auth.users`,
+`groups`, `lessons`, `exams`). **All 9 attempts were blocked.** Full report:
+[AUDIT/11-security-isolation-tests.md](AUDIT/11-security-isolation-tests.md).
+
+| # | Live attempt | Result |
+|---|---|---|
+| 1 | Student reads another tenant's `users` rows via explicit filter | ✅ Blocked (`[]`) |
+| 2 | Student reads `lessons` with no filter — tenant B's lesson must be absent | ✅ Blocked |
+| 3 | Teacher reads another tenant's `exams` row by direct id | ✅ Blocked |
+| 4 | `university_admin` calls `get_tenant_archive` with a foreign `p_tenant_id` | ✅ Blocked (`[]`) |
+| 5 | Student calls `start_exam_attempt` RPC directly for another tenant's exam | ✅ Blocked (`42501`) |
+| 6 | Student calls `finalize_exam_submission` RPC to forge `p_score: 9999` | ✅ Blocked (`42501`) |
+| 7 | Student `POST`s a forged `exam_submissions` row (`score: 9999, grading_status: 'published'`) | ✅ Blocked (`42501`) — live proof `fix_submission_insert_grade_forgery_migration.sql` still holds |
+| 8 | Teacher forges `append_proctoring_events` for a student they don't own | ✅ Blocked (`42501`) |
+| 9 | *(new finding, not a cross-tenant leak)* Student enumerates every user's email within their **own** tenant | ✅ **Fixed 2026-09-13** — was Medium-severity intra-tenant PII over-exposure; closed by `fix_student_pii_overexposure_migration.sql`, live-verified before AND after applying (rolled-back test transaction, then the real Playwright suite) |
+
+**Reusable regression suites added this session:**
+- [tests/tenant-isolation.spec.ts](tests/tenant-isolation.spec.ts) — the exact 9 attempts above, as a self-contained Playwright suite (creates its own fixtures via the Admin API, cleans up in `afterAll`, skips gracefully if service-role credentials aren't in the environment). Run with credentials exported: `npx playwright test tests/tenant-isolation.spec.ts`.
+- [supabase/tests/rls_isolation_check.sql](supabase/tests/rls_isolation_check.sql) — a faster SQL-only equivalent (RLS-level only, not the Auth/API layer) wrapped in `BEGIN … ROLLBACK`, safe to run repeatedly with zero residue even on failure.
+
+## ⚠️ Correction (2026-09-13 re-verification): the WRITE path was not isolated
+
+The "all 9 blocked" result above is accurate but covered only the **read path**
+(SELECT policies) and the locked RPCs. The INSERT/UPDATE path was never tested.
+Testing it in a rolled-back transaction on production found:
+
+| # | Attempt | Severity | Result |
+|---|---|---|---|
+| T01 | Teacher UPDATEs own invitation to `role='university_admin'`, public — `accept_invitation()` trusts `inv.role` | **Critical** | Succeeded |
+| T03 | Teacher INSERTs invitation into another tenant's group (accept enrols cross-tenant) | High | Succeeded |
+| T05 | Teacher moves own lesson into another tenant's group — visible to that tenant's students | High | Succeeded |
+| T06 | Teacher INSERTs exam with spoofed `teacher_id` into another tenant's group — visible there | High | Succeeded |
+| T07 | Teacher enrols another tenant's student into own group | High | Succeeded |
+| T10 | Student self-enrols in another tenant's course, reads its exam via `get_student_exams()` | High | Succeeded |
+| T04 | Request sender sets `status='accepted'` (bypasses API state machine) | Medium | Succeeded |
+| T09 | Student enrols any student into any course in the tenant | Medium | Succeeded |
+| T02/T08/T11/T12/T13/T15 | Invitation moved to tenant B, colleague edits course unit, self-promote, self-grant permissions, forged submission, admin moves teacher to tenant B | — | Blocked |
+
+Fix: `supabase/fix_rls_write_path_migration.sql` — **written and fully tested in a
+rolled-back transaction (all attacks blocked, legitimate flows work), not yet
+applied pending owner approval.** Regression check:
+`supabase/tests/rls_write_path_check.sql` (reports `VULNERABLE` before the
+migration, must report `blocked` after).
+
 ## What remains genuinely NOT TESTABLE this session
 
-- **Live cross-tenant SELECT/INSERT/UPDATE/DELETE attacks** — no second real
-  tenant exists in production, and creating one was explicitly withheld.
-  Every cross-tenant claim in `SECURITY_AUDIT.md`/`SECURITY_DEFINER_PROOF.md`
-  is **CODE-REVIEWED / VERIFIED BY LIVE DATABASE (grants, policies, function
-  bodies)** — **NOT LIVE CROSS-TENANT EXPLOIT VERIFIED.**
-- **LiveKit room/token cross-tenant exploit** — same reason, plus no live
-  proctored session was run.
+- **LiveKit room/token cross-tenant exploit** — no live proctored session was
+  run; the token-issuance logic (`api/proctor/live-token`) was code-reviewed
+  only (see `AUDIT/03-code-findings-partial.md`).
 - **Load/concurrency behavior under real traffic** — see `LOAD_TEST_PLAN.md`
   / `load-tests/`, prepared but not executed.

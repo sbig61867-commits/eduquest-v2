@@ -10,8 +10,9 @@
  * For components where delete requires confirm(), we stub window.confirm = true.
  *
  * Button identification: our Button mock passes className through.  Delete
- * buttons consistently carry `hover:text-error` so we use:
- *   container.querySelector('[class*="hover:text-error"]')
+ * buttons consistently carry `hover:text-red-400` (raw Tailwind palette —
+ * the app shell reverted off the `text-error` design-token classes) so we use:
+ *   container.querySelector('[class*="hover:text-red-400"]')
  *
  * For Supabase-direct components (tenants handleAdd, messages remove,
  * course-build deleteLevel) we reuse the supaChain thenable helper.
@@ -107,7 +108,7 @@ describe('GroupsClient — deleteGroup', () => {
     const { container } = render(
       <GroupsClient initialGroups={[GROUP]} tenantStudents={[]} teacherId="t1" tenantId="ten1" />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
@@ -123,7 +124,7 @@ describe('GroupsClient — deleteGroup', () => {
     const { container } = render(
       <GroupsClient initialGroups={[GROUP]} tenantStudents={[]} teacherId="t1" tenantId="ten1" />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
@@ -153,7 +154,7 @@ describe('LessonsClient — deleteLesson', () => {
     const { container } = render(
       <LessonsClient initialLessons={[LESSON]} groups={[{ id: 'g1', name: 'Group A' }]} />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
@@ -169,7 +170,7 @@ describe('LessonsClient — deleteLesson', () => {
     const { container } = render(
       <LessonsClient initialLessons={[LESSON]} groups={[{ id: 'g1', name: 'Group A' }]} />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
@@ -201,7 +202,7 @@ describe('ExamsClient — deleteExam', () => {
     const { container } = render(
       <ExamsClient initialExams={[EXAM]} groups={[{ id: 'g1', name: 'Group A' }]} />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
@@ -217,7 +218,7 @@ describe('ExamsClient — deleteExam', () => {
     const { container } = render(
       <ExamsClient initialExams={[EXAM]} groups={[{ id: 'g1', name: 'Group A' }]} />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
@@ -249,7 +250,7 @@ describe('CoursesClient — deleteCourse', () => {
     const { container } = render(
       <CoursesClient initialCourses={[COURSE]} teacherId="t1" tenantId="ten1" />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
@@ -265,7 +266,7 @@ describe('CoursesClient — deleteCourse', () => {
     const { container } = render(
       <CoursesClient initialCourses={[COURSE]} teacherId="t1" tenantId="ten1" />
     )
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
@@ -298,7 +299,7 @@ describe('TenantsClient — deleteTenant', () => {
     }))
     const { container } = render(<TenantsClient initialTenants={[TENANT]} />)
     // Delete button is the red one (archive is amber, delete is red ghost)
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
@@ -312,7 +313,7 @@ describe('TenantsClient — deleteTenant', () => {
       ok: false, json: () => Promise.resolve({ error: 'err' }),
     }))
     const { container } = render(<TenantsClient initialTenants={[TENANT]} />)
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
@@ -334,8 +335,9 @@ describe('MessagesClient — remove', () => {
 
   it('success → message removed + router.refresh called', async () => {
     mockFrom.mockReturnValue(supaChain({ error: null }))
-    const { container } = render(<MessagesClient initialMessages={[MESSAGE]} />)
-    const del = container.querySelector<HTMLButtonElement>('[aria-label="Delete message"]')
+    render(<MessagesClient initialMessages={[MESSAGE]} />)
+    // No aria-label on this button — it has visible text "Delete" instead.
+    const del = screen.getByRole('button', { name: /delete/i })
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
@@ -389,7 +391,7 @@ describe('CourseBuildClient — deleteLevel', () => {
       />
     )
     await waitFor(() => expect(screen.getByText('Level 1')).toBeInTheDocument())
-    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-error"]')
+    const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {

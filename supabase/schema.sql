@@ -16,7 +16,10 @@ CREATE TABLE tenants (
   slug        TEXT UNIQUE NOT NULL,
   logo_url    TEXT,
   is_active   BOOLEAN DEFAULT TRUE,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  -- Plan seat cap on ACTIVE students; NULL = unlimited. Enforced in
+  -- src/lib/student-limit.ts — see tenant_student_limit_migration.sql.
+  student_limit INTEGER CHECK (student_limit IS NULL OR student_limit >= 0)
 );
 
 CREATE TABLE users (
@@ -113,6 +116,54 @@ CREATE TABLE grades (
   max_score     NUMERIC NOT NULL,
   graded_at     TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(student_id, exam_id)
+);
+
+-- EXAM APPEALS: a student's formal dispute of a recorded proctoring
+-- violation, directed to the exam's teacher. Carries enough denormalized
+-- context (teacher_id, group_id) that an admin can pull a complete report
+-- without joining through exam_submissions -> exams every time. Written via
+-- the service-role client after app-level authorization (see
+-- api/appeals/*) — no INSERT/UPDATE RLS policy, same convention as every
+-- other privileged-write table in this schema.
+CREATE TABLE exam_appeals (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  exam_id           UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  submission_id     UUID NOT NULL REFERENCES exam_submissions(id) ON DELETE CASCADE,
+  student_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  teacher_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  group_id          UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  violation_type    TEXT,
+  violation_at      TIMESTAMPTZ,
+  -- Denormalized snapshots (same pattern as invitations.group_name_snapshot)
+  -- — a student has no RLS read on exams/users, so the row must be
+  -- self-contained; an admin report needs none of this to change
+  -- retroactively.
+  student_name      TEXT NOT NULL,
+  teacher_name      TEXT NOT NULL,
+  group_name        TEXT NOT NULL,
+  exam_title        TEXT NOT NULL,
+  student_message   TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'upheld', 'rejected')),
+  teacher_response  TEXT,
+  resolved_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+  resolved_at       TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_exam_appeals_teacher    ON exam_appeals(teacher_id);
+CREATE INDEX idx_exam_appeals_student    ON exam_appeals(student_id);
+CREATE INDEX idx_exam_appeals_tenant     ON exam_appeals(tenant_id);
+CREATE INDEX idx_exam_appeals_submission ON exam_appeals(submission_id);
+-- A student can file at most one appeal per specific event (or one "general"
+-- appeal, where violation_type/violation_at are both NULL) per submission.
+CREATE UNIQUE INDEX idx_exam_appeals_one_per_event
+  ON exam_appeals (submission_id, COALESCE(violation_type, ''), COALESCE(violation_at, 'epoch'::timestamptz));
+ALTER TABLE exam_appeals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "exam_appeals_select" ON exam_appeals FOR SELECT USING (
+  current_user_role() = 'super_admin'
+  OR student_id = auth.uid()
+  OR teacher_id = auth.uid()
+  OR (current_user_role() = 'university_admin' AND tenant_id = current_tenant_id())
 );
 
 -- STAFF REQUESTS: teacher↔admin request/inbox channel with a message thread.
@@ -321,6 +372,19 @@ AS $$
   SELECT tenant_id FROM public.users WHERE id = auth.uid();
 $$;
 
+-- Helper function: the group_ids the current student is enrolled in. Exists
+-- specifically to break an RLS-recursion cycle between groups_select (which
+-- needs to know a student's own groups) and group_students_select (which
+-- reads groups) — see the comment on groups_select below. Added alongside
+-- the 2026-09-13 PII-overexposure fix.
+CREATE OR REPLACE FUNCTION current_student_group_ids()
+RETURNS SETOF UUID
+LANGUAGE SQL SECURITY DEFINER STABLE
+SET search_path = public, pg_temp
+AS $$
+  SELECT group_id FROM public.group_students WHERE student_id = auth.uid();
+$$;
+
 -- TENANTS: super_admin sees all; others see only their own
 CREATE POLICY "tenants_select" ON tenants FOR SELECT USING (
   current_user_role() = 'super_admin' OR id = current_tenant_id()
@@ -329,9 +393,24 @@ CREATE POLICY "tenants_manage" ON tenants FOR ALL USING (
   current_user_role() = 'super_admin'
 );
 
--- USERS: super_admin sees all; others see users in same tenant
+-- USERS: super_admin sees all; staff (university_admin/center_manager/teacher)
+-- see everyone in their tenant (teacher/groups needs this to browse the
+-- whole student body when assigning someone to a group); a student sees only
+-- themselves plus the teacher of a group/course they're actually enrolled
+-- in — NOT the rest of the tenant. Tightened 2026-09-13 after a live audit
+-- proved a student account could otherwise enumerate every user's email in
+-- their university; see supabase/fix_student_pii_overexposure_migration.sql
+-- and AUDIT/11-security-isolation-tests.md for the full write-up.
 CREATE POLICY "users_select" ON users FOR SELECT USING (
-  current_user_role() = 'super_admin' OR tenant_id = current_tenant_id() OR id = auth.uid()
+  current_user_role() = 'super_admin'
+  OR id = auth.uid()
+  OR (current_user_role() IN ('university_admin', 'center_manager', 'teacher') AND tenant_id = current_tenant_id())
+  OR (
+    current_user_role() = 'student' AND tenant_id = current_tenant_id() AND (
+      id IN (SELECT g.teacher_id FROM groups g JOIN group_students gs ON gs.group_id = g.id WHERE gs.student_id = auth.uid())
+      OR id IN (SELECT c.teacher_id FROM courses c JOIN course_enrollments ce ON ce.course_id = c.id WHERE ce.student_id = auth.uid())
+    )
+  )
 );
 CREATE POLICY "users_insert" ON users FOR INSERT WITH CHECK (
   current_user_role() IN ('super_admin','university_admin')
@@ -369,9 +448,18 @@ CREATE POLICY "users_update" ON users FOR UPDATE
     )
   );
 
--- GROUPS: scoped to tenant; teacher manages their own
+-- GROUPS: staff scoped to tenant; a student sees only groups they're
+-- actually enrolled in (tightened alongside users_select — see the note
+-- there and supabase/fix_student_pii_overexposure_migration.sql). Uses the
+-- current_student_group_ids() SECURITY DEFINER helper (defined in that
+-- migration) rather than a direct group_students subquery, because
+-- group_students_select's own USING clause reads groups — a direct
+-- correlated subquery here would create RLS-evaluation infinite recursion
+-- between the two policies (hit and confirmed live while drafting the fix).
 CREATE POLICY "groups_select" ON groups FOR SELECT USING (
-  current_user_role() = 'super_admin' OR tenant_id = current_tenant_id()
+  current_user_role() = 'super_admin'
+  OR (current_user_role() != 'student' AND tenant_id = current_tenant_id())
+  OR (current_user_role() = 'student' AND id IN (SELECT current_student_group_ids()))
 );
 CREATE POLICY "groups_insert" ON groups FOR INSERT WITH CHECK (
   current_user_role() IN ('teacher','university_admin','super_admin') AND
@@ -446,9 +534,16 @@ CREATE POLICY "submissions_select" ON exam_submissions FOR SELECT USING (
        AND exams.teacher_id = auth.uid()
   ))
 );
-CREATE POLICY "submissions_insert" ON exam_submissions FOR INSERT WITH CHECK (
-  student_id = auth.uid() AND tenant_id = current_tenant_id()
-);
+-- NO client INSERT/UPDATE/DELETE policy on exam_submissions — deliberate.
+-- A WITH CHECK of (student_id = auth.uid() AND tenant_id = current_tenant_id())
+-- constrains *who* the row belongs to but nothing about `score`, so a student
+-- could POST /rest/v1/exam_submissions and mint their own 100/100 'published'
+-- grade for an exam they never sat. That was live and exploitable until
+-- 2026-09-11. Every legitimate write goes through the service-role client
+-- (start_exam_attempt / finalize_exam_submission / the teacher grading route),
+-- which is why removing the policy costs nothing.
+-- See fix_submission_insert_grade_forgery_migration.sql.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON exam_submissions FROM anon, authenticated;
 
 -- GRADES: students see own; teachers see tenant-wide. university_admin has
 -- NO direct read — grade reports/كشوفات run on the service-role client and
@@ -461,10 +556,11 @@ CREATE POLICY "grades_select" ON grades FOR SELECT USING (
     AND tenant_id = current_tenant_id()
   )
 );
-CREATE POLICY "grades_insert" ON grades FOR INSERT WITH CHECK (
-  current_user_role() IN ('teacher','university_admin','super_admin') AND
-  tenant_id = current_tenant_id()
-);
+-- NO client write policy on grades either. Nothing in src/ writes this table —
+-- every grade lives in exam_submissions — and university_admin is metadata-only
+-- by design (admin_metadata_only_migration.sql), so an admin-writable second
+-- grade store was a liability with no caller.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON grades FROM anon, authenticated;
 
 -- ============================================================
 -- AUTO-CREATE USER PROFILE ON SIGNUP

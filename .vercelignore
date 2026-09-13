@@ -1,0 +1,73 @@
+# What `vercel --prod` must never upload.
+#
+# The Vercel CLI deploys the WORKING DIRECTORY, not the git HEAD — so a file
+# being untracked or .gitignore'd does not keep it out of a deploy once this
+# file exists (.vercelignore takes over from .gitignore the moment it is
+# present). Everything that must stay off the deployment is therefore listed
+# here explicitly, not just in .gitignore.
+
+# ── Never upload ────────────────────────────────────────────
+# Vercel skips these by default, but .vercelignore replaces .gitignore as the
+# rule source, so they are restated rather than assumed.
+node_modules
+.next
+.git
+
+# ── Secrets ─────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.claude/
+.vercel/
+
+# ── Local scratch / debug scripts ───────────────────────────
+# These read SUPABASE_SERVICE_ROLE_KEY and may embed test credentials.
+_tmp_*
+*.local.mjs
+scripts/
+hf-admin/
+hf-teacher/
+load-tests/
+backups/
+
+# ── Agent + capture scratch output ──────────────────────────
+# Anything under public/ is served at the site root, so scratch output there
+# is published. public/capture-admin/ held internal agent instruction files
+# and admin-UI screenshots and would have been live at /capture-admin/*.
+public/capture-admin/
+AGENTS.md
+CLAUDE.md
+.cursorrules
+
+# ── Internal audit + planning docs ──────────────────────────
+# These describe the security model, known gaps and remediation state. They
+# are not served by Next.js, but there is no reason to ship them at all.
+*_AUDIT.md
+*_REPORT.md
+*_PLAN.md
+SECURITY*.md
+SECRETS.md
+API_SECURITY_MATRIX.md
+ARCHITECTURE_AND_HARDENING_AUDIT.md
+DESIGN_*.md
+PRODUCT_COMPLETENESS_AUDIT.md
+ROUTE_QA_REPORT.md
+FIXES_FOR_SONNET.md
+DEPLOYMENT.md
+docs/
+
+# ── Database migrations ─────────────────────────────────────
+# Applied by hand in the Supabase SQL Editor; the running app never reads
+# them. Shipping them publishes the full schema and RLS policy source.
+supabase/
+
+# ── Tests + build artefacts ─────────────────────────────────
+src/__tests__/
+tests/
+test-results/
+playwright-report/
+playwright.config.ts
+vitest.config.ts
+coverage/
+*.tsbuildinfo
+.github/

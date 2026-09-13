@@ -19,6 +19,8 @@ export const CAPABILITIES = [
   'manage_invitations',
   'manage_announcements',
   'manage_schedules',
+  'manage_courses',
+  'manage_attendance',
   'view_reports',
   'manage_center_staff',
 ] as const
@@ -32,6 +34,8 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   manage_invitations:   'إرسال الدعوات',
   manage_announcements: 'إدارة الإعلانات',
   manage_schedules:     'إدارة جداول المواعيد',
+  manage_courses:       'إدارة الكورسات',
+  manage_attendance:    'تسجيل الحضور',
   view_reports:         'عرض التقارير والكشوفات',
   manage_center_staff:  'إدارة مديري المراكز وصلاحياتهم',
 }
@@ -43,7 +47,9 @@ export const CAPABILITY_HINTS: Record<Capability, string> = {
   manage_invitations:   'إنشاء روابط دعوة للانضمام',
   manage_announcements: 'نشر إعلانات تظهر للطلاب في صفحتهم الرئيسية',
   manage_schedules:     'ترتيب ونشر جداول المواعيد الأسبوعية للمجموعات',
-  view_reports:         'الاطلاع على التقارير وكشوفات العلامات',
+  manage_courses:       'إنشاء كورسات وإسنادها لمدرب وتسجيل الطلاب فيها',
+  manage_attendance:    'فتح جلسات الحضور وتسجيل حضور الطلاب في المجموعات',
+  view_reports:         'الاطلاع على التقارير وكشوفات العلامات ولوحة البيانات',
   manage_center_staff:  'إنشاء حسابات مديري المراكز وضبط صلاحياتهم',
 }
 

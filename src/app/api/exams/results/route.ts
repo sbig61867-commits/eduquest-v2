@@ -51,7 +51,10 @@ export async function GET(request: Request) {
   const results = (roster ?? []).map(r => {
     const u = r.users as unknown as { full_name: string | null; email: string | null } | null
     const s = subByStudent.get(r.student_id)
-    const events = (s?.proctoring_events as unknown[] | null) ?? []
+    // detector_unavailable = a detector failed to load on the student's
+    // device (partial monitoring) — recorded for the teacher, never a violation.
+    const events = ((s?.proctoring_events as Array<{ type?: string }> | null) ?? [])
+      .filter(e => e?.type !== 'detector_unavailable')
     return {
       student_id: r.student_id,
       submission_id: s?.id ?? null,

@@ -23,7 +23,6 @@ interface Config {
   resend: boolean
   serviceRole: boolean
   appUrl: string | null
-  serverProctoring: boolean
 }
 
 interface Props {
@@ -384,9 +383,11 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           })}
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-slate-300 text-sm">
-              <Eye className="w-4 h-4 text-slate-500" /> Server-side proctoring analysis
+              <Eye className="w-4 h-4 text-slate-500" /> Proctoring analysis
             </span>
-            <StatusPill ok={config.serverProctoring} okLabel="Enabled" badLabel="Disabled" />
+            {/* Always on-device since 2026-09-13 — the server-side Gemini layer
+                and its NEXT_PUBLIC_SERVER_PROCTORING flag were removed. */}
+            <StatusPill ok okLabel="On student device (no AI cost)" badLabel="" />
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-slate-300 text-sm">

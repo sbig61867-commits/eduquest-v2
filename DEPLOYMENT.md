@@ -30,7 +30,6 @@ Copy each key from `.env.example`. Use your real values (from `.env.local`):
 | `NEXT_PUBLIC_APP_URL` | All | set to your Vercel URL, e.g. `https://eduquest-v2.vercel.app` |
 | `GROQ_API_KEY` | All | secret |
 | `GEMINI_API_KEY` | All | secret |
-| `NEXT_PUBLIC_SERVER_PROCTORING` | All | `true`/`false` |
 
 Then **Deploy**.
 

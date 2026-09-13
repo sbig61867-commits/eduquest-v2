@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Lessons',     href: '/admin/lessons',      icon: 'BookOpen' as const },
   { label: 'Exams',       href: '/admin/exams',        icon: 'ClipboardList' as const },
   { label: 'Requests',    href: '/admin/requests',     icon: 'Inbox' as const },
+  { label: 'Appeals',     href: '/admin/appeals',      icon: 'Gavel' as const },
   { label: 'Announcements', href: '/admin/announcements', icon: 'Bell' as const },
   { label: 'Schedules',   href: '/admin/schedules',    icon: 'CalendarDays' as const },
   { label: 'Centre Staff',  href: '/admin/center-staff',  icon: 'ShieldCheck' as const },
