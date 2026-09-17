@@ -149,7 +149,7 @@ function Pagination({ page, total, pageSize, onChange }: {
 // ── Add User Modal ────────────────────────────────────────────────────────────
 
 const ROLES = [
-  { value: 'university_admin', label: 'University Admin' },
+  { value: 'university_admin', label: 'Institution Admin' },
   { value: 'teacher',          label: 'Teacher' },
   { value: 'student',          label: 'Student' },
 ]
@@ -192,7 +192,7 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
         <Input label="Full Name" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Ahmed Hassan" />
-        <Input label="Email" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@university.edu" />
+        <Input label="Email" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@school.edu" />
         <Input label="Password" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required placeholder="Min 8 characters" />
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-slate-300">Role</label>
@@ -203,10 +203,10 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
         </div>
         {!defaultTenantId && (
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">University</label>
+            <label className="block text-sm font-medium text-slate-300">Institution</label>
             <select value={form.tenant_id} onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value }))} required
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— Select university —</option>
+              <option value="">— Select institution —</option>
               {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
@@ -449,7 +449,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">All Users</h2>
-          <p className="text-slate-400 mt-1">{tenants.length} universities · {totalUsers} total users</p>
+          <p className="text-slate-400 mt-1">{tenants.length} institutions · {totalUsers} total users</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
           <UserPlus className="w-4 h-4" /> Add User
@@ -473,11 +473,11 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Universities</h3>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Institutions</h3>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search universities..."
+              placeholder="Search institutions..."
               className="pl-9 pr-4 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-56" />
           </div>
         </div>
@@ -485,7 +485,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
         {filteredTenants.length === 0 ? (
           <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
             <Building2 className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400">No universities found</p>
+            <p className="text-slate-400">No institutions found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

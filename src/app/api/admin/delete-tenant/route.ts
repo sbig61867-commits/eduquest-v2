@@ -52,7 +52,7 @@ export async function DELETE(request: Request) {
     .from('users').select('id').eq('tenant_id', tenantId)
   if (listErr) {
     console.error('[delete-tenant] list users:', listErr)
-    return NextResponse.json({ error: 'Failed to read university users' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to read institution users' }, { status: 500 })
   }
 
   let failed = 0
@@ -65,7 +65,7 @@ export async function DELETE(request: Request) {
   const { error: tenantErr } = await admin.from('tenants').delete().eq('id', tenantId)
   if (tenantErr) {
     console.error('[delete-tenant] tenant delete:', tenantErr)
-    return NextResponse.json({ error: 'Failed to delete university' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete institution' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, usersDeleted: (members?.length ?? 0) - failed, failed })

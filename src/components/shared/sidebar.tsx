@@ -7,10 +7,12 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
+import { getTerms, type Terms } from '@/lib/terminology'
+import { getStudentTrack } from '@/lib/student-track'
 import {
   LogOut, ChevronLeft,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
-  GraduationCap, BookOpen, ClipboardList, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel,
+  GraduationCap, BookOpen, ClipboardList, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel, Network,
 } from 'lucide-react'
 
 const ICONS = {
@@ -31,6 +33,7 @@ const ICONS = {
   Archive,
   CalendarDays,
   Gavel,
+  Network,
 } as const
 
 export type IconName = keyof typeof ICONS
@@ -39,17 +42,29 @@ export interface NavItem {
   label: string
   href: string
   icon: IconName
+  // When set, the label follows the tenant's institution type (terminology.ts)
+  term?: keyof Terms
+  // Hidden unless the tenant has switched to the academic structure
+  academicOnly?: boolean
+  // Hidden for institutions without a continuing-education centre
+  centerOnly?: boolean
 }
 
 interface SidebarProps {
   items: NavItem[]
   title: string
+  titleTerm?: keyof Terms
+  // Title shown instead when the signed-in student is a continuing-education trainee
+  centreTraineeTitle?: string
 }
 
-export function Sidebar({ items, title }: SidebarProps) {
+export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: SidebarProps) {
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useUIStore()
   const { tenant, reset } = useAuthStore()
+  const isCentreTrainee = useAuthStore(s =>
+    s.user?.role === 'student' && getStudentTrack(s.user.is_university_student, s.tenant?.has_center) === 'centre')
+  const terms = getTerms(tenant?.institution_type)
   const router = useRouter()
   const supabase = createClient()
   const [signingOut, setSigningOut] = useState(false)
@@ -98,7 +113,7 @@ export function Sidebar({ items, title }: SidebarProps) {
               </div>
               <div className="min-w-0">
                 <p className="text-white text-sm font-semibold truncate">{tenant?.name ?? 'EduQuest'}</p>
-                <p className="text-slate-400 text-xs truncate">{title}</p>
+                <p className="text-slate-400 text-xs truncate">{isCentreTrainee && centreTraineeTitle ? centreTraineeTitle : titleTerm ? terms[titleTerm] : title}</p>
               </div>
             </div>
           )}
@@ -117,7 +132,10 @@ export function Sidebar({ items, title }: SidebarProps) {
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {items.map((item) => {
+          {items.filter(item =>
+            (!item.academicOnly || tenant?.structure_mode === 'academic') &&
+            (!item.centerOnly || tenant?.has_center !== false)
+          ).map((item) => {
             const Icon = ICONS[item.icon]
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
@@ -133,7 +151,7 @@ export function Sidebar({ items, title }: SidebarProps) {
                 )}
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                {(sidebarOpen || mobileNavOpen) && <span className="text-sm font-medium truncate">{item.label}</span>}
+                {(sidebarOpen || mobileNavOpen) && <span className="text-sm font-medium truncate">{item.term ? terms[item.term] : item.label}</span>}
               </Link>
             )
           })}

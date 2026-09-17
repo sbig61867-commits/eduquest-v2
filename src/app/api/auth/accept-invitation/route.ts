@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   // ── Step 1: validate & lock invitation ───────────────────────
   const { data: inv, error: invErr } = await admin
     .from('invitations')
-    .select('id, role, tenant_id, email, group_id, course_id, is_public, max_uses, use_count, status, expires_at')
+    .select('id, role, tenant_id, email, group_id, course_id, is_public, max_uses, use_count, status, expires_at, is_university_student')
     .eq('token', token)
     .eq('status', 'pending')
     .gt('expires_at', new Date().toISOString())
@@ -115,6 +115,19 @@ export async function POST(request: Request) {
   const userId = authData.user.id
 
   try {
+    // ── Step 3b: carry the invitation's student population onto the profile.
+    // Written before accept_invitation so a failure here still lands in the
+    // rollback below (the placeholder profile row already exists, created by
+    // the handle_new_user trigger). accept_invitation itself is left untouched
+    // — supabase/fix_rls_write_path_migration.sql is still pending on it.
+    if (inv.role === 'student') {
+      const { error: affErr } = await admin
+        .from('users')
+        .update({ is_university_student: inv.is_university_student !== false })
+        .eq('id', userId)
+      if (affErr) throw new Error(`student affiliation: ${affErr.message}`)
+    }
+
     // ── Steps 4-7, atomically: the earlier SELECT (above) was only a
     // fail-fast/email-match check and is NOT race-safe on its own — two
     // concurrent accepts of a multi-use link could both pass it before

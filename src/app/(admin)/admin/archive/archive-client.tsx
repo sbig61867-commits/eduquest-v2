@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Archive, ArchiveRestore, Users, BookOpen, ClipboardList, GraduationCap, Search } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
+import { useAuthStore } from '@/stores/auth-store'
+import { getTerms } from '@/lib/terminology'
 
 export interface ArchiveRow {
   kind: 'group' | 'course'
@@ -58,11 +60,12 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
   }
 
   const archivedCount = items.filter(r => r.is_archived).length
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">University Archive</h2>
+        <h2 className="text-2xl font-bold text-white">{terms.institution} Archive</h2>
         <p className="text-slate-400 mt-1">
           Full historical record — {items.length} classes &amp; courses ({archivedCount} archived). All submissions and grades are preserved for future reference.
         </p>

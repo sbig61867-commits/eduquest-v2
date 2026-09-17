@@ -4,6 +4,8 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
 import { checkStudentLimit, STUDENT_LIMIT_MESSAGE } from '@/lib/student-limit'
 import { canManageAccountRole } from '@/lib/staff-auth'
+import { resolveStudentAffiliation } from '@/lib/student-affiliation'
+import { getTenantSettings } from '@/lib/structure-mode'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -77,10 +79,11 @@ export async function POST(request: Request) {
       : callerProfile.tenant_id
 
     if (!tenant_id) {
-      return NextResponse.json({ error: 'A university must be selected for this role' }, { status: 400 })
+      return NextResponse.json({ error: 'An institution must be selected for this role' }, { status: 400 })
     }
 
     const adminClient = getAdminClient()
+    const { has_center: hasCenter } = await getTenantSettings(adminClient, tenant_id)
 
     // Plan seat cap — enforced server-side before the auth identity exists,
     // so a refused request leaves nothing to roll back.
@@ -102,7 +105,15 @@ export async function POST(request: Request) {
 
     if (authError) {
       console.error('[create-user] authError:', authError)
-      return NextResponse.json({ error: extractError(authError) }, { status: 400 })
+      const message = extractError(authError)
+      // Supabase's own email check is stricter than ours; say so plainly instead of the raw English message.
+      if (/invalid format/i.test(message)) {
+        return NextResponse.json(
+          { error: `صيغة البريد الإلكتروني غير مقبولة (${email.trim()}). استخدم بريداً بصيغة عادية مثل name@example.com بدون مسافات أو أحرف عربية.` },
+          { status: 400 },
+        )
+      }
+      return NextResponse.json({ error: message }, { status: 400 })
     }
 
     // Step 2: explicitly set role + tenant — never rely on the trigger for this.
@@ -116,6 +127,13 @@ export async function POST(request: Request) {
         role,
         tenant_id,
         is_active: true,
+        // Which student population this account belongs to. Requesting the
+        // university population needs `announce_to_university`; a centre
+        // manager without it can only ever add centre trainees.
+        ...(role === 'student'
+          // Without a centre every student belongs to the institution itself.
+          ? { is_university_student: !hasCenter || resolveStudentAffiliation(callerProfile, body.is_university_student) }
+          : {}),
       })
       .select('*')
       .single()

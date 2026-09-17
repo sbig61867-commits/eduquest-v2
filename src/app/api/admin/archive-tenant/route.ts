@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     .from('tenants').update({ is_active: nextActive }).eq('id', tenant_id).select().single()
   if (tenantErr || !tenant) {
     console.error('[archive-tenant] tenant update:', tenantErr)
-    return NextResponse.json({ error: 'Failed to update university' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update institution' }, { status: 500 })
   }
 
   // 2. Cascade the same flag to every user in the tenant (blocks/restores their login).
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     .from('users').update({ is_active: nextActive }).eq('tenant_id', tenant_id)
   if (usersErr) {
     console.error('[archive-tenant] users update:', usersErr)
-    return NextResponse.json({ error: 'University updated but failed to update its users' }, { status: 500 })
+    return NextResponse.json({ error: 'Institution updated but failed to update its users' }, { status: 500 })
   }
 
   return NextResponse.json({ tenant, archived: archive })

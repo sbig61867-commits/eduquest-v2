@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { User, Building2, Users, CheckCircle2 } from 'lucide-react'
+import { User, Building2, Users, CheckCircle2, GraduationCap, School } from 'lucide-react'
+import { CENTRE_TRAINEE_LABEL_AR, type StudentTrack } from '@/lib/student-track'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -25,12 +26,21 @@ interface Group {
   teacher: { full_name: string } | null
 }
 
+export interface Affiliation {
+  track: StudentTrack
+  unitL1Label: string
+  unitL2Label: string
+  /** Faculty › department pairs from the student's groups (institution track + academic mode only) */
+  units: { l1: string; l2: string | null }[]
+}
+
 interface Props {
   profile: Profile | null
   groups: Group[]
+  affiliation?: Affiliation
 }
 
-export function StudentProfileClient({ profile, groups }: Props) {
+export function StudentProfileClient({ profile, groups, affiliation }: Props) {
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -49,7 +59,7 @@ export function StudentProfileClient({ profile, groups }: Props) {
       .from('users')
       .update({ full_name: fullName.trim() })
       .eq('id', profile.id)
-      .select('id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, created_at')
+      .select('id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, is_university_student, created_at')
       .single()
 
     if (err) {
@@ -93,6 +103,30 @@ export function StudentProfileClient({ profile, groups }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Affiliation — centre trainees are never shown faculties/departments */}
+      {affiliation?.track === 'centre' && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3" dir="rtl">
+          <School className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-amber-300 text-sm font-semibold">{CENTRE_TRAINEE_LABEL_AR}</p>
+            <p className="text-slate-400 text-xs mt-1">
+              مسجّل عن طريق مركز التعليم المستمر في {profile.tenants?.name ?? 'المؤسسة'} — تصلك دورات المركز وإعلاناته.
+            </p>
+          </div>
+        </div>
+      )}
+      {affiliation?.track === 'institution' && affiliation.units.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-start gap-3">
+          <GraduationCap className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-xs text-slate-500">{affiliation.unitL1Label} / {affiliation.unitL2Label}</p>
+            {affiliation.units.map((u, i) => (
+              <p key={i} className="text-white text-sm font-medium">{u.l1}{u.l2 ? ` › ${u.l2}` : ''}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Edit name */}
       <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">

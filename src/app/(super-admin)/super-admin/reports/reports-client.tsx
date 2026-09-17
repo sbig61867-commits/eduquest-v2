@@ -17,17 +17,17 @@ type Lang = 'ar' | 'en'
 // UI chrome strings (letterhead / signature / footer) per report language
 const UI = {
   ar: {
-    tagline: 'منصة التعليم الرقمية متعددة الجامعات',
+    tagline: 'منصة التعليم الرقمية متعددة المؤسسات',
     refLabel: 'الرقم المرجعي', dateLabel: 'التاريخ', timeLabel: 'وقت الإصدار',
-    uniLabel: 'الجامعة',
+    uniLabel: 'المؤسسة',
     sigTitle: 'الاعتماد', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
     footerAuto: 'وثيقة صادرة آلياً من منصة EduQuest', footerConf: 'سري — للاستخدام الإداري فقط',
     locale: 'ar',
   },
   en: {
-    tagline: 'Multi-University Digital Learning Platform',
+    tagline: 'Multi-Institution Digital Learning Platform',
     refLabel: 'Reference No.', dateLabel: 'Date', timeLabel: 'Issued At',
-    uniLabel: 'University',
+    uniLabel: 'Institution',
     sigTitle: 'Approval', sigName: 'Name', sigSignature: 'Signature', sigDate: 'Date',
     footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
     locale: 'en-GB',
@@ -37,7 +37,7 @@ const UI = {
 interface Props { tenants: Tenant[]; teachers: Person[]; groups: Group[]; students: Person[] }
 
 const SCOPE_LABEL: Record<Scope, string> = {
-  university: 'جامعة كاملة',
+  university: 'مؤسسة كاملة',
   teacher: 'معلم',
   group: 'مجموعة',
   student: 'طالب',
@@ -98,7 +98,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">التقارير</h2>
-            <p className="text-slate-400 text-sm">استخرج تقريراً تفصيلياً لأي جامعة أو معلم أو مجموعة أو طالب</p>
+            <p className="text-slate-400 text-sm">استخرج تقريراً تفصيلياً لأي مؤسسة أو معلم أو مجموعة أو طالب</p>
           </div>
         </div>
       </div>

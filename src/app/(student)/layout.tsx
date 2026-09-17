@@ -3,6 +3,8 @@ import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
 import { StudentQuickAccessPanel } from '@/components/student/quick-access-panel'
+import { AnnouncementPopup } from '@/components/student/announcement-popup'
+import { CENTRE_TRAINEE_LABEL } from '@/lib/student-track'
 
 const navItems = [
   { label: 'Dashboard', href: '/student/dashboard', icon: 'LayoutDashboard' as const },
@@ -19,12 +21,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen bg-slate-950">
       <TenantWatcher />
-      <Sidebar items={navItems} title="Student" />
+      <Sidebar items={navItems} title="Student" centreTraineeTitle={CENTRE_TRAINEE_LABEL} />
       <ContentShell>
         <Header title="Student Portal" />
         <main className="p-4 lg:p-6 !pt-20">{children}</main>
       </ContentShell>
       <StudentQuickAccessPanel />
+      <AnnouncementPopup />
     </div>
   )
 }

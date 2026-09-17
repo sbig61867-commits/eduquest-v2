@@ -5,13 +5,22 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { UserPlus, Search, Trash2, ToggleLeft, Mail } from 'lucide-react'
+import { UserPlus, Search, Trash2, ToggleLeft, Mail, GraduationCap } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { User } from '@/types'
+import { useAuthStore } from '@/stores/auth-store'
+import { getTerms } from '@/lib/terminology'
 
-interface Props { initialStudents: User[] }
+interface Props {
+  initialStudents: User[]
+  /** Holds `announce_to_university`: may move a student between the two populations. */
+  canSetAffiliation?: boolean
+  /** Without a centre there is no university/centre split to show. */
+  hasCenter?: boolean
+}
 
-export function StudentsClient({ initialStudents }: Props) {
+export function StudentsClient({ initialStudents, canSetAffiliation = false, hasCenter = true }: Props) {
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
   const [students, setStudents] = useState(initialStudents)
   const [search, setSearch] = useState('')
   const router = useRouter()
@@ -28,6 +37,21 @@ export function StudentsClient({ initialStudents }: Props) {
       body: JSON.stringify({ userId: student.id, isActive: !student.is_active }),
     })
     if (res.ok) { setStudents(prev => prev.map(s => s.id === student.id ? { ...s, is_active: !s.is_active } : s)); router.refresh() }
+  }
+
+  // University student vs centre-only trainee — decides which announcements
+  // reach them (see src/lib/student-affiliation.ts).
+  async function toggleAffiliation(student: User) {
+    const next = student.is_university_student === false
+    const res = await fetch('/api/admin/student-affiliation', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: student.id, isUniversityStudent: next }),
+    })
+    if (res.ok) {
+      setStudents(prev => prev.map(s => s.id === student.id ? { ...s, is_university_student: next } : s))
+      router.refresh()
+    }
   }
 
   async function deleteStudent(id: string) {
@@ -76,9 +100,26 @@ export function StudentsClient({ initialStudents }: Props) {
                 </td>
                 <td className="px-5 py-4 hidden md:table-cell"><span className="text-slate-400 text-sm flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{student.email}</span></td>
                 <td className="px-5 py-4 hidden lg:table-cell"><span className="text-slate-400 text-sm">{formatDate(student.created_at)}</span></td>
-                <td className="px-5 py-4"><Badge variant={student.is_active ? 'green' : 'red'}>{student.is_active ? 'Active' : 'Disabled'}</Badge></td>
+                <td className="px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant={student.is_active ? 'green' : 'red'}>{student.is_active ? 'Active' : 'Disabled'}</Badge>
+                    {hasCenter && (
+                      <Badge variant={student.is_university_student === false ? 'gray' : 'blue'}>
+                        {student.is_university_student === false ? 'Centre trainee' : terms.institution}
+                      </Badge>
+                    )}
+                  </div>
+                </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1 justify-end">
+                    {canSetAffiliation && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title={student.is_university_student === false ? `Mark as ${terms.institutionStudent.toLowerCase()}` : 'Mark as centre-only trainee'}
+                        onClick={() => toggleAffiliation(student)}
+                      ><GraduationCap className="w-4 h-4" /></Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(student)}><ToggleLeft className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteStudent(student.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                   </div>

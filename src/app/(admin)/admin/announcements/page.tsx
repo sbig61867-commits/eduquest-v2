@@ -11,7 +11,8 @@ export default async function AdminAnnouncementsPage() {
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { allowed, announcements, groups } = await loadAnnouncementsPage(supabase, user.id, user.tenant_id)
+  const { allowed, canTargetUniversity, hasCenter, announcements, groups } =
+    await loadAnnouncementsPage(supabase, user.id, user.tenant_id)
 
   if (!allowed) {
     return (
@@ -23,5 +24,12 @@ export default async function AdminAnnouncementsPage() {
     )
   }
 
-  return <AnnouncementsManager announcements={announcements} groups={groups} />
+  return (
+    <AnnouncementsManager
+      announcements={announcements}
+      groups={groups}
+      canTargetUniversity={canTargetUniversity}
+      hasCenter={hasCenter}
+    />
+  )
 }

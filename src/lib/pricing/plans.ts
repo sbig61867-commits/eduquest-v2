@@ -119,12 +119,12 @@ export const pricing: PricingConfig = {
       priceMonthly: null,
       priceYearly: null,
       ar: {
-        name: 'جامعة كاملة',
+        name: 'مؤسسة كاملة',
         tagline: 'عدة كليات ومراكز تحت مظلة واحدة، بسعر يُبنى على حجمك.',
         cta: 'تواصل معنا للتسعير',
         features: [
           'عدد غير محدود من الطلاب',
-          'عدة كليات ومراكز في نفس الجامعة',
+          'عدة كليات أو مراحل ومراكز في نفس المؤسسة',
           'المراقبة المباشرة للاختبارات (الجدار المباشر)',
           'تدريب لفريقك على المنصة',
           'اتفاقية مستوى خدمة ونسخ احتياطي',
@@ -132,12 +132,12 @@ export const pricing: PricingConfig = {
         ],
       },
       en: {
-        name: 'Full university',
+        name: 'Full institution',
         tagline: 'Several faculties and centres under one roof, priced to your size.',
         cta: 'Contact us for pricing',
         features: [
           'Unlimited students',
-          'Multiple faculties and centres in one university',
+          'Multiple faculties or stages and centres in one institution',
           'Live exam monitoring (the live wall)',
           'Training sessions for your team',
           'Service-level agreement and backups',
@@ -149,14 +149,14 @@ export const pricing: PricingConfig = {
 
   includedInAll: {
     ar: [
-      'عزل كامل لبيانات كل جامعة على مستوى قاعدة البيانات',
+      'عزل كامل لبيانات كل مؤسسة على مستوى قاعدة البيانات',
       'الدخول بالدعوة فقط — لا تسجيل مفتوح',
       'استضافة مشفّرة أثناء النقل والتخزين',
       'واجهة عربية/إنجليزية تعمل على الجوال',
       'التحديثات والمزايا الجديدة بدون رسوم إضافية',
     ],
     en: [
-      'Full per-university data isolation at the database level',
+      'Full per-institution data isolation at the database level',
       'Invitation-only access — no open signup',
       'Hosting encrypted in transit and at rest',
       'Arabic/English interface that works on mobile',
@@ -168,14 +168,14 @@ export const pricing: PricingConfig = {
     ar: [
       { q: 'كيف تُحتسب الباقة؟', a: 'بعدد الطلاب النشطين خلال العام الدراسي. الطالب الذي لا يدخل المنصة لا يُحتسب.' },
       { q: 'هل أستطيع الترقية أو التوسعة لاحقاً؟', a: 'نعم، والانتقال من التجربة إلى الاشتراك لا يفقدك أي بيانات — نفس البيئة تستمر كما هي.' },
-      { q: 'هل هناك رسوم إعداد؟', a: 'لا. نجهّز بيئة جامعتك وندعو مديرها دون رسوم إضافية.' },
+      { q: 'هل هناك رسوم إعداد؟', a: 'لا. نجهّز بيئة مؤسستك وندعو مديرها دون رسوم إضافية.' },
       { q: 'كيف يتم الدفع؟', a: 'بالاتفاق المباشر مع إدارة المنصة عبر فاتورة شهرية أو سنوية.' },
       { q: 'ماذا يحدث لو أوقفنا الاشتراك؟', a: 'نزوّدك بنسخة من محتواك وعلامات طلابك قبل إغلاق البيئة.' },
     ],
     en: [
       { q: 'How is a plan counted?', a: 'By active students during the academic year. A student who never signs in is not counted.' },
       { q: 'Can we upgrade or expand later?', a: 'Yes, and moving from the pilot to a subscription loses no data — the same environment simply continues.' },
-      { q: 'Is there a setup fee?', a: 'No. We prepare your university’s environment and invite its admin at no extra cost.' },
+      { q: 'Is there a setup fee?', a: 'No. We prepare your institution’s environment and invite its admin at no extra cost.' },
       { q: 'How is payment handled?', a: 'Arranged directly with the platform’s management via a monthly or yearly invoice.' },
       { q: 'What happens if we stop the subscription?', a: 'We hand you an export of your content and your students’ grades before the environment is closed.' },
     ],

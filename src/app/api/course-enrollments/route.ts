@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   const { data: student } = await admin
     .from('users').select('id, full_name, email').eq('id', student_id)
     .eq('role', 'student').eq('tenant_id', tenantId).maybeSingle()
-  if (!student) return NextResponse.json({ error: 'Student not found in this university' }, { status: 404 })
+  if (!student) return NextResponse.json({ error: 'Student not found in this institution' }, { status: 404 })
 
   // Enrolment does not consume a plan seat — the seat is the account itself,
   // already capped in create-user / accept-invitation.

@@ -9,7 +9,7 @@ import { pricing, type BillingPeriod, type PricingPlan } from '@/lib/pricing/pla
 const dict = {
   ar: {
     title: 'أسعار واضحة، بلا مفاجآت',
-    desc: 'ابدأ بتجربة مجانية، وادفع فقط عندما تقرر جامعتك أو مركزك الاستمرار.',
+    desc: 'ابدأ بتجربة مجانية، وادفع فقط عندما تقرر مؤسستك الاستمرار.',
     monthly: 'شهري',
     yearly: 'سنوي',
     save: 'وفّر شهرين',
@@ -26,7 +26,7 @@ const dict = {
   },
   en: {
     title: 'Clear pricing, no surprises',
-    desc: 'Start with a free pilot and pay only once your university or centre decides to continue.',
+    desc: 'Start with a free pilot and pay only once your institution decides to continue.',
     monthly: 'Monthly',
     yearly: 'Yearly',
     save: 'Two months free',

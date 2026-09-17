@@ -14,15 +14,15 @@ const dict = {
     features: [
       { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'المعلم يكتب الموضوع، والمنصة تولّد درساً كاملاً أو اختباراً بأسئلته وإجاباته في ثوانٍ — قابل للتعديل قبل النشر.' },
       { icon: 'ShieldCheck', title: 'مراقبة ذكية للاختبارات', desc: 'كاميرا وذكاء اصطناعي يرصدان الوجوه المتعددة والنظر بعيداً وتبديل النوافذ — والتصحيح يتم على الخادم فلا تصل الإجابات الصحيحة للطالب أبداً.' },
-      { icon: 'Building2', title: 'عزل كامل لكل جامعة', desc: 'كل جامعة مستأجر مستقل: بياناتها ومعلموها وطلابها معزولون تماماً عن غيرها على مستوى قاعدة البيانات نفسها.' },
-      { icon: 'Mail', title: 'دعوات بدل التسجيل المفتوح', desc: 'لا أحد يدخل المنصة إلا بدعوة: الجامعة تدعو معلميها، والمعلم يدعو طلابه لمجموعته المحددة — برابط تنتهي صلاحيته تلقائياً.' },
-      { icon: 'BarChart2', title: 'علامات وتقارير فورية', desc: 'تصحيح تلقائي فور التسليم، ونشر العلامات بضغطة، وتقارير شاملة لإدارة الجامعة.' },
+      { icon: 'Building2', title: 'عزل كامل لكل مؤسسة', desc: 'كل مؤسسة تعليمية مستأجر مستقل: بياناتها ومعلموها وطلابها معزولون تماماً عن غيرها على مستوى قاعدة البيانات نفسها.' },
+      { icon: 'Mail', title: 'دعوات بدل التسجيل المفتوح', desc: 'لا أحد يدخل المنصة إلا بدعوة: المؤسسة تدعو معلميها، والمعلم يدعو طلابه لمجموعته المحددة — برابط تنتهي صلاحيته تلقائياً.' },
+      { icon: 'BarChart2', title: 'علامات وتقارير فورية', desc: 'تصحيح تلقائي فور التسليم، ونشر العلامات بضغطة، وتقارير شاملة لإدارة المؤسسة.' },
       { icon: 'BookOpen', title: 'دروس ومجموعات منظمة', desc: 'المعلم ينظم طلابه في مجموعات (شُعَب)، وينشر الدروس لكل مجموعة، والطالب يرى محتوى مجموعته فقط.' },
     ],
     rolesTitle: 'لكل دور لوحته الخاصة',
     rolesDesc: 'المنصة مبنية على أدوار واضحة — كل مستخدم يرى فقط ما يخصه، بواجهة مصممة لمهامه.',
     roles: [
-      { icon: 'Building2', title: 'إدارة الجامعة', points: [
+      { icon: 'Building2', title: 'إدارة المؤسسة', points: [
         'دعوة المعلمين وإدارة حساباتهم',
         'متابعة الطلاب وتفعيل/تعطيل الحسابات',
         'إحصائيات المؤسسة: معلمون، طلاب، دروس، اختبارات',
@@ -41,13 +41,13 @@ const dict = {
         'واجهة بسيطة بلا تشتيت',
       ]},
     ],
-    howTitle: 'كيف تبدأ جامعتك؟',
+    howTitle: 'كيف تبدأ مؤسستك؟',
     steps: [
-      { n: '1', title: 'تواصل معنا', desc: 'نجهّز لجامعتك بيئتها الخاصة ونرسل دعوة لمديرها' },
+      { n: '1', title: 'تواصل معنا', desc: 'نجهّز لمؤسستك بيئتها الخاصة ونرسل دعوة لمديرها' },
       { n: '2', title: 'ادعُ معلميك', desc: 'المدير يرسل دعوات للمعلمين، والمعلمون يدعون طلابهم' },
       { n: '3', title: 'ابدأ التدريس', desc: 'دروس واختبارات وعلامات — كل شيء يعمل من اليوم الأول' },
     ],
-    cta: 'اطلب اشتراكاً لجامعتك',
+    cta: 'اطلب اشتراكاً لمؤسستك',
   },
   en: {
     title: 'Everything the platform offers',
@@ -55,15 +55,15 @@ const dict = {
     features: [
       { icon: 'Sparkles', title: 'AI-powered generation', desc: 'The teacher types a topic and the platform generates a full lesson or a complete exam with questions and answers in seconds — editable before publishing.' },
       { icon: 'ShieldCheck', title: 'Smart exam proctoring', desc: 'Camera + AI detect multiple faces, looking away and tab switching — and grading happens on the server, so correct answers never reach the student.' },
-      { icon: 'Building2', title: 'Full isolation per university', desc: 'Each university is an independent tenant: its data, teachers and students are completely isolated at the database level.' },
-      { icon: 'Mail', title: 'Invitations, not open signup', desc: 'Nobody enters without an invitation: the university invites its teachers, and each teacher invites students to a specific group — via auto-expiring links.' },
-      { icon: 'BarChart2', title: 'Instant grades & reports', desc: 'Automatic grading on submission, one-click grade publishing, and full reports for university management.' },
+      { icon: 'Building2', title: 'Full isolation per institution', desc: 'Each institution is an independent tenant: its data, teachers and students are completely isolated at the database level.' },
+      { icon: 'Mail', title: 'Invitations, not open signup', desc: 'Nobody enters without an invitation: the institution invites its teachers, and each teacher invites students to a specific group — via auto-expiring links.' },
+      { icon: 'BarChart2', title: 'Instant grades & reports', desc: 'Automatic grading on submission, one-click grade publishing, and full reports for institution management.' },
       { icon: 'BookOpen', title: 'Organized lessons & groups', desc: 'Teachers organize students into groups, publish lessons per group, and each student sees only their own group’s content.' },
     ],
     rolesTitle: 'A dedicated dashboard for every role',
     rolesDesc: 'The platform is built on clear roles — every user sees only what belongs to them, in an interface designed for their tasks.',
     roles: [
-      { icon: 'Building2', title: 'University Admin', points: [
+      { icon: 'Building2', title: 'Institution Admin', points: [
         'Invite teachers and manage their accounts',
         'Track students and enable/disable accounts',
         'Institution statistics: teachers, students, lessons, exams',
@@ -82,9 +82,9 @@ const dict = {
         'A simple, distraction-free interface',
       ]},
     ],
-    howTitle: 'How does your university start?',
+    howTitle: 'How does your institution start?',
     steps: [
-      { n: '1', title: 'Contact us', desc: 'We prepare your university’s environment and invite its admin' },
+      { n: '1', title: 'Contact us', desc: 'We prepare your institution’s environment and invite its admin' },
       { n: '2', title: 'Invite your teachers', desc: 'The admin invites teachers, teachers invite their students' },
       { n: '3', title: 'Start teaching', desc: 'Lessons, exams and grades — everything works from day one' },
     ],

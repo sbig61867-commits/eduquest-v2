@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { deleteEntity } from '@/lib/delete-entity'
 import { serviceClient, staffCan, isTenantTeacher } from '@/lib/staff-auth'
+import { getTenantStructureMode } from '@/lib/structure-mode'
+import { parseGroupFields, courseInTenant } from '@/lib/group-fields'
 
 // Auth/authz uses the user session (RLS-scoped).
 // Writes use the service-role client to bypass RLS — safe because authorization
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!mayManageGroups(profile)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { name?: string; description?: string; teacher_id?: string }
+  let body: { name?: string; description?: string; teacher_id?: string } & Record<string, unknown>
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
@@ -38,6 +40,13 @@ export async function POST(request: Request) {
   if (!name?.trim()) return NextResponse.json({ error: 'Group name is required' }, { status: 400 })
 
   const admin = serviceClient()
+
+  // Optional: course link, image, seat cap, instructions.
+  const parsed = parseGroupFields(body)
+  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
+    return NextResponse.json({ error: 'الكورس غير موجود في مؤسستك' }, { status: 400 })
+  }
 
   // Teachers always own the groups they create. Staff assign a real teacher;
   // a centre manager is not a teacher, so for them the assignment is required.
@@ -60,6 +69,8 @@ export async function POST(request: Request) {
       description: description?.trim() || null,
       teacher_id: teacherId,
       tenant_id: profile.tenant_id,
+      // Only sent when set, so creating a plain group keeps working pre-migration.
+      ...Object.fromEntries(Object.entries(parsed.update).filter(([, v]) => v !== null && v !== undefined)),
     })
     .select('*, group_students(count)')
     .single()
@@ -77,14 +88,21 @@ export async function PATCH(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!mayManageGroups(profile)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { id?: string; name?: string; description?: string; is_active?: boolean; teacher_id?: string }
+  let body: {
+    id?: string; name?: string; description?: string; is_active?: boolean; teacher_id?: string
+    academic_unit_id?: string | null; term_id?: string | null
+  } & Record<string, unknown>
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const { id, name, description, is_active, teacher_id } = body
+  const { id, name, description, is_active, teacher_id, academic_unit_id, term_id } = body
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
   if (name !== undefined && !name.trim()) return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 })
-  if (name === undefined && is_active === undefined && teacher_id === undefined) {
+  const classifying = academic_unit_id !== undefined || term_id !== undefined
+  const parsed = parseGroupFields(body)
+  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  const hasGroupFields = Object.keys(parsed.update).length > 0
+  if (name === undefined && is_active === undefined && teacher_id === undefined && !classifying && !hasGroupFields) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
@@ -111,6 +129,34 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'المدرب المحدد غير موجود في مؤسستك' }, { status: 400 })
     }
     update.teacher_id = teacher_id
+  }
+  if (hasGroupFields) {
+    // Course link / image / cap / instructions are staff settings, not a teacher's.
+    if (profile.role === 'teacher') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
+      return NextResponse.json({ error: 'الكورس غير موجود في مؤسستك' }, { status: 400 })
+    }
+    Object.assign(update, parsed.update)
+  }
+  if (classifying) {
+    // Placing a group in the academic structure is a staff action.
+    if (!staffCan(profile, 'manage_academic_structure')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if ((await getTenantStructureMode(admin, profile.tenant_id)) !== 'academic') {
+      return NextResponse.json({ error: 'الهيكل الأكاديمي غير مفعّل لمؤسستك' }, { status: 409 })
+    }
+    for (const [column, table, value] of [
+      ['academic_unit_id', 'academic_units', academic_unit_id],
+      ['term_id', 'academic_terms', term_id],
+    ] as const) {
+      if (value === undefined) continue
+      if (value !== null) {
+        // The DB trigger rejects a foreign-tenant link too; this gives a clean 400.
+        const { data: target } = await admin
+          .from(table).select('id').eq('id', value).eq('tenant_id', profile.tenant_id).is('deleted_at', null).maybeSingle()
+        if (!target) return NextResponse.json({ error: 'Not found in your institution' }, { status: 400 })
+      }
+      update[column] = value
+    }
   }
 
   const { data, error } = await admin

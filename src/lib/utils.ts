@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { Role } from '@/types'
+import { getTerms } from '@/lib/terminology'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -17,10 +18,12 @@ export function getRoleDashboardPath(role: Role): string {
   return paths[role]
 }
 
-export function getRoleLabel(role: Role): string {
+// `institutionType` only changes the university_admin label (see
+// src/lib/terminology.ts); omitting it keeps the original wording.
+export function getRoleLabel(role: Role, institutionType?: string | null): string {
   const labels: Record<Role, string> = {
     super_admin: 'Super Admin',
-    university_admin: 'University Admin',
+    university_admin: getTerms(institutionType).institutionAdmin,
     center_manager: 'Centre Manager',
     teacher: 'Teacher',
     student: 'Student',

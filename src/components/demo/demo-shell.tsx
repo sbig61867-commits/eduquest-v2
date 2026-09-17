@@ -18,7 +18,7 @@ export interface DemoNavItem {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: 'مدير الجامعة',
+  admin: 'مدير المؤسسة',
   teacher: 'المعلم',
   student: 'الطالب',
   center: 'مدير المركز',
@@ -74,7 +74,7 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
       <div className="flex-1 min-w-0">
         <header className="h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur flex items-center justify-between px-4 lg:px-6">
           <p className="text-slate-400 text-sm">
-            هذه بيانات تجريبية وهمية لغرض العرض — <Link href="/contact" className="text-blue-400 hover:underline">تواصل معنا</Link> لتجربة حقيقية بجامعتك
+            هذه بيانات تجريبية وهمية لغرض العرض — <Link href="/contact" className="text-blue-400 hover:underline">تواصل معنا</Link> لتجربة حقيقية بمؤسستك
           </p>
         </header>
         <main className="p-4 lg:p-6">{children}</main>

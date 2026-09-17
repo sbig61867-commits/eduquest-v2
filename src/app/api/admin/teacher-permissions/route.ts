@@ -48,7 +48,7 @@ export async function PATCH(request: Request) {
   }
 
   if (caller.role === 'university_admin' && teacher.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'Teacher is not in your university' }, { status: 403 })
+    return NextResponse.json({ error: 'Teacher is not in your institution' }, { status: 403 })
   }
 
   const { error } = await adminClient

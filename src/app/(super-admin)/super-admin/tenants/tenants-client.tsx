@@ -11,14 +11,15 @@ import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Building2, Archive, ArchiveRestore, Trash2, UserPlus, Mail } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import type { Tenant } from '@/types'
+import type { Tenant, InstitutionType, StructureMode } from '@/types'
+import { INSTITUTION_TYPES, getTerms } from '@/lib/terminology'
 
 interface Props { initialTenants: Tenant[] }
 
 export function TenantsClient({ initialTenants }: Props) {
   const [tenants, setTenants] = useState(initialTenants)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', slug: '' })
+  const [form, setForm] = useState<{ name: string; slug: string; institution_type: InstitutionType; has_center: boolean }>({ name: '', slug: '', institution_type: 'university', has_center: true })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -39,12 +40,18 @@ export function TenantsClient({ initialTenants }: Props) {
     const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     const { data, error: err } = await supabase
       .from('tenants')
-      .insert({ name: form.name, slug })
+      .insert({
+        name: form.name, slug,
+        // Omitted for the default so creation still works before
+        // institution_type_migration.sql is applied.
+        ...(form.institution_type !== 'university' ? { institution_type: form.institution_type } : {}),
+        ...(!form.has_center ? { has_center: false } : {}),
+      })
       .select()
       .single()
     if (err) { setError(err.message); setLoading(false); return }
     setTenants(prev => [data, ...prev])
-    setForm({ name: '', slug: '' })
+    setForm({ name: '', slug: '', institution_type: 'university', has_center: true })
     setShowAdd(false)
     setLoading(false)
     router.refresh()
@@ -73,6 +80,40 @@ export function TenantsClient({ initialTenants }: Props) {
     setTenants(prev => prev.filter(t => t.id !== tenant.id))
     // Invalidate the router cache so revisiting the page doesn't show the
     // deleted tenant from a stale server render.
+    router.refresh()
+  }
+
+  async function changeType(tenant: Tenant, institution_type: InstitutionType) {
+    const { data, error: err } = await supabase
+      .from('tenants').update({ institution_type }).eq('id', tenant.id).select().single()
+    if (err) { toast.error(err.message); return }
+    setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
+    router.refresh()
+  }
+
+  // The academic structure is opt-in per institution; the original ('flat')
+  // structure stays the default. Switching back never deletes anything.
+  async function changeHasCenter(tenant: Tenant, has_center: boolean) {
+    const message = has_center
+      ? `تفعيل مركز التعليم المستمر لـ "${tenant.name}"؟ يظهر تقسيم الطلاب ومدير المركز.`
+      : `إلغاء مركز التعليم المستمر لـ "${tenant.name}"؟ يُعامل كل الطلاب كطلاب المؤسسة ولا يمكن إضافة مديري مراكز. لا يُحذف أي حساب أو بيانات.`
+    if (!(await confirmDialog(message))) return
+    const { data, error: err } = await supabase
+      .from('tenants').update({ has_center }).eq('id', tenant.id).select().single()
+    if (err) { toast.error(err.message); return }
+    setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
+    router.refresh()
+  }
+
+  async function changeStructureMode(tenant: Tenant, structure_mode: StructureMode) {
+    const message = structure_mode === 'academic'
+      ? `تفعيل الهيكل الأكاديمي (الكليات والأقسام والفصول الدراسية) لـ "${tenant.name}"؟`
+      : `إرجاع "${tenant.name}" إلى الهيكل القديم؟ ستختفي الكليات والأقسام عن المستخدمين دون حذف أي بيانات، وتعود كما هي عند إعادة التفعيل.`
+    if (!(await confirmDialog(message))) return
+    const { data, error: err } = await supabase
+      .from('tenants').update({ structure_mode }).eq('id', tenant.id).select().single()
+    if (err) { toast.error(err.message); return }
+    setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
     router.refresh()
   }
 
@@ -115,10 +156,10 @@ export function TenantsClient({ initialTenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Universities</h2>
+          <h2 className="text-2xl font-bold text-white">Institutions</h2>
           <p className="text-slate-400 mt-1">{tenants.length} tenants registered</p>
         </div>
-        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> New University</Button>
+        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> New Institution</Button>
       </div>
 
       {tenants.length === 0 ? (
@@ -141,6 +182,31 @@ export function TenantsClient({ initialTenants }: Props) {
               </div>
               <h3 className="text-white font-semibold text-lg mb-1">{tenant.name}</h3>
               <p className="text-slate-500 text-sm mb-1 font-mono">{tenant.slug}</p>
+              <select
+                aria-label="Institution type"
+                value={tenant.institution_type ?? 'university'}
+                onChange={e => changeType(tenant, e.target.value as InstitutionType)}
+                className="mb-2 w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs px-2 py-1.5"
+              >
+                {INSTITUTION_TYPES.map(t => <option key={t} value={t}>{getTerms(t).institutionTypeLabel}</option>)}
+              </select>
+              <select
+                aria-label="Structure"
+                value={tenant.structure_mode ?? 'flat'}
+                onChange={e => changeStructureMode(tenant, e.target.value as StructureMode)}
+                className="mb-2 w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs px-2 py-1.5"
+              >
+                <option value="flat">الهيكل القديم (مجموعات وكورسات)</option>
+                <option value="academic">الهيكل الأكاديمي (كليات وأقسام)</option>
+              </select>
+              <label className="mb-2 flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={tenant.has_center !== false}
+                  onChange={e => changeHasCenter(tenant, e.target.checked)}
+                />
+                لديها مركز تعليم مستمر
+              </label>
               <p className="text-slate-500 text-xs mb-4">Created {formatDate(tenant.created_at)}</p>
 
               <div className="space-y-2 pt-3 border-t border-slate-800">
@@ -177,16 +243,16 @@ export function TenantsClient({ initialTenants }: Props) {
         </div>
       )}
 
-      {/* Create University Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New University">
+      {/* Create Institution Modal */}
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Institution">
         <form onSubmit={handleAdd} className="space-y-4">
           {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
           <Input
-            label="University Name"
+            label="Institution Name"
             value={form.name}
             onChange={e => {
               const name = e.target.value
-              setForm({ name, slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') })
+              setForm(p => ({ ...p, name, slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))
             }}
             required
             placeholder="King Abdullah University"
@@ -198,9 +264,28 @@ export function TenantsClient({ initialTenants }: Props) {
             required
             placeholder="king-abdullah-university"
           />
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Institution type</label>
+            <select
+              value={form.institution_type}
+              // A continuing-education centre is typical for universities only; editable below.
+              onChange={e => {
+                const institution_type = e.target.value as InstitutionType
+                setForm(p => ({ ...p, institution_type, has_center: institution_type === 'university' }))
+              }}
+              className="w-full rounded-lg bg-slate-800 border border-slate-700 text-white text-sm px-3 py-2"
+            >
+              {INSTITUTION_TYPES.map(t => <option key={t} value={t}>{getTerms(t).institutionTypeLabel}</option>)}
+            </select>
+            <label className="mt-2 flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" checked={form.has_center}
+                onChange={e => setForm(p => ({ ...p, has_center: e.target.checked }))} />
+              لديها مركز تعليم مستمر (تقسيم الطلاب + مدير المركز)
+            </label>
+          </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
-            <Button type="submit" loading={loading} className="flex-1">Create University</Button>
+            <Button type="submit" loading={loading} className="flex-1">Create Institution</Button>
           </div>
         </form>
       </Modal>

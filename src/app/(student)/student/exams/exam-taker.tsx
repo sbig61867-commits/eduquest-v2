@@ -48,42 +48,55 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
   const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
 
-  // ── Answer draft autosave (localStorage only — survives refresh/crash on
-  //    the same device/browser; not synced server-side). Namespaced per
-  //    exam+student so a shared device doesn't leak drafts across accounts. ──
+  // ── Answer draft autosave ──
+  // localStorage: survives refresh/crash on the same device (all exam types).
+  // Server draft: survives device switch for timed exams only (homework has no
+  // time pressure and no risk of losing answers mid-session).
   const draftKey = `examDraft:${exam.id}:${userId}`
 
-  // Restore a saved draft once the attempt actually starts. Called imperatively
-  // from startExam() (a user action, not a synchronization) rather than an
-  // effect on `started` — a one-time read tied to that click, not a value
-  // React needs to keep in sync with anything.
-  function restoreDraft() {
+  // Restore draft on exam start. Server draft (returned by /api/exam/start on
+  // resume) takes priority for timed exams; localStorage fills the rest.
+  function restoreDraft(serverDraft?: Record<string, string>) {
     try {
       const saved = localStorage.getItem(draftKey)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed && typeof parsed === 'object') {
-          setAnswers(prev => ({ ...parsed, ...prev }))
-        }
+      const local: Record<string, string> = saved ? JSON.parse(saved) : {}
+      const merged = { ...local, ...(serverDraft ?? {}) }
+      if (Object.keys(merged).length > 0) {
+        setAnswers(prev => ({ ...merged, ...prev }))
       }
     } catch {
-      // Private-browsing/quota errors — draft restore is best-effort only.
+      // Best-effort — never block the exam on a storage failure.
+      if (serverDraft && Object.keys(serverDraft).length > 0) {
+        setAnswers(prev => ({ ...serverDraft, ...prev }))
+      }
     }
   }
 
-  // Debounced autosave of in-progress answers, so a crash/refresh doesn't
-  // wipe answered questions (answers otherwise live only in React state).
+  // Debounced localStorage autosave (all exam types).
   useEffect(() => {
     if (!started || submitted) return
     const timeout = setTimeout(() => {
-      try {
-        localStorage.setItem(draftKey, JSON.stringify(answers))
-      } catch {
-        // Best-effort — never block the exam on a storage failure.
-      }
+      try { localStorage.setItem(draftKey, JSON.stringify(answers)) } catch {}
     }, 500)
     return () => clearTimeout(timeout)
   }, [answers, started, submitted, draftKey])
+
+  // Server-side draft sync every 60 s (timed exams only — excludes homework).
+  useEffect(() => {
+    if (!started || submitted || untimed) return
+    const id = setInterval(async () => {
+      try {
+        await fetch('/api/exam/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ examId: exam.id, answers }),
+        })
+      } catch {
+        // Network hiccup — next interval will retry.
+      }
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [answers, started, submitted, untimed, exam.id])
 
   // ── Event recorder: persists local detections to the DB, batched + deduped,
   //    with ZERO AI. The only proctoring data that reaches the server is these
@@ -261,9 +274,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         return
       }
 
-      // Resume support: if an attempt was already in progress, compute the real
-      // remaining time from the server start timestamp instead of resetting it.
-      const { startedAt, resumed } = await res.json()
+      // Resume support: compute real remaining time + restore server draft.
+      const { startedAt, resumed, answers_draft } = await res.json()
       if (resumed && startedAt && !untimed) {
         const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
         const remaining = exam.duration_minutes * 60 - elapsedSecs
@@ -271,7 +283,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         setTimeLeft(remaining)
       }
 
-      restoreDraft()
+      restoreDraft(resumed && !untimed ? (answers_draft ?? {}) : undefined)
       setStarted(true)
     } catch {
       // fetch() itself threw (offline/DNS/CORS) rather than resolving with a

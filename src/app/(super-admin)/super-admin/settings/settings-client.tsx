@@ -171,7 +171,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
     e.preventDefault()
     setInvError(''); setInvSaved(false)
     const fields: Array<[keyof InvitationDefaults, string]> = [
-      ['university_admin', 'University Admin'], ['teacher', 'Teacher'], ['student', 'Student'], ['max_expiry_hours', 'Maximum'],
+      ['university_admin', 'Institution Admin'], ['teacher', 'Teacher'], ['student', 'Student'], ['max_expiry_hours', 'Maximum'],
     ]
     for (const [k, label] of fields) {
       const v = inv[k]
@@ -259,7 +259,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Input label="University Admin" type="number" min={1} max={8760} value={inv.university_admin}
+          <Input label="Institution Admin" type="number" min={1} max={8760} value={inv.university_admin}
             onChange={e => setInv(p => ({ ...p, university_admin: Number(e.target.value) }))} required />
           <Input label="Teacher" type="number" min={1} max={8760} value={inv.teacher}
             onChange={e => setInv(p => ({ ...p, teacher: Number(e.target.value) }))} required />

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
 import { can, resolvePermissions } from '@/lib/permissions'
 import { ShieldAlert } from 'lucide-react'
+import { getTenantSettings } from '@/lib/structure-mode'
 
 // The university_admin grants capabilities to their centre managers.
 // The escalation guard (you cannot grant what you don't hold) is enforced
@@ -14,6 +15,9 @@ export default async function AdminCenterStaffPage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
+
+  // Institutions without a continuing-education centre have no centre staff.
+  if (!(await getTenantSettings(supabase, user.tenant_id)).has_center) redirect('/admin/dashboard')
 
   const { data: me } = await supabase
     .from('users').select('role, permissions').eq('id', user.id).single()

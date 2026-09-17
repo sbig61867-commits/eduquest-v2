@@ -5,6 +5,8 @@ import { sendInvitationEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
 import { getInvitationDefaults } from '@/lib/settings'
 import { canManageAccountRole } from '@/lib/staff-auth'
+import { resolveStudentAffiliation } from '@/lib/student-affiliation'
+import { getTenantSettings } from '@/lib/structure-mode'
 
 function getAdminClient() {
   return createAdminClient(
@@ -98,6 +100,7 @@ export async function POST(request: Request) {
     expires_hours?: number
     is_public?: boolean
     max_uses?: number
+    is_university_student?: boolean
   }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
@@ -127,7 +130,7 @@ export async function POST(request: Request) {
   // holding the URL claim staff access to the tenant.
   if (isPublic && PRIVATE_ONLY_INVITE_ROLES.has(role)) {
     return NextResponse.json(
-      { error: 'Staff invitations (University Admin / Centre Manager) must always be email-specific for security.' },
+      { error: 'Staff invitations (Institution Admin / Centre Manager) must always be email-specific for security.' },
       { status: 400 }
     )
   }
@@ -154,8 +157,16 @@ export async function POST(request: Request) {
   // Verify tenant exists and is active
   if (caller.role === 'super_admin') {
     const { data: tenant } = await supabase.from('tenants').select('id, is_active').eq('id', tenant_id).single()
-    if (!tenant) return NextResponse.json({ error: 'University not found' }, { status: 404 })
-    if (!tenant.is_active) return NextResponse.json({ error: 'This university is currently suspended' }, { status: 403 })
+    if (!tenant) return NextResponse.json({ error: 'Institution not found' }, { status: 404 })
+    if (!tenant.is_active) return NextResponse.json({ error: 'This institution is currently suspended' }, { status: 403 })
+  }
+
+  // ── Centre features ──────────────────────────────────────
+  // No continuing-education centre ⇒ no centre managers, and every student
+  // belongs to the institution (the DB trigger refuses the former as well).
+  const { has_center: hasCenter } = await getTenantSettings(supabase, tenant_id)
+  if (role === 'center_manager' && !hasCenter) {
+    return NextResponse.json({ error: 'لا يوجد مركز تعليم مستمر في مؤسستك' }, { status: 409 })
   }
 
   // ── Validate group_id if provided ───────────────────────
@@ -187,10 +198,10 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.tenant_id === tenant_id) {
-        return NextResponse.json({ error: 'A user with this email already exists in this university' }, { status: 409 })
+        return NextResponse.json({ error: 'A user with this email already exists in this institution' }, { status: 409 })
       }
       return NextResponse.json(
-        { error: 'This email is already registered in another university. Contact support to transfer.' },
+        { error: 'This email is already registered in another institution. Contact support to transfer.' },
         { status: 409 }
       )
     }
@@ -225,6 +236,11 @@ export async function POST(request: Request) {
       expires_at,
       is_public:           isPublic,
       max_uses:            isPublic ? maxUses : null,
+      // Carried onto the account when the invitation is accepted. Gated the
+      // same way as direct account creation — see src/lib/student-affiliation.ts.
+      is_university_student: role === 'student'
+        ? !hasCenter || resolveStudentAffiliation(caller, body.is_university_student)
+        : true,
     })
     .select('*')
     .single()
@@ -259,7 +275,7 @@ export async function POST(request: Request) {
     sendInvitationEmail({
       to:          invitation.email,
       role,
-      tenantName:  tenant?.name ?? 'your university',
+      tenantName:  tenant?.name ?? 'your institution',
       joinUrl,
       expiresAt:   invitation.expires_at,
       inviterName: inviterProfile?.full_name ?? undefined,

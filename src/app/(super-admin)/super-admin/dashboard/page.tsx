@@ -54,7 +54,7 @@ export default async function SuperAdminDashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-white font-semibold mb-4">Recent Tenants</h3>
           {stats.recentTenants.length === 0 ? (
-            <p className="text-slate-500 text-sm">No tenants yet. Create the first university.</p>
+            <p className="text-slate-500 text-sm">No tenants yet. Create the first institution.</p>
           ) : (
             <ul className="space-y-3">
               {stats.recentTenants.map(t => (

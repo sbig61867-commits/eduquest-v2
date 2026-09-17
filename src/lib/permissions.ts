@@ -18,11 +18,13 @@ export const CAPABILITIES = [
   'manage_groups',
   'manage_invitations',
   'manage_announcements',
+  'announce_to_university',
   'manage_schedules',
   'manage_courses',
   'manage_attendance',
   'view_reports',
   'manage_center_staff',
+  'manage_academic_structure',
 ] as const
 
 export type Capability = (typeof CAPABILITIES)[number]
@@ -33,11 +35,13 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   manage_groups:        'إدارة المجموعات',
   manage_invitations:   'إرسال الدعوات',
   manage_announcements: 'إدارة الإعلانات',
+  announce_to_university: 'مخاطبة طلاب المؤسسة',
   manage_schedules:     'إدارة جداول المواعيد',
   manage_courses:       'إدارة الكورسات',
   manage_attendance:    'تسجيل الحضور',
   view_reports:         'عرض التقارير والكشوفات',
   manage_center_staff:  'إدارة مديري المراكز وصلاحياتهم',
+  manage_academic_structure: 'إدارة الهيكل الأكاديمي',
 }
 
 export const CAPABILITY_HINTS: Record<Capability, string> = {
@@ -46,11 +50,13 @@ export const CAPABILITY_HINTS: Record<Capability, string> = {
   manage_groups:        'أرشفة المجموعات واستعراضها',
   manage_invitations:   'إنشاء روابط دعوة للانضمام',
   manage_announcements: 'نشر إعلانات تظهر للطلاب في صفحتهم الرئيسية',
+  announce_to_university: 'توجيه الإعلانات لطلاب المؤسسة أيضاً، وتصنيف الطالب كطالب مؤسسة. بدونها تصل إعلاناته لطلاب المركز فقط',
   manage_schedules:     'ترتيب ونشر جداول المواعيد الأسبوعية للمجموعات',
   manage_courses:       'إنشاء كورسات وإسنادها لمدرب وتسجيل الطلاب فيها',
   manage_attendance:    'فتح جلسات الحضور وتسجيل حضور الطلاب في المجموعات',
   view_reports:         'الاطلاع على التقارير وكشوفات العلامات ولوحة البيانات',
   manage_center_staff:  'إنشاء حسابات مديري المراكز وضبط صلاحياتهم',
+  manage_academic_structure: 'إنشاء الوحدات الأكاديمية (كليات/مراحل…) والفصول الدراسية وربط المجموعات والكورسات بها',
 }
 
 /** Roles that carry staff capabilities at all. */

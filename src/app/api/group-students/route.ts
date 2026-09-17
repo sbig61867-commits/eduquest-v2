@@ -28,7 +28,7 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
 
   const { data: group } = await adminClient()
     .from('groups')
-    .select('id, teacher_id, tenant_id')
+    .select('*')
     .eq('id', groupId)
     .single()
 
@@ -100,7 +100,19 @@ export async function POST(request: Request) {
     .single()
 
   if (!student || student.tenant_id !== group.tenant_id) {
-    return NextResponse.json({ error: 'Student not found in this university' }, { status: 404 })
+    return NextResponse.json({ error: 'Student not found in this institution' }, { status: 404 })
+  }
+
+  // Group rule: seat cap (max_students NULL = no cap; column absent pre-migration).
+  const { max_students: maxStudents, course_id: courseId } = group as { max_students?: number | null; course_id?: string | null }
+  if (maxStudents) {
+    const { count } = await adminClient()
+      .from('group_students').select('student_id', { count: 'exact', head: true }).eq('group_id', group_id)
+    const { data: already } = await adminClient()
+      .from('group_students').select('student_id').eq('group_id', group_id).eq('student_id', student_id).maybeSingle()
+    if (!already && (count ?? 0) >= maxStudents) {
+      return NextResponse.json({ error: `المجموعة ممتلئة (${maxStudents} طالب كحد أقصى)` }, { status: 409 })
+    }
   }
 
   const { error: dbErr } = await adminClient()
@@ -110,6 +122,15 @@ export async function POST(request: Request) {
   if (dbErr) {
     console.error('[group-students POST]', dbErr)
     return NextResponse.json({ error: 'Failed to enroll student' }, { status: 500 })
+  }
+
+  // A group that is a section of a course also enrols the student in that course.
+  // The reverse never happens: joining a course by its link adds no group.
+  if (courseId) {
+    const { error: enrolErr } = await adminClient()
+      .from('course_enrollments')
+      .upsert({ course_id: courseId, student_id, tenant_id: group.tenant_id }, { onConflict: 'course_id,student_id', ignoreDuplicates: true })
+    if (enrolErr) console.error('[group-students POST] course enrolment', enrolErr)
   }
 
   return NextResponse.json({ student: { id: student.id, full_name: student.full_name, email: student.email } }, { status: 201 })

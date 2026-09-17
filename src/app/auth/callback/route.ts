@@ -23,6 +23,7 @@ interface InvitationRow {
   use_count: number
   status: string
   expires_at: string
+  is_university_student: boolean | null
 }
 
 function getAdminClient() {
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
 
       const { data: inv } = await admin
         .from('invitations')
-        .select('id, role, tenant_id, email, is_public, max_uses, use_count, status, expires_at')
+        .select('id, role, tenant_id, email, is_public, max_uses, use_count, status, expires_at, is_university_student')
         .eq('token', inviteToken)
         .eq('status', 'pending')
         .gt('expires_at', new Date().toISOString())
@@ -126,6 +127,15 @@ export async function GET(request: Request) {
           (typeof meta.name === 'string' && meta.name) ||
           user.email ||
           ''
+
+        // Same as the password flow: the invitation decides which student
+        // population this account joins (see src/lib/student-affiliation.ts).
+        if (inv.role === 'student') {
+          await admin
+            .from('users')
+            .update({ is_university_student: inv.is_university_student !== false })
+            .eq('id', user.id)
+        }
 
         const { error: rpcErr } = await admin.rpc('accept_invitation', {
           p_token: inviteToken,

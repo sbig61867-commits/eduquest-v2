@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 }
 
 const roles = [
-  { href: '/demo/admin', label: 'مدير الجامعة', desc: 'إدارة المعلمين، الطلاب، الكورسات والطلبات', icon: ShieldCheck, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+  { href: '/demo/admin', label: 'مدير المؤسسة', desc: 'إدارة المعلمين، الطلاب، الكورسات والطلبات', icon: ShieldCheck, color: 'text-blue-400', bg: 'bg-blue-500/10' },
   { href: '/demo/teacher', label: 'المعلم', desc: 'إدارة المجموعات، الدروس والاختبارات', icon: GraduationCap, color: 'text-violet-400', bg: 'bg-violet-500/10' },
   { href: '/demo/student', label: 'الطالب', desc: 'الكورسات، الاختبارات والعلامات', icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
   { href: '/demo/center', label: 'مدير مركز التعليم المستمر', desc: 'الجداول والإعلانات', icon: Building2, color: 'text-amber-400', bg: 'bg-amber-500/10' },
@@ -41,7 +41,7 @@ export default function DemoLanding() {
         </div>
 
         <p className="text-slate-500 text-sm mt-10">
-          مقتنع؟ <Link href="/contact" className="text-blue-400 hover:underline">تواصل معنا</Link> لتفعيل المنصة لجامعتك أو مركزك.
+          مقتنع؟ <Link href="/contact" className="text-blue-400 hover:underline">تواصل معنا</Link> لتفعيل المنصة لمؤسستك التعليمية.
         </p>
       </div>
     </div>

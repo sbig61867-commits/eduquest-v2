@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Mail, Link, Plus, X, Copy, Check, Clock, UserCheck, Ban, RefreshCw, Users } from 'lucide-react'
 import type { Invitation } from '@/types'
+import { formatDate } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
+import { getTerms } from '@/lib/terminology'
 
 interface Props {
   callerRole: 'super_admin' | 'university_admin' | 'teacher'
@@ -12,7 +15,7 @@ interface Props {
 
 const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   super_admin:      [
-    { value: 'university_admin', label: 'University Admin' },
+    { value: 'university_admin', label: 'Institution Admin' },
     { value: 'center_manager',   label: 'Centre Manager' },
     { value: 'teacher',          label: 'Teacher' },
     { value: 'student',          label: 'Student' },
@@ -58,11 +61,19 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // Form state
+  // Super admin has no own tenant: the server decides for the chosen one.
+  const ownTenant = useAuthStore(s => s.tenant)
+  const hasCenter = callerRole === 'super_admin' || ownTenant?.has_center !== false
+  const terms = getTerms(ownTenant?.institution_type)
+  const roleOptions = ROLE_OPTIONS[callerRole].filter(o => hasCenter || o.value !== 'center_manager')
   const [isPublic, setIsPublic]       = useState(false)
   const [email, setEmail]             = useState('')
-  const [role, setRole]               = useState(ROLE_OPTIONS[callerRole][0].value)
+  const [role, setRole]               = useState(roleOptions[0].value)
   const [tenantId, setTenantId]       = useState(tenants[0]?.id ?? '')
   const [groupId, setGroupId]         = useState('')
+  // Which student population the invited account joins — carried on the
+  // invitation and applied when it is accepted.
+  const [isUniversityStudent, setIsUniversityStudent] = useState(true)
   const [expiresHours, setExpiresHours] = useState(48)
   const [maxUses, setMaxUses]         = useState<number | ''>('')
   const [formError, setFormError]     = useState('')
@@ -112,6 +123,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     if (isPublic && maxUses !== '') body.max_uses = maxUses
     if (callerRole === 'super_admin' && tenantId) body.tenant_id = tenantId
     if (role === 'student' && groupId) body.group_id = groupId
+    if (role === 'student' && callerRole !== 'teacher') body.is_university_student = isUniversityStudent
 
     const res = await fetch('/api/invitations', {
       method: 'POST',
@@ -223,7 +235,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               type="button"
               onClick={() => canBePublic && setIsPublic(true)}
               disabled={!canBePublic}
-              title={!canBePublic ? 'University Admin invitations must be email-specific' : undefined}
+              title={!canBePublic ? 'Institution Admin invitations must be email-specific' : undefined}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
                 isPublic
                   ? 'bg-purple-600 text-white'
@@ -277,7 +289,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  placeholder="invitee@university.edu"
+                  placeholder="invitee@school.edu"
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
@@ -290,7 +302,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                 onChange={e => handleRoleChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
-                {ROLE_OPTIONS[callerRole].map(o => (
+                {roleOptions.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
@@ -298,7 +310,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
             {callerRole === 'super_admin' && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">University</label>
+                <label className="block text-sm text-slate-400 mb-1">Institution</label>
                 <select
                   value={tenantId}
                   onChange={e => setTenantId(e.target.value)}
@@ -325,6 +337,26 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                     <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {role === 'student' && callerRole !== 'teacher' && hasCenter && (
+              <div className="col-span-2">
+                <label className="flex items-start gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={isUniversityStudent}
+                    onChange={e => setIsUniversityStudent(e.target.checked)}
+                  />
+                  <span>
+                    {callerRole === 'super_admin' ? 'Institution student' : terms.institutionStudent}
+                    <span className="block text-slate-500 text-xs">
+                      Uncheck for a continuing-education trainee from outside the institution —
+                      they will not receive institution-wide announcements.
+                    </span>
+                  </span>
+                </label>
               </div>
             )}
 
@@ -398,7 +430,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                 <th className="text-left px-5 py-3 text-slate-400 font-medium">Email / Type</th>
                 <th className="text-left px-5 py-3 text-slate-400 font-medium">Role</th>
                 {callerRole === 'super_admin' && (
-                  <th className="text-left px-5 py-3 text-slate-400 font-medium">University</th>
+                  <th className="text-left px-5 py-3 text-slate-400 font-medium">Institution</th>
                 )}
                 <th className="text-left px-5 py-3 text-slate-400 font-medium">Status</th>
                 <th className="text-left px-5 py-3 text-slate-400 font-medium">Uses / Expires</th>
@@ -446,7 +478,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                           {inv.max_uses != null ? ` / ${inv.max_uses}` : ' used'}
                         </div>
                       )}
-                      <div>{new Date(inv.expires_at).toLocaleDateString()}</div>
+                      <div dir="ltr" className="whitespace-nowrap">{formatDate(inv.expires_at)}</div>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-2">

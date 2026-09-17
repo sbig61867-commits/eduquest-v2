@@ -6,7 +6,7 @@ interface Props {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  university_admin: 'University Administrator',
+  university_admin: 'Institution Administrator',
   teacher:          'Teacher',
   student:          'Student',
 }
@@ -94,7 +94,7 @@ export default async function JoinPage({ params }: Props) {
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">University</span>
+            <span className="text-slate-400">Institution</span>
             <span className="text-white font-medium">{invitation.tenant_name}</span>
           </div>
           <div className="flex justify-between text-sm">

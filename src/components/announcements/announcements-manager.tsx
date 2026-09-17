@@ -6,8 +6,15 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { confirmDialog } from '@/lib/confirm-dialog'
 import { formatDate } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
+import { getTerms } from '@/lib/terminology'
 import { AnnouncementsBanner } from '@/components/student/announcements-banner'
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil } from 'lucide-react'
+import { Modal } from '@/components/ui/modal'
+import { BannerDesigner } from '@/components/announcements/banner-designer'
+import { type AnnouncementAudience } from '@/lib/announcement-audience'
+import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock } from 'lucide-react'
+
+interface CopySuggestion { title: string; body: string; cta_label: string }
 
 // datetime-local inputs carry no timezone — the browser means "local time"
 // but a bare string like "2026-09-13T22:13" is stored by Postgres as UTC,
@@ -49,7 +56,8 @@ export interface AnnouncementRow {
   image_url: string | null
   link_url: string | null
   cta_label: string | null
-  audience: 'all' | 'groups'
+  audience: AnnouncementAudience
+  center_students_only: boolean
   is_published: boolean
   starts_at: string | null
   ends_at: string | null
@@ -58,16 +66,43 @@ export interface AnnouncementRow {
 }
 export interface GroupOption { id: string; name: string }
 
-const EMPTY = {
-  title: '', body: '', image_url: '', link_url: '', cta_label: '',
-  audience: 'all' as 'all' | 'groups', group_ids: [] as string[],
-  starts_at: '', ends_at: '', is_published: true,
-}
+// Audience choices, in the order they are offered. `all` and `university` need
+// the `announce_to_university` capability; the other two are always available
+// to anyone who may manage announcements.
+const AUDIENCE_OPTIONS: {
+  value: AnnouncementAudience
+  label: string
+  icon: typeof Globe
+  needsUniversity: boolean
+}[] = [
+  { value: 'all',        label: 'كل الطلاب',    icon: Globe,         needsUniversity: true },
+  { value: 'university', label: 'طلاب الجامعة', icon: GraduationCap, needsUniversity: true },
+  { value: 'center',     label: 'طلاب المركز',  icon: Building2,     needsUniversity: false },
+  { value: 'groups',     label: 'مجموعات محددة', icon: Users,        needsUniversity: false },
+]
 
-export function AnnouncementsManager({ announcements, groups }: {
+const AUDIENCE_LABEL: Record<AnnouncementAudience, string> =
+  Object.fromEntries(AUDIENCE_OPTIONS.map(o => [o.value, o.label])) as Record<AnnouncementAudience, string>
+
+const emptyForm = (canTargetUniversity: boolean) => ({
+  title: '', body: '', image_url: '', link_url: '', cta_label: '',
+  audience: (canTargetUniversity ? 'all' : 'center') as AnnouncementAudience,
+  group_ids: [] as string[],
+  starts_at: '', ends_at: '', is_published: true,
+})
+
+export function AnnouncementsManager({ announcements, groups, canTargetUniversity, hasCenter = true }: {
   announcements: AnnouncementRow[]
   groups: GroupOption[]
+  /** Holds `announce_to_university`; otherwise every announcement is pinned to centre students. */
+  canTargetUniversity: boolean
+  /** Institution has a continuing-education centre; without one the university/centre audiences don't exist. */
+  hasCenter?: boolean
 }) {
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
+  const audienceLabel = (value: AnnouncementAudience) =>
+    value === 'university' ? terms.institutionStudentsAr : AUDIENCE_LABEL[value]
+  const EMPTY = emptyForm(canTargetUniversity)
   const router = useRouter()
   const [composing, setComposing] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -75,6 +110,30 @@ export function AnnouncementsManager({ announcements, groups }: {
   const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [designing, setDesigning] = useState(false)
+  const [brief, setBrief] = useState('')
+  const [suggesting, setSuggesting] = useState(false)
+  const [suggestions, setSuggestions] = useState<CopySuggestion[]>([])
+
+  async function suggestCopy() {
+    if (brief.trim().length < 5) return toast.error('اكتب وصفاً مختصراً للإعلان أولاً')
+    setSuggesting(true)
+    const res = await fetch('/api/ai/announcement-copy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brief: brief.trim() }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSuggesting(false)
+    if (!res.ok) return toast.error(data.error ?? 'تعذّر توليد الاقتراحات')
+    setSuggestions(data.suggestions ?? [])
+  }
+
+  function applySuggestion(s: CopySuggestion) {
+    setForm(f => ({ ...f, title: s.title, body: s.body, cta_label: s.cta_label || f.cta_label }))
+    setSuggestions([])
+    toast.success('تم تطبيق الاقتراح — راجعه قبل الحفظ')
+  }
 
   function startCreate() {
     setEditingId(null)
@@ -123,6 +182,11 @@ export function AnnouncementsManager({ announcements, groups }: {
     if (starts_at && ends_at && new Date(ends_at).getTime() <= new Date(starts_at).getTime()) {
       return toast.error('يجب أن يكون تاريخ النهاية بعد تاريخ البداية')
     }
+    // A published announcement whose end is already past saves fine but is
+    // invisible to every student — the exact silent failure seen live.
+    if (form.is_published && ends_at && new Date(ends_at).getTime() <= Date.now()) {
+      return toast.error('تاريخ النهاية مضى — لن يظهر الإعلان لأي طالب. غيّره أو اتركه فارغاً')
+    }
 
     setBusy(true)
     const editing = editingId
@@ -142,6 +206,9 @@ export function AnnouncementsManager({ announcements, groups }: {
   }
 
   async function togglePublish(a: AnnouncementRow) {
+    if (!a.is_published && announcementStatus({ ...a, is_published: true }) === 'ended') {
+      return toast.error('انتهت مدة هذا الإعلان — عدّل تاريخ النهاية أولاً ليظهر للطلاب')
+    }
     setBusy(true)
     const res = await fetch('/api/announcements', {
       method: 'PATCH',
@@ -187,6 +254,36 @@ export function AnnouncementsManager({ announcements, groups }: {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
           <h3 className="text-white font-semibold">{editingId ? 'تعديل الإعلان' : 'إعلان جديد'}</h3>
 
+          {/* Free AI copy helper (Groq, text only) */}
+          <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-2">
+            <span className="text-sm text-slate-300 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-400" /> مساعد الصياغة (اختياري)
+            </span>
+            <div className="flex gap-2 flex-col sm:flex-row">
+              <input
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                value={brief}
+                maxLength={600}
+                onChange={e => setBrief(e.target.value)}
+                placeholder="صف الإعلان باختصار: دورة إكسل للمبتدئين، تبدأ الأحد، 4 أسابيع…"
+              />
+              <Button variant="ghost" loading={suggesting} onClick={suggestCopy}>اقترح صياغات</Button>
+            </div>
+            {suggestions.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {suggestions.map((s, i) => (
+                  <button key={i} onClick={() => applySuggestion(s)}
+                    className="text-start rounded-lg border border-slate-700 hover:border-blue-500 bg-slate-900 p-3 transition-colors">
+                    <p className="text-white text-sm font-semibold">{s.title}</p>
+                    <p className="text-slate-400 text-xs mt-1 line-clamp-3">{s.body}</p>
+                    {s.cta_label && <p className="text-blue-300 text-xs mt-1.5">{s.cta_label}</p>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-slate-600 text-xs">الاقتراحات نصية فقط ولا تُحفظ حتى تضغط «حفظ». راجع أي تاريخ أو رقم بنفسك.</p>
+          </div>
+
           <label className="text-sm text-slate-300 space-y-1.5 block">
             <span>العنوان</span>
             <input
@@ -227,10 +324,15 @@ export function AnnouncementsManager({ announcements, groups }: {
                   className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f) }}
                 />
-                <Button variant="ghost" loading={uploading} onClick={() => fileRef.current?.click()}>
-                  <ImagePlus className="w-4 h-4" /> رفع صورة
-                </Button>
-                <p className="text-slate-500 text-xs mt-1">JPG / PNG / WebP / GIF · حتى 4 ميغابايت</p>
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="ghost" onClick={() => setDesigning(true)}>
+                    <Palette className="w-4 h-4" /> صمّم بانر
+                  </Button>
+                  <Button variant="ghost" loading={uploading} onClick={() => fileRef.current?.click()}>
+                    <ImagePlus className="w-4 h-4" /> رفع صورة
+                  </Button>
+                </div>
+                <p className="text-slate-500 text-xs mt-1">صمّم بانراً من قالب جاهز، أو ارفع صورة JPG / PNG / WebP / GIF حتى 4 ميغابايت</p>
               </div>
             )}
           </div>
@@ -259,20 +361,33 @@ export function AnnouncementsManager({ announcements, groups }: {
           {/* Audience */}
           <div className="space-y-2">
             <span className="text-sm text-slate-300">الجمهور</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setForm(f => ({ ...f, audience: 'all' }))}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
-                  form.audience === 'all' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
-                }`}
-              ><Globe className="w-4 h-4" /> كل الطلاب</button>
-              <button
-                onClick={() => setForm(f => ({ ...f, audience: 'groups' }))}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
-                  form.audience === 'groups' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
-                }`}
-              ><Users className="w-4 h-4" /> مجموعات محددة</button>
+            <div className="flex gap-2 flex-wrap">
+              {AUDIENCE_OPTIONS.filter(opt => hasCenter || (opt.value !== 'university' && opt.value !== 'center')).map(opt => {
+                const locked = opt.needsUniversity && !canTargetUniversity
+                const Icon = locked ? Lock : opt.icon
+                return (
+                  <button
+                    key={opt.value}
+                    disabled={locked}
+                    title={locked ? `تحتاج صلاحية «مخاطبة ${terms.institutionStudentsAr}»` : undefined}
+                    onClick={() => setForm(f => ({ ...f, audience: opt.value }))}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                      locked
+                        ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                        : form.audience === opt.value
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'bg-slate-800 border-slate-700 text-slate-300'
+                    }`}
+                  ><Icon className="w-4 h-4" /> {audienceLabel(opt.value)}</button>
+                )
+              })}
             </div>
+            {!canTargetUniversity && (
+              <p className="text-slate-500 text-xs">
+                إعلاناتك تصل لطلاب المركز فقط (المسجّلين في دورة، أو غير المصنّفين {terms.institutionStudentAr}).
+                لمخاطبة {terms.institutionStudentsAr} اطلب صلاحية «مخاطبة {terms.institutionStudentsAr}».
+              </p>
+            )}
             {form.audience === 'groups' && (
               <div className="flex flex-wrap gap-2 pt-1">
                 {groups.length === 0 && <p className="text-slate-500 text-xs">لا توجد مجموعات.</p>}
@@ -341,6 +456,17 @@ export function AnnouncementsManager({ announcements, groups }: {
         </div>
       )}
 
+      <Modal open={designing} onClose={() => setDesigning(false)} title="تصميم بانر الإعلان" size="xl">
+        {designing && (
+          <BannerDesigner
+            initialHeadline={form.title}
+            initialSubline={form.body}
+            onCancel={() => setDesigning(false)}
+            onUploaded={url => { setForm(f => ({ ...f, image_url: url })); setDesigning(false) }}
+          />
+        )}
+      </Modal>
+
       {announcements.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Megaphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
@@ -366,9 +492,10 @@ export function AnnouncementsManager({ announcements, groups }: {
                 </div>
                 {a.body && <p className="text-slate-400 text-sm mt-1 line-clamp-2">{a.body}</p>}
                 <p className="text-slate-500 text-xs mt-2 flex items-center gap-1.5">
-                  {a.audience === 'all'
-                    ? <><Globe className="w-3 h-3" /> كل الطلاب</>
-                    : <><Users className="w-3 h-3" /> {a.group_ids.length} مجموعة</>}
+                  {a.audience === 'groups'
+                    ? <><Users className="w-3 h-3" /> {a.group_ids.length} مجموعة</>
+                    : <><Globe className="w-3 h-3" /> {AUDIENCE_LABEL[a.audience]}</>}
+                  {a.center_students_only && a.audience !== 'center' && ' · طلاب المركز فقط'}
                   {' · '}{formatDate(a.created_at)}
                 </p>
                 <div className="flex gap-2 mt-3 flex-wrap">

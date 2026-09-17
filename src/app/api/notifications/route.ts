@@ -76,7 +76,7 @@ export async function GET() {
       items.push({ id: `msg-${m.id}`, type: 'message', title: `رسالة تواصل من ${m.name}`, subtitle: m.subject ?? '', date: m.created_at, href: '/super-admin/messages' })
     }
     for (const tn of (tenants ?? []) as Array<{ id: string; name: string; created_at: string }>) {
-      items.push({ id: `tenant-${tn.id}`, type: 'tenant', title: `جامعة جديدة: ${tn.name}`, subtitle: '', date: tn.created_at, href: '/super-admin/tenants' })
+      items.push({ id: `tenant-${tn.id}`, type: 'tenant', title: `مؤسسة جديدة: ${tn.name}`, subtitle: '', date: tn.created_at, href: '/super-admin/tenants' })
     }
   }
 

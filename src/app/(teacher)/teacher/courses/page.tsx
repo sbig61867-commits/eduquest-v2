@@ -25,11 +25,11 @@ export default async function CoursesPage() {
         </div>
         <h2 className="text-xl font-bold text-white mb-2">Courses — Permission Required</h2>
         <p className="text-slate-400 max-w-sm">
-          You need your university admin to enable course creation for your account before you can access this section.
+          You need your institution admin to enable course creation for your account before you can access this section.
         </p>
         <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 border border-slate-800">
           <GraduationCap className="w-4 h-4 text-slate-500" />
-          <span className="text-slate-500 text-sm">Ask your university admin to grant you course creation access</span>
+          <span className="text-slate-500 text-sm">Ask your institution admin to grant you course creation access</span>
         </div>
       </div>
     )

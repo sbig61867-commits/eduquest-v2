@@ -1,25 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serviceClient, staffCan } from '@/lib/staff-auth'
+import { isValidSessionDate, isAttendanceStatus } from '@/lib/attendance'
 
 // Group attendance. Allowed for the group's own teacher, or staff holding
 // manage_attendance in the same tenant. Authorization runs on the user
 // session; the attendance tables have SELECT policies only, so every write
 // goes through the service-role client after these checks.
 
-const STATUSES = new Set(['present', 'absent', 'late', 'excused'])
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MAX_NOTE = 300
 const MAX_RECORDS = 500
-const DAY_MS = 86_400_000
-
-/** YYYY-MM-DD, a real calendar date, not far in the future or past. */
-export function isValidSessionDate(d: unknown, now = Date.now()): d is string {
-  if (typeof d !== 'string' || !DATE_RE.test(d)) return false
-  const t = Date.parse(`${d}T00:00:00Z`)
-  if (isNaN(t) || new Date(t).toISOString().slice(0, 10) !== d) return false
-  return t <= now + 2 * DAY_MS && t >= now - 400 * DAY_MS
-}
 
 async function authorizeGroup(groupId: string) {
   const supabase = await createClient()
@@ -125,7 +115,7 @@ export async function POST(request: Request) {
     const studentId = typeof raw?.student_id === 'string' ? raw.student_id : ''
     const status = typeof raw?.status === 'string' ? raw.status : ''
     const note = raw?.note ? String(raw.note).trim() : null
-    if (!studentId || !STATUSES.has(status)) return NextResponse.json({ error: 'سجل حضور غير صالح' }, { status: 400 })
+    if (!studentId || !isAttendanceStatus(status)) return NextResponse.json({ error: 'سجل حضور غير صالح' }, { status: 400 })
     if (note && note.length > MAX_NOTE) return NextResponse.json({ error: 'الملاحظة طويلة جداً' }, { status: 400 })
     if (seen.has(studentId)) return NextResponse.json({ error: 'طالب مكرر في السجلات' }, { status: 400 })
     seen.add(studentId)

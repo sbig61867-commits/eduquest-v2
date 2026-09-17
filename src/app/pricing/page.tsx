@@ -5,7 +5,7 @@ import { pricingEnabled } from '@/lib/pricing/plans'
 
 export const metadata: Metadata = {
   title: 'الأسعار — EduQuest',
-  description: 'باقات EduQuest للجامعات ومراكز التعليم المستمر — تجربة مجانية ثم اشتراك حسب حجم مؤسستك. EduQuest pricing.',
+  description: 'باقات EduQuest للجامعات والمدارس والمعاهد ومراكز التدريب — تجربة مجانية ثم اشتراك حسب حجم مؤسستك. EduQuest pricing.',
 }
 
 export default function Pricing() {

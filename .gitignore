@@ -60,3 +60,6 @@ _tmp_*
 # committing it would publish internal screenshots and agent instruction files
 # at /capture-admin/... on the deployed site.
 public/capture-admin/
+/dist/
+.vinext/
+.wrangler/

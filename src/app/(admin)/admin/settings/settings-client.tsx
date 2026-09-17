@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { formatDate } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -69,7 +70,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
         </div>
         <div>
           <h2 className="text-2xl font-bold text-white">Institution Settings</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Manage your university profile</p>
+          <p className="text-slate-400 text-sm mt-0.5">Manage your institution profile</p>
         </div>
       </div>
 
@@ -86,7 +87,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Created</span>
-          <span className="text-slate-300">{new Date(tenant.created_at).toLocaleDateString()}</span>
+          <span className="text-slate-300">{formatDate(tenant.created_at)}</span>
         </div>
       </div>
 
@@ -107,7 +108,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
           value={form.name}
           onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
           required
-          placeholder="e.g. University of Technology"
+          placeholder="e.g. Al-Noor School"
         />
         <Input
           label="Logo URL (optional)"

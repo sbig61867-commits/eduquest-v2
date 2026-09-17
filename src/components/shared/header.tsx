@@ -3,6 +3,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getRoleLabel } from '@/lib/utils'
+import { getStudentTrack, CENTRE_TRAINEE_LABEL } from '@/lib/student-track'
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from './notification-bell'
@@ -43,7 +44,9 @@ export function Header({ title }: HeaderProps) {
           <div className="hidden sm:block">
             <p className="text-white text-sm font-medium leading-none">{user?.full_name ?? 'User'}</p>
             <p className="text-slate-400 text-xs mt-0.5">
-              {user?.role ? getRoleLabel(user.role) : ''}
+              {user?.role === 'student' && getStudentTrack(user.is_university_student, tenant?.has_center) === 'centre'
+                ? CENTRE_TRAINEE_LABEL
+                : user?.role ? getRoleLabel(user.role, tenant?.institution_type) : ''}
               {tenant?.name && (
                 <span className="text-slate-500"> · {tenant.name}</span>
               )}

@@ -3,10 +3,12 @@
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
+import type { Tenant } from '@/types'
+import { toTenantSettings } from '@/lib/structure-mode'
 
 // Only the columns consumed by the app — avoids SELECT *
 const PROFILE_SELECT =
-  'id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, created_at, tenants(id, name, slug, logo_url, is_active, created_at)'
+  'id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, is_university_student, created_at, tenants(id, name, slug, logo_url, is_active, created_at)'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setTenant, setLoading, reset } = useAuthStore()
@@ -25,7 +27,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) console.error('[auth-provider] profile fetch failed', error.message)
       if (profile) {
         setUser(profile as Parameters<typeof setUser>[0])
-        setTenant((profile.tenants as unknown as Parameters<typeof setTenant>[0]) ?? null)
+        const tenant = (profile.tenants as unknown as Tenant | null) ?? null
+        // Fetched separately (not in PROFILE_SELECT) so the profile load keeps
+        // working on a DB where institution_type_migration.sql isn't applied yet
+        // — an unknown column would fail the whole embedded select.
+        if (tenant) {
+          // `*`, not named columns: a column that doesn't exist yet is simply absent.
+          const { data: extra } = await supabase
+            .from('tenants').select('*').eq('id', tenant.id).maybeSingle()
+          if (loadId !== latestLoad) return
+          Object.assign(tenant, toTenantSettings(extra as Record<string, unknown> | null))
+        }
+        setTenant(tenant)
       }
       setLoading(false)
     }

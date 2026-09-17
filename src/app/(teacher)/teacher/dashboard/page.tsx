@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import { Users, BookOpen, ClipboardList, Eye, EyeOff, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
+import { isAnnouncementLive } from '@/lib/announcement-window'
 
 interface RecentLesson { id: string; title: string; is_published: boolean; created_at: string; groups: { name: string } | null }
 interface UpcomingExam  { id: string; title: string; ends_at: string | null; groups: { name: string } | null }
@@ -20,6 +22,7 @@ export default async function TeacherDashboard() {
     { count: exams },
     { data: recentLessons },
     { data: upcomingExams },
+    { data: announcementRows },
   ] = await Promise.all([
     supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
     supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
@@ -34,7 +37,15 @@ export default async function TeacherDashboard() {
       .eq('is_published', true)
       .gte('ends_at', new Date().toISOString())
       .order('ends_at', { ascending: true }).limit(5),
+    // Staff read their tenant's announcements through RLS (announcements_select);
+    // show the ones currently live, same window rule the student feed applies.
+    supabase.from('announcements')
+      .select('id, title, body, image_url, link_url, cta_label, is_published, starts_at, ends_at')
+      .eq('tenant_id', user.tenant_id ?? '')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false }).limit(20),
   ])
+  const liveAnnouncements = (announcementRows ?? []).filter(a => isAnnouncementLive(a)) as StudentAnnouncement[]
 
   const cards = [
     { label: 'My Groups',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
@@ -49,6 +60,8 @@ export default async function TeacherDashboard() {
         <h2 className="text-2xl font-bold text-white">Teacher Dashboard</h2>
         <p className="text-slate-400 mt-1">Manage your groups, lessons, and exams</p>
       </div>
+
+      <AnnouncementsBanner announcements={liveAnnouncements} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => {

@@ -6,7 +6,7 @@ const FROM_EMAIL = process.env.EMAIL_FROM ?? 'EduQuest <onboarding@resend.dev>'
 const APP_NAME   = 'EduQuest'
 
 const ROLE_LABELS: Record<string, string> = {
-  university_admin: 'University Administrator',
+  university_admin: 'Institution Administrator',
   teacher:          'Teacher',
   student:          'Student',
 }
@@ -109,7 +109,7 @@ export async function sendInvitationEmail({
           <td style="color:#e2e8f0;font-size:13px;font-weight:600;text-align:right;padding-bottom:12px;">${APP_NAME}</td>
         </tr>
         <tr>
-          <td style="color:#64748b;font-size:13px;padding-bottom:12px;">University</td>
+          <td style="color:#64748b;font-size:13px;padding-bottom:12px;">Institution</td>
           <td style="color:#e2e8f0;font-size:13px;font-weight:600;text-align:right;padding-bottom:12px;">${tenantName}</td>
         </tr>
         <tr>

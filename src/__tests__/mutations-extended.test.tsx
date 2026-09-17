@@ -281,7 +281,7 @@ import type { Tenant } from '@/types'
 
 const TENANT: Tenant = {
   id: 'ten-1', name: 'Test University', slug: 'test-uni',
-  logo_url: null, is_active: true, created_at: '2024-01-01T00:00:00Z',
+  logo_url: null, is_active: true, created_at: '2024-01-01T00:00:00Z', institution_type: 'university', structure_mode: 'flat', has_center: true,
 }
 
 describe('TenantsClient — deleteTenant', () => {

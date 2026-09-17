@@ -8,7 +8,7 @@ export default function DemoAdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">لوحة تحكم الجامعة</h2>
+        <h2 className="text-2xl font-bold text-white">لوحة تحكم المؤسسة</h2>
         <p className="text-slate-400 mt-1">نظرة عامة على مؤسستك</p>
       </div>
 

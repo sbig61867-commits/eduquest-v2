@@ -1,5 +1,9 @@
 export type Role = 'super_admin' | 'university_admin' | 'center_manager' | 'teacher' | 'student'
 
+export type InstitutionType = 'university' | 'school' | 'institute' | 'training_center' | 'company'
+// 'flat' = original structure (default); 'academic' = faculties/departments + terms enabled
+export type StructureMode = 'flat' | 'academic'
+
 export interface Tenant {
   id: string
   name: string
@@ -7,6 +11,9 @@ export interface Tenant {
   logo_url: string | null
   is_active: boolean
   created_at: string
+  institution_type: InstitutionType
+  structure_mode: StructureMode
+  has_center: boolean
 }
 
 export interface User {
@@ -18,6 +25,8 @@ export interface User {
   tenant_id: string | null
   is_active: boolean
   can_create_courses: boolean
+  /** Students only: university student (true) vs centre-only trainee (false). */
+  is_university_student?: boolean
   /** Per-user capability flags — see src/lib/permissions.ts */
   permissions?: Record<string, boolean>
   created_at: string

@@ -9,8 +9,8 @@ const items: DemoNavItem[] = [
 ]
 
 export const metadata: Metadata = {
-  title: 'العرض التجريبي — لوحة مدير الجامعة — EduQuest',
-  description: 'جولة تجريبية في لوحة مدير الجامعة على منصة EduQuest ببيانات وهمية.',
+  title: 'العرض التجريبي — لوحة مدير المؤسسة — EduQuest',
+  description: 'جولة تجريبية في لوحة مدير المؤسسة على منصة EduQuest ببيانات وهمية.',
 }
 
 export default function DemoAdminLayout({ children }: { children: React.ReactNode }) {

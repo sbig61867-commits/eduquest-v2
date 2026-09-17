@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { can } from '@/lib/permissions'
+import { getTenantSettings } from '@/lib/structure-mode'
+import {
+  canEditAnnouncement, canTargetUniversity, resolveAudience, AUDIENCE_DENIED,
+} from '@/lib/announcement-audience'
 
 // Announcements are authored by staff holding `manage_announcements`
 // (university_admin / center_manager, or super_admin) and surface on the
@@ -16,7 +20,14 @@ function adminClient() {
   )
 }
 
-interface Caller { id: string; role: string; tenant_id: string; permissions: Record<string, boolean> | null }
+interface Caller {
+  id: string
+  role: string
+  tenant_id: string
+  permissions: Record<string, boolean> | null
+  /** Holds `announce_to_university` — may reach beyond the centre's students. */
+  mayTargetUniversity: boolean
+}
 
 async function authorize(): Promise<{ caller: Caller } | { error: NextResponse }> {
   const supabase = await createClient()
@@ -29,7 +40,17 @@ async function authorize(): Promise<{ caller: Caller } | { error: NextResponse }
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
-  return { caller: { id: user.id, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions } }
+  return {
+    caller: {
+      id: user.id,
+      role: profile.role,
+      tenant_id: profile.tenant_id,
+      permissions: profile.permissions,
+      // No centre ⇒ a single student population, so nothing to restrict.
+      mayTargetUniversity: !(await getTenantSettings(supabase, profile.tenant_id)).has_center
+        || canTargetUniversity(profile.role, profile.permissions),
+    },
+  }
 }
 
 /** Verify every supplied group id belongs to the caller's tenant. */
@@ -91,7 +112,11 @@ export async function POST(request: Request) {
   const windowError = validateWindow(body.starts_at, body.ends_at)
   if (windowError) return NextResponse.json({ error: windowError }, { status: 400 })
 
-  const audience = body.audience === 'groups' ? 'groups' : 'all'
+  // The audience — and whether this announcement is pinned to centre students —
+  // is decided from the caller's capability, never taken from the request body.
+  const decided = resolveAudience(body.audience, caller.mayTargetUniversity)
+  if ('error' in decided) return NextResponse.json({ error: decided.error }, { status: 403 })
+  const { audience, center_students_only } = decided
   const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : []
 
   const admin = adminClient()
@@ -110,6 +135,7 @@ export async function POST(request: Request) {
       link_url: body.link_url ? String(body.link_url) : null,
       cta_label: body.cta_label ? String(body.cta_label).trim() : null,
       audience,
+      center_students_only,
       is_published: body.is_published === true,
       starts_at: body.starts_at ? String(body.starts_at) : null,
       ends_at: body.ends_at ? String(body.ends_at) : null,
@@ -143,9 +169,16 @@ export async function PATCH(request: Request) {
 
   const admin = adminClient()
   const { data: existing } = await admin
-    .from('announcements').select('id, tenant_id').eq('id', id).single()
+    .from('announcements')
+    .select('id, tenant_id, audience, center_students_only')
+    .eq('id', id).single()
   if (!existing || existing.tenant_id !== caller.tenant_id) {
     return NextResponse.json({ error: 'الإعلان غير موجود' }, { status: 404 })
+  }
+  // An author pinned to the centre may not take over an announcement that
+  // reaches university students — publishing/hiding it included.
+  if (!canEditAnnouncement(existing, caller.mayTargetUniversity)) {
+    return NextResponse.json({ error: AUDIENCE_DENIED }, { status: 403 })
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
@@ -190,12 +223,15 @@ export async function PATCH(request: Request) {
   if (body.is_published !== undefined) update.is_published = body.is_published === true
 
   if (body.audience !== undefined) {
-    const audience = body.audience === 'groups' ? 'groups' : 'all'
+    const decided = resolveAudience(body.audience, caller.mayTargetUniversity)
+    if ('error' in decided) return NextResponse.json({ error: decided.error }, { status: 403 })
+    const { audience } = decided
     const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : []
     if (audience === 'groups' && !(await validateGroups(admin, caller.tenant_id, groupIds))) {
       return NextResponse.json({ error: 'المجموعات المحددة غير صالحة' }, { status: 400 })
     }
     update.audience = audience
+    update.center_students_only = decided.center_students_only
     await admin.from('announcement_groups').delete().eq('announcement_id', id)
     if (audience === 'groups' && groupIds.length > 0) {
       await admin.from('announcement_groups')
@@ -222,9 +258,14 @@ export async function DELETE(request: Request) {
 
   const admin = adminClient()
   const { data: existing } = await admin
-    .from('announcements').select('id, tenant_id').eq('id', body.id).single()
+    .from('announcements')
+    .select('id, tenant_id, audience, center_students_only')
+    .eq('id', body.id).single()
   if (!existing || existing.tenant_id !== caller.tenant_id) {
     return NextResponse.json({ error: 'الإعلان غير موجود' }, { status: 404 })
+  }
+  if (!canEditAnnouncement(existing, caller.mayTargetUniversity)) {
+    return NextResponse.json({ error: AUDIENCE_DENIED }, { status: 403 })
   }
 
   const { error } = await admin.from('announcements').delete().eq('id', body.id)

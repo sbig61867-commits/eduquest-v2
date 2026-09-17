@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getTenantSettings } from '@/lib/structure-mode'
+import { getTerms } from '@/lib/terminology'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatDate } from '@/lib/utils'
@@ -35,7 +37,11 @@ export default async function AdminDashboard() {
     supabase.rpc('get_admin_exams'),
   ])
   const allLessons = (lessonRows ?? []) as unknown as AdminLessonMeta[]
-  const stats = await getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length)
+  const [stats, settings] = await Promise.all([
+    getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length),
+    getTenantSettings(supabase, tenantId),
+  ])
+  const terms = getTerms(settings.institution_type)
   const activity = allLessons.slice(0, 5)
 
   const cards = [
@@ -48,7 +54,7 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">University Dashboard</h2>
+        <h2 className="text-2xl font-bold text-white">{terms.institution} Dashboard</h2>
         <p className="text-slate-400 mt-1">Overview of your institution</p>
       </div>
 
