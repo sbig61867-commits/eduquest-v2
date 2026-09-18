@@ -58,7 +58,7 @@ const TYPE_ICON: Record<string, typeof FileText> = {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  text: 'Explanation',
+  text: 'شرح',
   grammar: 'Grammar',
   idioms: 'Idioms',
   rules: 'Rules',

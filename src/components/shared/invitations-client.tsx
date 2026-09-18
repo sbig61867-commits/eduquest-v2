@@ -15,18 +15,18 @@ interface Props {
 
 const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   super_admin:      [
-    { value: 'university_admin', label: 'Institution Admin' },
-    { value: 'center_manager',   label: 'Centre Manager' },
-    { value: 'teacher',          label: 'Teacher' },
-    { value: 'student',          label: 'Student' },
+    { value: 'university_admin', label: 'مدير المؤسسة' },
+    { value: 'center_manager',   label: 'مدير المركز' },
+    { value: 'teacher',          label: 'معلم' },
+    { value: 'student',          label: 'طالب' },
   ],
   university_admin: [
-    { value: 'center_manager', label: 'Centre Manager' },
-    { value: 'teacher', label: 'Teacher' },
-    { value: 'student', label: 'Student' },
+    { value: 'center_manager', label: 'مدير المركز' },
+    { value: 'teacher', label: 'معلم' },
+    { value: 'student', label: 'طالب' },
   ],
   teacher: [
-    { value: 'student', label: 'Student' },
+    { value: 'student', label: 'طالب' },
   ],
 }
 

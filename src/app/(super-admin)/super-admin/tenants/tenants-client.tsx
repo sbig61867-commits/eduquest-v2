@@ -255,7 +255,7 @@ export function TenantsClient({ initialTenants }: Props) {
               setForm(p => ({ ...p, name, slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))
             }}
             required
-            placeholder="King Abdullah University"
+            placeholder="مثال: جامعة الملك عبدالله"
           />
           <Input
             label="المعرّف (في الرابط)"
@@ -298,7 +298,7 @@ export function TenantsClient({ initialTenants }: Props) {
           <p className="text-slate-400 text-sm">
             سيدير هذا المدير المعلمين والطلاب في <span className="text-white font-medium">{adminTarget?.name}</span>.
           </p>
-          <Input label="الاسم الكامل" value={adminForm.full_name} onChange={e => setAdminForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Dr. Mohammed Ali" />
+          <Input label="الاسم الكامل" value={adminForm.full_name} onChange={e => setAdminForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="مثال: د. محمد علي" />
           <Input label="البريد الإلكتروني" type="email" value={adminForm.email} onChange={e => setAdminForm(p => ({ ...p, email: e.target.value }))} required placeholder="admin@university.edu" />
           <Input label="كلمة المرور" type="password" value={adminForm.password} onChange={e => setAdminForm(p => ({ ...p, password: e.target.value }))} required placeholder="8 أحرف على الأقل" />
           <div className="flex gap-3 pt-2">

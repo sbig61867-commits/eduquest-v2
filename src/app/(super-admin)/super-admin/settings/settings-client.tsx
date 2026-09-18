@@ -359,7 +359,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         {del.hard_delete_enabled && (
           <div className="flex items-start gap-2 text-red-300 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>Permanent deletion is active. Deleted groups/exams and their students’ submissions and grades will be erased for good and will NOT appear in the archive.</span>
+            <span>الحذف النهائي مفعّل. المجموعات والاختبارات المحذوفة وتسليمات طلابها ودرجاتهم ستُمحى نهائياً ولن تظهر في الأرشيف.</span>
           </div>
         )}
       </div>

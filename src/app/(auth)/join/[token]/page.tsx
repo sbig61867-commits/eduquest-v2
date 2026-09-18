@@ -16,9 +16,9 @@ type InvitationResult =
   | null
 
 const ERROR_MESSAGES = {
-  title: 'Invalid or Expired Invitation',
+  title: 'دعوة غير صالحة أو منتهية',
   body:  'This invitation link is invalid, has expired, or has already been fully used.',
-  hint:  'Please contact your administrator for a new invitation.',
+  hint: 'يرجى التواصل مع مدير مؤسستك للحصول على دعوة جديدة.',
 }
 
 async function getInvitation(token: string): Promise<InvitationResult> {

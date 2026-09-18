@@ -108,7 +108,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
           value={form.name}
           onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
           required
-          placeholder="e.g. Al-Noor School"
+          placeholder="مثال: مدرسة النور"
         />
         <Input
           label="رابط الشعار (اختياري)"

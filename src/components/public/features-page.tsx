@@ -53,9 +53,9 @@ const dict = {
     title: 'Everything the platform offers',
     desc: 'One platform covering the full teaching cycle — from the first lesson to publishing grades.',
     features: [
-      { icon: 'Sparkles', title: 'AI-powered generation', desc: 'The teacher types a topic and the platform generates a full lesson or a complete exam with questions and answers in seconds — editable before publishing.' },
-      { icon: 'ShieldCheck', title: 'Smart exam proctoring', desc: 'Camera + AI detect multiple faces, looking away and tab switching — and grading happens on the server, so correct answers never reach the student.' },
-      { icon: 'Building2', title: 'Full isolation per institution', desc: 'Each institution is an independent tenant: its data, teachers and students are completely isolated at the database level.' },
+      { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'The teacher types a topic and the platform generates a full lesson or a complete exam with questions and answers in seconds — editable before publishing.' },
+      { icon: 'ShieldCheck', title: 'مراقبة ذكية للاختبارات', desc: 'Camera + AI detect multiple faces, looking away and tab switching — and grading happens on the server, so correct answers never reach the student.' },
+      { icon: 'Building2', title: 'عزل كامل لكل مؤسسة', desc: 'Each institution is an independent tenant: its data, teachers and students are completely isolated at the database level.' },
       { icon: 'Mail', title: 'Invitations, not open signup', desc: 'Nobody enters without an invitation: the institution invites its teachers, and each teacher invites students to a specific group — via auto-expiring links.' },
       { icon: 'BarChart2', title: 'Instant grades & reports', desc: 'Automatic grading on submission, one-click grade publishing, and full reports for institution management.' },
       { icon: 'BookOpen', title: 'Organized lessons & groups', desc: 'Teachers organize students into groups, publish lessons per group, and each student sees only their own group’s content.' },
@@ -63,19 +63,19 @@ const dict = {
     rolesTitle: 'A dedicated dashboard for every role',
     rolesDesc: 'The platform is built on clear roles — every user sees only what belongs to them, in an interface designed for their tasks.',
     roles: [
-      { icon: 'Building2', title: 'Institution Admin', points: [
+      { icon: 'Building2', title: 'مدير المؤسسة', points: [
         'Invite teachers and manage their accounts',
         'Track students and enable/disable accounts',
         'Institution statistics: teachers, students, lessons, exams',
         'Full reports and a recent-activity feed',
       ]},
-      { icon: 'GraduationCap', title: 'Teacher', points: [
+      { icon: 'GraduationCap', title: 'معلم', points: [
         'Create groups and invite students to them',
         'Generate lessons and exams with AI, then edit them',
         'Review each student’s proctoring events after the exam',
         'Grade and publish results with one click',
       ]},
-      { icon: 'UserRound', title: 'Student', points: [
+      { icon: 'UserRound', title: 'طالب', points: [
         'Their group’s lessons, organized and formatted',
         'Take exams from any device — even a phone',
         'Grades the moment they are published',
@@ -86,9 +86,9 @@ const dict = {
     steps: [
       { n: '1', title: 'Contact us', desc: 'We prepare your institution’s environment and invite its admin' },
       { n: '2', title: 'Invite your teachers', desc: 'The admin invites teachers, teachers invite their students' },
-      { n: '3', title: 'Start teaching', desc: 'Lessons, exams and grades — everything works from day one' },
+      { n: '3', title: 'ابدأ التدريس', desc: 'Lessons, exams and grades — everything works from day one' },
     ],
-    cta: 'Request a subscription',
+    cta: 'اطلب اشتراكاً',
   },
 }
 

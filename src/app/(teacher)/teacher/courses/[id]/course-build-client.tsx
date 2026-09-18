@@ -64,8 +64,8 @@ const ITEM_TYPES = [
   { value: 'idioms',   label: 'Idioms & Phrases' },
   { value: 'rules',    label: 'Rules & Notes' },
   { value: 'task',     label: 'Task / Exercise' },
-  { value: 'quiz',     label: 'Quiz' },
-  { value: 'video',    label: 'Video' },
+  { value: 'quiz',     label: 'اختبار قصير' },
+  { value: 'video',    label: 'فيديو' },
 ]
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -343,7 +343,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
             value={levelForm.title}
             onChange={e => setLevelForm({ title: e.target.value })}
             required
-            placeholder="e.g. Level 1 – Foundations, Month 1..."
+            placeholder="مثال: المستوى الأول – الأساسيات، الشهر الأول…"
           />
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={() => setLevelModal(false)} className="flex-1">إلغاء</Button>
@@ -360,7 +360,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
             value={unitForm.title}
             onChange={e => setUnitForm({ title: e.target.value })}
             required
-            placeholder="e.g. Unit 1 – Daily Routines, Introduction..."
+            placeholder="مثال: الوحدة الأولى – الروتين اليومي، مقدمة…"
           />
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={() => setUnitModal({ open: false, levelId: null })} className="flex-1">إلغاء</Button>

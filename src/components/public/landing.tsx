@@ -107,9 +107,9 @@ const dict = {
     ],
     teaserTitle: 'The solution: one platform that does it all',
     teaser: [
-      { icon: 'Sparkles', title: 'AI-powered generation', desc: 'Full lessons and exams in seconds, editable before publishing.' },
-      { icon: 'ShieldCheck', title: 'Smart exam proctoring', desc: 'Camera + AI protect exam integrity, with grading on the server.' },
-      { icon: 'Building2', title: 'Full isolation per institution', desc: 'Every institution’s data is fully isolated at the database level.' },
+      { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'Full lessons and exams in seconds, editable before publishing.' },
+      { icon: 'ShieldCheck', title: 'مراقبة ذكية للاختبارات', desc: 'Camera + AI protect exam integrity, with grading on the server.' },
+      { icon: 'Building2', title: 'عزل كامل لكل مؤسسة', desc: 'Every institution’s data is fully isolated at the database level.' },
     ],
     allFeatures: 'Explore all features',
     liveTitle: 'Live exam monitoring — like being in the room',
@@ -125,7 +125,7 @@ const dict = {
       { title: 'Request access', desc: 'Message us through the form and tell us about your institution.' },
       { title: 'We set you up', desc: 'We create your isolated environment and hand you the owner dashboard.' },
       { title: 'Invite your team', desc: 'Add teachers via invite links; they invite their students into groups.' },
-      { title: 'Start teaching', desc: 'Generate lessons and exams, proctor, and grade — all from one place.' },
+      { title: 'ابدأ التدريس', desc: 'Generate lessons and exams, proctor, and grade — all from one place.' },
     ],
     faqTitle: 'Frequently asked questions',
     faqs: [

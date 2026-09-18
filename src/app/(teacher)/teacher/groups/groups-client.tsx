@@ -275,7 +275,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
               {formError}
             </div>
           )}
-          <Input label="اسم المجموعة" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g. Computer Science - Batch 2024" />
+          <Input label="اسم المجموعة" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="مثال: علوم الحاسوب — دفعة 2024" />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-300">الوصف (اختياري)</label>
             <textarea

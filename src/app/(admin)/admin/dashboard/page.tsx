@@ -45,10 +45,10 @@ export default async function AdminDashboard() {
   const activity = allLessons.slice(0, 5)
 
   const cards = [
-    { label: 'Teachers', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Students', value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Lessons', value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'Exams', value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'المعلمون', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'الطلاب', value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'الدروس', value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: 'الاختبارات', value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   return (

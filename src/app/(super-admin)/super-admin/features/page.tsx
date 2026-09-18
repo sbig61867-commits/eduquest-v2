@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { Flag } from 'lucide-react'
 
 const DEFAULT_FLAGS = [
-  { name: 'ai_lesson_generation', label: 'AI Lesson Generation', description: 'Allow teachers to generate lessons with Gemini AI' },
-  { name: 'proctoring', label: 'Exam Proctoring', description: 'Enable camera/mic proctoring during exams' },
-  { name: 'file_uploads', label: 'File Uploads', description: 'Allow video, audio, and PDF uploads' },
-  { name: 'realtime_updates', label: 'Realtime Updates', description: 'Live updates via Supabase Realtime' },
+  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', description: 'Allow teachers to generate lessons with Gemini AI' },
+  { name: 'proctoring', label: 'مراقبة الاختبارات', description: 'تفعيل مراقبة الكاميرا والميكروفون أثناء الاختبارات' },
+  { name: 'file_uploads', label: 'رفع الملفات', description: 'السماح برفع الفيديو والصوت وملفات PDF' },
+  { name: 'realtime_updates', label: 'التحديثات الفورية', description: 'تحديثات مباشرة عبر Supabase Realtime' },
 ]
 
 export default function FeaturesPage() {

@@ -279,7 +279,7 @@ export function CoursesClient({ initialCourses }: Props) {
             value={form.title}
             onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
             required
-            placeholder="e.g. English for Beginners"
+            placeholder="مثال: الإنجليزية للمبتدئين"
           />
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-300">الوصف (اختياري)</label>
@@ -295,7 +295,7 @@ export function CoursesClient({ initialCourses }: Props) {
             label="اللغة / المادة (اختياري)"
             value={form.language}
             onChange={e => setForm(p => ({ ...p, language: e.target.value }))}
-            placeholder="e.g. English, Arabic, Python..."
+            placeholder="مثال: الإنجليزية، العربية، بايثون…"
           />
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-300">Course Structure</label>

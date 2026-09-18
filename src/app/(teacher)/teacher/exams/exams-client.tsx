@@ -358,7 +358,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="عنوان الاختبار" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Midterm Exam - Chapter 1-5" />
+            <Input label="عنوان الاختبار" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="مثال: اختبار منتصف الفصل — الفصول 1-5" />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-300">مجموعة</label>

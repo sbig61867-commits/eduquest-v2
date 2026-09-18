@@ -48,10 +48,10 @@ export default async function TeacherDashboard() {
   const liveAnnouncements = (announcementRows ?? []).filter(a => isAnnouncementLive(a)) as StudentAnnouncement[]
 
   const cards = [
-    { label: 'My Groups',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
+    { label: 'مجموعاتي',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
     { label: 'Lessons Created', value: lessons ?? 0, icon: BookOpen,     color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/teacher/lessons' },
     { label: 'Exams Created',   value: exams   ?? 0, icon: ClipboardList,color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/teacher/exams'   },
-    { label: 'Upcoming Exams',  value: upcomingExams?.length ?? 0, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/teacher/exams' },
+    { label: 'الاختبارات القادمة',  value: upcomingExams?.length ?? 0, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/teacher/exams' },
   ]
 
   return (

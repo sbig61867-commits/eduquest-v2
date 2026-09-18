@@ -43,10 +43,10 @@ export default async function StudentDashboard() {
   const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
 
   const cards = [
-    { label: 'Available Lessons', value: lessonCount ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Upcoming Exams', value: exams ?? 0, icon: ClipboardList, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'Exams Taken', value: submissions ?? 0, icon: BarChart2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Notifications', value: '0', icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'الدروس المتاحة', value: lessonCount ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'الاختبارات القادمة', value: exams ?? 0, icon: ClipboardList, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: 'الاختبارات المؤدّاة', value: submissions ?? 0, icon: BarChart2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'الإشعارات', value: '0', icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   const lessonList = (recentLessons ?? []) as unknown as LessonRow[]

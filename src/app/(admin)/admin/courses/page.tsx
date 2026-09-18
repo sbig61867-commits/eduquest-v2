@@ -45,10 +45,10 @@ export default async function AdminCoursesPage() {
   const count = (rows: { count: number }[] | undefined) => rows?.[0]?.count ?? 0
 
   const stats = [
-    { label: 'Courses',     value: courses.length,                                   icon: BookOpen,      color: 'text-violet-400',  bg: 'bg-violet-600/20' },
-    { label: 'Published',   value: courses.filter(c => c.is_published).length,        icon: Eye,           color: 'text-emerald-400', bg: 'bg-emerald-600/20' },
-    { label: 'Units',       value: courses.reduce((s, c) => s + count(c.course_units), 0),       icon: Layers,        color: 'text-blue-400',    bg: 'bg-blue-600/20' },
-    { label: 'Enrolments',  value: courses.reduce((s, c) => s + count(c.course_enrollments), 0), icon: GraduationCap, color: 'text-amber-400',   bg: 'bg-amber-600/20' },
+    { label: 'المساقات',     value: courses.length,                                   icon: BookOpen,      color: 'text-violet-400',  bg: 'bg-violet-600/20' },
+    { label: 'منشور',   value: courses.filter(c => c.is_published).length,        icon: Eye,           color: 'text-emerald-400', bg: 'bg-emerald-600/20' },
+    { label: 'الوحدات',       value: courses.reduce((s, c) => s + count(c.course_units), 0),       icon: Layers,        color: 'text-blue-400',    bg: 'bg-blue-600/20' },
+    { label: 'التسجيلات',  value: courses.reduce((s, c) => s + count(c.course_enrollments), 0), icon: GraduationCap, color: 'text-amber-400',   bg: 'bg-amber-600/20' },
   ]
 
   return (

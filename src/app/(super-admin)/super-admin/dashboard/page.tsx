@@ -20,10 +20,10 @@ export default async function SuperAdminDashboard() {
   const stats = await getStats()
 
   const cards = [
-    { label: 'Total Tenants', value: stats.tenants, icon: Building2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Total Users', value: stats.users, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Active Features', value: '12', icon: Flag, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'Audit Events Today', value: '0', icon: ShieldCheck, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'إجمالي المؤسسات', value: stats.tenants, icon: Building2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'إجمالي المستخدمين', value: stats.users, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'المزايا المفعّلة', value: '12', icon: Flag, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: 'أحداث التدقيق اليوم', value: '0', icon: ShieldCheck, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   return (

@@ -149,9 +149,9 @@ function Pagination({ page, total, pageSize, onChange }: {
 // ── Add User Modal ────────────────────────────────────────────────────────────
 
 const ROLES = [
-  { value: 'university_admin', label: 'Institution Admin' },
-  { value: 'teacher',          label: 'Teacher' },
-  { value: 'student',          label: 'Student' },
+  { value: 'university_admin', label: 'مدير المؤسسة' },
+  { value: 'teacher',          label: 'معلم' },
+  { value: 'student',          label: 'طالب' },
 ]
 
 function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
@@ -191,7 +191,7 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
-        <Input label="الاسم الكامل" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Ahmed Hassan" />
+        <Input label="الاسم الكامل" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="مثال: أحمد حسن" />
         <Input label="البريد الإلكتروني" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@school.edu" />
         <Input label="كلمة المرور" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required placeholder="8 أحرف على الأقل" />
         <div className="space-y-1.5">
@@ -310,8 +310,8 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
 
   const tabs = [
     { key: 'admins'   as const, label: 'Admins',   count: counts.admins,   icon: ShieldCheck,   color: 'text-emerald-400' },
-    { key: 'teachers' as const, label: 'Teachers',  count: counts.teachers, icon: GraduationCap, color: 'text-amber-400'   },
-    { key: 'students' as const, label: 'Students',  count: counts.students, icon: Users,         color: 'text-blue-400'    },
+    { key: 'teachers' as const, label: 'المعلمون',  count: counts.teachers, icon: GraduationCap, color: 'text-amber-400'   },
+    { key: 'students' as const, label: 'الطلاب',  count: counts.students, icon: Users,         color: 'text-blue-400'    },
   ]
 
   return (

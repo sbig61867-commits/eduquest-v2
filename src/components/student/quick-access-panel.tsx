@@ -80,21 +80,21 @@ export function StudentQuickAccessPanel() {
 
   const sections = data ? [
     {
-      label: 'My Courses',
+      label: 'مساقاتي',
       icon: Layers,
       color: 'text-violet-400',
       items: data.courses.map(c => ({ label: c.title, href: '/student/courses' })),
       emptyText: 'No courses yet',
     },
     {
-      label: 'Recent Lessons',
+      label: 'أحدث الدروس',
       icon: BookOpen,
       color: 'text-blue-400',
       items: data.lessons.map(l => ({ label: l.title, href: `/student/lessons` })),
       emptyText: 'No lessons yet',
     },
     {
-      label: 'Exams',
+      label: 'الاختبارات',
       icon: ClipboardList,
       color: 'text-amber-400',
       items: data.exams.map(e => ({ label: e.title, href: '/student/exams' })),

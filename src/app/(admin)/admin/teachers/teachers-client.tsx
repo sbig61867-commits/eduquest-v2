@@ -120,7 +120,7 @@ export function TeachersClient({ initialTeachers }: Props) {
                 <td className="px-5 py-4 hidden xl:table-cell">
                   <button
                     onClick={() => toggleCoursePermission(teacher)}
-                    title={teacher.can_create_courses ? 'Revoke course creation' : 'Allow course creation'}
+                    title={teacher.can_create_courses ? 'سحب صلاحية إنشاء المساقات' : 'منح صلاحية إنشاء المساقات'}
                     className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
                       teacher.can_create_courses
                         ? 'bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20'

@@ -26,9 +26,9 @@ const UI = {
   },
   en: {
     tagline: 'Multi-Institution Digital Learning Platform',
-    refLabel: 'Reference No.', dateLabel: 'Date', timeLabel: 'Issued At',
+    refLabel: 'Reference No.', dateLabel: 'التاريخ', timeLabel: 'صدر في',
     uniLabel: 'Institution',
-    sigTitle: 'Approval', sigName: 'Name', sigSignature: 'Signature', sigDate: 'Date',
+    sigTitle: 'Approval', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
     footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
     locale: 'en-GB',
   },
