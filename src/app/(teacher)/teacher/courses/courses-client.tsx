@@ -136,7 +136,7 @@ export function CoursesClient({ initialCourses }: Props) {
         setPptxStep('preview')
       }
     } catch {
-      setPptxError('Network error. Please try again.')
+      setPptxError('خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
     }
     setPptxLoading(false)
   }

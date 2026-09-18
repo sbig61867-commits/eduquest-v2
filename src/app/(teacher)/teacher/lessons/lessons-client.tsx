@@ -81,7 +81,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       setShowModal(false)
       router.refresh()
     } catch {
-      setFormError('Network error. Please try again.')
+      setFormError('خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
     }
     setLoading(false)
   }

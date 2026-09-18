@@ -285,7 +285,7 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
   }
 
   async function deleteUser(id: string) {
-    if (!(await confirmDialog('Delete this user permanently?'))) return
+    if (!(await confirmDialog('حذف هذا المستخدم نهائياً؟'))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error((await res.json().catch(() => ({}))).error ?? 'فشل الحذف'); return }
     setUsers(prev => prev.filter(u => u.id !== id))
@@ -413,7 +413,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
   }
 
   async function deleteSuperAdmin(id: string) {
-    if (!(await confirmDialog('Delete this user permanently?'))) return
+    if (!(await confirmDialog('حذف هذا المستخدم نهائياً؟'))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error((await res.json().catch(() => ({}))).error ?? 'فشل الحذف'); return }
     setLocalSuperAdmins(prev => prev.filter(u => u.id !== id))

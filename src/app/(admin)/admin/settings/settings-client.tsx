@@ -121,7 +121,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
           <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">
             <Image
               src={form.logo_url}
-              alt="Logo preview"
+              alt="معاينة الشعار"
               width={48}
               height={48}
               className="rounded-lg object-contain bg-white p-1"

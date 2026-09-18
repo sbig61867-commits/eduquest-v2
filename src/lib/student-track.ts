@@ -19,5 +19,5 @@ export function getStudentTrack(
   return tenantHasCenter !== false && isUniversityStudent === false ? 'centre' : 'institution'
 }
 
-export const CENTRE_TRAINEE_LABEL = 'Centre Trainee'
+export const CENTRE_TRAINEE_LABEL = 'متدرب المركز'
 export const CENTRE_TRAINEE_LABEL_AR = 'متدرب مركز التعليم المستمر'

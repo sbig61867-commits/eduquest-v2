@@ -55,7 +55,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
   }
 
   async function deleteStudent(id: string) {
-    if (!(await confirmDialog('Remove this student?'))) return
+    if (!(await confirmDialog('إزالة هذا الطالب؟'))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (res.ok) { setStudents(prev => prev.filter(s => s.id !== id)); router.refresh() }
   }
