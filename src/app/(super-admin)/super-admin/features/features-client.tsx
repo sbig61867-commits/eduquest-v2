@@ -14,10 +14,10 @@ interface Tenant { id: string; name: string }
 interface Props { initialFlags: FeatureFlag[]; tenants: Tenant[] }
 
 const GLOBAL_FEATURES = [
-  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', desc: 'Allow teachers to generate lessons with Gemini AI' },
+  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', desc: 'السماح للمعلمين بتوليد الدروس عبر Gemini' },
   { name: 'proctoring', label: 'مراقبة الاختبارات', desc: 'تفعيل مراقبة الكاميرا والميكروفون أثناء الاختبارات' },
   { name: 'file_uploads', label: 'رفع الملفات', desc: 'السماح برفع الفيديو والصوت وملفات PDF للدروس' },
-  { name: 'realtime_updates', label: 'التحديثات الفورية', desc: 'Live notifications and updates via Supabase Realtime' },
+  { name: 'realtime_updates', label: 'التحديثات الفورية', desc: 'إشعارات وتحديثات مباشرة عبر Supabase Realtime' },
 ]
 
 export function FeaturesClient({ initialFlags, tenants }: Props) {

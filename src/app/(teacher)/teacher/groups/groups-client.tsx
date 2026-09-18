@@ -116,7 +116,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       })
       const json = await res.json()
       if (!res.ok) {
-        setFormError(json.error ?? 'Failed to update group')
+        setFormError(json.error ?? 'فشل تحديث المجموعة')
         setLoading(false)
         return
       }
@@ -129,7 +129,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       })
       const json = await res.json()
       if (!res.ok) {
-        setFormError(json.error ?? 'Failed to create group')
+        setFormError(json.error ?? 'فشل إنشاء المجموعة')
         setLoading(false)
         return
       }
@@ -220,7 +220,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
           <h2 className="text-2xl font-bold text-white">مجموعاتي</h2>
           <p className="text-slate-400 mt-1">{groups.length} groups</p>
         </div>
-        <Button onClick={openAdd}><Plus className="w-4 h-4" /> New Group</Button>
+        <Button onClick={openAdd}><Plus className="w-4 h-4" /> مجموعة جديدة</Button>
       </div>
 
       {groups.length === 0 ? (
@@ -250,7 +250,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                 {group.name}
                 {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 align-middle">مؤرشفة</span>}
               </h3>
-              <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || 'No description'}</p>
+              <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || 'بلا وصف'}</p>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-slate-500 shrink-0">{group.group_students?.[0]?.count ?? 0} students</span>
                 <div className="flex gap-2">
@@ -268,7 +268,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       )}
 
       {/* Create / Edit Group Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={editing ? 'Edit Group' : 'New Group'}>
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={editing ? 'تعديل المجموعة' : 'مجموعة جديدة'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formError && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -288,7 +288,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
-            <Button type="submit" loading={loading} className="flex-1">{editing ? 'حفظ التغييرات' : 'Create Group'}</Button>
+            <Button type="submit" loading={loading} className="flex-1">{editing ? 'حفظ التغييرات' : 'إنشاء المجموعة'}</Button>
           </div>
         </form>
       </Modal>
@@ -312,7 +312,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
               Enrolled ({groupStudents.length})
             </p>
             {loadingStudents ? (
-              <p className="text-slate-500 text-sm py-2">Loading...</p>
+              <p className="text-slate-500 text-sm py-2">جارٍ التحميل…</p>
             ) : filteredEnrolled.length === 0 ? (
               <p className="text-slate-500 text-sm py-2">لا يوجد طلاب مسجّلون</p>
             ) : (

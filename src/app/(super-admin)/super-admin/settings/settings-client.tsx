@@ -34,7 +34,7 @@ interface Props {
   deletionPolicy: DeletionPolicy
 }
 
-function StatusPill({ ok, okLabel = 'Configured', badLabel = 'Not configured' }: { ok: boolean; okLabel?: string; badLabel?: string }) {
+function StatusPill({ ok, okLabel = 'مُهيّأ', badLabel = 'غير مُهيّأ' }: { ok: boolean; okLabel?: string; badLabel?: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
       ok ? 'text-emerald-400 bg-emerald-400/10' : 'text-amber-400 bg-amber-400/10'
@@ -190,10 +190,10 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
   }
 
   const services = [
-    { label: 'Groq (lesson & exam generation)', icon: Sparkles, ok: config.groq },
-    { label: 'Gemini (vision / proctoring / fallback)', icon: Eye, ok: config.gemini },
-    { label: 'Resend (invitation emails)', icon: Mail, ok: config.resend },
-    { label: 'Supabase service role (admin APIs)', icon: ShieldCheck, ok: config.serviceRole },
+    { label: 'Groq (توليد الدروس والاختبارات)', icon: Sparkles, ok: config.groq },
+    { label: 'Gemini (الرؤية / احتياطي)', icon: Eye, ok: config.gemini },
+    { label: 'Resend (رسائل الدعوات)', icon: Mail, ok: config.resend },
+    { label: 'Supabase service role (واجهات الإدارة)', icon: ShieldCheck, ok: config.serviceRole },
   ]
 
   return (
@@ -222,7 +222,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed" />
           </div>
         </div>
-        <p className="text-xs text-slate-500">Super admin since {profile ? formatDate(profile.created_at) : '—'}</p>
+        <p className="text-xs text-slate-500">مدير عام منذ {profile ? formatDate(profile.created_at) : '—'}</p>
         <Button type="submit" loading={savingName}>حفظ</Button>
       </form>
 
@@ -332,7 +332,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       {/* Deletion policy */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <Trash2 className="w-4 h-4 text-slate-400" /> Deletion Policy
+          <Trash2 className="w-4 h-4 text-slate-400" /> سياسة الحذف
         </h3>
         <p className="text-slate-500 text-sm">
           يتحكم في ما يحدث عند حذف معلم أو مدير لمجموعة أو درس أو اختبار أو واجب على مستوى المنصة كلها.
@@ -367,7 +367,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       {/* Platform configuration health */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <Server className="w-4 h-4 text-slate-400" /> Platform Configuration
+          <Server className="w-4 h-4 text-slate-400" /> إعدادات المنصة
         </h3>
         <div className="space-y-3">
           {services.map(s => {
@@ -383,11 +383,11 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           })}
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-slate-300 text-sm">
-              <Eye className="w-4 h-4 text-slate-500" /> Proctoring analysis
+              <Eye className="w-4 h-4 text-slate-500" /> تحليل المراقبة
             </span>
             {/* Always on-device since 2026-09-13 — the server-side Gemini layer
                 and its NEXT_PUBLIC_SERVER_PROCTORING flag were removed. */}
-            <StatusPill ok okLabel="On student device (no AI cost)" badLabel="" />
+            <StatusPill ok okLabel="على جهاز الطالب (بلا تكلفة ذكاء اصطناعي)" badLabel="" />
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-slate-300 text-sm">

@@ -9,7 +9,7 @@ const dict = {
     desc: 'اترك رسالتك وسنرد عليك على بريدك في أقرب وقت — سواء كنت مؤسسة تعليمية تريد الاشتراك أو لديك أي استفسار.',
   },
   en: {
-    title: 'Contact Us',
+    title: 'تواصل معنا',
     desc: 'Leave your message and we’ll reply to your email as soon as possible — whether you’re an educational institution looking to subscribe or you have any question.',
   },
 }

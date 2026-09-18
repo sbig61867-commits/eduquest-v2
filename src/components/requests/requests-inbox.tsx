@@ -291,7 +291,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                     placeholder="اكتب رسالة…"
                     value={reply}
                     onChange={e => setReply(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
+                    onKeyDown={e => { if (e.key === 'دخول' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
                   />
                   <Button loading={busy} onClick={sendReply} disabled={!reply.trim()}><Send className="w-4 h-4" /></Button>
                 </div>

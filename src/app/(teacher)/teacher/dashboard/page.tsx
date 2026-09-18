@@ -49,15 +49,15 @@ export default async function TeacherDashboard() {
 
   const cards = [
     { label: 'مجموعاتي',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
-    { label: 'Lessons Created', value: lessons ?? 0, icon: BookOpen,     color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/teacher/lessons' },
-    { label: 'Exams Created',   value: exams   ?? 0, icon: ClipboardList,color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/teacher/exams'   },
+    { label: 'الدروس المنشأة', value: lessons ?? 0, icon: BookOpen,     color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/teacher/lessons' },
+    { label: 'الاختبارات المنشأة',   value: exams   ?? 0, icon: ClipboardList,color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/teacher/exams'   },
     { label: 'الاختبارات القادمة',  value: upcomingExams?.length ?? 0, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/teacher/exams' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Teacher Dashboard</h2>
+        <h2 className="text-2xl font-bold text-white">لوحة المعلم</h2>
         <p className="text-slate-400 mt-1">أدر مجموعاتك ودروسك واختباراتك</p>
       </div>
 

@@ -129,7 +129,7 @@ export function CoursesClient({ initialCourses }: Props) {
       const res = await fetch('/api/ai/generate-course-pptx', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) {
-        setPptxError(data.error ?? 'Failed to process file')
+        setPptxError(data.error ?? 'فشلت معالجة الملف')
       } else {
         setGeneratedCourse(data.course)
         setSourceText(data.sourceText ?? '')
@@ -250,16 +250,16 @@ export function CoursesClient({ initialCourses }: Props) {
                   {course.course_enrollments?.[0]?.count ?? 0} enrolled
                 </span>
               </div>
-              <p className="text-slate-600 text-xs mb-4">Created {formatDate(course.created_at)}</p>
+              <p className="text-slate-600 text-xs mb-4">أُنشئ {formatDate(course.created_at)}</p>
               <div className="space-y-2 pt-3 border-t border-slate-800">
                 <Button className="w-full" onClick={() => router.push(`/teacher/courses/${course.id}`)}>
-                  <Pencil className="w-4 h-4" /> Build Course
+                  <Pencil className="w-4 h-4" /> بناء المساق
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" className="flex-1" onClick={() => togglePublish(course)}>
                     {course.is_published
-                      ? <><EyeOff className="w-3.5 h-3.5" /> Unpublish</>
-                      : <><Eye className="w-3.5 h-3.5" /> Publish</>}
+                      ? <><EyeOff className="w-3.5 h-3.5" /> إلغاء النشر</>
+                      : <><Eye className="w-3.5 h-3.5" /> نشر</>}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteCourse(course.id)} className="hover:text-red-400 hover:bg-red-500/10">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -298,7 +298,7 @@ export function CoursesClient({ initialCourses }: Props) {
             placeholder="مثال: الإنجليزية، العربية، بايثون…"
           />
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-300">Course Structure</label>
+            <label className="block text-sm font-medium text-slate-300">بنية المساق</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -306,7 +306,7 @@ export function CoursesClient({ initialCourses }: Props) {
                 className={`p-3 rounded-lg border text-start transition-colors ${form.has_levels ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
               >
                 <Layers className="w-4 h-4 mb-1.5 text-violet-400" />
-                <p className="text-sm font-medium">Leveled</p>
+                <p className="text-sm font-medium">بمستويات</p>
                 <p className="text-xs text-slate-500 mt-0.5">المساق ← المستويات ← الوحدات ← المحتوى</p>
               </button>
               <button
@@ -315,14 +315,14 @@ export function CoursesClient({ initialCourses }: Props) {
                 className={`p-3 rounded-lg border text-start transition-colors ${!form.has_levels ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
               >
                 <BookOpen className="w-4 h-4 mb-1.5 text-blue-400" />
-                <p className="text-sm font-medium">Flat</p>
+                <p className="text-sm font-medium">مسطّح</p>
                 <p className="text-xs text-slate-500 mt-0.5">المساق ← الوحدات ← المحتوى</p>
               </button>
             </div>
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
-            <Button type="submit" loading={loading} className="flex-1">Create Course</Button>
+            <Button type="submit" loading={loading} className="flex-1">إنشاء المساق</Button>
           </div>
         </form>
       </Modal>

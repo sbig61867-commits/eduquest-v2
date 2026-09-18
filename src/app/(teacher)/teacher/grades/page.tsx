@@ -52,7 +52,7 @@ export default async function TeacherGradesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Student Grades</h2>
+        <h2 className="text-2xl font-bold text-white">درجات الطلاب</h2>
         <p className="text-slate-400 mt-1">{rows.length} graded submissions</p>
       </div>
 

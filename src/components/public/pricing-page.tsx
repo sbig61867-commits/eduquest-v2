@@ -25,7 +25,7 @@ const dict = {
     ctaDemo: 'جرّب المنصة',
   },
   en: {
-    title: 'Clear pricing, no surprises',
+    title: 'أسعار واضحة بلا مفاجآت',
     desc: 'Start with a free pilot and pay only once your institution decides to continue.',
     monthly: 'Monthly',
     yearly: 'Yearly',

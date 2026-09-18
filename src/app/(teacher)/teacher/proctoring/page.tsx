@@ -92,7 +92,7 @@ export default async function ProctoringReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Proctoring Reports</h2>
+        <h2 className="text-2xl font-bold text-white">تقارير المراقبة</h2>
         <p className="text-slate-400 mt-1">مراقبة نزاهة كل الاختبارات المراقَبة</p>
       </div>
 
@@ -102,7 +102,7 @@ export default async function ProctoringReportsPage() {
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <Radio className="w-4 h-4 text-red-400" />
-            <p className="text-white font-semibold">Live Monitoring</p>
+            <p className="text-white font-semibold">المراقبة المباشرة</p>
             <span className="text-slate-500 text-xs">شاهد الطلاب مباشرةً أثناء اختبار مراقَب</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -118,11 +118,11 @@ export default async function ProctoringReportsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">Total Submissions</p>
+          <p className="text-slate-400 text-sm mb-1">إجمالي التسليمات</p>
           <p className="text-3xl font-bold text-white">{submissions.length}</p>
         </div>
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">Flagged</p>
+          <p className="text-slate-400 text-sm mb-1">مُعلَّم</p>
           <p className="text-3xl font-bold text-red-400">{flagged.length}</p>
         </div>
         <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-5">
@@ -175,7 +175,7 @@ export default async function ProctoringReportsPage() {
 
                 {events.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Violations</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">المخالفات</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {events.map((ev, i) => {
                         const Icon = VIOLATION_ICONS[ev.type as ViolationIconKey] ?? AlertTriangle

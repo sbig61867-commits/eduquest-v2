@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Flag } from 'lucide-react'
 
 const DEFAULT_FLAGS = [
-  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', description: 'Allow teachers to generate lessons with Gemini AI' },
+  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', description: 'السماح للمعلمين بتوليد الدروس عبر Gemini' },
   { name: 'proctoring', label: 'مراقبة الاختبارات', description: 'تفعيل مراقبة الكاميرا والميكروفون أثناء الاختبارات' },
   { name: 'file_uploads', label: 'رفع الملفات', description: 'السماح برفع الفيديو والصوت وملفات PDF' },
   { name: 'realtime_updates', label: 'التحديثات الفورية', description: 'تحديثات مباشرة عبر Supabase Realtime' },

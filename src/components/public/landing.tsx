@@ -107,9 +107,9 @@ const dict = {
     ],
     teaserTitle: 'The solution: one platform that does it all',
     teaser: [
-      { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'Full lessons and exams in seconds, editable before publishing.' },
+      { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'دروس واختبارات كاملة في ثوانٍ، قابلة للتعديل قبل النشر.' },
       { icon: 'ShieldCheck', title: 'مراقبة ذكية للاختبارات', desc: 'Camera + AI protect exam integrity, with grading on the server.' },
-      { icon: 'Building2', title: 'عزل كامل لكل مؤسسة', desc: 'Every institution’s data is fully isolated at the database level.' },
+      { icon: 'Building2', title: 'عزل كامل لكل مؤسسة', desc: 'بيانات كل مؤسسة معزولة تماماً على مستوى قاعدة البيانات.' },
     ],
     allFeatures: 'Explore all features',
     liveTitle: 'Live exam monitoring — like being in the room',
@@ -135,7 +135,7 @@ const dict = {
       { q: 'Can lessons and exams be generated automatically?', a: 'Yes, with AI from your files or from a topic — all reviewable and editable before publishing.' },
     ],
     mock: {
-      title: 'Teacher usage allowances',
+      title: 'حدود استخدام المعلم',
       stats: [
         { icon: 'BookOpen', label: 'AI lessons', value: '10/hour' },
         { icon: 'ClipboardList', label: 'AI exams', value: '20/hour' },

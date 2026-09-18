@@ -99,12 +99,19 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
 
       <aside className={cn(
         'fixed start-0 top-0 h-full bg-slate-900 border-e border-slate-800 flex flex-col transition-all duration-300 z-50',
-        // Mobile: off-canvas drawer, always full width when open. rtl:translate-x-full
-        // because the drawer sits at the inline start, which is the RIGHT edge under
-        // dir=rtl — hiding it means pushing it further right, not left.
-        mobileNavOpen ? 'translate-x-0 w-64' : '-translate-x-full rtl:translate-x-full w-64',
-        // Desktop: always visible, collapsible width
-        'lg:translate-x-0',
+        // Mobile: off-canvas drawer, always full width when open. The hidden
+        // transform is scoped with max-lg: rather than overridden by a later
+        // lg:translate-x-0 — `rtl:` and `lg:` are both single-variant utilities,
+        // so which one wins is decided by Tailwind's CSS order, not by the order
+        // they appear here, and rtl: was winning at every width (sidebar sat
+        // entirely off-screen on desktop). Scoping it to max-lg: removes the
+        // conflict instead of trying to out-specify it.
+        //
+        // rtl:translate-x-full because the drawer sits at the inline start,
+        // which is the RIGHT edge under dir=rtl — hiding it means pushing it
+        // further right, not left.
+        'w-64',
+        mobileNavOpen ? 'translate-x-0' : 'max-lg:-translate-x-full max-lg:rtl:translate-x-full',
         sidebarOpen ? 'lg:w-64' : 'lg:w-16'
       )}>
         <div className="flex items-center justify-between p-4 border-b border-slate-800 h-16">

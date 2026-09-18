@@ -66,7 +66,7 @@ export function TenantsClient({ initialTenants }: Props) {
       body: JSON.stringify({ tenant_id: tenant.id, archive }),
     })
     const data = await res.json()
-    if (!res.ok) { toast.error(data.error ?? 'Failed to update university'); return }
+    if (!res.ok) { toast.error(data.error ?? 'فشل تحديث الجامعة'); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data.tenant : t))
     router.refresh()
   }
@@ -76,7 +76,7 @@ export function TenantsClient({ initialTenants }: Props) {
     if (!(await confirmDialog(`تأكيد أخير: اكتب نعم في ذهنك — هذا حذف لا رجعة فيه لجامعة "${tenant.name}".`))) return
     const res = await fetch(`/api/admin/delete-tenant?id=${tenant.id}`, { method: 'DELETE' })
     const data = await res.json()
-    if (!res.ok) { toast.error(data.error ?? 'Failed to delete university'); return }
+    if (!res.ok) { toast.error(data.error ?? 'فشل حذف الجامعة'); return }
     setTenants(prev => prev.filter(t => t.id !== tenant.id))
     // Invalidate the router cache so revisiting the page doesn't show the
     // deleted tenant from a stale server render.
@@ -143,7 +143,7 @@ export function TenantsClient({ initialTenants }: Props) {
     })
     const data = await res.json()
     if (!res.ok) {
-      setAdminError(data.error ?? 'Failed to create admin')
+      setAdminError(data.error ?? 'فشل إنشاء المدير')
     } else {
       setAdminSuccess(`✓ Admin "${data.user.full_name}" created — they can now log in with ${adminForm.email}`)
       setAdminForm({ full_name: '', email: '', password: '' })
@@ -157,9 +157,9 @@ export function TenantsClient({ initialTenants }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">المؤسسات</h2>
-          <p className="text-slate-400 mt-1">{tenants.length} tenants registered</p>
+          <p className="text-slate-400 mt-1">مؤسسة مسجّلة {tenants.length}</p>
         </div>
-        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> New Institution</Button>
+        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> مؤسسة جديدة</Button>
       </div>
 
       {tenants.length === 0 ? (
@@ -207,7 +207,7 @@ export function TenantsClient({ initialTenants }: Props) {
                 />
                 لديها مركز تعليم مستمر
               </label>
-              <p className="text-slate-500 text-xs mb-4">Created {formatDate(tenant.created_at)}</p>
+              <p className="text-slate-500 text-xs mb-4">أُنشئت {formatDate(tenant.created_at)}</p>
 
               <div className="space-y-2 pt-3 border-t border-slate-800">
                 {/* Add admin manually */}
@@ -285,7 +285,7 @@ export function TenantsClient({ initialTenants }: Props) {
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
-            <Button type="submit" loading={loading} className="flex-1">Create Institution</Button>
+            <Button type="submit" loading={loading} className="flex-1">إنشاء المؤسسة</Button>
           </div>
         </form>
       </Modal>
@@ -302,8 +302,8 @@ export function TenantsClient({ initialTenants }: Props) {
           <Input label="البريد الإلكتروني" type="email" value={adminForm.email} onChange={e => setAdminForm(p => ({ ...p, email: e.target.value }))} required placeholder="admin@university.edu" />
           <Input label="كلمة المرور" type="password" value={adminForm.password} onChange={e => setAdminForm(p => ({ ...p, password: e.target.value }))} required placeholder="8 أحرف على الأقل" />
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setAdminTarget(null)} className="flex-1">Close</Button>
-            <Button type="submit" loading={adminLoading} className="flex-1">Create Admin</Button>
+            <Button type="button" variant="secondary" onClick={() => setAdminTarget(null)} className="flex-1">إغلاق</Button>
+            <Button type="submit" loading={adminLoading} className="flex-1">إنشاء مدير</Button>
           </div>
         </form>
       </Modal>

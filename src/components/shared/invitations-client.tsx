@@ -133,7 +133,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     const data = await res.json()
 
     if (!res.ok) {
-      setFormError(data.error ?? 'Failed to create invitation')
+      setFormError(data.error ?? 'فشل إنشاء الدعوة')
       setCreating(false)
       return
     }
@@ -180,7 +180,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Invitations</h1>
+          <h1 className="text-2xl font-bold text-white">الدعوات</h1>
           <p className="text-slate-400 text-sm mt-1">
             أدر دعوات الوصول إلى منصتك
           </p>
@@ -197,7 +197,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Invitation
+            دعوة جديدة
           </button>
         </div>
       </div>
@@ -208,8 +208,8 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold flex items-center gap-2">
               {isPublic
-                ? <><Link className="w-4 h-4 text-purple-400" /> Public Link</>
-                : <><Mail className="w-4 h-4 text-blue-400" /> Private Invitation</>
+                ? <><Link className="w-4 h-4 text-purple-400" /> رابط عام</>
+                : <><Mail className="w-4 h-4 text-blue-400" /> دعوة خاصة</>
               }
             </h2>
             <button onClick={() => setShowForm(false)} className="text-slate-500 hover:text-white">
@@ -258,7 +258,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
           {newLink && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-2">
-              <p className="text-emerald-400 text-sm font-semibold">Invitation created!</p>
+              <p className="text-emerald-400 text-sm font-semibold">أُنشئت الدعوة!</p>
               <p className="text-slate-300 text-xs">شارك هذا الرابط:</p>
               <div className="flex items-center gap-2 bg-slate-950 rounded-lg px-3 py-2">
                 <code className="text-blue-300 text-xs flex-1 break-all">{newLink}</code>
@@ -283,7 +283,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             {/* Email — only for private invitations */}
             {!isPublic && (
               <div className="col-span-2">
-                <label className="block text-sm text-slate-400 mb-1">Email Address</label>
+                <label className="block text-sm text-slate-400 mb-1">البريد الإلكتروني</label>
                 <input
                   type="email"
                   value={email}
@@ -403,7 +403,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                     : 'bg-blue-600 hover:bg-blue-500'
                 }`}
               >
-                {creating ? 'Creating…' : isPublic ? 'Generate Public Link' : 'Send Invitation'}
+                {creating ? 'Creating…' : isPublic ? 'توليد رابط عام' : 'إرسال الدعوة'}
               </button>
             </div>
           </form>
@@ -433,7 +433,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                 )}
                 <th className="text-start px-5 py-3 text-slate-400 font-medium">الحالة</th>
                 <th className="text-start px-5 py-3 text-slate-400 font-medium">الاستخدامات / الانتهاء</th>
-                <th className="text-end px-5 py-3 text-slate-400 font-medium">Actions</th>
+                <th className="text-end px-5 py-3 text-slate-400 font-medium">إجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -445,7 +445,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                       {inv.is_public ? (
                         <span className="inline-flex items-center gap-1.5 text-purple-400">
                           <Link className="w-3.5 h-3.5" />
-                          Public link
+                          رابط عام
                         </span>
                       ) : (
                         <span className="text-white font-medium">{inv.email}</span>

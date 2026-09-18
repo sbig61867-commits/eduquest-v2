@@ -17,7 +17,7 @@ interface ErrorFallbackProps {
  * that's the ID Vercel shows in its function logs) so production issues are
  * traceable even before a monitoring service is wired in.
  */
-export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'Go to dashboard' }: ErrorFallbackProps) {
+export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'الذهاب للوحة' }: ErrorFallbackProps) {
   useEffect(() => {
     console.error('[error-boundary]', error.digest ?? '', error)
     Sentry.captureException(error)

@@ -46,7 +46,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       if (res.ok && data.content) {
         setForm(p => ({ ...p, content: data.content, title: p.title || aiTopic }))
       } else {
-        setAiError(data.error ?? 'AI generation failed. Please try again.')
+        setAiError(data.error ?? 'فشل التوليد بالذكاء الاصطناعي. حاول مجدداً.')
       }
     } catch {
       setAiError('Network error. Please check your connection and try again.')
@@ -66,7 +66,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
           body: JSON.stringify({ id: editing.id, title: form.title, content: form.content }),
         })
         const data = await res.json()
-        if (!res.ok) { setFormError(data.error ?? 'Failed to save lesson'); setLoading(false); return }
+        if (!res.ok) { setFormError(data.error ?? 'فشل حفظ الدرس'); setLoading(false); return }
         setLessons(prev => prev.map(l => l.id === editing.id ? data : l))
       } else {
         const res = await fetch('/api/lessons', {
@@ -75,7 +75,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
           body: JSON.stringify({ title: form.title, content: form.content, group_id: form.group_id }),
         })
         const data = await res.json()
-        if (!res.ok) { setFormError(data.error ?? 'Failed to create lesson'); setLoading(false); return }
+        if (!res.ok) { setFormError(data.error ?? 'فشل إنشاء الدرس'); setLoading(false); return }
         setLessons(prev => [data, ...prev])
       }
       setShowModal(false)
@@ -119,7 +119,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
           <h2 className="text-2xl font-bold text-white">الدروس</h2>
           <p className="text-slate-400 mt-1">{lessons.length} lessons created</p>
         </div>
-        <Button onClick={openAdd}><Plus className="w-4 h-4" /> New Lesson</Button>
+        <Button onClick={openAdd}><Plus className="w-4 h-4" /> درس جديد</Button>
       </div>
 
       {lessons.length === 0 ? (
@@ -145,7 +145,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                   <Button variant="secondary" size="sm" onClick={() => router.push(`/teacher/lessons/${lesson.id}`)}>
                     <ExternalLink className="w-3.5 h-3.5" /> فتح
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => togglePublish(lesson)} title={lesson.is_published ? 'Unpublish' : 'Publish'}>
+                  <Button variant="ghost" size="sm" onClick={() => togglePublish(lesson)} title={lesson.is_published ? 'إلغاء النشر' : 'نشر'}>
                     {lesson.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(lesson)}><Pencil className="w-4 h-4" /></Button>
@@ -157,7 +157,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
         </div>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Lesson' : 'New Lesson'} size="xl">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? 'تعديل الدرس' : 'درس جديد'} size="xl">
         <div className="space-y-5">
           {/* AI Generator */}
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
@@ -171,19 +171,19 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                 onClick={() => setShowAiInstructions(p => !p)}
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors underline underline-offset-2"
               >
-                {showAiInstructions ? 'Hide custom instructions' : 'Add custom instructions'}
+                {showAiInstructions ? 'إخفاء التعليمات المخصصة' : 'إضافة تعليمات مخصصة'}
               </button>
             </div>
 
             <div className="flex gap-2">
               <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="أدخل الموضوع (مثل: البناء الضوئي، الزمن المضارع…)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <select value={aiLevel} onChange={e => setAiLevel(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="high school">High School</option>
-                <option value="undergraduate">Undergraduate</option>
-                <option value="graduate">Graduate</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
+                <option value="high school">ثانوي</option>
+                <option value="undergraduate">جامعي</option>
+                <option value="graduate">دراسات عليا</option>
+                <option value="beginner">مبتدئ</option>
+                <option value="intermediate">متوسط</option>
+                <option value="advanced">متقدم</option>
               </select>
               <Button onClick={generateWithAI} loading={aiLoading} variant="secondary" size="sm">توليد</Button>
             </div>
@@ -233,7 +233,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
             {formError && <p className="text-red-400 text-sm">{formError}</p>}
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">إلغاء</Button>
-              <Button type="submit" loading={loading} disabled={!editing && groups.length === 0} className="flex-1">{editing ? 'حفظ التغييرات' : 'Create Lesson'}</Button>
+              <Button type="submit" loading={loading} disabled={!editing && groups.length === 0} className="flex-1">{editing ? 'حفظ التغييرات' : 'إنشاء الدرس'}</Button>
             </div>
           </form>
         </div>

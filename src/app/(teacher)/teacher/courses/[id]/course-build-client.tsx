@@ -59,11 +59,11 @@ interface Props {
 }
 
 const ITEM_TYPES = [
-  { value: 'text',     label: 'Text / Explanation' },
-  { value: 'grammar',  label: 'Grammar Rule' },
-  { value: 'idioms',   label: 'Idioms & Phrases' },
-  { value: 'rules',    label: 'Rules & Notes' },
-  { value: 'task',     label: 'Task / Exercise' },
+  { value: 'text',     label: 'نص / شرح' },
+  { value: 'grammar',  label: 'قاعدة نحوية' },
+  { value: 'idioms',   label: 'تعابير وعبارات' },
+  { value: 'rules',    label: 'قواعد وملاحظات' },
+  { value: 'task',     label: 'مهمة / تمرين' },
   { value: 'quiz',     label: 'اختبار قصير' },
   { value: 'video',    label: 'فيديو' },
 ]
@@ -263,7 +263,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
         <div className="flex-1 min-w-0">
           <h2 className="text-xl font-bold text-white truncate">{course.title}</h2>
           <p className="text-slate-400 text-sm">
-            {course.has_levels ? 'Leveled course' : 'Flat course'} · {course.language ?? 'No language set'}
+            {course.has_levels ? 'مساق بمستويات' : 'مساق مسطّح'} · {course.language ?? 'لم تُحدَّد لغة'}
           </p>
         </div>
         <Badge variant={course.is_published ? 'green' : 'yellow'}>
@@ -288,7 +288,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
                   onClick={e => { e.stopPropagation(); setUnitModal({ open: true, levelId: level.id }) }}
                   className="ms-2 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Unit
+                  <Plus className="w-3.5 h-3.5" /> وحدة
                 </button>
                 <button onClick={e => { e.stopPropagation(); deleteLevel(level.id) }} className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
@@ -395,7 +395,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
               placeholder="عنوان المحتوى…"
             />
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-300">Type</label>
+              <label className="block text-sm font-medium text-slate-300">النوع</label>
               <select
                 value={itemForm.type}
                 onChange={e => setItemForm(p => ({ ...p, type: e.target.value }))}

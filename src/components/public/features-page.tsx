@@ -50,7 +50,7 @@ const dict = {
     cta: 'اطلب اشتراكاً لمؤسستك',
   },
   en: {
-    title: 'Everything the platform offers',
+    title: 'كل ما تقدّمه المنصة',
     desc: 'One platform covering the full teaching cycle — from the first lesson to publishing grades.',
     features: [
       { icon: 'Sparkles', title: 'توليد بالذكاء الاصطناعي', desc: 'The teacher types a topic and the platform generates a full lesson or a complete exam with questions and answers in seconds — editable before publishing.' },

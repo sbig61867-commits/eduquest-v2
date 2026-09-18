@@ -38,7 +38,7 @@ export function AiTypingMockup({ lang }: { lang: string }) {
       )}
       {phase === 'done' && (
         <div className="flex items-center gap-1.5 mt-4 text-success text-[11px] font-semibold animate-pulse">
-          <CheckCircle2 className="w-3.5 h-3.5" /> {lang === 'ar' ? 'جاهز للمراجعة' : 'Ready to review'}
+          <CheckCircle2 className="w-3.5 h-3.5" /> {lang === 'ar' ? 'جاهز للمراجعة' : 'جاهز للمراجعة'}
         </div>
       )}
     </div>

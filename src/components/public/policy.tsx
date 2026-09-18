@@ -38,7 +38,7 @@ const privacy: Record<'ar' | 'en', PolicyDict> = {
     ],
   },
   en: {
-    title: 'Privacy Policy',
+    title: 'سياسة الخصوصية',
     updated: 'Last updated: July 2026',
     sections: [
       { h: 'Data we collect', body: [
@@ -105,7 +105,7 @@ const terms: Record<'ar' | 'en', PolicyDict> = {
     ],
   },
   en: {
-    title: 'Terms of Use',
+    title: 'شروط الاستخدام',
     updated: 'Last updated: July 2026',
     sections: [
       { h: 'Acceptance of terms', body: [

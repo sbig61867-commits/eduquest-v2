@@ -96,7 +96,7 @@ function UserRow({ u, onToggle, onDelete }: {
       </td>
       <td className="px-5 py-4">
         <div className="flex items-center gap-1 justify-end">
-          <Button variant="ghost" size="sm" onClick={() => onToggle(u)} title={u.is_active ? 'Disable' : 'Enable'}>
+          <Button variant="ghost" size="sm" onClick={() => onToggle(u)} title={u.is_active ? 'تعطيل' : 'تفعيل'}>
             {u.is_active
               ? <ToggleRight className="w-4 h-4 text-emerald-400" />
               : <ToggleLeft  className="w-4 h-4 text-slate-500"  />}
@@ -213,7 +213,7 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
         )}
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1">إلغاء</Button>
-          <Button type="submit" loading={loading} className="flex-1">Create User</Button>
+          <Button type="submit" loading={loading} className="flex-1">إنشاء مستخدم</Button>
         </div>
       </form>
     </Modal>
@@ -256,7 +256,7 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
     const res = await fetch(`/api/admin/tenant-users?${params}`)
     const data = await res.json()
     if (res.ok) { setUsers(data.users); setTotal(data.total) }
-    else toast.error(data.error ?? 'Failed to load users')
+    else toast.error(data.error ?? 'فشل تحميل المستخدمين')
     setLoading(false)
   }, [tenant.id])
 
@@ -309,7 +309,7 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
   }
 
   const tabs = [
-    { key: 'admins'   as const, label: 'Admins',   count: counts.admins,   icon: ShieldCheck,   color: 'text-emerald-400' },
+    { key: 'admins'   as const, label: 'المديرون',   count: counts.admins,   icon: ShieldCheck,   color: 'text-emerald-400' },
     { key: 'teachers' as const, label: 'المعلمون',  count: counts.teachers, icon: GraduationCap, color: 'text-amber-400'   },
     { key: 'students' as const, label: 'الطلاب',  count: counts.students, icon: Users,         color: 'text-blue-400'    },
   ]
@@ -448,8 +448,8 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">All Users</h2>
-          <p className="text-slate-400 mt-1">{tenants.length} institutions · {totalUsers} total users</p>
+          <h2 className="text-2xl font-bold text-white">كل المستخدمين</h2>
+          <p className="text-slate-400 mt-1">{tenants.length} مؤسسة · {totalUsers} مستخدم</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
           <UserPlus className="w-4 h-4" /> إضافة مستخدم
@@ -458,7 +458,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
 
       {localSuperAdmins.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Platform Administrators</h3>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">مديرو المنصة</h3>
           <div className="bg-slate-900 border border-blue-900/40 rounded-xl overflow-hidden">
             <table className="w-full">
               <tbody className="divide-y divide-slate-800">
@@ -509,7 +509,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
                     <div className="bg-slate-800/60 rounded-lg p-2 text-center">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 mx-auto mb-1" />
                       <p className="text-white text-sm font-bold">{c.admins}</p>
-                      <p className="text-slate-500 text-xs">Admins</p>
+                      <p className="text-slate-500 text-xs">المديرون</p>
                     </div>
                     <div className="bg-slate-800/60 rounded-lg p-2 text-center">
                       <GraduationCap className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1" />
@@ -522,7 +522,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
                       <p className="text-slate-500 text-xs">الطلاب</p>
                     </div>
                   </div>
-                  <p className="text-slate-600 text-xs mt-3">Created {formatDate(tenant.created_at)}</p>
+                  <p className="text-slate-600 text-xs mt-3">أُنشئت {formatDate(tenant.created_at)}</p>
                 </button>
               )
             })}

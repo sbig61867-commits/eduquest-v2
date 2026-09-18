@@ -32,7 +32,7 @@ export interface Terms {
 
 const TERMS: Record<InstitutionType, Terms> = {
   university: {
-    institutionTypeLabel: 'University',
+    institutionTypeLabel: 'جامعة',
     institution: 'University', institutionAdmin: 'University Admin',
     group: 'Group', groups: 'Groups',
     unitL1: 'Faculty', unitsL1: 'Faculties', unitL2: 'Department', unitsL2: 'Departments',
@@ -42,7 +42,7 @@ const TERMS: Record<InstitutionType, Terms> = {
     institutionStudentAr: 'طالب جامعة', institutionStudentsAr: 'طلاب الجامعة',
   },
   school: {
-    institutionTypeLabel: 'School',
+    institutionTypeLabel: 'مدرسة',
     institution: 'School', institutionAdmin: 'School Admin',
     group: 'Class', groups: 'Classes',
     unitL1: 'Stage', unitsL1: 'Stages', unitL2: 'Grade', unitsL2: 'Grades',
@@ -52,7 +52,7 @@ const TERMS: Record<InstitutionType, Terms> = {
     institutionStudentAr: 'طالب مدرسة', institutionStudentsAr: 'طلاب المدرسة',
   },
   institute: {
-    institutionTypeLabel: 'Institute',
+    institutionTypeLabel: 'معهد',
     institution: 'Institute', institutionAdmin: 'Institute Admin',
     group: 'Section', groups: 'Sections',
     unitL1: 'Division', unitsL1: 'Divisions', unitL2: 'Program', unitsL2: 'Programs',
@@ -62,7 +62,7 @@ const TERMS: Record<InstitutionType, Terms> = {
     institutionStudentAr: 'طالب معهد', institutionStudentsAr: 'طلاب المعهد',
   },
   training_center: {
-    institutionTypeLabel: 'Training Center',
+    institutionTypeLabel: 'مركز تدريب',
     institution: 'Training Center', institutionAdmin: 'Center Admin',
     group: 'Cohort', groups: 'Cohorts',
     unitL1: 'Track', unitsL1: 'Tracks', unitL2: 'Program', unitsL2: 'Programs',
@@ -72,7 +72,7 @@ const TERMS: Record<InstitutionType, Terms> = {
     institutionStudentAr: 'متدرب', institutionStudentsAr: 'متدربو المركز',
   },
   company: {
-    institutionTypeLabel: 'Company',
+    institutionTypeLabel: 'شركة',
     institution: 'Organization', institutionAdmin: 'Training Admin',
     group: 'Team', groups: 'Teams',
     unitL1: 'Department', unitsL1: 'Departments', unitL2: 'Unit', unitsL2: 'Units',

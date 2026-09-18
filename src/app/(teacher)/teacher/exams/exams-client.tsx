@@ -115,7 +115,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     setResultsExamId(examId)
     const res = await fetch(`/api/exams/results?exam_id=${examId}`)
     if (res.ok) setResults(await res.json())
-    else toast.error((await res.json().catch(() => ({}))).error ?? 'Failed to load results')
+    else toast.error((await res.json().catch(() => ({}))).error ?? 'فشل تحميل النتائج')
     setResultsLoading(false)
   }
 
@@ -162,7 +162,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (questions.length === 0) { toast.warning('Add at least one question'); return }
+    if (questions.length === 0) { toast.warning('أضف سؤالاً واحداً على الأقل'); return }
     setLoading(true)
     const res = await fetch('/api/exams', {
       method: 'POST',
@@ -213,7 +213,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
           <p className="text-slate-400 mt-1">{exams.length} exams created</p>
         </div>
         <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
-          <Plus className="w-4 h-4" /> New Exam
+          <Plus className="w-4 h-4" /> اختبار جديد
         </Button>
       </div>
 
@@ -240,7 +240,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => setViewQuestions(exam)} title="عرض الأسئلة"><FileQuestion className="w-4 h-4" /></Button>
-                  <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> Results</Button>
+                  <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> النتائج</Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                 </div>
@@ -447,7 +447,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       {/* Results */}
       <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title="نتائج الاختبار" size="xl">
         {resultsLoading ? (
-          <p className="text-slate-500 text-sm py-8 text-center">Loading results...</p>
+          <p className="text-slate-500 text-sm py-8 text-center">جارٍ تحميل النتائج…</p>
         ) : results ? (
           <div className="space-y-4 max-h-[75vh] overflow-y-auto pe-1">
             <div className="flex flex-wrap items-center gap-3">
@@ -499,7 +499,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                             </td>
                             <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
                             <td className="px-4 py-3">
-                              {!r.submitted ? <Badge variant="gray">Not taken</Badge>
+                              {!r.submitted ? <Badge variant="gray">لم يُؤدَّ</Badge>
                                 : <span className="flex items-center gap-2">
                                     <Badge variant="green">تم التسليم</Badge>
                                     {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}

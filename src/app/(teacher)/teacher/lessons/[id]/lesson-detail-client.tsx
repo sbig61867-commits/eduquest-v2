@@ -229,7 +229,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     if (!hwForm.title.trim() || questions.length === 0) return
     setHwLoading(true)
     const groupId = lesson.groups?.id
-    if (!groupId) { toast.warning('No group linked to this lesson'); setHwLoading(false); return }
+    if (!groupId) { toast.warning('لا توجد مجموعة مرتبطة بهذا الدرس'); setHwLoading(false); return }
     const res = await fetch('/api/homework', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

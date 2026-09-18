@@ -76,7 +76,7 @@ export default async function SuperAdminDashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <h3 className="text-white font-semibold mb-4">حالة النظام</h3>
           <div className="space-y-3">
-            {['Database', 'Auth', 'Storage', 'Realtime'].map((service) => (
+            {['قاعدة البيانات', 'المصادقة', 'التخزين', 'التحديث الفوري'].map((service) => (
               <div key={service} className="flex items-center justify-between">
                 <span className="text-slate-300 text-sm">{service}</span>
                 <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
