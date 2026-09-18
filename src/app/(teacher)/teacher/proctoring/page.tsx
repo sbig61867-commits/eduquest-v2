@@ -93,7 +93,7 @@ export default async function ProctoringReportsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Proctoring Reports</h2>
-        <p className="text-slate-400 mt-1">مراقبة نزاهة كل الاختبارات المراقَبة</p>
+        <p className="text-slate-400 mt-1">Exam integrity monitoring for all proctored exams</p>
       </div>
 
       <AppealReviewList appeals={(pendingAppeals ?? []) as AppealRow[]} />
@@ -103,7 +103,7 @@ export default async function ProctoringReportsPage() {
           <div className="flex items-center gap-2 mb-3">
             <Radio className="w-4 h-4 text-red-400" />
             <p className="text-white font-semibold">Live Monitoring</p>
-            <span className="text-slate-500 text-xs">شاهد الطلاب مباشرةً أثناء اختبار مراقَب</span>
+            <span className="text-slate-500 text-xs">Watch students in real time during a proctored exam</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {(liveExams ?? []).map(e => (
@@ -126,7 +126,7 @@ export default async function ProctoringReportsPage() {
           <p className="text-3xl font-bold text-red-400">{flagged.length}</p>
         </div>
         <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">نظيف</p>
+          <p className="text-slate-400 text-sm mb-1">Clean</p>
           <p className="text-3xl font-bold text-emerald-400">{clean.length}</p>
         </div>
       </div>
@@ -134,8 +134,8 @@ export default async function ProctoringReportsPage() {
       {!submissions.length ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ShieldCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد تسليمات لاختبارات مراقَبة بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">فعّل المراقبة عند إنشاء اختبار لترى التقارير هنا.</p>
+          <p className="text-slate-400">No proctored exam submissions yet.</p>
+          <p className="text-slate-500 text-sm mt-1">Enable proctoring when creating an exam to see reports here.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -164,7 +164,7 @@ export default async function ProctoringReportsPage() {
                   <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 mb-3">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <p className="text-amber-300 text-sm font-medium">المراقبة غير مكتملة على جهاز هذا الطالب</p>
+                      <p className="text-amber-300 text-sm font-medium">Monitoring incomplete on this student&apos;s device</p>
                       <p className="text-slate-400 text-xs">
                         A detector could not load ({gaps.map(g => g.details?.split(':')[0]).filter(Boolean).join(', ') || 'unknown'}).
                         Not a violation — but a lack of flags here is not proof of a clean attempt.

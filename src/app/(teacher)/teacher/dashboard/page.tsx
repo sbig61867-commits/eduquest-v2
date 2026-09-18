@@ -48,17 +48,17 @@ export default async function TeacherDashboard() {
   const liveAnnouncements = (announcementRows ?? []).filter(a => isAnnouncementLive(a)) as StudentAnnouncement[]
 
   const cards = [
-    { label: 'مجموعاتي',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
+    { label: 'My Groups',       value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },
     { label: 'Lessons Created', value: lessons ?? 0, icon: BookOpen,     color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/teacher/lessons' },
     { label: 'Exams Created',   value: exams   ?? 0, icon: ClipboardList,color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/teacher/exams'   },
-    { label: 'الاختبارات القادمة',  value: upcomingExams?.length ?? 0, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/teacher/exams' },
+    { label: 'Upcoming Exams',  value: upcomingExams?.length ?? 0, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/teacher/exams' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Teacher Dashboard</h2>
-        <p className="text-slate-400 mt-1">أدر مجموعاتك ودروسك واختباراتك</p>
+        <p className="text-slate-400 mt-1">Manage your groups, lessons, and exams</p>
       </div>
 
       <AnnouncementsBanner announcements={liveAnnouncements} />
@@ -84,11 +84,11 @@ export default async function TeacherDashboard() {
         {/* Recent Lessons */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">أحدث الدروس</h3>
+            <h3 className="text-white font-semibold">Recent Lessons</h3>
             <Link href="/teacher/lessons" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
           </div>
           {!recentLessons?.length ? (
-            <p className="text-slate-500 text-sm">لا توجد دروس بعد. <Link href="/teacher/lessons" className="text-blue-400 hover:underline">أنشئ درسك الأول.</Link></p>
+            <p className="text-slate-500 text-sm">No lessons yet. <Link href="/teacher/lessons" className="text-blue-400 hover:underline">Create your first lesson.</Link></p>
           ) : (
             <div className="space-y-2">
               {(recentLessons as unknown as RecentLesson[]).map(l => (
@@ -110,11 +110,11 @@ export default async function TeacherDashboard() {
         {/* Upcoming Exams */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">الاختبارات القادمة</h3>
+            <h3 className="text-white font-semibold">Upcoming Exams</h3>
             <Link href="/teacher/exams" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
           </div>
           {!upcomingExams?.length ? (
-            <p className="text-slate-500 text-sm">لا توجد اختبارات قادمة. <Link href="/teacher/exams" className="text-blue-400 hover:underline">أنشئ اختباراً.</Link></p>
+            <p className="text-slate-500 text-sm">No upcoming exams. <Link href="/teacher/exams" className="text-blue-400 hover:underline">Create an exam.</Link></p>
           ) : (
             <div className="space-y-2">
               {(upcomingExams as unknown as UpcomingExam[]).map(e => (

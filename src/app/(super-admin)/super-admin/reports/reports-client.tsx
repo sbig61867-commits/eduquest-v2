@@ -26,9 +26,9 @@ const UI = {
   },
   en: {
     tagline: 'Multi-Institution Digital Learning Platform',
-    refLabel: 'Reference No.', dateLabel: 'التاريخ', timeLabel: 'صدر في',
+    refLabel: 'Reference No.', dateLabel: 'Date', timeLabel: 'Issued At',
     uniLabel: 'Institution',
-    sigTitle: 'Approval', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
+    sigTitle: 'Approval', sigName: 'Name', sigSignature: 'Signature', sigDate: 'Date',
     footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
     locale: 'en-GB',
   },
@@ -175,7 +175,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
         const rlang: Lang = report.lang ?? 'ar'
         const ui = UI[rlang]
         const rtl = rlang === 'ar'
-        const cellAlign = rtl ? 'text-end' : 'text-start'
+        const cellAlign = rtl ? 'text-right' : 'text-left'
         return (
         <div id="report-print" className="bg-white text-slate-900 rounded-xl p-8 space-y-5" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Official letterhead ── */}
@@ -228,7 +228,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <div key={i} className="space-y-2">
               <h3 className="font-semibold text-slate-800">{t.heading}</h3>
               {t.rows.length === 0 ? (
-                <p className="text-slate-400 text-sm">{rtl ? 'لا توجد بيانات.' : 'لا توجد بيانات.'}</p>
+                <p className="text-slate-400 text-sm">{rtl ? 'لا توجد بيانات.' : 'No data.'}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">

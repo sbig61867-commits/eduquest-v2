@@ -21,13 +21,13 @@ const plexArabic = IBM_Plex_Sans_Arabic({
 })
 
 export const metadata: Metadata = {
-  title: 'إديوكويست — منصة تعليمية',
-  description: 'منصة تعليمية متعددة المؤسسات بأدوات تعلّم مدعومة بالذكاء الاصطناعي',
+  title: 'EduQuest — Educational SaaS Platform',
+  description: 'Multi-tenant educational platform with AI-powered learning tools',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${geist.variable} ${plexArabic.variable} h-full`} suppressHydrationWarning translate="no">
+    <html lang="en" className={`${geist.variable} ${plexArabic.variable} h-full`} suppressHydrationWarning translate="no">
       <body className="h-full bg-slate-950 antialiased">
         <AuthProvider>{children}</AuthProvider>
         <Toaster />

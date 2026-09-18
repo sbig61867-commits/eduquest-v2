@@ -116,7 +116,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الدروس</h2>
+          <h2 className="text-2xl font-bold text-white">Lessons</h2>
           <p className="text-slate-400 mt-1">{lessons.length} lessons created</p>
         </div>
         <Button onClick={openAdd}><Plus className="w-4 h-4" /> New Lesson</Button>
@@ -125,8 +125,8 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       {lessons.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 mb-4">لا توجد دروس بعد. أنشئ درسك الأول.</p>
-          <Button onClick={openAdd} size="sm"><Sparkles className="w-4 h-4" /> إنشاء بالذكاء الاصطناعي</Button>
+          <p className="text-slate-400 mb-4">No lessons yet. Create your first lesson.</p>
+          <Button onClick={openAdd} size="sm"><Sparkles className="w-4 h-4" /> Create with AI</Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -136,7 +136,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-white font-semibold truncate">{lesson.title}</h3>
-                    <Badge variant={lesson.is_published ? 'green' : 'gray'}>{lesson.is_published ? 'منشور' : 'مسودة'}</Badge>
+                    <Badge variant={lesson.is_published ? 'green' : 'gray'}>{lesson.is_published ? 'Published' : 'Draft'}</Badge>
                   </div>
                   <p className="text-slate-400 text-sm">{lesson.groups?.name ?? '—'} · {formatDate(lesson.created_at)}</p>
                   {lesson.content && <p className="text-slate-500 text-sm mt-2 line-clamp-2">{lesson.content.replace(/[#*`]/g, '').slice(0, 150)}...</p>}
@@ -164,7 +164,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-blue-400" />
-                <span className="text-blue-400 text-sm font-medium">مولّد الدروس بالذكاء الاصطناعي</span>
+                <span className="text-blue-400 text-sm font-medium">AI Lesson Generator</span>
               </div>
               <button
                 type="button"
@@ -176,7 +176,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
             </div>
 
             <div className="flex gap-2">
-              <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="أدخل الموضوع (مثل: البناء الضوئي، الزمن المضارع…)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Enter topic (e.g. Photosynthesis, Present Tense...)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <select value={aiLevel} onChange={e => setAiLevel(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="high school">High School</option>
                 <option value="undergraduate">Undergraduate</option>
@@ -185,7 +185,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                 <option value="intermediate">Intermediate</option>
                 <option value="advanced">Advanced</option>
               </select>
-              <Button onClick={generateWithAI} loading={aiLoading} variant="secondary" size="sm">توليد</Button>
+              <Button onClick={generateWithAI} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
             </div>
 
             {aiError && <p className="text-red-400 text-sm">{aiError}</p>}
@@ -193,7 +193,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
             {showAiInstructions && (
               <div className="space-y-1.5">
                 <p className="text-xs text-slate-400">
-                  صف كيف تريد من الذكاء الاصطناعي تنظيم هذا المحتوى وعرضه. اتركه فارغاً لاستخدام البنية الافتراضية.
+                  Describe how you want the AI to structure and present this content. Leave empty to use the default structure.
                 </p>
                 <textarea
                   value={aiInstructions}
@@ -203,20 +203,20 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                   placeholder={`Examples:\n• "Split into: grammar rule, examples, idioms, task, then a 5-question quiz"\n• "University lecture with theory, case studies, discussion points, and references"\n• "Step-by-step tutorial with code examples and explanations"`}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
-                <p className="text-xs text-slate-500 text-end">{aiInstructions.length}/1000</p>
+                <p className="text-xs text-slate-500 text-right">{aiInstructions.length}/1000</p>
               </div>
             )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="عنوان الدرس" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="مقدمة في…" />
+            <Input label="Lesson Title" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Introduction to..." />
             {!editing && (
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">مجموعة</label>
+                <label className="block text-sm font-medium text-slate-300">Group</label>
                 {groups.length === 0 ? (
                   <div className="px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
                     You don&apos;t have any groups yet. Create a group first from{' '}
-                    <button type="button" onClick={() => router.push('/teacher/groups')} className="underline underline-offset-2 font-medium">مجموعاتي</button>
+                    <button type="button" onClick={() => router.push('/teacher/groups')} className="underline underline-offset-2 font-medium">My Groups</button>
                     {' '}— lessons must belong to a group so students can see them.
                   </div>
                 ) : (
@@ -227,13 +227,13 @@ export function LessonsClient({ initialLessons, groups }: Props) {
               </div>
             )}
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-300">المحتوى (يدعم Markdown)</label>
-              <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={10} required className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono" placeholder="اكتب محتوى الدرس أو ولّده بالذكاء الاصطناعي أعلاه…" />
+              <label className="block text-sm font-medium text-slate-300">Content (Markdown supported)</label>
+              <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={10} required className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono" placeholder="Write lesson content or generate with AI above..." />
             </div>
             {formError && <p className="text-red-400 text-sm">{formError}</p>}
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">إلغاء</Button>
-              <Button type="submit" loading={loading} disabled={!editing && groups.length === 0} className="flex-1">{editing ? 'حفظ التغييرات' : 'Create Lesson'}</Button>
+              <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
+              <Button type="submit" loading={loading} disabled={!editing && groups.length === 0} className="flex-1">{editing ? 'Save Changes' : 'Create Lesson'}</Button>
             </div>
           </form>
         </div>

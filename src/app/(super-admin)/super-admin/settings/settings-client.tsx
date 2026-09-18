@@ -199,121 +199,121 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h2 className="text-2xl font-bold text-white">إعدادات المنصة</h2>
-        <p className="text-slate-400 mt-1">حسابك وإعدادات المنصة</p>
+        <h2 className="text-2xl font-bold text-white">Platform Settings</h2>
+        <p className="text-slate-400 mt-1">Your account and platform configuration</p>
       </div>
 
       {/* Account */}
       <form onSubmit={saveName} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <User className="w-4 h-4 text-slate-400" /> الحساب
+          <User className="w-4 h-4 text-slate-400" /> Account
         </h3>
         {nameError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{nameError}</p>}
         {nameSaved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم تحديث الاسم
+            <CheckCircle2 className="w-4 h-4" /> Name updated
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="الاسم الكامل" value={fullName} onChange={e => setFullName(e.target.value)} required />
+          <Input label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} required />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">البريد الإلكتروني</label>
+            <label className="block text-sm font-medium text-slate-300">Email</label>
             <input value={profile?.email ?? ''} disabled
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed" />
           </div>
         </div>
         <p className="text-xs text-slate-500">Super admin since {profile ? formatDate(profile.created_at) : '—'}</p>
-        <Button type="submit" loading={savingName}>حفظ</Button>
+        <Button type="submit" loading={savingName}>Save</Button>
       </form>
 
       {/* Password */}
       <form onSubmit={savePassword} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-slate-400" /> تغيير كلمة المرور
+          <KeyRound className="w-4 h-4 text-slate-400" /> Change Password
         </h3>
         {pwError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{pwError}</p>}
         {pwSaved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم تحديث كلمة المرور
+            <CheckCircle2 className="w-4 h-4" /> Password updated
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="كلمة المرور الجديدة" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="8 أحرف على الأقل" />
-          <Input label="تأكيد كلمة المرور" type="password" value={password2} onChange={e => setPassword2(e.target.value)} required placeholder="أعد كتابة كلمة المرور الجديدة" />
+          <Input label="New Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="At least 8 characters" />
+          <Input label="Confirm Password" type="password" value={password2} onChange={e => setPassword2(e.target.value)} required placeholder="Repeat new password" />
         </div>
-        <Button type="submit" loading={savingPw} disabled={!password || !password2}>تحديث كلمة المرور</Button>
+        <Button type="submit" loading={savingPw} disabled={!password || !password2}>Update Password</Button>
       </form>
 
       {/* Invitation defaults */}
       <form onSubmit={saveInvitationDefaults} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <Ticket className="w-4 h-4 text-slate-400" /> الإعدادات الافتراضية للدعوات
+          <Ticket className="w-4 h-4 text-slate-400" /> Invitation Defaults
         </h3>
         <p className="text-slate-500 text-sm">
-          صلاحية الرابط الافتراضية (بالساعات) لكل دور مدعو، تُستخدم حين لا يحددها الداعي. والحد الأقصى يقيّد كل دعوة.
+          Default link validity (in hours) per invited role, used when the inviter doesn&apos;t set one. The maximum caps every invitation.
         </p>
         {invError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{invError}</p>}
         {invSaved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم حفظ افتراضيات الدعوات
+            <CheckCircle2 className="w-4 h-4" /> Invitation defaults saved
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Input label="مدير المؤسسة" type="number" min={1} max={8760} value={inv.university_admin}
+          <Input label="Institution Admin" type="number" min={1} max={8760} value={inv.university_admin}
             onChange={e => setInv(p => ({ ...p, university_admin: Number(e.target.value) }))} required />
-          <Input label="معلم" type="number" min={1} max={8760} value={inv.teacher}
+          <Input label="Teacher" type="number" min={1} max={8760} value={inv.teacher}
             onChange={e => setInv(p => ({ ...p, teacher: Number(e.target.value) }))} required />
-          <Input label="طالب" type="number" min={1} max={8760} value={inv.student}
+          <Input label="Student" type="number" min={1} max={8760} value={inv.student}
             onChange={e => setInv(p => ({ ...p, student: Number(e.target.value) }))} required />
-          <Input label="الحد الأقصى" type="number" min={1} max={8760} value={inv.max_expiry_hours}
+          <Input label="Maximum (cap)" type="number" min={1} max={8760} value={inv.max_expiry_hours}
             onChange={e => setInv(p => ({ ...p, max_expiry_hours: Number(e.target.value) }))} required />
         </div>
-        <Button type="submit" loading={savingInv}>حفظ الافتراضيات</Button>
+        <Button type="submit" loading={savingInv}>Save Defaults</Button>
       </form>
 
       {/* AI rate limits */}
       <form onSubmit={saveAiRateLimits} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-slate-400" /> حدود الذكاء الاصطناعي
+          <Gauge className="w-4 h-4 text-slate-400" /> AI Rate Limits
         </h3>
         <p className="text-slate-500 text-sm">
-          أقصى عدد لطلبات التوليد بالذكاء الاصطناعي لكل مستخدم في الساعة. يُعاد الضبط تلقائياً كل 60 دقيقة.
+          Maximum AI generation calls per user per hour. Resets automatically every 60 minutes.
         </p>
         {aiError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{aiError}</p>}
         {aiSaved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم حفظ حدود الذكاء الاصطناعي
+            <CheckCircle2 className="w-4 h-4" /> AI rate limits saved
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="توليد الدروس / ساعة" type="number" min={1} max={1000}
+          <Input label="Lesson generation / hour" type="number" min={1} max={1000}
             value={ai.lesson_per_hour}
             onChange={e => setAi(p => ({ ...p, lesson_per_hour: Number(e.target.value) }))} required />
-          <Input label="توليد الاختبارات / ساعة" type="number" min={1} max={1000}
+          <Input label="Exam generation / hour" type="number" min={1} max={1000}
             value={ai.exam_per_hour}
             onChange={e => setAi(p => ({ ...p, exam_per_hour: Number(e.target.value) }))} required />
         </div>
-        <Button type="submit" loading={savingAi}>حفظ الحدود</Button>
+        <Button type="submit" loading={savingAi}>Save Limits</Button>
       </form>
 
       {/* Exam policies */}
       <form onSubmit={saveExamPolicies} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <ClipboardCheck className="w-4 h-4 text-slate-400" /> سياسات الاختبارات
+          <ClipboardCheck className="w-4 h-4 text-slate-400" /> Exam Policies
         </h3>
         <p className="text-slate-500 text-sm">
-          الإعدادات الافتراضية للاختبارات الجديدة على مستوى المنصة. ويظل بإمكان المعلمين تفعيل المراقبة لكل اختبار.
+          Platform-wide defaults for new exams. Teachers can still toggle proctoring per exam.
         </p>
         {examError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{examError}</p>}
         {examSaved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم حفظ سياسات الاختبارات
+            <CheckCircle2 className="w-4 h-4" /> Exam policies saved
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-slate-300 text-sm font-medium">المراقبة مفعّلة افتراضياً</p>
-            <p className="text-slate-500 text-xs">تبدأ الاختبارات الجديدة والمراقبة مفعّلة</p>
+            <p className="text-slate-300 text-sm font-medium">Proctoring enabled by default</p>
+            <p className="text-slate-500 text-xs">New exams start with AI proctoring turned on</p>
           </div>
           <div onClick={() => setExam(p => ({ ...p, proctoring_default_enabled: !p.proctoring_default_enabled }))}
             className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${exam.proctoring_default_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
@@ -321,12 +321,12 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="حد التنبيه للمخالفات" type="number" min={1} max={100}
+          <Input label="Violation warning threshold" type="number" min={1} max={100}
             value={exam.violation_warning_threshold}
             onChange={e => setExam(p => ({ ...p, violation_warning_threshold: Number(e.target.value) }))} required />
         </div>
-        <p className="text-xs text-slate-500">يرى الطالب تحذيراً أحمر دائماً عند بلوغ مخالفات المراقبة هذا العدد.</p>
-        <Button type="submit" loading={savingExam}>حفظ السياسات</Button>
+        <p className="text-xs text-slate-500">The student sees a persistent red warning once their proctoring violations reach this number.</p>
+        <Button type="submit" loading={savingExam}>Save Policies</Button>
       </form>
 
       {/* Deletion policy */}
@@ -335,16 +335,16 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           <Trash2 className="w-4 h-4 text-slate-400" /> Deletion Policy
         </h3>
         <p className="text-slate-500 text-sm">
-          يتحكم في ما يحدث عند حذف معلم أو مدير لمجموعة أو درس أو اختبار أو واجب على مستوى المنصة كلها.
+          Controls what happens when a teacher or admin deletes a group, lesson, exam, or homework across the whole platform.
         </p>
         {delSaved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم حفظ سياسة الحذف
+            <CheckCircle2 className="w-4 h-4" /> Deletion policy saved
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-slate-300 text-sm font-medium">السماح بالحذف النهائي</p>
+            <p className="text-slate-300 text-sm font-medium">Allow permanent deletion</p>
             <p className="text-slate-500 text-xs">
               {del.hard_delete_enabled
                 ? 'ON — deletes permanently erase data (with all submissions & grades). Irreversible.'
@@ -359,7 +359,7 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         {del.hard_delete_enabled && (
           <div className="flex items-start gap-2 text-red-300 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>الحذف النهائي مفعّل. المجموعات والاختبارات المحذوفة وتسليمات طلابها ودرجاتهم ستُمحى نهائياً ولن تظهر في الأرشيف.</span>
+            <span>Permanent deletion is active. Deleted groups/exams and their students’ submissions and grades will be erased for good and will NOT appear in the archive.</span>
           </div>
         )}
       </div>
@@ -391,13 +391,13 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-slate-300 text-sm">
-              <Globe className="w-4 h-4 text-slate-500" /> الرابط الأساسي للتطبيق (روابط الدعوات)
+              <Globe className="w-4 h-4 text-slate-500" /> App base URL (invitation links)
             </span>
             <span className="text-slate-400 text-xs font-mono truncate max-w-[220px]">{config.appUrl ?? 'not set — falls back to Vercel/localhost'}</span>
           </div>
         </div>
         <p className="text-xs text-slate-500">
-          تأتي هذه القيم من متغيرات البيئة على الخادم. لتغييرها، عدّل <code className="text-slate-400">.env.local</code> (أو إعدادات مشروعك في Vercel) ثم أعد النشر.
+          These values come from environment variables on the server. To change them, edit <code className="text-slate-400">.env.local</code> (or your Vercel project settings) and redeploy.
         </p>
       </div>
     </div>

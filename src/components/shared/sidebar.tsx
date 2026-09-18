@@ -98,11 +98,9 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
       )}
 
       <aside className={cn(
-        'fixed start-0 top-0 h-full bg-slate-900 border-e border-slate-800 flex flex-col transition-all duration-300 z-50',
-        // Mobile: off-canvas drawer, always full width when open. rtl:translate-x-full
-        // because the drawer sits at the inline start, which is the RIGHT edge under
-        // dir=rtl — hiding it means pushing it further right, not left.
-        mobileNavOpen ? 'translate-x-0 w-64' : '-translate-x-full rtl:translate-x-full w-64',
+        'fixed left-0 top-0 h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 z-50',
+        // Mobile: off-canvas drawer, always full width when open
+        mobileNavOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64',
         // Desktop: always visible, collapsible width
         'lg:translate-x-0',
         sidebarOpen ? 'lg:w-64' : 'lg:w-16'
@@ -121,13 +119,13 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
           )}
           <button
             onClick={toggleSidebar}
-            className="hidden lg:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ms-auto"
+            className="hidden lg:block p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ml-auto"
           >
             <ChevronLeft className={cn('w-4 h-4 transition-transform', !sidebarOpen && 'rotate-180')} />
           </button>
           <button
             onClick={() => setMobileNavOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ms-auto"
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ml-auto"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -166,7 +164,7 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full disabled:opacity-50"
           >
             <LogOut className="w-5 h-5 shrink-0" />
-            {(sidebarOpen || mobileNavOpen) && <span className="text-sm font-medium">{signingOut ? 'جارٍ الخروج…' : 'تسجيل الخروج'}</span>}
+            {(sidebarOpen || mobileNavOpen) && <span className="text-sm font-medium">{signingOut ? 'Signing out…' : 'Sign Out'}</span>}
           </button>
         </div>
       </aside>

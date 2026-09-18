@@ -22,17 +22,17 @@ export function getRoleDashboardPath(role: Role): string {
 // src/lib/terminology.ts); omitting it keeps the original wording.
 export function getRoleLabel(role: Role, institutionType?: string | null): string {
   const labels: Record<Role, string> = {
-    super_admin: 'المدير العام',
-    university_admin: getTerms(institutionType).institutionAdminAr,
-    center_manager: 'مدير المركز',
-    teacher: 'معلم',
-    student: 'طالب',
+    super_admin: 'Super Admin',
+    university_admin: getTerms(institutionType).institutionAdmin,
+    center_manager: 'Centre Manager',
+    teacher: 'Teacher',
+    student: 'Student',
   }
   return labels[role]
 }
 
 export function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat('ar', {
+  return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -40,7 +40,7 @@ export function formatDate(dateString: string): string {
 }
 
 export function formatDateTime(dateString: string): string {
-  return new Intl.DateTimeFormat('ar', {
+  return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

@@ -134,12 +134,12 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
       </div>
 
       <div className="relative">
-        <Search className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="بحث بالاسم أو البريد…"
-          className="w-full pe-10 ps-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          className="w-full pr-10 pl-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
 

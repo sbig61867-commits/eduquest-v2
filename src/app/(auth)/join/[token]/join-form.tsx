@@ -46,11 +46,11 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('كلمتا المرور غير متطابقتين.')
+      setError('Passwords do not match.')
       return
     }
     if (password.length < 8) {
-      setError('يجب ألا تقل كلمة المرور عن 8 أحرف.')
+      setError('Password must be at least 8 characters.')
       return
     }
 
@@ -93,7 +93,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       router.push(getRoleDashboardPath(role))
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setError('حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
+      setError('A network error occurred. Please try again.')
       setDebugInfo(JSON.stringify({ network_error: msg }, null, 2))
       console.error('[join-form]', err)
       setLoading(false)
@@ -102,7 +102,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
 
   return (
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-      <h2 className="text-lg font-semibold text-white mb-5">أنشئ حسابك</h2>
+      <h2 className="text-lg font-semibold text-white mb-5">Create your account</h2>
 
       {error && (
         <div className="mb-4 space-y-2">
@@ -125,7 +125,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Email — editable for public links, read-only for private */}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">البريد الإلكتروني</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
           {isPublic ? (
             <input
               type="email"
@@ -144,46 +144,46 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
                 className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed select-none"
               />
               <p className="text-xs text-slate-500 mt-1">
-                هذه الدعوة مرتبطة بهذا البريد حصراً.
+                This invitation is locked to this email address.
               </p>
             </>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">الاسم الكامل</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
           <input
             type="text"
             value={fullName}
             onChange={e => setFullName(e.target.value)}
             required
             minLength={2}
-            placeholder="اسمك الكامل"
+            placeholder="Your full name"
             className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">كلمة المرور</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             minLength={8}
-            placeholder="8 أحرف على الأقل"
+            placeholder="Min. 8 characters"
             className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">تأكيد كلمة المرور</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm Password</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             required
-            placeholder="أعد كتابة كلمة المرور"
+            placeholder="Repeat your password"
             className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
         </div>
@@ -197,7 +197,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
               : 'bg-blue-600 hover:bg-blue-500'
           }`}
         >
-          {loading ? 'Creating account…' : 'انضم إلى إديوكويست'}
+          {loading ? 'Creating account…' : 'Join EduQuest'}
         </button>
       </form>
 

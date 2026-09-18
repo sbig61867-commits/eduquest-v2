@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { Flag } from 'lucide-react'
 
 const DEFAULT_FLAGS = [
-  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', description: 'Allow teachers to generate lessons with Gemini AI' },
-  { name: 'proctoring', label: 'مراقبة الاختبارات', description: 'تفعيل مراقبة الكاميرا والميكروفون أثناء الاختبارات' },
-  { name: 'file_uploads', label: 'رفع الملفات', description: 'السماح برفع الفيديو والصوت وملفات PDF' },
-  { name: 'realtime_updates', label: 'التحديثات الفورية', description: 'تحديثات مباشرة عبر Supabase Realtime' },
+  { name: 'ai_lesson_generation', label: 'AI Lesson Generation', description: 'Allow teachers to generate lessons with Gemini AI' },
+  { name: 'proctoring', label: 'Exam Proctoring', description: 'Enable camera/mic proctoring during exams' },
+  { name: 'file_uploads', label: 'File Uploads', description: 'Allow video, audio, and PDF uploads' },
+  { name: 'realtime_updates', label: 'Realtime Updates', description: 'Live updates via Supabase Realtime' },
 ]
 
 export default function FeaturesPage() {
@@ -25,8 +25,8 @@ export default function FeaturesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">مفاتيح المزايا</h2>
-        <p className="text-slate-400 mt-1">فعّل أو عطّل مزايا المنصة عالمياً</p>
+        <h2 className="text-2xl font-bold text-white">Feature Flags</h2>
+        <p className="text-slate-400 mt-1">Enable or disable platform features globally</p>
       </div>
       <div className="space-y-3">
         {DEFAULT_FLAGS.map(flag => (

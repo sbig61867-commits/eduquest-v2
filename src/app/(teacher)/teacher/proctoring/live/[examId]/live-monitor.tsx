@@ -237,7 +237,7 @@ function StudentTile({ feed, videoEl, zoomed, onClick }: { feed: Feed; videoEl?:
       </div>
       {/* Speaking badge — tells the teacher WHO the sound is coming from */}
       {feed.speaking && (
-        <div className="absolute top-2 end-2 flex items-center gap-1 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
           <Volume2 className="w-3 h-3" /> يتكلم
         </div>
       )}

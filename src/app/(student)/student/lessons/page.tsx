@@ -43,7 +43,7 @@ export default async function StudentLessonsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">دروسي</h2>
+        <h2 className="text-2xl font-bold text-white">My Lessons</h2>
         <p className="text-slate-400 mt-1">
           {lessons.length} lessons available
           {bySubject.size > 1 && ` · ${bySubject.size} مواد`}
@@ -53,8 +53,8 @@ export default async function StudentLessonsPage() {
       {lessons.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد دروس متاحة بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">سينشر معلمك الدروس مع تقدّم المساق.</p>
+          <p className="text-slate-400">No lessons available yet.</p>
+          <p className="text-slate-500 text-sm mt-1">Your teacher will publish lessons as the course progresses.</p>
         </div>
       ) : (
         [...bySubject.entries()].map(([subject, subjectLessons]) => (
@@ -62,7 +62,7 @@ export default async function StudentLessonsPage() {
           <header className="flex items-center gap-2.5 px-5 py-3.5 bg-slate-900/80 border-b border-slate-800" dir="rtl">
             <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
             <h3 className="text-white font-semibold truncate">{subject}</h3>
-            <span className="text-slate-500 text-xs me-auto shrink-0">{subjectLessons.length} درس</span>
+            <span className="text-slate-500 text-xs mr-auto shrink-0">{subjectLessons.length} درس</span>
           </header>
           <div className="p-5 space-y-3">
           {subjectLessons.map((lesson) => (

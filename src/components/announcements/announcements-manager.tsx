@@ -313,7 +313,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 <img src={form.image_url} alt="معاينة" className="rounded-lg border border-slate-700 w-full object-cover max-h-48" />
                 <button
                   onClick={() => setForm(f => ({ ...f, image_url: '' }))}
-                  className="absolute top-2 start-2 bg-slate-900/80 rounded-full p-1.5 text-slate-300 hover:text-white"
+                  className="absolute top-2 left-2 bg-slate-900/80 rounded-full p-1.5 text-slate-300 hover:text-white"
                   aria-label="إزالة الصورة"
                 ><X className="w-4 h-4" /></button>
               </div>

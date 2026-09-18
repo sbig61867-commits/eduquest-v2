@@ -58,7 +58,7 @@ const TYPE_ICON: Record<string, typeof FileText> = {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  text: 'شرح',
+  text: 'Explanation',
   grammar: 'Grammar',
   idioms: 'Idioms',
   rules: 'Rules',
@@ -112,13 +112,13 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
     setSaving(false)
 
     if (error) {
-      toast.error('تعذّر حفظ تقدّمك. يرجى المحاولة مرة أخرى.')
+      toast.error('Could not save your progress. Please try again.')
       return
     }
 
     setCompleted(prev => new Set(prev).add(current.item.id))
     if (activeIndex < total - 1) setActiveIndex(activeIndex + 1)
-    else toast.success('اكتمل المساق. أحسنت.')
+    else toast.success('Course complete. Well done.')
   }
 
   if (total === 0) {
@@ -130,7 +130,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
         </div>
         <EmptyState
           icon={GraduationCap}
-          title="لم يُنشر شيء بعد"
+          title="Nothing published yet"
           description="Your instructor has not published any content for this course. Check back soon."
         />
       </div>
@@ -155,7 +155,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             className="bg-accent h-1.5 rounded-full transition-all"
             style={{ width: `${percent}%` }}
             role="progressbar"
-            aria-label="تقدّم المساق"
+            aria-label="Course progress"
             aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}
@@ -165,7 +165,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
         {/* Outline */}
-        <nav aria-label="محتويات المساق" className="bg-surface border border-border rounded-lg p-2 lg:sticky lg:top-4">
+        <nav aria-label="Course outline" className="bg-surface border border-border rounded-lg p-2 lg:sticky lg:top-4">
           {levels.map(level => {
             const isOpen = level.title === '' ? true : openLevels[level.id] !== false
             return (
@@ -239,14 +239,14 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             {completed.has(current.item.id) && (
               <span className="flex items-center gap-1.5 text-[12px] text-success shrink-0">
                 <Check className="w-3.5 h-3.5" aria-hidden="true" />
-                تم
+                Done
               </span>
             )}
           </div>
 
           {current.item.body.trim()
             ? <Markdown content={current.item.body} />
-            : <p className="text-[13px] text-fg-muted">لا يوجد محتوى مكتوب لهذا القسم بعد.</p>}
+            : <p className="text-[13px] text-fg-muted">This section has no written content yet.</p>}
 
           {/* Section navigation */}
           <div className="flex flex-wrap items-center gap-3 mt-8 pt-5 border-t border-border">
@@ -258,12 +258,12 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             >
               <ArrowLeft className="w-4 h-4 rtl:hidden" aria-hidden="true" />
               <ArrowRight className="w-4 h-4 hidden rtl:inline" aria-hidden="true" />
-              السابق
+              Previous
             </Button>
 
             {!completed.has(current.item.id) ? (
               <Button size="sm" loading={saving} onClick={markComplete}>
-                تعليم كمكتمل
+                Mark complete
               </Button>
             ) : (
               <Button
@@ -271,7 +271,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
                 disabled={activeIndex >= total - 1}
                 onClick={() => setActiveIndex(i => Math.min(total - 1, i + 1))}
               >
-                التالي
+                Next
                 <ArrowRight className="w-4 h-4 rtl:hidden" aria-hidden="true" />
                 <ArrowLeft className="w-4 h-4 hidden rtl:inline" aria-hidden="true" />
               </Button>
@@ -295,7 +295,7 @@ function BackLink() {
     >
       <ArrowLeft className="w-3.5 h-3.5 rtl:hidden" aria-hidden="true" />
       <ArrowRight className="w-3.5 h-3.5 hidden rtl:inline" aria-hidden="true" />
-      كل المساقات
+      All courses
     </Link>
   )
 }

@@ -7,24 +7,24 @@ import { TenantWatcher } from '@/components/shared/tenant-watcher'
 // actually do is governed per-user by `users.permissions` (see
 // src/lib/permissions.ts) — the admin grants each capability explicitly.
 const navItems = [
-  { label: 'لوحة المعلومات',     href: '/center/dashboard',     icon: 'LayoutDashboard' as const },
-  { label: 'المعلمون',      href: '/center/teachers',      icon: 'GraduationCap' as const },
-  { label: 'الطلاب',      href: '/center/students',      icon: 'Users' as const },
-  { label: 'المجموعات',        href: '/center/groups',        icon: 'Layers' as const, term: 'groups' as const },
-  { label: 'المساقات',       href: '/center/courses',       icon: 'BookOpen' as const },
-  { label: 'الحضور',    href: '/center/attendance',    icon: 'ClipboardList' as const },
-  { label: 'الجداول',     href: '/center/schedules',     icon: 'CalendarDays' as const },
-  { label: 'الإعلانات', href: '/center/announcements', icon: 'Bell' as const },
-  { label: 'بريدي',       href: '/center/mail',          icon: 'Mail' as const },
+  { label: 'Dashboard',     href: '/center/dashboard',     icon: 'LayoutDashboard' as const },
+  { label: 'Teachers',      href: '/center/teachers',      icon: 'GraduationCap' as const },
+  { label: 'Students',      href: '/center/students',      icon: 'Users' as const },
+  { label: 'Groups',        href: '/center/groups',        icon: 'Layers' as const, term: 'groups' as const },
+  { label: 'Courses',       href: '/center/courses',       icon: 'BookOpen' as const },
+  { label: 'Attendance',    href: '/center/attendance',    icon: 'ClipboardList' as const },
+  { label: 'Schedules',     href: '/center/schedules',     icon: 'CalendarDays' as const },
+  { label: 'Announcements', href: '/center/announcements', icon: 'Bell' as const },
+  { label: 'My Mail',       href: '/center/mail',          icon: 'Mail' as const },
 ]
 
 export default function CenterLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-950">
       <TenantWatcher />
-      <Sidebar items={navItems} title="مدير المركز" />
+      <Sidebar items={navItems} title="Centre Manager" />
       <ContentShell>
-        <Header title="لوحة المركز" />
+        <Header title="Centre Panel" />
         <main className="p-4 lg:p-6 !pt-20">{children}</main>
       </ContentShell>
     </div>

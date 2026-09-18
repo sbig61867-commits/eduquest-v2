@@ -250,7 +250,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         await document.documentElement.requestFullscreen()
       } catch {
         setCameraStatus('error')
-        toast.error('إذن الكاميرا والميكروفون مطلوب لهذا الاختبار المراقَب.')
+        toast.error('Camera and microphone access are required for this proctored exam.')
         return
       }
     }
@@ -291,7 +291,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       streamRef.current?.getTracks().forEach(t => t.stop())
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
       setCameraStatus('idle')
-      toast.error('خطأ في الشبكة. تعذّر بدء الاختبار.')
+      toast.error('Network error. Could not start the exam.')
     }
   }
 
@@ -330,7 +330,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
       if (!res.ok) {
         setSubmitting(false)
-        toast.error('فشل الإرسال. يرجى المحاولة مرة أخرى.')
+        toast.error('Submission failed. Please try again.')
         return
       }
 
@@ -346,7 +346,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       // fetch() itself threw (offline/DNS/CORS) — answers are untouched in
       // state, so the student can just press Submit again once reconnected.
       setSubmitting(false)
-      toast.error('خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
+      toast.error('Network error. Please try again.')
     }
   }
 
@@ -364,14 +364,14 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
             <Send className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white">{untimed ? 'تم تسليم الواجب!' : 'تم تسليم الاختبار!'}</h2>
+          <h2 className="text-2xl font-bold text-white">{untimed ? 'تم تسليم الواجب!' : 'Exam Submitted!'}</h2>
           {finalScore ? (
-            <p className="text-slate-400">درجتك: <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
+            <p className="text-slate-400">Your score: <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
           ) : (
             <p className="text-amber-400 text-sm">تم استلام إجاباتك — ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
           )}
           {violations.length > 0 && <p className="text-amber-400 text-sm">{violations.length} proctoring violation(s) recorded</p>}
-          <Button onClick={onFinish} className="mt-4">العودة للاختبارات</Button>
+          <Button onClick={onFinish} className="mt-4">Back to Exams</Button>
         </div>
       </div>
     )
@@ -423,7 +423,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             <>
               <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
                 <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
-                <p className="text-blue-300 text-sm">هذا الاختبار مراقَب. مراقبة الكاميرا مفعّلة.</p>
+                <p className="text-blue-300 text-sm">This exam is proctored. Camera monitoring is active.</p>
               </div>
 
               {/* Explicit in-app consent — required before the Start button
@@ -449,7 +449,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           )}
 
           <Button onClick={startExam} className="w-full" size="lg" disabled={exam.proctoring_enabled && !consentGiven}>
-            بدء الاختبار
+            Start Exam
           </Button>
         </div>
       </div>
@@ -538,7 +538,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             ))}
 
             {(question.type === 'short_answer' || question.type === 'essay') && (
-              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="اكتب إجابتك هنا…" />
+              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Type your answer here..." />
             )}
           </div>
         </div>
@@ -547,7 +547,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button variant="secondary" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>
-          <ChevronLeft className="w-4 h-4" /> السابق
+          <ChevronLeft className="w-4 h-4" /> Previous
         </Button>
         <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
           {exam.questions.map((_, i) => (
@@ -557,10 +557,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           ))}
         </div>
         {current < exam.questions.length - 1 ? (
-          <Button onClick={() => setCurrent(c => c + 1)}>التالي <ChevronRight className="w-4 h-4" /></Button>
+          <Button onClick={() => setCurrent(c => c + 1)}>Next <ChevronRight className="w-4 h-4" /></Button>
         ) : (
           <Button variant="primary" onClick={handleSubmit} loading={submitting} className="bg-emerald-600 hover:bg-emerald-500">
-            <Send className="w-4 h-4" /> إرسال
+            <Send className="w-4 h-4" /> Submit
           </Button>
         )}
       </div>

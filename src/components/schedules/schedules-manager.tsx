@@ -213,7 +213,7 @@ export function SchedulesManager({
               <button
                 key={s.id}
                 onClick={() => { setSelectedId(s.id); setSlotOpen(false); setSlotForm({ ...EMPTY_SLOT }) }}
-                className={`w-full text-end p-3 rounded-xl border transition-colors ${
+                className={`w-full text-right p-3 rounded-xl border transition-colors ${
                   selectedId === s.id ? 'bg-slate-800 border-blue-600' : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
                 }`}
               >

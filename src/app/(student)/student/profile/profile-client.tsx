@@ -72,7 +72,7 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
     setLoading(false)
   }
 
-  if (!profile) return <div className="text-slate-400">لم يُعثر على الملف الشخصي.</div>
+  if (!profile) return <div className="text-slate-400">Profile not found.</div>
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -91,14 +91,14 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
           <Building2 className="w-5 h-5 text-slate-400" />
           <div>
-            <p className="text-xs text-slate-500">المؤسسة</p>
+            <p className="text-xs text-slate-500">Institution</p>
             <p className="text-white text-sm font-medium">{profile.tenants?.name ?? '—'}</p>
           </div>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
           <User className="w-5 h-5 text-slate-400" />
           <div>
-            <p className="text-xs text-slate-500">عضو منذ</p>
+            <p className="text-xs text-slate-500">Member since</p>
             <p className="text-white text-sm font-medium">{formatDate(profile.created_at)}</p>
           </div>
         </div>
@@ -130,34 +130,34 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
 
       {/* Edit name */}
       <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold">تعديل الملف الشخصي</h3>
+        <h3 className="text-white font-semibold">Edit Profile</h3>
 
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
         {saved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم تحديث الاسم بنجاح
+            <CheckCircle2 className="w-4 h-4" /> Name updated successfully
           </div>
         )}
 
         <Input
-          label="الاسم الكامل"
+          label="Full Name"
           value={fullName}
           onChange={e => setFullName(e.target.value)}
           required
-          placeholder="اسمك الكامل"
+          placeholder="Your full name"
         />
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">البريد الإلكتروني</label>
+          <label className="block text-sm font-medium text-slate-300">Email</label>
           <input
             value={profile.email}
             disabled
             className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed"
           />
-          <p className="text-xs text-slate-500">لا يمكن تغيير البريد الإلكتروني</p>
+          <p className="text-xs text-slate-500">Email cannot be changed</p>
         </div>
-        <Button type="submit" loading={loading}>حفظ التغييرات</Button>
+        <Button type="submit" loading={loading}>Save Changes</Button>
       </form>
 
       {/* My Groups */}
@@ -166,7 +166,7 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
           <Users className="w-4 h-4 text-slate-400" /> My Groups ({groups.length})
         </h3>
         {groups.length === 0 ? (
-          <p className="text-slate-400 text-sm">لست مسجّلاً في أي مجموعة بعد.</p>
+          <p className="text-slate-400 text-sm">You are not enrolled in any group yet.</p>
         ) : (
           <div className="space-y-2">
             {groups.map(g => (

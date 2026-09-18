@@ -45,17 +45,17 @@ export default async function AdminCoursesPage() {
   const count = (rows: { count: number }[] | undefined) => rows?.[0]?.count ?? 0
 
   const stats = [
-    { label: 'المساقات',     value: courses.length,                                   icon: BookOpen,      color: 'text-violet-400',  bg: 'bg-violet-600/20' },
-    { label: 'منشور',   value: courses.filter(c => c.is_published).length,        icon: Eye,           color: 'text-emerald-400', bg: 'bg-emerald-600/20' },
-    { label: 'الوحدات',       value: courses.reduce((s, c) => s + count(c.course_units), 0),       icon: Layers,        color: 'text-blue-400',    bg: 'bg-blue-600/20' },
-    { label: 'التسجيلات',  value: courses.reduce((s, c) => s + count(c.course_enrollments), 0), icon: GraduationCap, color: 'text-amber-400',   bg: 'bg-amber-600/20' },
+    { label: 'Courses',     value: courses.length,                                   icon: BookOpen,      color: 'text-violet-400',  bg: 'bg-violet-600/20' },
+    { label: 'Published',   value: courses.filter(c => c.is_published).length,        icon: Eye,           color: 'text-emerald-400', bg: 'bg-emerald-600/20' },
+    { label: 'Units',       value: courses.reduce((s, c) => s + count(c.course_units), 0),       icon: Layers,        color: 'text-blue-400',    bg: 'bg-blue-600/20' },
+    { label: 'Enrolments',  value: courses.reduce((s, c) => s + count(c.course_enrollments), 0), icon: GraduationCap, color: 'text-amber-400',   bg: 'bg-amber-600/20' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">المساقات</h2>
-        <p className="text-slate-400 mt-1">مساقات منظّمة يبنيها معلمو مؤسستك</p>
+        <h2 className="text-2xl font-bold text-white">Courses</h2>
+        <p className="text-slate-400 mt-1">Structured courses built by teachers in your institution</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -73,9 +73,9 @@ export default async function AdminCoursesPage() {
       {courses.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد مساقات بعد.</p>
+          <p className="text-slate-400">No courses yet.</p>
           <p className="text-slate-500 text-sm mt-1">
-            ينشئها المعلمون الذين منحتهم صلاحية إنشاء المساقات من لوحاتهم.
+            Teachers you have granted course-creation access build these from their panel.
           </p>
         </div>
       ) : (
@@ -83,12 +83,12 @@ export default async function AdminCoursesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مساق</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">الهيكل</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الطلاب</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Course</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Teacher</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Structure</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Students</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Status</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">Created</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -115,11 +115,11 @@ export default async function AdminCoursesPage() {
                   <td className="px-5 py-4">
                     {course.is_published ? (
                       <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                        <Eye className="w-3.5 h-3.5" />منشور
+                        <Eye className="w-3.5 h-3.5" />Published
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                        <EyeOff className="w-3.5 h-3.5" />مسودة
+                        <EyeOff className="w-3.5 h-3.5" />Draft
                       </span>
                     )}
                   </td>

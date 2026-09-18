@@ -80,25 +80,25 @@ export function StudentQuickAccessPanel() {
 
   const sections = data ? [
     {
-      label: 'مساقاتي',
+      label: 'My Courses',
       icon: Layers,
       color: 'text-violet-400',
       items: data.courses.map(c => ({ label: c.title, href: '/student/courses' })),
-      emptyText: 'لا توجد مساقات بعد',
+      emptyText: 'No courses yet',
     },
     {
-      label: 'أحدث الدروس',
+      label: 'Recent Lessons',
       icon: BookOpen,
       color: 'text-blue-400',
       items: data.lessons.map(l => ({ label: l.title, href: `/student/lessons` })),
-      emptyText: 'لا توجد دروس بعد',
+      emptyText: 'No lessons yet',
     },
     {
-      label: 'الاختبارات',
+      label: 'Exams',
       icon: ClipboardList,
       color: 'text-amber-400',
       items: data.exams.map(e => ({ label: e.title, href: '/student/exams' })),
-      emptyText: 'لا توجد اختبارات',
+      emptyText: 'No exams',
     },
   ] : []
 
@@ -114,13 +114,13 @@ export function StudentQuickAccessPanel() {
           })
         }}
         className={cn(
-          'fixed end-0 top-1/2 -translate-y-1/2 z-40',
-          'bg-slate-800 hover:bg-slate-700 border border-slate-700 border-e-0',
+          'fixed right-0 top-1/2 -translate-y-1/2 z-40',
+          'bg-slate-800 hover:bg-slate-700 border border-slate-700 border-r-0',
           'text-slate-300 hover:text-white transition-all duration-200',
-          'rounded-s-xl p-2.5 shadow-lg',
-          open && 'end-72',
+          'rounded-l-xl p-2.5 shadow-lg',
+          open && 'right-72',
         )}
-        title={open ? 'إغلاق الوصول السريع' : 'وصول سريع'}
+        title={open ? 'Close quick access' : 'Quick access'}
       >
         {open
           ? <PanelRightClose className="w-4 h-4" />
@@ -129,22 +129,20 @@ export function StudentQuickAccessPanel() {
 
       {/* Panel */}
       <div className={cn(
-        'fixed end-0 top-16 bottom-0 w-72 z-30',
-        'bg-slate-900 border-s border-slate-800',
+        'fixed right-0 top-16 bottom-0 w-72 z-30',
+        'bg-slate-900 border-l border-slate-800',
         'flex flex-col overflow-hidden',
         'transition-transform duration-300',
-        // The panel is pinned to the inline end, which is the LEFT edge under
-        // dir=rtl, so hiding it there means translating left, not right.
-        open ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full',
+        open ? 'translate-x-0' : 'translate-x-full',
       )}>
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-white font-semibold text-sm">وصول سريع</h3>
+          <h3 className="text-white font-semibold text-sm">Quick Access</h3>
           {loading && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {!data && !loading && (
-            <p className="text-slate-500 text-xs text-center mt-8">جارٍ فتح اللوحة…</p>
+            <p className="text-slate-500 text-xs text-center mt-8">Opening panel…</p>
           )}
 
           {sections.map(({ label, icon: Icon, color, items, emptyText }) => (
@@ -154,14 +152,14 @@ export function StudentQuickAccessPanel() {
                 <span className="text-slate-400 text-xs font-semibold uppercase tracking-wide">{label}</span>
               </div>
               {items.length === 0 ? (
-                <p className="text-slate-600 text-xs ps-6">{emptyText}</p>
+                <p className="text-slate-600 text-xs pl-6">{emptyText}</p>
               ) : (
                 <ul className="space-y-1">
                   {items.map((item, i) => (
                     <li key={i}>
                       <button
                         onClick={() => { router.push(item.href); setOpen(false) }}
-                        className="w-full text-start flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-sm"
+                        className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-sm"
                       >
                         <ChevronRight className="w-3 h-3 text-slate-600 shrink-0" />
                         <span className="truncate">{item.label}</span>
@@ -179,7 +177,7 @@ export function StudentQuickAccessPanel() {
             onClick={fetchData}
             className="w-full text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
           >
-            تحديث
+            Refresh
           </button>
         </div>
       </div>

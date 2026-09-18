@@ -14,10 +14,10 @@ interface Tenant { id: string; name: string }
 interface Props { initialFlags: FeatureFlag[]; tenants: Tenant[] }
 
 const GLOBAL_FEATURES = [
-  { name: 'ai_lesson_generation', label: 'توليد الدروس بالذكاء الاصطناعي', desc: 'Allow teachers to generate lessons with Gemini AI' },
-  { name: 'proctoring', label: 'مراقبة الاختبارات', desc: 'تفعيل مراقبة الكاميرا والميكروفون أثناء الاختبارات' },
-  { name: 'file_uploads', label: 'رفع الملفات', desc: 'السماح برفع الفيديو والصوت وملفات PDF للدروس' },
-  { name: 'realtime_updates', label: 'التحديثات الفورية', desc: 'Live notifications and updates via Supabase Realtime' },
+  { name: 'ai_lesson_generation', label: 'AI Lesson Generation', desc: 'Allow teachers to generate lessons with Gemini AI' },
+  { name: 'proctoring', label: 'Exam Proctoring', desc: 'Enable camera/mic proctoring during exams' },
+  { name: 'file_uploads', label: 'File Uploads', desc: 'Allow video, audio, PDF uploads for lessons' },
+  { name: 'realtime_updates', label: 'Realtime Updates', desc: 'Live notifications and updates via Supabase Realtime' },
 ]
 
 export function FeaturesClient({ initialFlags, tenants }: Props) {
@@ -51,15 +51,15 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">مفاتيح المزايا</h2>
-          <p className="text-slate-400 mt-1">مفتاح إيقاف طارئ لمزايا المنصة</p>
+          <h2 className="text-2xl font-bold text-white">Feature Flags</h2>
+          <p className="text-slate-400 mt-1">Kill-switch control for platform features</p>
         </div>
-        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> إضافة مفتاح</Button>
+        <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> Add Flag</Button>
       </div>
 
       {/* Predefined global features */}
       <div>
-        <h3 className="text-slate-400 text-xs uppercase tracking-wider font-medium mb-3">مزايا المنصة</h3>
+        <h3 className="text-slate-400 text-xs uppercase tracking-wider font-medium mb-3">Platform-wide Features</h3>
         <div className="space-y-2">
           {GLOBAL_FEATURES.map(feat => {
             const flag = flags.find(f => f.name === feat.name && !f.tenant_id)
@@ -89,7 +89,7 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
       {/* Custom flags */}
       {flags.filter(f => !GLOBAL_FEATURES.find(gf => gf.name === f.name)).length > 0 && (
         <div>
-          <h3 className="text-slate-400 text-xs uppercase tracking-wider font-medium mb-3">مفاتيح مخصصة</h3>
+          <h3 className="text-slate-400 text-xs uppercase tracking-wider font-medium mb-3">Custom Flags</h3>
           <div className="space-y-2">
             {flags.filter(f => !GLOBAL_FEATURES.find(gf => gf.name === f.name)).map(flag => (
               <div key={flag.id} className="bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
@@ -110,19 +110,19 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
         </div>
       )}
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة مفتاح ميزة مخصص">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Custom Feature Flag">
         <form onSubmit={handleAdd} className="space-y-4">
-          <Input label="اسم المفتاح (snake_case)" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="custom_feature_name" />
+          <Input label="Flag Name (snake_case)" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="custom_feature_name" />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">المؤسسة (اتركه فارغاً ليكون عاماً)</label>
+            <label className="block text-sm font-medium text-slate-300">Tenant (leave empty for global)</label>
             <select value={form.tenant_id} onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">عام (كل المؤسسات)</option>
+              <option value="">Global (all tenants)</option>
               {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
-            <Button type="submit" loading={loading} className="flex-1">إضافة مفتاح</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
+            <Button type="submit" loading={loading} className="flex-1">Add Flag</Button>
           </div>
         </form>
       </Modal>

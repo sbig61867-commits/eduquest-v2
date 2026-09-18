@@ -38,16 +38,16 @@ export default async function AiUsagePage() {
 
   return (
     <>
-      <PageTitle title="استهلاك الذكاء الاصطناعي" />
+      <PageTitle title="AI Usage" />
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="mb-8">
-          <h1 className="text-xl font-semibold text-fg">استهلاك الذكاء الاصطناعي</h1>
-          <p className="text-fg-muted text-sm mt-1">مقدار استهلاك كل مؤسسة من سلسلة التوليد بالذكاء الاصطناعي (دروس، اختبارات، مساقات).</p>
+          <h1 className="text-xl font-semibold text-fg">AI Usage</h1>
+          <p className="text-fg-muted text-sm mt-1">How much each tenant is consuming from the AI generation chain (lessons, exams, courses).</p>
         </div>
 
         {error ? (
           <div className="bg-error-subtle border border-error/20 rounded-lg p-5 text-sm text-error">
-            تعذّر تحميل بيانات الاستهلاك، شغّل <code className="font-mono">supabase/ai_usage_log_migration.sql</code> على قاعدة البيانات أولاً.
+            Could not load usage data, run <code className="font-mono">supabase/ai_usage_log_migration.sql</code> on the database first.
           </div>
         ) : (
           <>
@@ -56,31 +56,31 @@ export default async function AiUsagePage() {
                 <p className="text-2xl font-semibold text-fg leading-none">{totalCalls}</p>
                 <p className="flex items-center gap-1.5 text-[12px] text-fg-muted mt-1">
                   <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                  إجمالي طلبات الذكاء الاصطناعي
+                  Total AI calls
                 </p>
               </div>
               <div className="w-px h-8 bg-border" aria-hidden="true" />
               <div>
                 <p className="text-2xl font-semibold text-fg leading-none">{rows.filter(r => r.total_calls > 0).length}</p>
-                <p className="text-[12px] text-fg-muted mt-1">المؤسسات النشطة</p>
+                <p className="text-[12px] text-fg-muted mt-1">Active tenants</p>
               </div>
             </div>
 
             <div className="bg-surface border border-border rounded-lg overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                <h2 className="text-sm font-semibold text-fg">الاستهلاك حسب المؤسسة</h2>
+                <h2 className="text-sm font-semibold text-fg">Usage by Tenant</h2>
               </div>
               {rows.length === 0 ? (
-                <p className="text-fg-muted text-sm p-5">لا توجد مؤسسات بعد.</p>
+                <p className="text-fg-muted text-sm p-5">No tenants yet.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-start px-5 py-2.5 text-xs font-medium text-fg-muted">المؤسسة</th>
-                        <th className="text-start px-5 py-2.5 text-xs font-medium text-fg-muted">التفصيل</th>
-                        <th className="text-end px-5 py-2.5 text-xs font-medium text-fg-muted">إجمالي الطلبات</th>
-                        <th className="text-end px-5 py-2.5 text-xs font-medium text-fg-muted">آخر استخدام</th>
+                        <th className="text-start px-5 py-2.5 text-xs font-medium text-fg-muted">Institution</th>
+                        <th className="text-start px-5 py-2.5 text-xs font-medium text-fg-muted">Breakdown</th>
+                        <th className="text-end px-5 py-2.5 text-xs font-medium text-fg-muted">Total calls</th>
+                        <th className="text-end px-5 py-2.5 text-xs font-medium text-fg-muted">Last used</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">

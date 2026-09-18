@@ -15,18 +15,18 @@ interface Props {
 
 const ROLE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   super_admin:      [
-    { value: 'university_admin', label: 'مدير المؤسسة' },
-    { value: 'center_manager',   label: 'مدير المركز' },
-    { value: 'teacher',          label: 'معلم' },
-    { value: 'student',          label: 'طالب' },
+    { value: 'university_admin', label: 'Institution Admin' },
+    { value: 'center_manager',   label: 'Centre Manager' },
+    { value: 'teacher',          label: 'Teacher' },
+    { value: 'student',          label: 'Student' },
   ],
   university_admin: [
-    { value: 'center_manager', label: 'مدير المركز' },
-    { value: 'teacher', label: 'معلم' },
-    { value: 'student', label: 'طالب' },
+    { value: 'center_manager', label: 'Centre Manager' },
+    { value: 'teacher', label: 'Teacher' },
+    { value: 'student', label: 'Student' },
   ],
   teacher: [
-    { value: 'student', label: 'طالب' },
+    { value: 'student', label: 'Student' },
   ],
 }
 
@@ -182,7 +182,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-white">Invitations</h1>
           <p className="text-slate-400 text-sm mt-1">
-            أدر دعوات الوصول إلى منصتك
+            Manage access invitations for your platform
           </p>
         </div>
         <div className="flex gap-2">
@@ -229,7 +229,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
-              خاصة (بريد محدد)
+              Private (specific email)
             </button>
             <button
               type="button"
@@ -245,13 +245,13 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               }`}
             >
               <Link className="w-3.5 h-3.5" />
-              رابط عام (للجميع)
+              Public link (anyone)
             </button>
           </div>
 
           {isPublic && (
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-4 py-3 text-purple-300 text-sm">
-              أي شخص لديه هذا الرابط يمكنه التسجيل بصفة <strong>{role.replace('_', ' ')}</strong>.
+              Anyone with this link can register as a <strong>{role.replace('_', ' ')}</strong>.
               {role === 'student' && groupId && ' They will automatically join the selected group.'}
             </div>
           )}
@@ -259,7 +259,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           {newLink && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-2">
               <p className="text-emerald-400 text-sm font-semibold">Invitation created!</p>
-              <p className="text-slate-300 text-xs">شارك هذا الرابط:</p>
+              <p className="text-slate-300 text-xs">Share this link:</p>
               <div className="flex items-center gap-2 bg-slate-950 rounded-lg px-3 py-2">
                 <code className="text-blue-300 text-xs flex-1 break-all">{newLink}</code>
                 <button
@@ -296,7 +296,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             )}
 
             <div>
-              <label className="block text-sm text-slate-400 mb-1">الدور</label>
+              <label className="block text-sm text-slate-400 mb-1">Role</label>
               <select
                 value={role}
                 onChange={e => handleRoleChange(e.target.value)}
@@ -310,7 +310,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
             {callerRole === 'super_admin' && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">المؤسسة</label>
+                <label className="block text-sm text-slate-400 mb-1">Institution</label>
                 <select
                   value={tenantId}
                   onChange={e => setTenantId(e.target.value)}
@@ -332,7 +332,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                   onChange={e => setGroupId(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
-                  <option value="">بدون مجموعة محددة</option>
+                  <option value="">No specific group</option>
                   {groups.map(g => (
                     <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
@@ -352,7 +352,8 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                   <span>
                     {callerRole === 'super_admin' ? 'Institution student' : terms.institutionStudent}
                     <span className="block text-slate-500 text-xs">
-                      أزل التحديد لمتدرب تعليم مستمر من خارج المؤسسة — لن تصله إعلانات المؤسسة العامة.
+                      Uncheck for a continuing-education trainee from outside the institution —
+                      they will not receive institution-wide announcements.
                     </span>
                   </span>
                 </label>
@@ -360,7 +361,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             )}
 
             <div>
-              <label className="block text-sm text-slate-400 mb-1">ينتهي خلال (ساعات)</label>
+              <label className="block text-sm text-slate-400 mb-1">Expires in (hours)</label>
               <input
                 type="number"
                 value={expiresHours}
@@ -374,13 +375,13 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             {/* Max uses — only for public links */}
             {isPublic && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">أقصى عدد استخدامات (فارغ = غير محدود)</label>
+                <label className="block text-sm text-slate-400 mb-1">Max uses (blank = unlimited)</label>
                 <input
                   type="number"
                   value={maxUses}
                   onChange={e => setMaxUses(e.target.value === '' ? '' : Number(e.target.value))}
                   min={1}
-                  placeholder="غير محدود"
+                  placeholder="Unlimited"
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                 />
               </div>
@@ -392,7 +393,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                 onClick={() => setShowForm(false)}
                 className="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors"
               >
-                إلغاء
+                Cancel
               </button>
               <button
                 type="submit"
@@ -419,21 +420,21 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
         ) : invitations.length === 0 ? (
           <div className="text-center py-16 space-y-2">
             <Mail className="w-10 h-10 text-slate-600 mx-auto" />
-            <p className="text-slate-400 text-sm">لا توجد دعوات بعد</p>
-            <p className="text-slate-500 text-xs">أنشئ واحدة لدعوة مستخدمين إلى منصتك</p>
+            <p className="text-slate-400 text-sm">No invitations yet</p>
+            <p className="text-slate-500 text-xs">Create one to invite users to your platform</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-start px-5 py-3 text-slate-400 font-medium">البريد / النوع</th>
-                <th className="text-start px-5 py-3 text-slate-400 font-medium">الدور</th>
+                <th className="text-left px-5 py-3 text-slate-400 font-medium">Email / Type</th>
+                <th className="text-left px-5 py-3 text-slate-400 font-medium">Role</th>
                 {callerRole === 'super_admin' && (
-                  <th className="text-start px-5 py-3 text-slate-400 font-medium">المؤسسة</th>
+                  <th className="text-left px-5 py-3 text-slate-400 font-medium">Institution</th>
                 )}
-                <th className="text-start px-5 py-3 text-slate-400 font-medium">الحالة</th>
-                <th className="text-start px-5 py-3 text-slate-400 font-medium">الاستخدامات / الانتهاء</th>
-                <th className="text-end px-5 py-3 text-slate-400 font-medium">Actions</th>
+                <th className="text-left px-5 py-3 text-slate-400 font-medium">Status</th>
+                <th className="text-left px-5 py-3 text-slate-400 font-medium">Uses / Expires</th>
+                <th className="text-right px-5 py-3 text-slate-400 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -485,7 +486,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                           <>
                             <button
                               onClick={() => copyLink(inv)}
-                              title="نسخ رابط الدعوة"
+                              title="Copy invitation link"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                             >
                               {copiedId === inv.id
@@ -495,7 +496,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                             </button>
                             <button
                               onClick={() => revoke(inv.id)}
-                              title="إلغاء الدعوة"
+                              title="Revoke invitation"
                               className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                             >
                               <X className="w-4 h-4" />

@@ -83,19 +83,19 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
         <div className="flex items-start justify-between mb-3">
           <h3 className="text-white font-semibold flex-1 min-w-0">{exam.title}</h3>
-          {isRetake && <Badge variant="yellow">إعادة المحاولة</Badge>}
+          {isRetake && <Badge variant="yellow">Retake</Badge>}
         </div>
         <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{untimedLabel(exam)}</span>
           <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{exam.questions.length} questions</span>
           {exam.proctoring_enabled && (
-            <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="w-3.5 h-3.5" />مراقَب</span>
+            <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="w-3.5 h-3.5" />Proctored</span>
           )}
         </div>
         <Button className="w-full" onClick={() => setActiveExam(exam)}>
           {isRetake
-            ? <><RotateCcw className="w-4 h-4" /> {homework ? 'إعادة حل الواجب' : 'إعادة الاختبار'}</>
-            : <><Play className="w-4 h-4" /> {homework ? 'حل الواجب' : 'بدء الاختبار'}</>}
+            ? <><RotateCcw className="w-4 h-4" /> {homework ? 'إعادة حل الواجب' : 'Retake Exam'}</>
+            : <><Play className="w-4 h-4" /> {homework ? 'حل الواجب' : 'Start Exam'}</>}
         </Button>
       </div>
     )
@@ -108,7 +108,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 opacity-75">
         <div className="flex items-start justify-between mb-3">
           <h3 className="text-white font-semibold flex-1 min-w-0">{exam.title}</h3>
-          <Badge variant="green"><CheckCircle2 className="w-3 h-3" /> تم التسليم</Badge>
+          <Badge variant="green"><CheckCircle2 className="w-3 h-3" /> Submitted</Badge>
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-500">
           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{untimedLabel(exam)}</span>
@@ -117,7 +117,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
               العلامة: {sub.score}{sub.max_score ? ` / ${sub.max_score} (${Math.round(((sub.score ?? 0) / sub.max_score) * 100)}%)` : ''}
             </span>
           ) : (
-            <span className="text-amber-400 text-xs">النتائج قيد الإعداد</span>
+            <span className="text-amber-400 text-xs">Results pending</span>
           )}
         </div>
       </div>
@@ -127,7 +127,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-white">اختباراتي</h2>
+        <h2 className="text-2xl font-bold text-white">My Exams</h2>
         <p className="text-slate-400 mt-1">
           {availableExams.length} available · {completedExams.length} completed
           {subjects.size > 1 && ` · ${subjects.size} مواد`}
@@ -137,7 +137,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
       {nothingAtAll ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد اختبارات متاحة بعد.</p>
+          <p className="text-slate-400">No exams available yet.</p>
         </div>
       ) : (
         [...subjects.values()].map(subject => {
@@ -150,7 +150,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
                   ? <BookOpen className="w-4 h-4 text-violet-400 shrink-0" />
                   : <GraduationCap className="w-4 h-4 text-blue-400 shrink-0" />}
                 <h3 className="text-white font-semibold truncate">{subject.name}</h3>
-                <span className="text-slate-500 text-xs me-auto shrink-0">
+                <span className="text-slate-500 text-xs mr-auto shrink-0">
                   {pending > 0 ? `${pending} بانتظارك` : 'مكتملة'}
                   {subject.completed.length > 0 && ` · ${subject.completed.length} مُسلَّمة`}
                 </span>

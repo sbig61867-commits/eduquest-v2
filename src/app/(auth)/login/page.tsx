@@ -72,36 +72,36 @@ function LoginForm() {
             <span className="text-white text-2xl font-bold">E</span>
           </div>
           <h1 className="text-2xl font-bold text-white">EduQuest</h1>
-          <p className="text-slate-400 text-sm">سجّل الدخول إلى حسابك</p>
+          <p className="text-slate-400 text-sm">Sign in to your account</p>
         </div>
 
         {registered && (
           <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-            تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول.
+            Account created successfully! Please sign in.
           </div>
         )}
 
         {searchParams.get('reset') === 'success' && (
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-            تم تحديث كلمة المرور بنجاح. يرجى تسجيل الدخول بكلمة المرور الجديدة.
+            Password updated successfully. Please sign in with your new password.
           </div>
         )}
 
         {(error || errorMsg) && (
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
             {error || (
-              errorMsg === 'account_disabled'      ? 'تم تعطيل حسابك. يرجى التواصل مع مدير مؤسستك.' :
-              errorMsg === 'university_removed'    ? 'تمت إزالة مؤسستك من المنصة. يرجى التواصل مع الدعم.' :
+              errorMsg === 'account_disabled'      ? 'Your account has been disabled. Contact your administrator.' :
+              errorMsg === 'university_removed'    ? 'Your university has been removed from the platform. Contact support.' :
               errorMsg === 'invitation_required'   ? 'التسجيل في المنصة يتطلب رابط دعوة من مؤسستك. يرجى التواصل مع الجهة الإدارية للحصول على رابط دعوة، أو تسجيل الدخول إذا كان لديك حساب بالفعل.' :
               errorMsg === 'auth_callback_failed'  ? 'تعذّر إتمام تسجيل الدخول. يرجى المحاولة مرة أخرى.' :
-              'لا تملك صلاحية الوصول إلى هذه الصفحة.'
+              'You are not authorized to access this page.'
             )}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">البريد الإلكتروني</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
             <input
               type="email"
               value={email}
@@ -112,7 +112,7 @@ function LoginForm() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">كلمة المرور</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
             <input
               type="password"
               value={password}
@@ -127,7 +127,7 @@ function LoginForm() {
               href="/forgot-password"
               className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
             >
-              هل نسيت كلمة المرور؟
+              Forgot password?
             </a>
           </div>
           <button
@@ -135,7 +135,7 @@ function LoginForm() {
             disabled={loading}
             className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
-            {loading ? 'جارٍ تسجيل الدخول…' : 'تسجيل الدخول'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 

@@ -20,17 +20,17 @@ export default async function SuperAdminDashboard() {
   const stats = await getStats()
 
   const cards = [
-    { label: 'إجمالي المؤسسات', value: stats.tenants, icon: Building2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'إجمالي المستخدمين', value: stats.users, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'المزايا المفعّلة', value: '12', icon: Flag, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'أحداث التدقيق اليوم', value: '0', icon: ShieldCheck, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'Total Tenants', value: stats.tenants, icon: Building2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Total Users', value: stats.users, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Active Features', value: '12', icon: Flag, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: 'Audit Events Today', value: '0', icon: ShieldCheck, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">نظرة عامة على المنصة</h2>
-        <p className="text-slate-400 mt-1">راقب كل المؤسسات وصحة النظام</p>
+        <h2 className="text-2xl font-bold text-white">Platform Overview</h2>
+        <p className="text-slate-400 mt-1">Monitor all tenants and system health</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -52,9 +52,9 @@ export default async function SuperAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">أحدث المؤسسات</h3>
+          <h3 className="text-white font-semibold mb-4">Recent Tenants</h3>
           {stats.recentTenants.length === 0 ? (
-            <p className="text-slate-500 text-sm">لا توجد مؤسسات بعد. أنشئ المؤسسة الأولى.</p>
+            <p className="text-slate-500 text-sm">No tenants yet. Create the first institution.</p>
           ) : (
             <ul className="space-y-3">
               {stats.recentTenants.map(t => (
@@ -74,14 +74,14 @@ export default async function SuperAdminDashboard() {
           )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">حالة النظام</h3>
+          <h3 className="text-white font-semibold mb-4">System Status</h3>
           <div className="space-y-3">
             {['Database', 'Auth', 'Storage', 'Realtime'].map((service) => (
               <div key={service} className="flex items-center justify-between">
                 <span className="text-slate-300 text-sm">{service}</span>
                 <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  يعمل
+                  Operational
                 </span>
               </div>
             ))}

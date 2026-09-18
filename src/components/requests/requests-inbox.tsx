@@ -227,7 +227,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 <button
                   key={r.id}
                   onClick={() => setSelectedId(r.id)}
-                  className={`w-full text-end p-3 rounded-xl border transition-colors ${
+                  className={`w-full text-right p-3 rounded-xl border transition-colors ${
                     selectedId === r.id ? 'bg-slate-800 border-blue-600' : 'bg-slate-900 border-slate-800 hover:bg-slate-800/50'
                   }`}
                 >

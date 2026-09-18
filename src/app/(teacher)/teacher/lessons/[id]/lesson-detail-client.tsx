@@ -298,12 +298,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
               tab === t ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
-            {t === 'المحتوى' && <BookOpen className="w-4 h-4 inline ms-1.5" />}
-            {t === 'الواجب' && <ClipboardList className="w-4 h-4 inline ms-1.5" />}
-            {t === 'التسليمات' && <Users className="w-4 h-4 inline ms-1.5" />}
+            {t === 'المحتوى' && <BookOpen className="w-4 h-4 inline ml-1.5" />}
+            {t === 'الواجب' && <ClipboardList className="w-4 h-4 inline ml-1.5" />}
+            {t === 'التسليمات' && <Users className="w-4 h-4 inline ml-1.5" />}
             {t}
             {t === 'الواجب' && homework.length > 0 && (
-              <span className="me-1.5 bg-blue-600 text-white text-xs rounded-full px-1.5">{homework.length}</span>
+              <span className="mr-1.5 bg-blue-600 text-white text-xs rounded-full px-1.5">{homework.length}</span>
             )}
           </button>
         ))}
@@ -512,7 +512,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
       {/* ── Homework Modal ── */}
       <Modal open={showHwModal} onClose={() => { setShowHwModal(false); setQuestions([]) }} title="إضافة واجب يومي" size="xl">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pe-1">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
 
           {/* AI generator */}
           <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 space-y-2">

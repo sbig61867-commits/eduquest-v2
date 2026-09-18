@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 export function ContentShell({ children }: { children: React.ReactNode }) {
   const { sidebarOpen } = useUIStore()
   return (
-    <div className={cn('transition-all duration-300', sidebarOpen ? 'lg:ps-64' : 'lg:ps-16')}>
+    <div className={cn('transition-all duration-300', sidebarOpen ? 'lg:pl-64' : 'lg:pl-16')}>
       {children}
     </div>
   )

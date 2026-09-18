@@ -45,17 +45,17 @@ export default async function AdminDashboard() {
   const activity = allLessons.slice(0, 5)
 
   const cards = [
-    { label: 'المعلمون', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'الطلاب', value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'الدروس', value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'الاختبارات', value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'Teachers', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Students', value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Lessons', value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: 'Exams', value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">{terms.institution} Dashboard</h2>
-        <p className="text-slate-400 mt-1">نظرة عامة على مؤسستك</p>
+        <p className="text-slate-400 mt-1">Overview of your institution</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -76,9 +76,9 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <h3 className="text-white font-semibold mb-4">النشاط الأخير</h3>
+        <h3 className="text-white font-semibold mb-4">Recent Activity</h3>
         {activity.length === 0 ? (
-          <p className="text-slate-500 text-sm">لا يوجد نشاط بعد.</p>
+          <p className="text-slate-500 text-sm">No activity yet.</p>
         ) : (
           <ul className="space-y-3">
             {activity.map(a => (

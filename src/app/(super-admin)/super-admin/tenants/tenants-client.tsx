@@ -156,7 +156,7 @@ export function TenantsClient({ initialTenants }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">المؤسسات</h2>
+          <h2 className="text-2xl font-bold text-white">Institutions</h2>
           <p className="text-slate-400 mt-1">{tenants.length} tenants registered</p>
         </div>
         <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> New Institution</Button>
@@ -165,8 +165,8 @@ export function TenantsClient({ initialTenants }: Props) {
       {tenants.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 mb-2">لا توجد جامعات بعد.</p>
-          <p className="text-slate-500 text-sm">أضف الجامعة الأولى للبدء.</p>
+          <p className="text-slate-400 mb-2">No universities yet.</p>
+          <p className="text-slate-500 text-sm">Add the first university to get started.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -183,7 +183,7 @@ export function TenantsClient({ initialTenants }: Props) {
               <h3 className="text-white font-semibold text-lg mb-1">{tenant.name}</h3>
               <p className="text-slate-500 text-sm mb-1 font-mono">{tenant.slug}</p>
               <select
-                aria-label="نوع المؤسسة"
+                aria-label="Institution type"
                 value={tenant.institution_type ?? 'university'}
                 onChange={e => changeType(tenant, e.target.value as InstitutionType)}
                 className="mb-2 w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs px-2 py-1.5"
@@ -191,7 +191,7 @@ export function TenantsClient({ initialTenants }: Props) {
                 {INSTITUTION_TYPES.map(t => <option key={t} value={t}>{getTerms(t).institutionTypeLabel}</option>)}
               </select>
               <select
-                aria-label="الهيكل"
+                aria-label="Structure"
                 value={tenant.structure_mode ?? 'flat'}
                 onChange={e => changeStructureMode(tenant, e.target.value as StructureMode)}
                 className="mb-2 w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs px-2 py-1.5"
@@ -212,11 +212,11 @@ export function TenantsClient({ initialTenants }: Props) {
               <div className="space-y-2 pt-3 border-t border-slate-800">
                 {/* Add admin manually */}
                 <Button variant="secondary" size="sm" className="w-full" onClick={() => openAddAdmin(tenant)}>
-                  <UserPlus className="w-4 h-4" /> إضافة مدير (يدوياً)
+                  <UserPlus className="w-4 h-4" /> Add Admin (manual)
                 </Button>
                 {/* Invite admin via link — redirects to the Invitations page */}
                 <Button variant="secondary" size="sm" className="w-full !bg-blue-600/10 !border-blue-500/20 !text-blue-400 hover:!bg-blue-600/20" onClick={() => router.push('/super-admin/invitations')}>
-                  <Mail className="w-4 h-4" /> دعوة مدير (برابط)
+                  <Mail className="w-4 h-4" /> Invite Admin (link)
                 </Button>
                 <div className="flex gap-2">
                   <Button
@@ -244,28 +244,28 @@ export function TenantsClient({ initialTenants }: Props) {
       )}
 
       {/* Create Institution Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="إضافة مؤسسة جديدة">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add New Institution">
         <form onSubmit={handleAdd} className="space-y-4">
           {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
           <Input
-            label="اسم المؤسسة"
+            label="Institution Name"
             value={form.name}
             onChange={e => {
               const name = e.target.value
               setForm(p => ({ ...p, name, slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))
             }}
             required
-            placeholder="مثال: جامعة الملك عبدالله"
+            placeholder="King Abdullah University"
           />
           <Input
-            label="المعرّف (في الرابط)"
+            label="Slug (URL identifier)"
             value={form.slug}
             onChange={e => setForm(p => ({ ...p, slug: e.target.value }))}
             required
             placeholder="king-abdullah-university"
           />
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">نوع المؤسسة</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Institution type</label>
             <select
               value={form.institution_type}
               // A continuing-education centre is typical for universities only; editable below.
@@ -284,7 +284,7 @@ export function TenantsClient({ initialTenants }: Props) {
             </label>
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
             <Button type="submit" loading={loading} className="flex-1">Create Institution</Button>
           </div>
         </form>
@@ -296,11 +296,11 @@ export function TenantsClient({ initialTenants }: Props) {
           {adminError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{adminError}</p>}
           {adminSuccess && <p className="text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">{adminSuccess}</p>}
           <p className="text-slate-400 text-sm">
-            سيدير هذا المدير المعلمين والطلاب في <span className="text-white font-medium">{adminTarget?.name}</span>.
+            This admin will manage teachers and students for <span className="text-white font-medium">{adminTarget?.name}</span>.
           </p>
-          <Input label="الاسم الكامل" value={adminForm.full_name} onChange={e => setAdminForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="مثال: د. محمد علي" />
-          <Input label="البريد الإلكتروني" type="email" value={adminForm.email} onChange={e => setAdminForm(p => ({ ...p, email: e.target.value }))} required placeholder="admin@university.edu" />
-          <Input label="كلمة المرور" type="password" value={adminForm.password} onChange={e => setAdminForm(p => ({ ...p, password: e.target.value }))} required placeholder="8 أحرف على الأقل" />
+          <Input label="Full Name" value={adminForm.full_name} onChange={e => setAdminForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Dr. Mohammed Ali" />
+          <Input label="Email" type="email" value={adminForm.email} onChange={e => setAdminForm(p => ({ ...p, email: e.target.value }))} required placeholder="admin@university.edu" />
+          <Input label="Password" type="password" value={adminForm.password} onChange={e => setAdminForm(p => ({ ...p, password: e.target.value }))} required placeholder="Min 8 characters" />
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setAdminTarget(null)} className="flex-1">Close</Button>
             <Button type="submit" loading={adminLoading} className="flex-1">Create Admin</Button>
