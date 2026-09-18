@@ -24,10 +24,10 @@ node_modules
 # These read SUPABASE_SERVICE_ROLE_KEY and may embed test credentials.
 _tmp_*
 *.local.mjs
-scripts/
-hf-admin/
-hf-teacher/
-load-tests/
+/scripts/
+/hf-admin/
+/hf-teacher/
+/load-tests/
 backups/
 
 # ── Agent + capture scratch output ──────────────────────────
@@ -54,20 +54,25 @@ PRODUCT_COMPLETENESS_AUDIT.md
 ROUTE_QA_REPORT.md
 FIXES_FOR_SONNET.md
 DEPLOYMENT.md
-docs/
+/docs/
 
 # ── Database migrations ─────────────────────────────────────
 # Applied by hand in the Supabase SQL Editor; the running app never reads
 # them. Shipping them publishes the full schema and RLS policy source.
-supabase/
+#
+# The leading slash is load-bearing: a bare `supabase/` is a gitignore-style
+# pattern that matches a directory of that name at ANY depth, so it also
+# swallowed src/lib/supabase/ (the app's own Supabase clients) and broke
+# every build from 2026-09-13 to 2026-09-18 with 122 module-not-found errors.
+/supabase/
 
 # ── Tests + build artefacts ─────────────────────────────────
 src/__tests__/
-tests/
-test-results/
-playwright-report/
+/tests/
+/test-results/
+/playwright-report/
 playwright.config.ts
 vitest.config.ts
-coverage/
+/coverage/
 *.tsbuildinfo
 .github/
