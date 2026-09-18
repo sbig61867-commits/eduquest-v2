@@ -7,7 +7,7 @@ export default function DemoAdminStudents() {
       <h2 className="text-2xl font-bold text-white">الطلاب</h2>
       <DemoCard title="عيّنة من الطلاب">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-right">
+          <table className="w-full text-sm text-end">
             <thead>
               <tr className="text-slate-400 border-b border-slate-800">
                 <th className="py-2 font-medium">الاسم</th>

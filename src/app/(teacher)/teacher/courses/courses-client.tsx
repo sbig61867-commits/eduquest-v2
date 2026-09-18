@@ -303,7 +303,7 @@ export function CoursesClient({ initialCourses }: Props) {
               <button
                 type="button"
                 onClick={() => setForm(p => ({ ...p, has_levels: true }))}
-                className={`p-3 rounded-lg border text-left transition-colors ${form.has_levels ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
+                className={`p-3 rounded-lg border text-start transition-colors ${form.has_levels ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
               >
                 <Layers className="w-4 h-4 mb-1.5 text-violet-400" />
                 <p className="text-sm font-medium">Leveled</p>
@@ -312,7 +312,7 @@ export function CoursesClient({ initialCourses }: Props) {
               <button
                 type="button"
                 onClick={() => setForm(p => ({ ...p, has_levels: false }))}
-                className={`p-3 rounded-lg border text-left transition-colors ${!form.has_levels ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
+                className={`p-3 rounded-lg border text-start transition-colors ${!form.has_levels ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
               >
                 <BookOpen className="w-4 h-4 mb-1.5 text-blue-400" />
                 <p className="text-sm font-medium">Flat</p>
@@ -451,7 +451,7 @@ export function CoursesClient({ initialCourses }: Props) {
                   <button
                     type="button"
                     onClick={() => toggleUnit(ui)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-800 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-start hover:bg-slate-800 transition-colors"
                   >
                     <span className="w-6 h-6 rounded-full bg-violet-600/20 text-violet-400 text-xs flex items-center justify-center font-bold shrink-0">
                       {ui + 1}

@@ -468,10 +468,10 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                      <th className="text-left px-4 py-2.5">طالب</th>
-                      <th className="text-left px-4 py-2.5">الدرجة</th>
-                      <th className="text-left px-4 py-2.5 hidden sm:table-cell">تم التسليم</th>
-                      <th className="text-left px-4 py-2.5">الحالة</th>
+                      <th className="text-start px-4 py-2.5">طالب</th>
+                      <th className="text-start px-4 py-2.5">الدرجة</th>
+                      <th className="text-start px-4 py-2.5 hidden sm:table-cell">تم التسليم</th>
+                      <th className="text-start px-4 py-2.5">الحالة</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/70">

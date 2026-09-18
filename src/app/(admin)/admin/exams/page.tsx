@@ -31,12 +31,12 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-800">
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? 'واجب' : 'اختبار'}</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">مجموعة</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">التسليمات</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? 'واجب' : 'اختبار'}</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">مجموعة</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">التسليمات</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">

@@ -338,7 +338,7 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
       <div className="grid grid-cols-3 gap-4">
         {tabs.map(t => (
           <button key={t.key} onClick={() => changeTab(t.key)}
-            className={`p-4 rounded-xl border text-left transition-colors ${
+            className={`p-4 rounded-xl border text-start transition-colors ${
               tab === t.key ? 'bg-slate-800 border-slate-600' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
             }`}>
             <t.icon className={`w-5 h-5 mb-2 ${t.color}`} />
@@ -359,10 +359,10 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مستخدم</th>
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الدور</th>
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">تاريخ الانضمام</th>
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مستخدم</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الدور</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">تاريخ الانضمام</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -493,7 +493,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
               const c = tenantCounts[tenant.id] ?? { admins: 0, teachers: 0, students: 0 }
               return (
                 <button key={tenant.id} onClick={() => setSelectedTenant(tenant)}
-                  className="group bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-xl p-5 text-left transition-all hover:shadow-lg hover:shadow-black/20">
+                  className="group bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-xl p-5 text-start transition-all hover:shadow-lg hover:shadow-black/20">
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-11 h-11 rounded-xl bg-blue-600/20 flex items-center justify-center shrink-0">
                       <Building2 className="w-5 h-5 text-blue-400" />

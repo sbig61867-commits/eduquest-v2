@@ -175,7 +175,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
         const rlang: Lang = report.lang ?? 'ar'
         const ui = UI[rlang]
         const rtl = rlang === 'ar'
-        const cellAlign = rtl ? 'text-right' : 'text-left'
+        const cellAlign = rtl ? 'text-end' : 'text-start'
         return (
         <div id="report-print" className="bg-white text-slate-900 rounded-xl p-8 space-y-5" dir={rtl ? 'rtl' : 'ltr'}>
           {/* ── Official letterhead ── */}

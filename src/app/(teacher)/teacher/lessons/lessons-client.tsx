@@ -203,7 +203,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                   placeholder={`Examples:\n• "Split into: grammar rule, examples, idioms, task, then a 5-question quiz"\n• "University lecture with theory, case studies, discussion points, and references"\n• "Step-by-step tutorial with code examples and explanations"`}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
-                <p className="text-xs text-slate-500 text-right">{aiInstructions.length}/1000</p>
+                <p className="text-xs text-slate-500 text-end">{aiInstructions.length}/1000</p>
               </div>
             )}
           </div>

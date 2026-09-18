@@ -426,14 +426,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">البريد / النوع</th>
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">الدور</th>
+                <th className="text-start px-5 py-3 text-slate-400 font-medium">البريد / النوع</th>
+                <th className="text-start px-5 py-3 text-slate-400 font-medium">الدور</th>
                 {callerRole === 'super_admin' && (
-                  <th className="text-left px-5 py-3 text-slate-400 font-medium">المؤسسة</th>
+                  <th className="text-start px-5 py-3 text-slate-400 font-medium">المؤسسة</th>
                 )}
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">الحالة</th>
-                <th className="text-left px-5 py-3 text-slate-400 font-medium">الاستخدامات / الانتهاء</th>
-                <th className="text-right px-5 py-3 text-slate-400 font-medium">Actions</th>
+                <th className="text-start px-5 py-3 text-slate-400 font-medium">الحالة</th>
+                <th className="text-start px-5 py-3 text-slate-400 font-medium">الاستخدامات / الانتهاء</th>
+                <th className="text-end px-5 py-3 text-slate-400 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">

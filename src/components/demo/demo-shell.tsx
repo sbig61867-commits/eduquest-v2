@@ -29,7 +29,7 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
 
   return (
     <div className="min-h-screen bg-slate-950 lg:flex" dir="rtl">
-      <aside className="lg:w-64 bg-slate-900 border-l border-slate-800 flex flex-col">
+      <aside className="lg:w-64 bg-slate-900 border-s border-slate-800 flex flex-col">
         <div className="flex items-center gap-2 p-4 border-b border-slate-800 h-16">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">E</span>

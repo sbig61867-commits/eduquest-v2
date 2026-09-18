@@ -28,7 +28,7 @@ export default function DemoLanding() {
               <Link
                 key={r.href}
                 href={r.href}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-right hover:border-blue-600 transition-colors"
+                className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-end hover:border-blue-600 transition-colors"
               >
                 <div className={`w-11 h-11 rounded-lg ${r.bg} flex items-center justify-center mb-4`}>
                   <Icon className={`w-6 h-6 ${r.color}`} />

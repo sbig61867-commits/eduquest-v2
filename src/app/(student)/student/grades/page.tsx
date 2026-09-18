@@ -109,11 +109,11 @@ export default async function GradesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">اختبار</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الدرجة</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">التاريخ</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">النتيجة</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مراقبة</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">اختبار</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الدرجة</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">التاريخ</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">النتيجة</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مراقبة</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">

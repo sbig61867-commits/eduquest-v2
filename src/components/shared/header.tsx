@@ -19,7 +19,7 @@ export function Header({ title }: HeaderProps) {
   return (
     <header className={cn(
       'fixed top-0 end-0 start-0 h-16 bg-slate-950/80 backdrop-blur border-b border-slate-800 flex items-center justify-between px-4 lg:px-6 z-30 transition-all duration-300',
-      sidebarOpen ? 'lg:left-64' : 'lg:left-16'
+      sidebarOpen ? 'lg:start-64' : 'lg:start-16'
     )}>
       <div className="flex items-center gap-3">
         <button
