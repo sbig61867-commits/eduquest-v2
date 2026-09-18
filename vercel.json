@@ -1,4 +1,3 @@
 {
-  "regions": ["fra1"],
-  "buildCommand": "next build --no-turbopack"
+  "regions": ["fra1"]
 }
