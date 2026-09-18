@@ -59,8 +59,8 @@ export default async function TeacherGradesPage() {
       {rows.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BarChart2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No graded submissions yet.</p>
-          <p className="text-slate-500 text-sm mt-1">Grades appear after students complete your exams.</p>
+          <p className="text-slate-400">لا توجد تسليمات مُقيَّمة بعد.</p>
+          <p className="text-slate-500 text-sm mt-1">تظهر الدرجات بعد أن يُكمل الطلاب اختباراتك.</p>
         </div>
       ) : (
         <>

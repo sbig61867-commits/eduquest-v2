@@ -32,7 +32,7 @@ export default async function AdminLessonsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Lessons</h2>
+        <h2 className="text-2xl font-bold text-white">الدروس</h2>
         <p className="text-slate-400 mt-1">
           {lessons.length} lesson{lessons.length === 1 ? '' : 's'} across your institution · {published} published
         </p>
@@ -41,19 +41,19 @@ export default async function AdminLessonsPage() {
       {lessons.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No lessons yet.</p>
-          <p className="text-slate-500 text-sm mt-1">Teachers create lessons from their own panel.</p>
+          <p className="text-slate-400">لا توجد دروس بعد.</p>
+          <p className="text-slate-500 text-sm mt-1">ينشئ المعلمون الدروس من لوحاتهم.</p>
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Lesson</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Teacher</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Group</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Status</th>
-                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">Created</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">درس</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">مجموعة</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
+                <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -76,11 +76,11 @@ export default async function AdminLessonsPage() {
                   <td className="px-5 py-4">
                     {lesson.is_published ? (
                       <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                        <Eye className="w-3.5 h-3.5" />Published
+                        <Eye className="w-3.5 h-3.5" />منشور
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                        <EyeOff className="w-3.5 h-3.5" />Draft
+                        <EyeOff className="w-3.5 h-3.5" />مسودة
                       </span>
                     )}
                   </td>

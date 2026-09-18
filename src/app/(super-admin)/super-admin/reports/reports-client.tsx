@@ -228,7 +228,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <div key={i} className="space-y-2">
               <h3 className="font-semibold text-slate-800">{t.heading}</h3>
               {t.rows.length === 0 ? (
-                <p className="text-slate-400 text-sm">{rtl ? 'لا توجد بيانات.' : 'No data.'}</p>
+                <p className="text-slate-400 text-sm">{rtl ? 'لا توجد بيانات.' : 'لا توجد بيانات.'}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">

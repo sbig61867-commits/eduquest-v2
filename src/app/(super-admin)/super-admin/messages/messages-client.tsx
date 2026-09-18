@@ -48,7 +48,7 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Contact Messages</h2>
+        <h2 className="text-2xl font-bold text-white">رسائل التواصل</h2>
         <p className="text-slate-400 mt-1">
           {messages.length} total · {unread} unread — sent from the public landing page
         </p>
@@ -57,7 +57,7 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
       {messages.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Inbox className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No messages yet.</p>
+          <p className="text-slate-400">لا توجد رسائل بعد.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -68,7 +68,7 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-white font-semibold">{m.name}</p>
-                    {!m.is_read && <span className="px-2 py-0.5 rounded-full bg-blue-600/20 text-blue-400 text-xs font-medium">New</span>}
+                    {!m.is_read && <span className="px-2 py-0.5 rounded-full bg-blue-600/20 text-blue-400 text-xs font-medium">جديد</span>}
                   </div>
                   <button onClick={() => copyEmail(m.id, m.email)}
                     className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm font-mono mt-0.5 transition-colors">
@@ -83,12 +83,12 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
                 {!m.is_read && (
                   <button onClick={() => markRead(m.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
-                    <MailOpen className="w-3.5 h-3.5" /> Mark as read
+                    <MailOpen className="w-3.5 h-3.5" /> تعليم كمقروء
                   </button>
                 )}
                 <button onClick={() => remove(m.id)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                  <Trash2 className="w-3.5 h-3.5" /> حذف
                 </button>
               </div>
             </div>

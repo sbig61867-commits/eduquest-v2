@@ -140,7 +140,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Academic Structure</h2>
+          <h2 className="text-2xl font-bold text-white">الهيكل الأكاديمي</h2>
           <p className="text-slate-400 mt-1">
             {t.unitsL1} › {t.unitsL2} · {t.terms}
           </p>
@@ -173,7 +173,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                     <Button variant="ghost" size="sm" onClick={() => setUnitForm({ parent_id: unit.id, name: '', code: '' })}>
                       <Plus className="w-4 h-4" /> {t.unitL2}
                     </Button>
-                    <Button variant="ghost" size="sm" aria-label="Edit" onClick={() => setUnitForm({ id: unit.id, parent_id: null, name: unit.name, code: unit.code ?? '' })}>
+                    <Button variant="ghost" size="sm" aria-label="تعديل" onClick={() => setUnitForm({ id: unit.id, parent_id: null, name: unit.name, code: unit.code ?? '' })}>
                       <Pencil className="w-4 h-4" />
                     </Button>
                     <Button variant="ghost" size="sm" aria-label="Archive" className="hover:text-amber-400" onClick={() => archiveUnit(unit)}>
@@ -184,14 +184,14 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                 {childrenOf(unit.id).length > 0 && (
                   <ul className="mt-3 space-y-1 border-t border-slate-800 pt-3">
                     {childrenOf(unit.id).map(child => (
-                      <li key={child.id} className="flex items-center justify-between gap-3 pl-2">
+                      <li key={child.id} className="flex items-center justify-between gap-3 ps-2">
                         <span className="flex items-center gap-2 text-slate-300 text-sm min-w-0">
                           <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                           <span className="truncate">{child.name}</span>
                           {child.code && <span className="text-slate-500 text-xs font-mono">{child.code}</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="sm" aria-label="Edit" onClick={() => setUnitForm({ id: child.id, parent_id: unit.id, name: child.name, code: child.code ?? '' })}>
+                          <Button variant="ghost" size="sm" aria-label="تعديل" onClick={() => setUnitForm({ id: child.id, parent_id: unit.id, name: child.name, code: child.code ?? '' })}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button variant="ghost" size="sm" aria-label="Archive" className="hover:text-amber-400" onClick={() => archiveUnit(child)}>
@@ -221,17 +221,17 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                 <div className="min-w-0">
                   <p className="text-white font-medium flex items-center gap-2">
                     {term.name}
-                    {term.is_current && <Badge variant="green">Current</Badge>}
+                    {term.is_current && <Badge variant="green">الحالي</Badge>}
                   </p>
                   <p className="text-slate-500 text-xs">{formatDate(term.starts_on)} – {formatDate(term.ends_on)}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {!term.is_current && (
                     <Button variant="ghost" size="sm" onClick={() => makeCurrent(term)}>
-                      <Star className="w-4 h-4" /> Set current
+                      <Star className="w-4 h-4" /> تعيين كحالي
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" aria-label="Edit" onClick={() => setTermForm({ ...term })}>
+                  <Button variant="ghost" size="sm" aria-label="تعديل" onClick={() => setTermForm({ ...term })}>
                     <Pencil className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" size="sm" aria-label="Archive" className="hover:text-amber-400" onClick={() => archiveTerm(term)}>
@@ -247,7 +247,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
       <Modal
         open={!!unitForm}
         onClose={() => setUnitForm(null)}
-        title={`${unitForm?.id ? 'Edit' : 'New'} ${unitForm?.parent_id ? t.unitL2 : t.unitL1}`}
+        title={`${unitForm?.id ? 'تعديل' : 'جديد'} ${unitForm?.parent_id ? t.unitL2 : t.unitL1}`}
       >
         {unitForm && (
           <form onSubmit={saveUnit} className="space-y-4">
@@ -256,27 +256,27 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                 {t.unitL1}: <span className="text-white">{units.find(u => u.id === unitForm.parent_id)?.name}</span>
               </p>
             )}
-            <Input label="Name" value={unitForm.name} maxLength={120} required
+            <Input label="الاسم" value={unitForm.name} maxLength={120} required
               onChange={e => setUnitForm(f => f && { ...f, name: e.target.value })} />
-            <Input label="Code (optional)" value={unitForm.code} maxLength={30}
+            <Input label="الرمز (اختياري)" value={unitForm.code} maxLength={30}
               onChange={e => setUnitForm(f => f && { ...f, code: e.target.value })} />
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" className="flex-1" onClick={() => setUnitForm(null)}>Cancel</Button>
-              <Button type="submit" loading={saving} className="flex-1">Save</Button>
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setUnitForm(null)}>إلغاء</Button>
+              <Button type="submit" loading={saving} className="flex-1">حفظ</Button>
             </div>
           </form>
         )}
       </Modal>
 
-      <Modal open={!!termForm} onClose={() => setTermForm(null)} title={`${termForm?.id ? 'Edit' : 'New'} ${t.term}`}>
+      <Modal open={!!termForm} onClose={() => setTermForm(null)} title={`${termForm?.id ? 'تعديل' : 'جديد'} ${t.term}`}>
         {termForm && (
           <form onSubmit={saveTerm} className="space-y-4">
-            <Input label="Name" value={termForm.name} maxLength={120} required placeholder="2026–2027 · 1"
+            <Input label="الاسم" value={termForm.name} maxLength={120} required placeholder="2026–2027 · 1"
               onChange={e => setTermForm(f => f && { ...f, name: e.target.value })} />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Starts" type="date" value={termForm.starts_on} required
+              <Input label="يبدأ" type="date" value={termForm.starts_on} required
                 onChange={e => setTermForm(f => f && { ...f, starts_on: e.target.value })} />
-              <Input label="Ends" type="date" value={termForm.ends_on} required min={termForm.starts_on || undefined}
+              <Input label="ينتهي" type="date" value={termForm.ends_on} required min={termForm.starts_on || undefined}
                 onChange={e => setTermForm(f => f && { ...f, ends_on: e.target.value })} />
             </div>
             <label className="flex items-center gap-2 text-sm text-slate-300">
@@ -285,8 +285,8 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
               Current {t.term.toLowerCase()}
             </label>
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" className="flex-1" onClick={() => setTermForm(null)}>Cancel</Button>
-              <Button type="submit" loading={saving} className="flex-1">Save</Button>
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setTermForm(null)}>إلغاء</Button>
+              <Button type="submit" loading={saving} className="flex-1">حفظ</Button>
             </div>
           </form>
         )}

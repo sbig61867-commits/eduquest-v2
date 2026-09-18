@@ -58,7 +58,7 @@ export default async function TeacherDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">Teacher Dashboard</h2>
-        <p className="text-slate-400 mt-1">Manage your groups, lessons, and exams</p>
+        <p className="text-slate-400 mt-1">أدر مجموعاتك ودروسك واختباراتك</p>
       </div>
 
       <AnnouncementsBanner announcements={liveAnnouncements} />
@@ -84,11 +84,11 @@ export default async function TeacherDashboard() {
         {/* Recent Lessons */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Recent Lessons</h3>
+            <h3 className="text-white font-semibold">أحدث الدروس</h3>
             <Link href="/teacher/lessons" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
           </div>
           {!recentLessons?.length ? (
-            <p className="text-slate-500 text-sm">No lessons yet. <Link href="/teacher/lessons" className="text-blue-400 hover:underline">Create your first lesson.</Link></p>
+            <p className="text-slate-500 text-sm">لا توجد دروس بعد. <Link href="/teacher/lessons" className="text-blue-400 hover:underline">أنشئ درسك الأول.</Link></p>
           ) : (
             <div className="space-y-2">
               {(recentLessons as unknown as RecentLesson[]).map(l => (
@@ -110,11 +110,11 @@ export default async function TeacherDashboard() {
         {/* Upcoming Exams */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Upcoming Exams</h3>
+            <h3 className="text-white font-semibold">الاختبارات القادمة</h3>
             <Link href="/teacher/exams" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
           </div>
           {!upcomingExams?.length ? (
-            <p className="text-slate-500 text-sm">No upcoming exams. <Link href="/teacher/exams" className="text-blue-400 hover:underline">Create an exam.</Link></p>
+            <p className="text-slate-500 text-sm">لا توجد اختبارات قادمة. <Link href="/teacher/exams" className="text-blue-400 hover:underline">أنشئ اختباراً.</Link></p>
           ) : (
             <div className="space-y-2">
               {(upcomingExams as unknown as UpcomingExam[]).map(e => (

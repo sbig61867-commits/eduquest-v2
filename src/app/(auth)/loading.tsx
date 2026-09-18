@@ -5,7 +5,7 @@ export default function Loading() {
         <div className="h-10 w-40 bg-surface rounded-lg mx-auto" />
         <div className="h-64 bg-surface rounded-xl" />
       </div>
-      <span className="sr-only">Loading</span>
+      <span className="sr-only">جارٍ التحميل</span>
     </div>
   )
 }

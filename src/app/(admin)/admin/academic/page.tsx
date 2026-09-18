@@ -46,7 +46,7 @@ export default async function AdminAcademicPage() {
     return (
       <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
         <p className="text-slate-400">
-          Academic structure is not available yet — apply
+          الهيكل الأكاديمي غير متاح بعد — طبّق
           <code className="mx-1 text-slate-300">supabase/academic_structure_migration.sql</code>.
         </p>
       </div>

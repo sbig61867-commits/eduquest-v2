@@ -48,7 +48,7 @@ export default async function JoinPage({ params }: Props) {
           <p className="text-slate-400 text-sm">{ERROR_MESSAGES.body}</p>
           <p className="text-slate-500 text-sm">{ERROR_MESSAGES.hint}</p>
           <a href="/login" className="inline-block mt-2 text-blue-400 hover:text-blue-300 text-sm underline">
-            Already have an account? Sign in
+            لديك حساب بالفعل؟ سجّل الدخول
           </a>
         </div>
       </div>
@@ -72,7 +72,7 @@ export default async function JoinPage({ params }: Props) {
           </div>
           <h1 className="text-2xl font-bold text-white">You&apos;re invited!</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Join <span className="text-white font-semibold">{invitation.tenant_name}</span> as a{' '}
+            انضمام <span className="text-white font-semibold">{invitation.tenant_name}</span> as a{' '}
             <span className={`text-${accentColor}-400 font-semibold`}>
               {ROLE_LABELS[invitation.role] ?? invitation.role}
             </span>
@@ -83,32 +83,32 @@ export default async function JoinPage({ params }: Props) {
         <div className={`bg-${accentColor}-500/10 border border-${accentColor}-500/20 rounded-xl px-5 py-4 space-y-1.5`}>
           {!invitation.is_public && invitation.email && (
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Invited email</span>
+              <span className="text-slate-400">البريد المدعو</span>
               <span className="text-white font-medium">{invitation.email}</span>
             </div>
           )}
           {invitation.is_public && (
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Link type</span>
-              <span className="text-purple-400 font-medium">Open to anyone</span>
+              <span className="text-slate-400">نوع الرابط</span>
+              <span className="text-purple-400 font-medium">مفتوح للجميع</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Institution</span>
+            <span className="text-slate-400">المؤسسة</span>
             <span className="text-white font-medium">{invitation.tenant_name}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Role</span>
+            <span className="text-slate-400">الدور</span>
             <span className="text-white font-medium">{ROLE_LABELS[invitation.role] ?? invitation.role}</span>
           </div>
           {invitation.is_public && invitation.max_uses != null && (
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Spots remaining</span>
+              <span className="text-slate-400">المقاعد المتبقية</span>
               <span className="text-white font-medium">{invitation.max_uses - invitation.use_count}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Expires</span>
+            <span className="text-slate-400">ينتهي في</span>
             <span className="text-amber-400 font-medium">{expiresLabel}</span>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default async function JoinPage({ params }: Props) {
 
         <p className="text-center text-slate-500 text-xs">
           Already have an account?{' '}
-          <a href="/login" className="text-blue-400 hover:text-blue-300 underline">Sign in</a>
+          <a href="/login" className="text-blue-400 hover:text-blue-300 underline">تسجيل الدخول</a>
         </p>
       </div>
     </div>

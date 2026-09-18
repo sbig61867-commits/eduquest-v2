@@ -44,27 +44,27 @@ export default function ForgotPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
             <span className="text-white text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Reset your password</h1>
+          <h1 className="text-2xl font-bold text-white">إعادة تعيين كلمة المرور</h1>
           <p className="text-slate-400 text-sm">
-            Enter your email and we&apos;ll send you a link to reset your password.
+            أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
           </p>
         </div>
 
         {sent ? (
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm text-center leading-relaxed">
-              If that email is registered, you will receive a reset link shortly.
+              إن كان هذا البريد مسجّلاً فستصلك رسالة استعادة قريباً.
               <br />
-              <span className="text-slate-400 text-xs mt-1 block">Check your spam folder if it doesn&apos;t arrive within a few minutes.</span>
+              <span className="text-slate-400 text-xs mt-1 block">تفقّد مجلد الرسائل غير المرغوبة إن لم تصلك خلال دقائق.</span>
             </div>
             {disabled ? (
-              <p className="text-slate-500 text-xs text-center">You can request another link in ~60 seconds.</p>
+              <p className="text-slate-500 text-xs text-center">يمكنك طلب رابط آخر بعد 60 ثانية تقريباً.</p>
             ) : (
               <button
                 onClick={() => setSent(false)}
                 className="w-full text-center text-blue-400 hover:text-blue-300 text-sm transition-colors"
               >
-                Send another link
+                إرسال رابط آخر
               </button>
             )}
           </div>
@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
             )}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                Email address
+                البريد الإلكتروني
               </label>
               <input
                 type="email"
@@ -94,7 +94,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
             >
-              {loading ? 'Sending…' : 'Send reset link'}
+              {loading ? 'Sending…' : 'إرسال رابط الاستعادة'}
             </button>
           </form>
         )}
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
             href="/login"
             className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
+            <ArrowLeft className="w-3.5 h-3.5" /> العودة لتسجيل الدخول
           </Link>
         </div>
       </div>

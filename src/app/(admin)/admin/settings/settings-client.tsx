@@ -57,7 +57,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
   if (!tenant) {
     return (
       <div className="text-center py-20 text-slate-400">
-        No institution data found.
+        لم يُعثر على بيانات المؤسسة.
       </div>
     )
   }
@@ -69,49 +69,49 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
           <Settings className="w-5 h-5 text-slate-400" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Institution Settings</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Manage your institution profile</p>
+          <h2 className="text-2xl font-bold text-white">إعدادات المؤسسة</h2>
+          <p className="text-slate-400 text-sm mt-0.5">أدر ملف مؤسستك</p>
         </div>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-slate-400">Slug</span>
+          <span className="text-slate-400">المعرّف</span>
           <span className="text-slate-300 font-mono">{tenant.slug}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-400">Status</span>
+          <span className="text-slate-400">الحالة</span>
           <span className={tenant.is_active ? 'text-emerald-400' : 'text-red-400'}>
-            {tenant.is_active ? 'Active' : 'Suspended'}
+            {tenant.is_active ? 'نشط' : 'موقوف'}
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-slate-400">Created</span>
+          <span className="text-slate-400">تاريخ الإنشاء</span>
           <span className="text-slate-300">{formatDate(tenant.created_at)}</span>
         </div>
       </div>
 
       <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold">Edit Profile</h3>
+        <h3 className="text-white font-semibold">تعديل الملف الشخصي</h3>
 
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
         {saved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> Settings saved successfully
+            <CheckCircle2 className="w-4 h-4" /> تم حفظ الإعدادات بنجاح
           </div>
         )}
 
         <Input
-          label="Institution Name"
+          label="اسم المؤسسة"
           value={form.name}
           onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
           required
           placeholder="e.g. Al-Noor School"
         />
         <Input
-          label="Logo URL (optional)"
+          label="رابط الشعار (اختياري)"
           value={form.logo_url}
           onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))}
           placeholder="https://example.com/logo.png"
@@ -127,12 +127,12 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
               className="rounded-lg object-contain bg-white p-1"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
-            <span className="text-slate-400 text-sm">Logo preview</span>
+            <span className="text-slate-400 text-sm">معاينة الشعار</span>
           </div>
         )}
 
         <div className="pt-2">
-          <Button type="submit" loading={loading}>Save Changes</Button>
+          <Button type="submit" loading={loading}>حفظ التغييرات</Button>
         </div>
       </form>
     </div>

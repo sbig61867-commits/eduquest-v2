@@ -74,13 +74,13 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search by name or teacher..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالاسم أو المعلم…"
+            className="w-full ps-9 pe-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <select value={year} onChange={e => setYear(e.target.value)}
           className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="all">All years</option>
+          <option value="all">كل السنوات</option>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <div className="flex rounded-lg border border-slate-700 overflow-hidden">
@@ -96,7 +96,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       {filtered.length === 0 ? (
         <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
           <Archive className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No matching items.</p>
+          <p className="text-slate-400">لا توجد عناصر مطابقة.</p>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -110,10 +110,10 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-white font-semibold truncate">{r.title}</h3>
-                      <Badge variant={r.kind === 'group' ? 'blue' : 'gray'}>{r.kind === 'group' ? 'Class' : 'Course'}</Badge>
+                      <Badge variant={r.kind === 'group' ? 'blue' : 'gray'}>{r.kind === 'group' ? 'صف' : 'مساق'}</Badge>
                       {r.is_archived
-                        ? <Badge variant="yellow">Archived</Badge>
-                        : <Badge variant="green">Active</Badge>}
+                        ? <Badge variant="yellow">مؤرشف</Badge>
+                        : <Badge variant="green">نشط</Badge>}
                     </div>
                     <p className="text-slate-500 text-xs mt-1 flex items-center gap-1.5 flex-wrap">
                       <GraduationCap className="w-3.5 h-3.5" /> {r.teacher_name ?? 'Unknown'}
@@ -131,7 +131,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
                 </div>
                 {r.is_archived && (
                   <Button size="sm" variant="secondary" loading={busy === r.id} onClick={() => restore(r)}>
-                    <ArchiveRestore className="w-3.5 h-3.5" /> Restore
+                    <ArchiveRestore className="w-3.5 h-3.5" /> استعادة
                   </Button>
                 )}
               </div>

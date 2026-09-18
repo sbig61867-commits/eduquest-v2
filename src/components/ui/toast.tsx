@@ -49,7 +49,7 @@ function ToastItem({ toast: t, onRemove }: { toast: Toast; onRemove: (id: number
     )}>
       {ICONS[t.type]}
       <p className="text-sm text-slate-200 leading-snug flex-1">{t.message}</p>
-      <button onClick={() => onRemove(t.id)} className="text-slate-500 hover:text-white transition-colors ml-1">
+      <button onClick={() => onRemove(t.id)} className="text-slate-500 hover:text-white transition-colors ms-1">
         <X className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -69,7 +69,7 @@ export function Toaster() {
   if (!toasts.length) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
+    <div className="fixed bottom-4 end-4 z-[200] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
       {toasts.map(t => <ToastItem key={t.id} toast={t} onRemove={remove} />)}
     </div>
   )

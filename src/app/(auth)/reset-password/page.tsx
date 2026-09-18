@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
       return
     }
     if (password !== confirm) {
-      setError('Passwords do not match.')
+      setError('كلمتا المرور غير متطابقتين.')
       return
     }
 
@@ -92,16 +92,15 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-600/20 mb-2">
             <span className="text-red-400 text-3xl">✕</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Link expired or invalid</h1>
+          <h1 className="text-xl font-bold text-white">الرابط منتهٍ أو غير صالح</h1>
           <p className="text-slate-400 text-sm leading-relaxed">
-            This password reset link has already been used or has expired.
-            Reset links are valid for one hour and can only be used once.
+            رابط إعادة التعيين هذا مستخدَم أو منتهٍ. روابط الاستعادة صالحة لساعة واحدة وتُستخدم مرة واحدة فقط.
           </p>
           <a
             href="/forgot-password"
             className="inline-block px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors text-sm"
           >
-            Request a new link
+            طلب رابط جديد
           </a>
         </div>
       </div>
@@ -115,10 +114,9 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600/20 mb-2">
             <span className="text-emerald-400 text-3xl">✓</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Password updated</h1>
+          <h1 className="text-xl font-bold text-white">تم تحديث كلمة المرور</h1>
           <p className="text-slate-400 text-sm">
-            Your password has been changed and you were signed out of all
-            devices. Please sign in again with your new password. Redirecting…
+            تم تغيير كلمة المرور وتسجيل خروجك من كل الأجهزة. يرجى تسجيل الدخول بكلمة المرور الجديدة. جارٍ التحويل…
           </p>
         </div>
       </div>
@@ -134,7 +132,7 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
             <span className="text-white text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Set new password</h1>
+          <h1 className="text-2xl font-bold text-white">تعيين كلمة مرور جديدة</h1>
           <p className="text-slate-400 text-sm">
             Choose a strong password — at least {MIN_PW_LEN} characters.
           </p>
@@ -150,7 +148,7 @@ export default function ResetPasswordPage() {
           {/* New password */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              New password
+              كلمة المرور الجديدة
             </label>
             <div className="relative">
               <input
@@ -161,7 +159,7 @@ export default function ResetPasswordPage() {
                 minLength={MIN_PW_LEN}
                 autoComplete="new-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 pr-10 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 pe-10 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
               <button
                 type="button"
@@ -183,7 +181,7 @@ export default function ResetPasswordPage() {
           {/* Confirm password */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              Confirm new password
+              تأكيد كلمة المرور الجديدة
             </label>
             <div className="relative">
               <input
@@ -193,7 +191,7 @@ export default function ResetPasswordPage() {
                 required
                 autoComplete="new-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 pr-10 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 pe-10 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
               <button
                 type="button"
@@ -207,7 +205,7 @@ export default function ResetPasswordPage() {
             {/* Live match indicator */}
             {confirm.length > 0 && (
               <p className={`text-xs mt-1 ${password === confirm ? 'text-emerald-400' : 'text-red-400'}`}>
-                {password === confirm ? 'Passwords match ✓' : 'Passwords do not match'}
+                {password === confirm ? 'Passwords match ✓' : 'كلمتا المرور غير متطابقتين'}
               </p>
             )}
           </div>
@@ -217,7 +215,7 @@ export default function ResetPasswordPage() {
             disabled={loading || password.length < MIN_PW_LEN || password !== confirm}
             className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
-            {loading ? 'Updating…' : 'Update password'}
+            {loading ? 'Updating…' : 'تحديث كلمة المرور'}
           </button>
         </form>
       </div>

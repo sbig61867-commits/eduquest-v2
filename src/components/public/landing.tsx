@@ -188,7 +188,7 @@ export function Landing() {
             </Link>
             <Link href="/demo"
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 font-semibold transition-colors text-center">
-              {lang === 'ar' ? 'جرّب المنصة الآن' : 'Try the demo'}
+              {lang === 'ar' ? 'جرّب المنصة الآن' : 'جرّب العرض التجريبي'}
             </Link>
           </div>
 

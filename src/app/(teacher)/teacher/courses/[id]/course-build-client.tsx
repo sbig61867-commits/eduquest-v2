@@ -232,7 +232,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
           <span className="text-white text-sm font-medium flex-1">{unit.title}</span>
           <span className="text-slate-500 text-xs">{unit.unit_items.length} items</span>
-          <button onClick={e => { e.stopPropagation(); setItemModal({ open: true, unitId: unit.id }) }} className="ml-1 p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors" title="Add content">
+          <button onClick={e => { e.stopPropagation(); setItemModal({ open: true, unitId: unit.id }) }} className="ms-1 p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors" title="إضافة محتوى">
             <Plus className="w-3.5 h-3.5" />
           </button>
           <button onClick={e => { e.stopPropagation(); deleteUnit(unit.id, levelId) }} className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors">
@@ -242,7 +242,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
         {isOpen && (
           <div className="px-3 pb-3 space-y-1.5 border-t border-slate-700/50 pt-2">
             {unit.unit_items.length === 0
-              ? <p className="text-slate-500 text-xs py-2 text-center">No content yet — add items above</p>
+              ? <p className="text-slate-500 text-xs py-2 text-center">لا يوجد محتوى بعد — أضف عناصر أعلاه</p>
               : unit.unit_items.map(item => renderItem(item, unit.id))
             }
           </div>
@@ -267,7 +267,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           </p>
         </div>
         <Badge variant={course.is_published ? 'green' : 'yellow'}>
-          {course.is_published ? 'Published' : 'Draft'}
+          {course.is_published ? 'منشور' : 'مسودة'}
         </Badge>
       </div>
 
@@ -286,7 +286,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
                 <span className="text-slate-500 text-sm">{level.course_units.length} units</span>
                 <button
                   onClick={e => { e.stopPropagation(); setUnitModal({ open: true, levelId: level.id }) }}
-                  className="ml-2 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors"
+                  className="ms-2 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" /> Unit
                 </button>
@@ -298,7 +298,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
                 <div className="px-4 pb-4 space-y-2 border-t border-slate-800">
                   <div className="pt-3 space-y-2">
                     {level.course_units.length === 0
-                      ? <p className="text-slate-500 text-sm text-center py-4">No units yet — add a unit above</p>
+                      ? <p className="text-slate-500 text-sm text-center py-4">لا توجد وحدات بعد — أضف وحدة أعلاه</p>
                       : level.course_units.map(unit => renderUnit(unit, level.id))
                     }
                   </div>
@@ -308,24 +308,24 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           ))}
 
           <Button variant="secondary" onClick={() => setLevelModal(true)}>
-            <Plus className="w-4 h-4" /> Add Level
+            <Plus className="w-4 h-4" /> إضافة مستوى
           </Button>
         </div>
       ) : (
         /* Flat Course */
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Units</h3>
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">الوحدات</h3>
             <Button size="sm" onClick={() => setUnitModal({ open: true, levelId: null })}>
-              <Plus className="w-3.5 h-3.5" /> Add Unit
+              <Plus className="w-3.5 h-3.5" /> إضافة وحدة
             </Button>
           </div>
           {flatUnits.length === 0
             ? (
               <div className="text-center py-12 bg-slate-900 border border-slate-800 rounded-xl">
                 <BookOpen className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400">No units yet.</p>
-                <p className="text-slate-500 text-sm">Add your first unit to start building this course.</p>
+                <p className="text-slate-400">لا توجد وحدات بعد.</p>
+                <p className="text-slate-500 text-sm">أضف وحدتك الأولى لتبدأ بناء هذا المساق.</p>
               </div>
             )
             : flatUnits.map(unit => renderUnit(unit, null))
@@ -336,41 +336,41 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
 
       {/* Add Level */}
-      <Modal open={levelModal} onClose={() => setLevelModal(false)} title="Add Level">
+      <Modal open={levelModal} onClose={() => setLevelModal(false)} title="إضافة مستوى">
         <form onSubmit={addLevel} className="space-y-4">
           <Input
-            label="Level Title"
+            label="عنوان المستوى"
             value={levelForm.title}
             onChange={e => setLevelForm({ title: e.target.value })}
             required
             placeholder="e.g. Level 1 – Foundations, Month 1..."
           />
           <div className="flex gap-3">
-            <Button type="button" variant="secondary" onClick={() => setLevelModal(false)} className="flex-1">Cancel</Button>
-            <Button type="submit" loading={saving} className="flex-1">Add Level</Button>
+            <Button type="button" variant="secondary" onClick={() => setLevelModal(false)} className="flex-1">إلغاء</Button>
+            <Button type="submit" loading={saving} className="flex-1">إضافة مستوى</Button>
           </div>
         </form>
       </Modal>
 
       {/* Add Unit */}
-      <Modal open={unitModal.open} onClose={() => setUnitModal({ open: false, levelId: null })} title="Add Unit">
+      <Modal open={unitModal.open} onClose={() => setUnitModal({ open: false, levelId: null })} title="إضافة وحدة">
         <form onSubmit={addUnit} className="space-y-4">
           <Input
-            label="Unit Title"
+            label="عنوان الوحدة"
             value={unitForm.title}
             onChange={e => setUnitForm({ title: e.target.value })}
             required
             placeholder="e.g. Unit 1 – Daily Routines, Introduction..."
           />
           <div className="flex gap-3">
-            <Button type="button" variant="secondary" onClick={() => setUnitModal({ open: false, levelId: null })} className="flex-1">Cancel</Button>
-            <Button type="submit" loading={saving} className="flex-1">Add Unit</Button>
+            <Button type="button" variant="secondary" onClick={() => setUnitModal({ open: false, levelId: null })} className="flex-1">إلغاء</Button>
+            <Button type="submit" loading={saving} className="flex-1">إضافة وحدة</Button>
           </div>
         </form>
       </Modal>
 
       {/* Add Content Item */}
-      <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title="Add Content" size="xl">
+      <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title="إضافة محتوى" size="xl">
         <form onSubmit={addItem} className="space-y-4">
           {/* AI Generator — strictly from the course's uploaded file */}
           <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 space-y-2">
@@ -388,11 +388,11 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Title"
+              label="العنوان"
               value={itemForm.title}
               onChange={e => setItemForm(p => ({ ...p, title: e.target.value }))}
               required
-              placeholder="Content title..."
+              placeholder="عنوان المحتوى…"
             />
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-300">Type</label>
@@ -407,20 +407,20 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Content (Markdown supported)</label>
+            <label className="block text-sm font-medium text-slate-300">المحتوى (يدعم Markdown)</label>
             <textarea
               value={itemForm.body}
               onChange={e => setItemForm(p => ({ ...p, body: e.target.value }))}
               rows={10}
               required
               className="w-full px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
-              placeholder="Write or generate content above..."
+              placeholder="اكتب المحتوى أو ولّده أعلاه…"
             />
           </div>
 
           <div className="flex gap-3">
-            <Button type="button" variant="secondary" onClick={() => setItemModal({ open: false, unitId: null })} className="flex-1">Cancel</Button>
-            <Button type="submit" loading={saving} className="flex-1">Add Content</Button>
+            <Button type="button" variant="secondary" onClick={() => setItemModal({ open: false, unitId: null })} className="flex-1">إلغاء</Button>
+            <Button type="submit" loading={saving} className="flex-1">إضافة محتوى</Button>
           </div>
         </form>
       </Modal>

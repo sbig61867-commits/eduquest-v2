@@ -25,8 +25,8 @@ export default function FeaturesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Feature Flags</h2>
-        <p className="text-slate-400 mt-1">Enable or disable platform features globally</p>
+        <h2 className="text-2xl font-bold text-white">مفاتيح المزايا</h2>
+        <p className="text-slate-400 mt-1">فعّل أو عطّل مزايا المنصة عالمياً</p>
       </div>
       <div className="space-y-3">
         {DEFAULT_FLAGS.map(flag => (

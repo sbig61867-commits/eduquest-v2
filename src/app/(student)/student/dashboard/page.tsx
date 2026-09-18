@@ -55,8 +55,8 @@ export default async function StudentDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">My Dashboard</h2>
-        <p className="text-slate-400 mt-1">Track your progress and upcoming activities</p>
+        <h2 className="text-2xl font-bold text-white">لوحتي</h2>
+        <p className="text-slate-400 mt-1">تابع تقدّمك وأنشطتك القادمة</p>
       </div>
 
       <AnnouncementsBanner announcements={announcements} />
@@ -82,9 +82,9 @@ export default async function StudentDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">Recent Lessons</h3>
+          <h3 className="text-white font-semibold mb-4">أحدث الدروس</h3>
           {lessonList.length === 0 ? (
-            <p className="text-slate-500 text-sm">No lessons assigned yet.</p>
+            <p className="text-slate-500 text-sm">لم تُسنَد دروس بعد.</p>
           ) : (
             <ul className="space-y-3">
               {lessonList.map(l => (
@@ -104,9 +104,9 @@ export default async function StudentDashboard() {
           )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">My Grades</h3>
+          <h3 className="text-white font-semibold mb-4">درجاتي</h3>
           {gradeList.length === 0 ? (
-            <p className="text-slate-500 text-sm">No grades yet.</p>
+            <p className="text-slate-500 text-sm">لا توجد درجات بعد.</p>
           ) : (
             <ul className="space-y-3">
               {gradeList.map(g => (

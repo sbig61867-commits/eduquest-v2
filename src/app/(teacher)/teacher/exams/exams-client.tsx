@@ -209,7 +209,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Exams</h2>
+          <h2 className="text-2xl font-bold text-white">الاختبارات</h2>
           <p className="text-slate-400 mt-1">{exams.length} exams created</p>
         </div>
         <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
@@ -220,7 +220,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       {exams.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No exams yet.</p>
+          <p className="text-slate-400">لا توجد اختبارات بعد.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -230,8 +230,8 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-white font-semibold">{exam.title}</h3>
-                    <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? 'Published' : 'Draft'}</Badge>
-                    {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 mr-1" />Proctored</Badge>}
+                    <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? 'منشور' : 'مسودة'}</Badge>
+                    {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 me-1" />مراقَب</Badge>}
                   </div>
                   <p className="text-slate-400 text-sm flex items-center gap-1.5 flex-wrap">
                     <Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span>
@@ -250,8 +250,8 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
         </div>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Create New Exam" size="xl">
-        <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title="إنشاء اختبار جديد" size="xl">
+        <div className="space-y-5 max-h-[70vh] overflow-y-auto pe-1">
           {/* AI Generator — from a topic, or from the teacher's own files */}
           <div className="flex rounded-lg border border-slate-700 overflow-hidden w-fit">
             <button type="button" onClick={() => setGenMode('topic')}
@@ -268,12 +268,12 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-violet-400" />
-                <span className="text-violet-400 text-sm font-medium">AI Question Generator</span>
+                <span className="text-violet-400 text-sm font-medium">مولّد الأسئلة بالذكاء الاصطناعي</span>
               </div>
               <div className="flex gap-2">
-                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic (e.g. Database Normalization)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="الموضوع (مثل: تطبيع قواعد البيانات)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                 <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
-                <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">Generate</Button>
+                <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">توليد</Button>
               </div>
             </div>
           ) : (
@@ -358,21 +358,21 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Exam Title" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Midterm Exam - Chapter 1-5" />
+            <Input label="عنوان الاختبار" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Midterm Exam - Chapter 1-5" />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">Group</label>
+                <label className="block text-sm font-medium text-slate-300">مجموعة</label>
                 <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
-              <Input label="Duration (minutes)" type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
+              <Input label="المدة (بالدقائق)" type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
             </div>
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.proctoring_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />Enable Proctoring (camera + tab detection)</span>
+              <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />تفعيل المراقبة (كاميرا + كشف التبويبات)</span>
             </label>
 
             {/* Questions Preview */}
@@ -437,7 +437,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             )}
 
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
+              <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">إلغاء</Button>
               <Button type="submit" loading={loading} className="flex-1">Create Exam ({questions.reduce((s, q) => s + (q.points || 0), 0)} د)</Button>
             </div>
           </form>
@@ -445,11 +445,11 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       </Modal>
 
       {/* Results */}
-      <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title="Exam Results" size="xl">
+      <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title="نتائج الاختبار" size="xl">
         {resultsLoading ? (
           <p className="text-slate-500 text-sm py-8 text-center">Loading results...</p>
         ) : results ? (
-          <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto pe-1">
             <div className="flex flex-wrap items-center gap-3">
               <div>
                 <p className="text-white font-semibold">{results.title}</p>
@@ -462,16 +462,16 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             </div>
 
             {results.results.length === 0 ? (
-              <p className="text-slate-500 text-sm py-6 text-center">No students enrolled in this group yet.</p>
+              <p className="text-slate-500 text-sm py-6 text-center">لا يوجد طلاب مسجّلون في هذه المجموعة بعد.</p>
             ) : (
               <div className="border border-slate-800 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                      <th className="text-left px-4 py-2.5">Student</th>
-                      <th className="text-left px-4 py-2.5">Score</th>
-                      <th className="text-left px-4 py-2.5 hidden sm:table-cell">Submitted</th>
-                      <th className="text-left px-4 py-2.5">Status</th>
+                      <th className="text-left px-4 py-2.5">طالب</th>
+                      <th className="text-left px-4 py-2.5">الدرجة</th>
+                      <th className="text-left px-4 py-2.5 hidden sm:table-cell">تم التسليم</th>
+                      <th className="text-left px-4 py-2.5">الحالة</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/70">
@@ -501,7 +501,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                             <td className="px-4 py-3">
                               {!r.submitted ? <Badge variant="gray">Not taken</Badge>
                                 : <span className="flex items-center gap-2">
-                                    <Badge variant="green">Submitted</Badge>
+                                    <Badge variant="green">تم التسليم</Badge>
                                     {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
                                   </span>}
                             </td>
@@ -592,7 +592,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       {/* Questions viewer — teacher reviews the exam content after creation */}
       <Modal open={!!viewQuestions} onClose={() => setViewQuestions(null)} title={viewQuestions ? `أسئلة: ${viewQuestions.title}` : ''} size="xl">
         {viewQuestions && (
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1" dir="rtl">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pe-1" dir="rtl">
             <p className="text-slate-400 text-sm">{viewQuestions.questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{viewQuestions.questions.reduce((s, q) => s + (q.points || 0), 0)}</span></p>
             {viewQuestions.questions.map((q, i) => (
               <div key={q.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2 text-start">

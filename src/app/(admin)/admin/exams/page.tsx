@@ -31,12 +31,12 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-800">
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? 'Homework' : 'Exam'}</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Teacher</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Group</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Submissions</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Status</th>
-            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">Created</th>
+            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? 'واجب' : 'اختبار'}</th>
+            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
+            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">مجموعة</th>
+            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">التسليمات</th>
+            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
+            <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -54,8 +54,8 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
                     <p className="text-slate-500 text-xs mt-0.5">
                       {isHomework(exam) ? 'بدون مؤقت' : `${exam.duration_minutes} min`}
                       {exam.proctoring_enabled && (
-                        <span className="text-blue-400 inline-flex items-center gap-1 ml-2">
-                          <ShieldCheck className="w-3 h-3" />Proctored
+                        <span className="text-blue-400 inline-flex items-center gap-1 ms-2">
+                          <ShieldCheck className="w-3 h-3" />مراقَب
                         </span>
                       )}
                     </p>
@@ -72,11 +72,11 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
               <td className="px-5 py-4">
                 {exam.is_published ? (
                   <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                    <Eye className="w-3.5 h-3.5" />Published
+                    <Eye className="w-3.5 h-3.5" />منشور
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                    <EyeOff className="w-3.5 h-3.5" />Draft
+                    <EyeOff className="w-3.5 h-3.5" />مسودة
                   </span>
                 )}
               </td>
@@ -104,7 +104,7 @@ export default async function AdminExamsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Exams &amp; Homework</h2>
+        <h2 className="text-2xl font-bold text-white">الاختبارات والواجبات</h2>
         <p className="text-slate-400 mt-1">
           {exams.length} exam{exams.length === 1 ? '' : 's'} · {homework.length} homework · {submissions} submission{submissions === 1 ? '' : 's'}
         </p>
@@ -113,8 +113,8 @@ export default async function AdminExamsPage() {
       {all.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No exams or homework yet.</p>
-          <p className="text-slate-500 text-sm mt-1">Teachers create these from their own panel.</p>
+          <p className="text-slate-400">لا توجد اختبارات أو واجبات بعد.</p>
+          <p className="text-slate-500 text-sm mt-1">ينشئها المعلمون من لوحاتهم.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -126,7 +126,7 @@ export default async function AdminExamsPage() {
           )}
           {homework.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">📋 Homework &amp; Activities</h3>
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">📋 الواجبات والأنشطة</h3>
               <Table rows={homework} homework />
             </div>
           )}

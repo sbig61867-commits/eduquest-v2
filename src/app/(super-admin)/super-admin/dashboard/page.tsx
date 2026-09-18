@@ -29,8 +29,8 @@ export default async function SuperAdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Platform Overview</h2>
-        <p className="text-slate-400 mt-1">Monitor all tenants and system health</p>
+        <h2 className="text-2xl font-bold text-white">نظرة عامة على المنصة</h2>
+        <p className="text-slate-400 mt-1">راقب كل المؤسسات وصحة النظام</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -52,9 +52,9 @@ export default async function SuperAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">Recent Tenants</h3>
+          <h3 className="text-white font-semibold mb-4">أحدث المؤسسات</h3>
           {stats.recentTenants.length === 0 ? (
-            <p className="text-slate-500 text-sm">No tenants yet. Create the first institution.</p>
+            <p className="text-slate-500 text-sm">لا توجد مؤسسات بعد. أنشئ المؤسسة الأولى.</p>
           ) : (
             <ul className="space-y-3">
               {stats.recentTenants.map(t => (
@@ -74,14 +74,14 @@ export default async function SuperAdminDashboard() {
           )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">System Status</h3>
+          <h3 className="text-white font-semibold mb-4">حالة النظام</h3>
           <div className="space-y-3">
             {['Database', 'Auth', 'Storage', 'Realtime'].map((service) => (
               <div key={service} className="flex items-center justify-between">
                 <span className="text-slate-300 text-sm">{service}</span>
                 <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Operational
+                  يعمل
                 </span>
               </div>
             ))}

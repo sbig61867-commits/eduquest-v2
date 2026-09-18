@@ -111,7 +111,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
           {!paused && (
             <div
               key={`bar-${index}`}
-              className="absolute bottom-0 right-0 h-0.5 bg-blue-500/70 eq-progress"
+              className="absolute bottom-0 end-0 h-0.5 bg-blue-500/70 eq-progress"
               style={{ animationDuration: `${ROTATE_MS}ms` }}
             />
           )}

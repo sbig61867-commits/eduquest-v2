@@ -217,7 +217,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">My Groups</h2>
+          <h2 className="text-2xl font-bold text-white">مجموعاتي</h2>
           <p className="text-slate-400 mt-1">{groups.length} groups</p>
         </div>
         <Button onClick={openAdd}><Plus className="w-4 h-4" /> New Group</Button>
@@ -226,7 +226,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       {groups.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No groups yet. Create your first group.</p>
+          <p className="text-slate-400">لا توجد مجموعات بعد. أنشئ مجموعتك الأولى.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -258,7 +258,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                     <ClipboardList className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => openManage(group)}>
-                    <UserPlus className="w-3.5 h-3.5" /> Manage Students
+                    <UserPlus className="w-3.5 h-3.5" /> إدارة الطلاب
                   </Button>
                 </div>
               </div>
@@ -275,20 +275,20 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
               {formError}
             </div>
           )}
-          <Input label="Group Name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g. Computer Science - Batch 2024" />
+          <Input label="اسم المجموعة" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g. Computer Science - Batch 2024" />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Description (optional)</label>
+            <label className="block text-sm font-medium text-slate-300">الوصف (اختياري)</label>
             <textarea
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               rows={3}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
-              placeholder="Brief description..."
+              placeholder="وصف موجز…"
             />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
-            <Button type="submit" loading={loading} className="flex-1">{editing ? 'Save Changes' : 'Create Group'}</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
+            <Button type="submit" loading={loading} className="flex-1">{editing ? 'حفظ التغييرات' : 'Create Group'}</Button>
           </div>
         </form>
       </Modal>
@@ -297,12 +297,12 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       <Modal open={!!managingGroup} onClose={() => setManagingGroup(null)} title={`Manage Students — ${managingGroup?.name ?? ''}`}>
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               value={studentSearch}
               onChange={e => setStudentSearch(e.target.value)}
-              placeholder="Search students..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="ابحث عن طالب…"
+              className="w-full ps-10 pe-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
 
@@ -314,7 +314,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
             {loadingStudents ? (
               <p className="text-slate-500 text-sm py-2">Loading...</p>
             ) : filteredEnrolled.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">No enrolled students</p>
+              <p className="text-slate-500 text-sm py-2">لا يوجد طلاب مسجّلون</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {filteredEnrolled.map(s => (
@@ -341,7 +341,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
               Add Students ({availableStudents.length} available)
             </p>
             {availableStudents.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">All students are enrolled or none found</p>
+              <p className="text-slate-500 text-sm py-2">كل الطلاب مسجّلون أو لم يُعثر على أحد</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {availableStudents.map(s => (
@@ -362,7 +362,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
             )}
           </div>
 
-          <Button variant="secondary" onClick={() => setManagingGroup(null)} className="w-full">Done</Button>
+          <Button variant="secondary" onClick={() => setManagingGroup(null)} className="w-full">تم</Button>
         </div>
       </Modal>
 

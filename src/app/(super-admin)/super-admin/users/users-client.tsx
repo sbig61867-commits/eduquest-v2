@@ -92,7 +92,7 @@ function UserRow({ u, onToggle, onDelete }: {
         <span className="text-slate-400 text-sm">{formatDate(u.created_at)}</span>
       </td>
       <td className="px-5 py-4">
-        <Badge variant={u.is_active ? 'green' : 'red'}>{u.is_active ? 'Active' : 'Disabled'}</Badge>
+        <Badge variant={u.is_active ? 'green' : 'red'}>{u.is_active ? 'نشط' : 'معطّل'}</Badge>
       </td>
       <td className="px-5 py-4">
         <div className="flex items-center gap-1 justify-end">
@@ -186,16 +186,16 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Add New User">
+    <Modal open={open} onClose={onClose} title="إضافة مستخدم جديد">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
-        <Input label="Full Name" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Ahmed Hassan" />
-        <Input label="Email" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@school.edu" />
-        <Input label="Password" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required placeholder="Min 8 characters" />
+        <Input label="الاسم الكامل" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder="Ahmed Hassan" />
+        <Input label="البريد الإلكتروني" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@school.edu" />
+        <Input label="كلمة المرور" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required placeholder="8 أحرف على الأقل" />
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Role</label>
+          <label className="block text-sm font-medium text-slate-300">الدور</label>
           <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
             className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -203,16 +203,16 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
         </div>
         {!defaultTenantId && (
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Institution</label>
+            <label className="block text-sm font-medium text-slate-300">المؤسسة</label>
             <select value={form.tenant_id} onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value }))} required
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— Select institution —</option>
+              <option value="">— اختر المؤسسة —</option>
               {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
         )}
         <div className="flex gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">إلغاء</Button>
           <Button type="submit" loading={loading} className="flex-1">Create User</Button>
         </div>
       </form>
@@ -329,9 +329,9 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
             {counts.admins + counts.teachers + counts.students} users total · {tenant.slug}
           </p>
         </div>
-        <Badge variant={tenant.is_active ? 'green' : 'red'}>{tenant.is_active ? 'Active' : 'Frozen'}</Badge>
+        <Badge variant={tenant.is_active ? 'green' : 'red'}>{tenant.is_active ? 'نشط' : 'مجمّد'}</Badge>
         <Button onClick={() => setShowAdd(true)}>
-          <UserPlus className="w-4 h-4" /> Add User
+          <UserPlus className="w-4 h-4" /> إضافة مستخدم
         </Button>
       </div>
 
@@ -349,20 +349,20 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input value={search} onChange={e => handleSearch(e.target.value)}
           placeholder={`Search ${tab}...`}
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+          className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">User</th>
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Role</th>
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Joined</th>
-              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">Status</th>
+              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مستخدم</th>
+              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الدور</th>
+              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">تاريخ الانضمام</th>
+              <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -452,7 +452,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
           <p className="text-slate-400 mt-1">{tenants.length} institutions · {totalUsers} total users</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
-          <UserPlus className="w-4 h-4" /> Add User
+          <UserPlus className="w-4 h-4" /> إضافة مستخدم
         </Button>
       </div>
 
@@ -473,19 +473,19 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Institutions</h3>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">المؤسسات</h3>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search institutions..."
-              className="pl-9 pr-4 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-56" />
+              placeholder="ابحث عن مؤسسة…"
+              className="ps-9 pe-4 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-56" />
           </div>
         </div>
 
         {filteredTenants.length === 0 ? (
           <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
             <Building2 className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400">No institutions found</p>
+            <p className="text-slate-400">لم يُعثر على مؤسسات</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -499,7 +499,7 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
                       <Building2 className="w-5 h-5 text-blue-400" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={tenant.is_active ? 'green' : 'red'}>{tenant.is_active ? 'Active' : 'Frozen'}</Badge>
+                      <Badge variant={tenant.is_active ? 'green' : 'red'}>{tenant.is_active ? 'نشط' : 'مجمّد'}</Badge>
                       <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all" />
                     </div>
                   </div>
@@ -514,12 +514,12 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
                     <div className="bg-slate-800/60 rounded-lg p-2 text-center">
                       <GraduationCap className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1" />
                       <p className="text-white text-sm font-bold">{c.teachers}</p>
-                      <p className="text-slate-500 text-xs">Teachers</p>
+                      <p className="text-slate-500 text-xs">المعلمون</p>
                     </div>
                     <div className="bg-slate-800/60 rounded-lg p-2 text-center">
                       <Users className="w-3.5 h-3.5 text-blue-400 mx-auto mb-1" />
                       <p className="text-white text-sm font-bold">{c.students}</p>
-                      <p className="text-slate-500 text-xs">Students</p>
+                      <p className="text-slate-500 text-xs">الطلاب</p>
                     </div>
                   </div>
                   <p className="text-slate-600 text-xs mt-3">Created {formatDate(tenant.created_at)}</p>

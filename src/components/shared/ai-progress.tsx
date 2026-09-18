@@ -53,7 +53,7 @@ export function AiProgress({ active }: { active: boolean }) {
           ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           : <Loader2 className="w-4 h-4 text-violet-400 animate-spin shrink-0" />}
         <span className={done ? 'text-emerald-400 font-medium' : 'text-slate-300'}>{stage}</span>
-        <span className="text-slate-500 mr-auto tabular-nums">{Math.round(progress)}%</span>
+        <span className="text-slate-500 me-auto tabular-nums">{Math.round(progress)}%</span>
       </div>
       <div className="h-2 bg-slate-700/60 rounded-full overflow-hidden">
         <div

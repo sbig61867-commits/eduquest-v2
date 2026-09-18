@@ -18,11 +18,10 @@ export default function NotFound() {
         </div>
 
         <div className="space-y-2">
-          <p className="text-[13px] font-medium tracking-wide text-fg-muted uppercase">Error 404</p>
-          <h1 className="text-xl font-semibold text-fg">This page does not exist</h1>
+          <p className="text-[13px] font-medium tracking-wide text-fg-muted uppercase">خطأ 404</p>
+          <h1 className="text-xl font-semibold text-fg">هذه الصفحة غير موجودة</h1>
           <p className="text-[13px] text-fg-secondary leading-relaxed">
-            The link may be out of date, or the item may have been archived by your
-            institution. Your account and data are unaffected.
+            قد يكون الرابط قديماً، أو أن العنصر قد أُرشف من قِبل مؤسستك. حسابك وبياناتك غير متأثرة.
           </p>
         </div>
 
@@ -31,7 +30,7 @@ export default function NotFound() {
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent-hover text-accent-fg font-medium rounded-lg transition-colors text-sm focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
         >
           <Home className="w-4 h-4" aria-hidden="true" />
-          Back to EduQuest
+          العودة إلى إديوكويست
         </Link>
       </div>
     </div>

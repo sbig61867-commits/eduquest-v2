@@ -114,11 +114,11 @@ export function StudentQuickAccessPanel() {
           })
         }}
         className={cn(
-          'fixed right-0 top-1/2 -translate-y-1/2 z-40',
-          'bg-slate-800 hover:bg-slate-700 border border-slate-700 border-r-0',
+          'fixed end-0 top-1/2 -translate-y-1/2 z-40',
+          'bg-slate-800 hover:bg-slate-700 border border-slate-700 border-e-0',
           'text-slate-300 hover:text-white transition-all duration-200',
-          'rounded-l-xl p-2.5 shadow-lg',
-          open && 'right-72',
+          'rounded-s-xl p-2.5 shadow-lg',
+          open && 'end-72',
         )}
         title={open ? 'Close quick access' : 'Quick access'}
       >
@@ -129,7 +129,7 @@ export function StudentQuickAccessPanel() {
 
       {/* Panel */}
       <div className={cn(
-        'fixed right-0 top-16 bottom-0 w-72 z-30',
+        'fixed end-0 top-16 bottom-0 w-72 z-30',
         'bg-slate-900 border-l border-slate-800',
         'flex flex-col overflow-hidden',
         'transition-transform duration-300',
@@ -152,7 +152,7 @@ export function StudentQuickAccessPanel() {
                 <span className="text-slate-400 text-xs font-semibold uppercase tracking-wide">{label}</span>
               </div>
               {items.length === 0 ? (
-                <p className="text-slate-600 text-xs pl-6">{emptyText}</p>
+                <p className="text-slate-600 text-xs ps-6">{emptyText}</p>
               ) : (
                 <ul className="space-y-1">
                   {items.map((item, i) => (
