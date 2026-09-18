@@ -36,11 +36,11 @@ const PRIVATE_ONLY_INVITE_ROLES = new Set(['university_admin', 'center_manager']
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+  if (!profile) return NextResponse.json({ error: 'لم يُعثر على الملف الشخصي' }, { status: 403 })
 
   let query = supabase
     .from('invitations')
@@ -73,21 +73,21 @@ export async function GET() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!caller) return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
+  if (!caller) return NextResponse.json({ error: 'لم يُعثر على الملف الشخصي' }, { status: 403 })
 
   if (!ROLE_CEILING[caller.role]) {
-    return NextResponse.json({ error: 'You cannot create invitations' }, { status: 403 })
+    return NextResponse.json({ error: 'لا تملك صلاحية إنشاء الدعوات' }, { status: 403 })
   }
 
   // 50 invitations per user per hour
   const rl = await rateLimit(`invitations:${user.id}`, { limit: 50, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded. Try again later.' },
+      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     is_university_student?: boolean
   }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { email, role, group_id, expires_hours } = body
   const isPublic = body.is_public === true
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 
   // ── Validate role ────────────────────────────────────────
   if (!role) {
-    return NextResponse.json({ error: 'role is required' }, { status: 400 })
+    return NextResponse.json({ error: 'الدور مطلوب' }, { status: 400 })
   }
   if (!ROLE_CEILING[caller.role].includes(role)) {
     return NextResponse.json(
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
   // holding the URL claim staff access to the tenant.
   if (isPublic && PRIVATE_ONLY_INVITE_ROLES.has(role)) {
     return NextResponse.json(
-      { error: 'Staff invitations (Institution Admin / Centre Manager) must always be email-specific for security.' },
+      { error: 'دعوات الطاقم (مدير المؤسسة / مدير المركز) يجب أن تكون لبريد محدد دائماً لأسباب أمنية.' },
       { status: 400 }
     )
   }
@@ -138,10 +138,10 @@ export async function POST(request: Request) {
   // ── Email validation ─────────────────────────────────────
   if (!isPublic) {
     if (!email?.trim()) {
-      return NextResponse.json({ error: 'email is required for private invitations' }, { status: 400 })
+      return NextResponse.json({ error: 'البريد الإلكتروني مطلوب للدعوات الخاصة' }, { status: 400 })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+      return NextResponse.json({ error: 'صيغة البريد الإلكتروني غير صالحة' }, { status: 400 })
     }
   }
 
@@ -151,14 +151,14 @@ export async function POST(request: Request) {
     : caller.tenant_id
 
   if (!tenant_id) {
-    return NextResponse.json({ error: 'tenant_id is required for this role' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف المؤسسة مطلوب لهذا الدور' }, { status: 400 })
   }
 
   // Verify tenant exists and is active
   if (caller.role === 'super_admin') {
     const { data: tenant } = await supabase.from('tenants').select('id, is_active').eq('id', tenant_id).single()
-    if (!tenant) return NextResponse.json({ error: 'Institution not found' }, { status: 404 })
-    if (!tenant.is_active) return NextResponse.json({ error: 'This institution is currently suspended' }, { status: 403 })
+    if (!tenant) return NextResponse.json({ error: 'لم يُعثر على المؤسسة' }, { status: 404 })
+    if (!tenant.is_active) return NextResponse.json({ error: 'هذه المؤسسة موقوفة حالياً' }, { status: 403 })
   }
 
   // ── Centre features ──────────────────────────────────────
@@ -172,17 +172,17 @@ export async function POST(request: Request) {
   // ── Validate group_id if provided ───────────────────────
   if (group_id) {
     if (role !== 'student') {
-      return NextResponse.json({ error: 'group_id is only valid for student invitations' }, { status: 400 })
+      return NextResponse.json({ error: 'معرّف المجموعة صالح لدعوات الطلاب فقط' }, { status: 400 })
     }
     const { data: group } = await supabase
       .from('groups').select('id, name, teacher_id, tenant_id').eq('id', group_id).single()
 
     if (!group || group.tenant_id !== tenant_id) {
-      return NextResponse.json({ error: 'Group not found in this tenant' }, { status: 400 })
+      return NextResponse.json({ error: 'لم يُعثر على المجموعة في هذه المؤسسة' }, { status: 400 })
     }
     // Teachers can only invite to their own groups
     if (caller.role === 'teacher' && group.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'You can only invite students to your own groups' }, { status: 403 })
+      return NextResponse.json({ error: 'يمكنك دعوة الطلاب إلى مجموعاتك فقط' }, { status: 403 })
     }
     groupNameSnapshot = group.name
   }
@@ -198,10 +198,10 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.tenant_id === tenant_id) {
-        return NextResponse.json({ error: 'A user with this email already exists in this institution' }, { status: 409 })
+        return NextResponse.json({ error: 'يوجد مستخدم بهذا البريد في هذه المؤسسة بالفعل' }, { status: 409 })
       }
       return NextResponse.json(
-        { error: 'This email is already registered in another institution. Contact support to transfer.' },
+        { error: 'هذا البريد مسجّل في مؤسسة أخرى. تواصل مع الدعم لنقله.' },
         { status: 409 }
       )
     }
@@ -211,7 +211,7 @@ export async function POST(request: Request) {
 
     if (!authCheckError && authExists) {
       return NextResponse.json(
-        { error: 'This email is already registered. If you lost access to your account, contact support.' },
+        { error: 'هذا البريد مسجّل بالفعل. إن فقدت الوصول إلى حسابك فتواصل مع الدعم.' },
         { status: 409 }
       )
     }
@@ -249,7 +249,7 @@ export async function POST(request: Request) {
     // Unique constraint violation = pending invitation already exists for this email+tenant
     if (insertError.code === '23505') {
       return NextResponse.json(
-        { error: 'A pending invitation for this email already exists. Revoke it first to create a new one.' },
+        { error: 'توجد دعوة معلّقة لهذا البريد. ألغِها أولاً لإنشاء دعوة جديدة.' },
         { status: 409 }
       )
     }

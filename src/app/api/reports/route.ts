@@ -10,11 +10,11 @@ import {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const scope = searchParams.get('scope') as ReportScope | null
@@ -23,9 +23,9 @@ export async function GET(request: Request) {
   const lang: ReportLang = searchParams.get('lang') === 'en' ? 'en' : 'ar'
 
   if (!scope || !['university', 'teacher', 'group', 'student', 'pilot'].includes(scope)) {
-    return NextResponse.json({ error: 'scope must be university, teacher, group, student, or pilot' }, { status: 400 })
+    return NextResponse.json({ error: 'النطاق يجب أن يكون: الجامعة أو المعلم أو المجموعة أو الطالب أو التجربة' }, { status: 400 })
   }
-  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مطلوب' }, { status: 400 })
 
   const access = canAccessReport(profile)
   if (!access.ok) return NextResponse.json({ error: access.reason ?? 'Forbidden' }, { status: 403 })
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     scope === 'pilot'      ? await buildPilotReport(admin, id, lang) :
                              await buildGroupReport(admin, id, lang)
 
-  if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!report) return NextResponse.json({ error: 'غير موجود' }, { status: 404 })
 
   if (format === 'csv') {
     const filename = `report_${scope}_${new Date().toISOString().slice(0, 10)}.csv`

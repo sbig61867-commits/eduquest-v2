@@ -36,19 +36,19 @@ function parseSuggestions(raw: string): Suggestion[] {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const limit = await rateLimit(`announcement_copy:${user.id}`, { limit: 15, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ error: 'تجاوزت الحد المسموح، حاول لاحقاً' }, { status: 429 })
 
   let body: { brief?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
   const brief = String(body.brief ?? '').trim()
   if (brief.length < 5) return NextResponse.json({ error: 'اكتب وصفاً مختصراً للإعلان أولاً' }, { status: 400 })
   if (brief.length > MAX_BRIEF) return NextResponse.json({ error: 'الوصف طويل جداً' }, { status: 400 })

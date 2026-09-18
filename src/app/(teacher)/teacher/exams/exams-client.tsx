@@ -495,7 +495,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                               {!r.submitted ? <span className="text-slate-600">—</span>
                                 : r.grading_status === 'published' && r.score != null
                                   ? <span className={`font-bold ${pct! >= 60 ? 'text-emerald-400' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
-                                  : <span className="text-amber-400 text-xs">pending grading</span>}
+                                  : <span className="text-amber-400 text-xs">بانتظار التصحيح</span>}
                             </td>
                             <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
                             <td className="px-4 py-3">

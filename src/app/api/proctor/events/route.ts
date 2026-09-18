@@ -38,18 +38,18 @@ interface IncomingEvent {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   let body: { examId?: string; events?: IncomingEvent[] }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { examId, events } = body
   if (!examId || !Array.isArray(events) || events.length === 0) {
-    return NextResponse.json({ error: 'Missing examId or events' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف الاختبار أو الأحداث مفقودة' }, { status: 400 })
   }
   if (events.length > 50) {
-    return NextResponse.json({ error: 'Too many events in one batch' }, { status: 413 })
+    return NextResponse.json({ error: 'أحداث كثيرة جداً في دفعة واحدة' }, { status: 413 })
   }
 
   // Sanitize + whitelist. Anything unknown is dropped silently.
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     .eq('student_id', user.id)
     .single()
   if (!enrollment) {
-    return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
+    return NextResponse.json({ error: 'غير مسجّل في هذا الاختبار' }, { status: 403 })
   }
 
   // Reuse the existing atomic appender (jsonb concat, SECURITY DEFINER). It only
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
   })
   if (error) {
     console.error('[proctor/events]', error)
-    return NextResponse.json({ error: 'Failed to record events' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل تسجيل الأحداث' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, appended: clean.length })

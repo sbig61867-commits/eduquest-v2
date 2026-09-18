@@ -16,22 +16,22 @@ function getAdminClient() {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
 
   if (!caller || !['super_admin', 'university_admin'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   let body: { teacher_id?: string; can_create_courses?: boolean }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { teacher_id, can_create_courses } = body
   if (!teacher_id || typeof can_create_courses !== 'boolean') {
-    return NextResponse.json({ error: 'teacher_id and can_create_courses are required' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف المعلم وصلاحية إنشاء المساقات مطلوبان' }, { status: 400 })
   }
 
   const adminClient = getAdminClient()
@@ -44,11 +44,11 @@ export async function PATCH(request: Request) {
     .single()
 
   if (!teacher || teacher.role !== 'teacher') {
-    return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
+    return NextResponse.json({ error: 'لم يُعثر على المعلم' }, { status: 404 })
   }
 
   if (caller.role === 'university_admin' && teacher.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'Teacher is not in your institution' }, { status: 403 })
+    return NextResponse.json({ error: 'المعلم ليس ضمن مؤسستك' }, { status: 403 })
   }
 
   const { error } = await adminClient
@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error('[teacher-permissions]', error)
-    return NextResponse.json({ error: 'Failed to update teacher permissions' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل تحديث صلاحيات المعلم' }, { status: 500 })
   }
 
   return NextResponse.json({

@@ -28,13 +28,13 @@ function adminClient() {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
   if (!caller || !['university_admin', 'super_admin', 'center_manager'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
   if (!canSetAffiliation(caller)) {
     return NextResponse.json(
@@ -47,16 +47,16 @@ export async function PATCH(request: Request) {
   }
   // A centre manager must additionally hold the student-management flag.
   if (caller.role === 'center_manager' && !canManageAccountRole(caller, 'student')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   let body: { userId?: string; isUniversityStudent?: boolean }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { userId, isUniversityStudent } = body
   if (!userId || typeof isUniversityStudent !== 'boolean') {
-    return NextResponse.json({ error: 'Missing userId or isUniversityStudent' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف المستخدم أو صفة الانتساب مفقودة' }, { status: 400 })
   }
 
   const { data: target } = await supabase
@@ -66,7 +66,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'الطالب غير موجود' }, { status: 404 })
   }
   if (caller.role !== 'super_admin' && target.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const { error } = await adminClient()

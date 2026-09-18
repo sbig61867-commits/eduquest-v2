@@ -29,14 +29,14 @@ export async function POST(request: Request) {
   }
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const studentId = typeof body.student_id === 'string' ? body.student_id : ''
   const fromGroup = typeof body.from_group_id === 'string' ? body.from_group_id : ''
   const toGroup = typeof body.to_group_id === 'string' ? body.to_group_id : ''
   const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
   if (!studentId || !fromGroup || !toGroup) {
-    return NextResponse.json({ error: 'Missing student_id, from_group_id or to_group_id' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف الطالب أو المجموعة المصدر أو الهدف مفقود' }, { status: 400 })
   }
   if (reason.length < 3 || reason.length > 500) {
     return NextResponse.json({ error: 'اكتب سبب النقل (3 إلى 500 حرف)' }, { status: 400 })

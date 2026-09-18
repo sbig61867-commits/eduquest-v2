@@ -10,12 +10,12 @@ export async function POST(request: Request) {
   const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
   const rl = await rateLimit(`contact:${ip}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
-    return NextResponse.json({ error: 'Too many messages. Try again later.' }, { status: 429 })
+    return NextResponse.json({ error: 'رسائل كثيرة جداً. حاول لاحقاً.' }, { status: 429 })
   }
 
   let body: { name?: string; email?: string; message?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const name = body.name?.trim() ?? ''
   const email = body.email?.trim().toLowerCase() ?? ''
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   const { error } = await admin.from('contact_messages').insert({ name, email, message })
   if (error) {
     console.error('[contact]', error.message)
-    return NextResponse.json({ error: 'Failed to send. Try again.' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل الإرسال. حاول مجدداً.' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true }, { status: 201 })

@@ -17,21 +17,21 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user: caller } } = await supabase.auth.getUser()
-  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!caller) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: callerProfile } = await supabase
     .from('users').select('role').eq('id', caller.id).single()
   if (callerProfile?.role !== 'super_admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   let body: { tenant_id?: string; archive?: boolean }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { tenant_id, archive } = body
   if (!tenant_id || typeof archive !== 'boolean') {
-    return NextResponse.json({ error: 'tenant_id and archive (boolean) are required' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف المؤسسة وحالة الأرشفة مطلوبان' }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     .from('tenants').update({ is_active: nextActive }).eq('id', tenant_id).select().single()
   if (tenantErr || !tenant) {
     console.error('[archive-tenant] tenant update:', tenantErr)
-    return NextResponse.json({ error: 'Failed to update institution' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل تحديث المؤسسة' }, { status: 500 })
   }
 
   // 2. Cascade the same flag to every user in the tenant (blocks/restores their login).
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     .from('users').update({ is_active: nextActive }).eq('tenant_id', tenant_id)
   if (usersErr) {
     console.error('[archive-tenant] users update:', usersErr)
-    return NextResponse.json({ error: 'Institution updated but failed to update its users' }, { status: 500 })
+    return NextResponse.json({ error: 'حُدِّثت المؤسسة لكن فشل تحديث مستخدميها' }, { status: 500 })
   }
 
   return NextResponse.json({ tenant, archived: archive })

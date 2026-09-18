@@ -14,16 +14,16 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   let body: { request_id?: string; body?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { request_id, body: text } = body
-  if (!request_id) return NextResponse.json({ error: 'Missing request_id' }, { status: 400 })
+  if (!request_id) return NextResponse.json({ error: 'معرّف الطلب مفقود' }, { status: 400 })
   if (!text?.trim()) return NextResponse.json({ error: 'الرسالة فارغة' }, { status: 400 })
 
   const admin = adminClient()
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   }
   const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
   if (!isParticipant && profile.role !== 'university_admin' && profile.role !== 'super_admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const { data: created, error } = await admin

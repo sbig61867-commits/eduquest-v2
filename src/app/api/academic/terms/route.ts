@@ -9,7 +9,7 @@ async function authorize() {
   const res = await getCaller()
   if ('error' in res) return res
   if (!staffCan(res.caller, 'manage_academic_structure')) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
   }
   // Tenants on the original ('flat') structure can't touch this at all.
   if ((await getTenantStructureMode(serviceClient(), res.caller.tenant_id)) !== 'academic') {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (!name || name.length > 120) return NextResponse.json({ error: 'الاسم مطلوب (حتى 120 حرفاً)' }, { status: 400 })
@@ -75,8 +75,8 @@ export async function PATCH(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  if (typeof body.id !== 'string') return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  if (typeof body.id !== 'string') return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   const admin = serviceClient()
   const { data: existing } = await admin
@@ -101,7 +101,7 @@ export async function PATCH(request: Request) {
     update.ends_on = ends
   }
   if (body.is_current !== undefined) update.is_current = body.is_current === true
-  if (Object.keys(update).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  if (Object.keys(update).length === 0) return NextResponse.json({ error: 'لا يوجد ما يُحدَّث' }, { status: 400 })
 
   if (update.is_current === true) {
     const { error } = await clearCurrent(admin, caller.tenant_id, existing.id)
@@ -123,8 +123,8 @@ export async function DELETE(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  if (typeof body.id !== 'string') return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  if (typeof body.id !== 'string') return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   const admin = serviceClient()
   const { data: existing } = await admin

@@ -22,20 +22,20 @@ export async function POST(request: Request) {
   const key = process.env.LIVEKIT_API_KEY
   const secret = process.env.LIVEKIT_API_SECRET
   if (!url || !key || !secret || /^your/i.test(key)) {
-    return NextResponse.json({ error: 'Live proctoring not configured' }, { status: 503 })
+    return NextResponse.json({ error: 'المراقبة المباشرة غير مهيّأة' }, { status: 503 })
   }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   let body: { examId?: string; role?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { examId, role } = body
   if (!examId || (role !== 'student' && role !== 'teacher')) {
-    return NextResponse.json({ error: 'Missing examId or role' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف الاختبار أو الدور مفقود' }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     .eq('id', examId)
     .single()
   if (!exam || !exam.proctoring_enabled) {
-    return NextResponse.json({ error: 'Exam not found or not proctored' }, { status: 404 })
+    return NextResponse.json({ error: 'الاختبار غير موجود أو غير مراقَب' }, { status: 404 })
   }
 
   const { data: profile } = await admin
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   if (role === 'teacher') {
     if (exam.teacher_id !== user.id && profile?.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
     }
   } else {
     // Student must be enrolled in the exam's group.
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       .select('student_id', { count: 'exact', head: true })
       .eq('group_id', exam.group_id)
       .eq('student_id', user.id)
-    if (!count) return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
+    if (!count) return NextResponse.json({ error: 'غير مسجّل في هذا الاختبار' }, { status: 403 })
   }
 
   const isTeacher = role === 'teacher'

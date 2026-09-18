@@ -15,23 +15,23 @@ function adminClient() {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const groupId = searchParams.get('group_id')
   const format = searchParams.get('format') ?? 'csv'
 
-  if (!groupId) return NextResponse.json({ error: 'group_id required' }, { status: 400 })
+  if (!groupId) return NextResponse.json({ error: 'معرّف المجموعة مطلوب' }, { status: 400 })
 
   // Verify teacher owns the group
   const { data: group } = await adminClient()
     .from('groups').select('teacher_id, tenant_id, name').eq('id', groupId).single()
   if (!group || group.tenant_id !== profile.tenant_id || group.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   // Get all exams for this group (both homework and exams)
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: true })
 
   if (!exams || exams.length === 0) {
-    return NextResponse.json({ error: 'No exams found for this group' }, { status: 404 })
+    return NextResponse.json({ error: 'لا توجد اختبارات لهذه المجموعة' }, { status: 404 })
   }
 
   // Get all students in the group
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     .eq('group_id', groupId)
 
   if (!members || members.length === 0) {
-    return NextResponse.json({ error: 'No students in this group' }, { status: 404 })
+    return NextResponse.json({ error: 'لا يوجد طلاب في هذه المجموعة' }, { status: 404 })
   }
 
   // Get all submissions for these exams
@@ -108,7 +108,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ group: group.name, rows })
   }
 
-  if (rows.length === 0) return NextResponse.json({ error: 'No data' }, { status: 404 })
+  if (rows.length === 0) return NextResponse.json({ error: 'لا توجد بيانات' }, { status: 404 })
 
   // Real XLSX (not CSV): native UTF-8 keeps Arabic names intact, columns
   // always split correctly, numbers stay numeric, and no Excel warning.

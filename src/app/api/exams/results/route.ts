@@ -16,10 +16,10 @@ function adminClient() {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const examId = new URL(request.url).searchParams.get('exam_id')
-  if (!examId) return NextResponse.json({ error: 'exam_id required' }, { status: 400 })
+  if (!examId) return NextResponse.json({ error: 'معرّف الاختبار مطلوب' }, { status: 400 })
 
   const admin = adminClient()
   const { data: exam } = await admin
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     .eq('id', examId)
     .single()
   if (!exam || exam.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const maxScore = ((exam.questions as Array<{ points?: number }>) ?? [])

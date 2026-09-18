@@ -118,8 +118,8 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
                     <p className="text-slate-500 text-xs mt-1 flex items-center gap-1.5 flex-wrap">
                       <GraduationCap className="w-3.5 h-3.5" /> {r.teacher_name ?? 'Unknown'}
                       <span className="mx-1">·</span>
-                      أُنشئ {new Date(r.created_at).toLocaleDateString('ar')}
-                      {r.deleted_at && <><span className="mx-1">·</span>أُرشف {new Date(r.deleted_at).toLocaleDateString('ar')}</>}
+                      أُنشئ {new Date(r.created_at).toLocaleDateString('ar-u-ca-gregory-nu-latn')}
+                      {r.deleted_at && <><span className="mx-1">·</span>أُرشف {new Date(r.deleted_at).toLocaleDateString('ar-u-ca-gregory-nu-latn')}</>}
                     </p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
                       <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{r.student_count} students</span>

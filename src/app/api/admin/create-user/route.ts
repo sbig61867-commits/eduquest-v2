@@ -30,20 +30,20 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user: caller } } = await supabase.auth.getUser()
-    if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!caller) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
     const { data: callerProfile } = await supabase
       .from('users').select('role, tenant_id, permissions').eq('id', caller.id).single()
 
     if (!callerProfile || !['university_admin', 'super_admin', 'center_manager'].includes(callerProfile.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
     }
 
     // 20 user creations per admin per hour
     const rl = await rateLimit(`create-user:${caller.id}`, { limit: 20, windowSecs: 3600 })
     if (!rl.allowed) {
       return NextResponse.json(
-        { error: 'Rate limit exceeded. Try again later.' },
+        { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
         { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
       )
     }
@@ -52,13 +52,13 @@ export async function POST(request: Request) {
     const { full_name, email, password, role } = body
 
     if (!full_name?.trim() || !email?.trim() || !password || !role) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json({ error: 'حقول مطلوبة ناقصة' }, { status: 400 })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+      return NextResponse.json({ error: 'صيغة البريد الإلكتروني غير صالحة' }, { status: 400 })
     }
     if (password.length < 8) {
-      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+      return NextResponse.json({ error: 'يجب ألا تقل كلمة المرور عن 8 أحرف' }, { status: 400 })
     }
 
     const ALLOWED: Record<string, string[]> = {
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       : callerProfile.tenant_id
 
     if (!tenant_id) {
-      return NextResponse.json({ error: 'An institution must be selected for this role' }, { status: 400 })
+      return NextResponse.json({ error: 'يجب اختيار مؤسسة لهذا الدور' }, { status: 400 })
     }
 
     const adminClient = getAdminClient()
@@ -142,13 +142,13 @@ export async function POST(request: Request) {
       console.error('[create-user] profile upsert error:', upsertError)
       // Rollback: delete the auth user so we don't leave orphaned auth entries
       await adminClient.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json({ error: 'Failed to create user profile. Please try again.' }, { status: 500 })
+      return NextResponse.json({ error: 'فشل إنشاء ملف المستخدم. حاول مجدداً.' }, { status: 500 })
     }
 
     return NextResponse.json({ user: profile })
 
   } catch (err) {
     console.error('[create-user] unexpected error:', err)
-    return NextResponse.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 })
+    return NextResponse.json({ error: 'حدث خطأ غير متوقع. حاول مجدداً.' }, { status: 500 })
   }
 }

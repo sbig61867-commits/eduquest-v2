@@ -27,11 +27,11 @@ export async function POST(request: Request) {
     const body = await request.json()
     email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   } catch {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    return NextResponse.json({ error: 'طلب غير صالح' }, { status: 400 })
   }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Valid email required' }, { status: 400 })
+    return NextResponse.json({ error: 'مطلوب بريد إلكتروني صالح' }, { status: 400 })
   }
 
   // Rate limit by email — 3 attempts per hour prevents email spam to one address

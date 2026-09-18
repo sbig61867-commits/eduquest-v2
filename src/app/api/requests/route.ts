@@ -35,15 +35,15 @@ async function getProfile(supabase: Awaited<ReturnType<typeof createClient>>, us
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const profile = await getProfile(supabase, user.id)
   if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   let body: { to_user_id?: string; type?: string; subject?: string; group_id?: string; message?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { to_user_id, type = 'general', subject, group_id, message } = body
   if (!to_user_id) return NextResponse.json({ error: 'المستلِم مطلوب' }, { status: 400 })
@@ -111,16 +111,16 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const profile = await getProfile(supabase, user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   let body: { id?: string; status?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { id, status } = body
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
   if (!status || !STATUSES.includes(status as typeof STATUSES[number])) {
     return NextResponse.json({ error: 'حالة غير صالحة' }, { status: 400 })
   }
@@ -133,7 +133,7 @@ export async function PATCH(request: Request) {
   }
   const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
   if (!isParticipant && profile.role !== 'university_admin' && profile.role !== 'super_admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   // Validate state machine: check valid from-state and who may make this transition.

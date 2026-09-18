@@ -22,13 +22,13 @@ describe('terminology', () => {
   })
 
   it('getRoleLabel keeps its original output without a type', () => {
-    expect(getRoleLabel('university_admin')).toBe('University Admin')
-    expect(getRoleLabel('teacher')).toBe('Teacher')
+    expect(getRoleLabel('university_admin')).toBe('مدير الجامعة')
+    expect(getRoleLabel('teacher')).toBe('معلم')
   })
 
   it('getRoleLabel follows the institution type for the admin role only', () => {
-    expect(getRoleLabel('university_admin', 'school')).toBe('School Admin')
-    expect(getRoleLabel('teacher', 'school')).toBe('Teacher')
+    expect(getRoleLabel('university_admin', 'school')).toBe('مدير المدرسة')
+    expect(getRoleLabel('teacher', 'school')).toBe('معلم')
   })
 })
 

@@ -28,7 +28,7 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   let body: {
     examId?: string
@@ -38,13 +38,13 @@ export async function POST(request: Request) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 })
   }
 
   const { examId, answers, clientViolations } = body
 
   if (!examId || typeof answers !== 'object' || answers === null) {
-    return NextResponse.json({ error: 'Missing examId or answers' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف الاختبار أو الإجابات مفقودة' }, { status: 400 })
   }
 
   // Verify the student belongs to this exam's group (via group_students)
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     .single()
 
   if (!exam) {
-    return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
+    return NextResponse.json({ error: 'لم يُعثر على الاختبار' }, { status: 404 })
   }
 
   // Verify student is enrolled in the group that owns this exam
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     .single()
 
   if (!enrollment) {
-    return NextResponse.json({ error: 'Not enrolled in this exam' }, { status: 403 })
+    return NextResponse.json({ error: 'غير مسجّل في هذا الاختبار' }, { status: 403 })
   }
 
   // Grade server-side using correct_answer from DB — never from client.
@@ -129,17 +129,17 @@ export async function POST(request: Request) {
     // Map domain errors raised by the RPC to clear client responses.
     const msg = rpcError.message ?? ''
     const MAP: Record<string, { status: number; error: string }> = {
-      NOT_STARTED:       { status: 409, error: 'You must start the exam before submitting.' },
-      ALREADY_SUBMITTED: { status: 409, error: 'This exam has already been submitted.' },
-      EXAM_NOT_OPEN:     { status: 403, error: 'This exam is not open yet.' },
-      EXAM_CLOSED:       { status: 403, error: 'The exam window has closed.' },
-      TIME_EXPIRED:      { status: 403, error: 'Your time for this exam has expired.' },
-      EXAM_NOT_FOUND:    { status: 404, error: 'Exam not found.' },
+      NOT_STARTED:       { status: 409, error: 'يجب أن تبدأ الاختبار قبل التسليم.' },
+      ALREADY_SUBMITTED: { status: 409, error: 'تم تسليم هذا الاختبار من قبل.' },
+      EXAM_NOT_OPEN:     { status: 403, error: 'هذا الاختبار لم يُفتح بعد.' },
+      EXAM_CLOSED:       { status: 403, error: 'انتهت فترة الاختبار.' },
+      TIME_EXPIRED:      { status: 403, error: 'انتهى وقتك في هذا الاختبار.' },
+      EXAM_NOT_FOUND:    { status: 404, error: 'لم يُعثر على الاختبار.' },
     }
     const hit = Object.keys(MAP).find(code => msg.includes(code))
     if (hit) return NextResponse.json({ error: MAP[hit].error }, { status: MAP[hit].status })
     console.error('[exam/submit] finalize error', rpcError)
-    return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل حفظ التسليم' }, { status: 500 })
   }
 
   if (
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     typeof (result as Record<string, unknown>).max_score !== 'number'
   ) {
     console.error('[exam/submit] unexpected RPC result shape', result)
-    return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل حفظ التسليم' }, { status: 500 })
   }
   const out = result as { score: number; max_score: number }
 

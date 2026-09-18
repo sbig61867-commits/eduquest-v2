@@ -20,13 +20,13 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
 async function authorize(): Promise<{ tenantId: string } | { error: NextResponse }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_schedules')) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
   }
   return { tenantId: profile.tenant_id }
 }
@@ -81,10 +81,10 @@ export async function POST(request: Request) {
   if ('error' in auth) return auth.error
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const scheduleId = String(body.schedule_id ?? '')
-  if (!scheduleId) return NextResponse.json({ error: 'Missing schedule_id' }, { status: 400 })
+  if (!scheduleId) return NextResponse.json({ error: 'معرّف الجدول مفقود' }, { status: 400 })
 
   const parsed = readSlotFields(body, false)
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
@@ -117,10 +117,10 @@ export async function PATCH(request: Request) {
   if ('error' in auth) return auth.error
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const id = String(body.id ?? '')
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin
@@ -155,8 +155,8 @@ export async function DELETE(request: Request) {
   if ('error' in auth) return auth.error
 
   let body: { id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  if (!body.id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin

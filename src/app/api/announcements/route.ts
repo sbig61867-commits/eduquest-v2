@@ -32,13 +32,13 @@ interface Caller {
 async function authorize(): Promise<{ caller: Caller } | { error: NextResponse }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
   }
   return {
     caller: {
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   const { caller } = auth
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const title = String(body.title ?? '').trim()
   if (!title) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
@@ -162,10 +162,10 @@ export async function PATCH(request: Request) {
   const { caller } = auth
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const id = String(body.id ?? '')
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin
@@ -253,8 +253,8 @@ export async function DELETE(request: Request) {
   const { caller } = auth
 
   let body: { id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  if (!body.id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin

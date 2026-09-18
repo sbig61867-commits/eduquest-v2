@@ -29,30 +29,30 @@ async function ownsExam(examId: string, teacherId: string, tenantId: string) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const profile = await getTeacherProfile(user.id)
   if (!profile?.tenant_id || !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   let body: { title?: string; group_id?: string; duration_minutes?: number; proctoring_enabled?: boolean; questions?: Question[] }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { title, group_id, duration_minutes, proctoring_enabled, questions } = body
   if (!title?.trim() || !group_id) {
-    return NextResponse.json({ error: 'title and group_id are required' }, { status: 400 })
+    return NextResponse.json({ error: 'العنوان ومعرّف المجموعة مطلوبان' }, { status: 400 })
   }
 
   // Verify group belongs to this teacher in this tenant
   const { data: group } = await adminClient()
     .from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
   if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'Group not found' }, { status: 404 })
+    return NextResponse.json({ error: 'لم يُعثر على المجموعة' }, { status: 404 })
   }
   if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const { data, error } = await adminClient()
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('[api/exams POST]', error)
-    return NextResponse.json({ error: 'Failed to create exam' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل إنشاء الاختبار' }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 201 })
@@ -82,20 +82,20 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const profile = await getTeacherProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   let body: { id?: string; is_published?: boolean; title?: string; duration_minutes?: number }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { id, ...rest } = body
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   if (!(await ownsExam(id, user.id, profile.tenant_id))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const update: Record<string, unknown> = {}
@@ -108,7 +108,7 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error('[api/exams PATCH]', error)
-    return NextResponse.json({ error: 'Failed to update exam' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل تحديث الاختبار' }, { status: 500 })
   }
 
   return NextResponse.json(data)
@@ -118,27 +118,27 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const profile = await getTeacherProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   let body: { id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { id } = body
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
 
   if (!(await ownsExam(id, user.id, profile.tenant_id))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   // Archive by default; hard delete only when the owner enabled it.
   const { error, mode } = await deleteEntity(adminClient(), supabase, 'exam', id, user.id, profile.tenant_id)
   if (error) {
     console.error('[api/exams DELETE]', error)
-    return NextResponse.json({ error: 'Failed to delete exam' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل حذف الاختبار' }, { status: 500 })
   }
   return NextResponse.json({ ok: true, mode })
 }

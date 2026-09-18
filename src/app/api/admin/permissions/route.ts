@@ -20,17 +20,17 @@ function adminClient() {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!caller) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   let body: { user_id?: string; permissions?: unknown }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const targetId = body.user_id
-  if (!targetId) return NextResponse.json({ error: 'Missing user_id' }, { status: 400 })
+  if (!targetId) return NextResponse.json({ error: 'معرّف المستخدم مفقود' }, { status: 400 })
   if (targetId === user.id) {
     return NextResponse.json({ error: 'لا يمكنك تعديل صلاحيات نفسك' }, { status: 400 })
   }
@@ -42,7 +42,7 @@ export async function PATCH(request: Request) {
 
   // A university_admin may only touch users inside their own tenant.
   if (caller.role !== 'super_admin' && target.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
   if (!canEditPermissionsOf(caller.role, target.role)) {
     return NextResponse.json({ error: 'لا يمكنك تعديل صلاحيات هذا الدور' }, { status: 403 })

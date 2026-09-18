@@ -20,7 +20,7 @@ export async function DELETE(request: Request) {
   const auth = await getMailCaller()
   if ('error' in auth) return auth.error
   let body: { provider?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
   if (body.provider !== 'google') return NextResponse.json({ error: 'مزوّد غير مدعوم' }, { status: 400 })
 
   const admin = serviceClient()

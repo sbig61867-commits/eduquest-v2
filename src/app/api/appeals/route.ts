@@ -22,12 +22,12 @@ interface ProctoringEventLike { type?: string; timestamp?: string }
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, full_name').eq('id', user.id).single()
   if (!profile || profile.role !== 'student' || !profile.tenant_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const rl = await rateLimit(`appeal:${user.id}`, { limit: 20, windowSecs: 3600 })
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   }
 
   let body: { submissionId?: string; violationType?: string; violationAt?: string; message?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { submissionId, violationType, violationAt } = body
   const message = body.message?.trim()
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     groups: { name: string } | null
   } | null
   if (!exam) return NextResponse.json({ error: 'الاختبار غير موجود' }, { status: 404 })
-  if (exam.tenant_id !== profile.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (exam.tenant_id !== profile.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   // If disputing a specific event, it must actually exist on this submission
   // — otherwise a student could file an appeal against a violation that was

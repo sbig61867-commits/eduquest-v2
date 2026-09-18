@@ -84,14 +84,14 @@ function extractMeta(html: string) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   // Only announcement authors get to make the server fetch a URL. Previously
   // any signed-in account — a student's included — could drive this.
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const rl = await rateLimit(`preview-url:${user.id}`, { limit: 30, windowSecs: 3600 })
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   }
 
   let body: { url?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const raw = String(body.url ?? '').trim()
   if (!raw) return NextResponse.json({ error: 'url مطلوب' }, { status: 400 })

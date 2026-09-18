@@ -52,14 +52,14 @@ describe('university admin — existing tenant (flat, has centre)', () => {
     render(<Sidebar items={ADMIN_NAV} title="University Admin" titleTerm="institutionAdmin" />)
     expect(screen.queryByText('Academic')).toBeNull()
     expect(screen.getByText('Centre Staff')).toBeInTheDocument()
-    expect(screen.getByText('Groups')).toBeInTheDocument()
-    expect(screen.getByText('University Admin')).toBeInTheDocument()
+    expect(screen.getByText('المجموعات')).toBeInTheDocument()
+    expect(screen.getByText('مدير الجامعة')).toBeInTheDocument()
   })
 
   it('header shows University Admin · QOU', () => {
     signIn(user({}), tenant({}))
     render(<Header title="Admin Panel" />)
-    expect(screen.getByText(/University Admin/)).toBeInTheDocument()
+    expect(screen.getByText(/مدير الجامعة/)).toBeInTheDocument()
   })
 })
 
@@ -67,8 +67,8 @@ describe('school admin — no centre', () => {
   it('menu uses school wording and hides centre staff', () => {
     signIn(user({}), tenant({ institution_type: 'school', has_center: false }))
     render(<Sidebar items={ADMIN_NAV} title="University Admin" titleTerm="institutionAdmin" />)
-    expect(screen.getByText('School Admin')).toBeInTheDocument()
-    expect(screen.getByText('Classes')).toBeInTheDocument()
+    expect(screen.getByText('مدير المدرسة')).toBeInTheDocument()
+    expect(screen.getByText('الفصول')).toBeInTheDocument()
     expect(screen.queryByText('Centre Staff')).toBeNull()
     expect(screen.queryByText('Academic')).toBeNull()
   })
@@ -94,11 +94,11 @@ describe('students', () => {
 
   it('centre trainee: Centre Trainee title/header and the centre card, never faculties', () => {
     signIn(user({ role: 'student', is_university_student: false }), tenant({}))
-    const { unmount } = render(<Sidebar items={[]} title="Student" centreTraineeTitle="Centre Trainee" />)
-    expect(screen.getByText('Centre Trainee')).toBeInTheDocument()
+    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
+    expect(screen.getByText('متدرب المركز')).toBeInTheDocument()
     unmount()
-    render(<Header title="Student Portal" />)
-    expect(screen.getByText(/Centre Trainee/)).toBeInTheDocument()
+    render(<Header title="بوابة الطالب" />)
+    expect(screen.getByText(/متدرب المركز/)).toBeInTheDocument()
   })
 
   it('centre trainee profile shows the centre card and no faculty block', () => {
@@ -111,8 +111,8 @@ describe('students', () => {
 
   it('university student: Student title and faculty › department on profile', () => {
     signIn(user({ role: 'student', is_university_student: true }), tenant({ structure_mode: 'academic' }))
-    const { unmount } = render(<Sidebar items={[]} title="Student" centreTraineeTitle="Centre Trainee" />)
-    expect(screen.getByText('Student')).toBeInTheDocument()
+    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
+    expect(screen.getByText('طالب')).toBeInTheDocument()
     unmount()
     render(<StudentProfileClient profile={profile} groups={[]}
       affiliation={{ track: 'institution', unitL1Label: 'Faculty', unitL2Label: 'Department', units: [{ l1: 'Science', l2: 'CS' }] }} />)
@@ -122,14 +122,14 @@ describe('students', () => {
 
   it('trainee flag is ignored in a tenant without a centre', () => {
     signIn(user({ role: 'student', is_university_student: false }), tenant({ has_center: false, institution_type: 'school' }))
-    render(<Sidebar items={[]} title="Student" centreTraineeTitle="Centre Trainee" />)
-    expect(screen.getByText('Student')).toBeInTheDocument()
+    render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
+    expect(screen.getByText('طالب')).toBeInTheDocument()
   })
 })
 
 describe('dates', () => {
-  it('formatDate is locale-independent (no "152026/9/" under RTL)', async () => {
+  it('formatDate pins Gregorian + Latin digits under RTL (no "١٥ ٢٠٢٦" / hijri drift)', async () => {
     const { formatDate } = await import('@/lib/utils')
-    expect(formatDate('2026-09-15T12:00:00Z')).toBe('Sep 15, 2026')
+    expect(formatDate('2026-09-15T12:00:00Z')).toBe('15 سبتمبر 2026')
   })
 })

@@ -26,14 +26,14 @@ export async function PATCH(
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
 
   let body: { status?: string; response?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const status = body.status
   const response = body.response?.trim()
@@ -53,7 +53,7 @@ export async function PATCH(
 
   const isOwner = appeal.teacher_id === user.id
   const isAdmin = profile.role === 'university_admin' || profile.role === 'super_admin'
-  if (!isOwner && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isOwner && !isAdmin) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   if (appeal.status !== 'pending') {
     return NextResponse.json({ error: 'تم البت في هذا الطعن مسبقاً' }, { status: 409 })
   }

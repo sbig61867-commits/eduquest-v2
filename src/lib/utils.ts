@@ -31,8 +31,14 @@ export function getRoleLabel(role: Role, institutionType?: string | null): strin
   return labels[role]
 }
 
+// Locale is pinned rather than just 'ar': a bare 'ar' resolves per environment,
+// and ar-EG / ar-SA render Arabic-Indic digits (١٥) — and on some ICU builds the
+// Islamic calendar — which would make dates disagree with the Latin numerals used
+// everywhere else in the UI. -ca-gregory-nu-latn fixes both regardless of host.
+const AR_DATE_LOCALE = 'ar-u-ca-gregory-nu-latn'
+
 export function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat('ar', {
+  return new Intl.DateTimeFormat(AR_DATE_LOCALE, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -40,7 +46,7 @@ export function formatDate(dateString: string): string {
 }
 
 export function formatDateTime(dateString: string): string {
-  return new Intl.DateTimeFormat('ar', {
+  return new Intl.DateTimeFormat(AR_DATE_LOCALE, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

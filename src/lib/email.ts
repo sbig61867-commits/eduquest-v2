@@ -82,7 +82,7 @@ export async function sendInvitationEmail({
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const roleLabel = ROLE_LABELS[role] ?? role
-  const expiry    = new Date(expiresAt).toLocaleDateString('ar', {
+  const expiry    = new Date(expiresAt).toLocaleDateString('ar-u-ca-gregory-nu-latn', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
   const inviterLine = inviterName

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const { caller } = auth
 
   let body: { recipient_ids?: unknown; subject?: unknown; body?: unknown }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const ids = Array.isArray(body.recipient_ids) ? [...new Set(body.recipient_ids.filter((x): x is string => typeof x === 'string'))] : []
   const subject = typeof body.subject === 'string' ? body.subject.trim() : ''

@@ -18,25 +18,25 @@ export async function POST(request: Request) {
   const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
+      { error: 'طلبات كثيرة جداً. حاول لاحقاً.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let body: { token?: string; email?: string; password?: string; fullName?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { token, email, password, fullName } = body
 
   if (!token || !email || !password || !fullName) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    return NextResponse.json({ error: 'حقول مطلوبة ناقصة' }, { status: 400 })
   }
   if (password.length < 8) {
-    return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+    return NextResponse.json({ error: 'يجب ألا تقل كلمة المرور عن 8 أحرف' }, { status: 400 })
   }
   if (fullName.trim().length < 2) {
-    return NextResponse.json({ error: 'Full name must be at least 2 characters' }, { status: 400 })
+    return NextResponse.json({ error: 'يجب ألا يقل الاسم الكامل عن حرفين' }, { status: 400 })
   }
 
   const cleanEmail = email.trim().toLowerCase()
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   if (invErr || !inv) {
     return NextResponse.json(
-      { error: 'This invitation link is invalid or has expired.' },
+      { error: 'رابط الدعوة غير صالح أو منتهي الصلاحية.' },
       { status: 410 }
     )
   }
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   // Check max_uses for public links
   if (inv.is_public && inv.max_uses != null && inv.use_count >= inv.max_uses) {
     return NextResponse.json(
-      { error: 'This invitation link has reached its maximum number of uses.' },
+      { error: 'بلغ رابط الدعوة الحد الأقصى لعدد الاستخدامات.' },
       { status: 410 }
     )
   }
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   if (!inv.is_public) {
     if (!inv.email || inv.email.toLowerCase() !== cleanEmail) {
       return NextResponse.json(
-        { error: 'The email address does not match this invitation.' },
+        { error: 'البريد الإلكتروني لا يطابق هذه الدعوة.' },
         { status: 403 }
       )
     }
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       authError.code === 'email_exists' || authError.status === 422
     if (isDuplicate) {
       return NextResponse.json(
-        { error: 'An account with this email already exists. Try logging in instead.' },
+        { error: 'يوجد حساب بهذا البريد بالفعل. جرّب تسجيل الدخول.' },
         { status: 409 }
       )
     }
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
           console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
         )
         return NextResponse.json(
-          { error: 'This invitation link is invalid, expired, or has reached its maximum number of uses.' },
+          { error: 'رابط الدعوة غير صالح أو منتهٍ أو بلغ حده الأقصى من الاستخدامات.' },
           { status: 410 }
         )
       }
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error('[accept-invitation] error after auth user created:', detail)
     return NextResponse.json(
-      { error: 'Registration failed. Please try again or contact support.' },
+      { error: 'فشل التسجيل. حاول مجدداً أو تواصل مع الدعم.' },
       { status: 500 }
     )
   }
@@ -179,7 +179,7 @@ export async function POST(request: Request) {
     const detail = outer instanceof Error ? outer.message : String(outer)
     console.error('[accept-invitation] unhandled error:', detail)
     return NextResponse.json(
-      { error: 'Registration failed due to a server error. Please try again or contact support.' },
+      { error: 'فشل التسجيل بسبب خطأ في الخادم. حاول مجدداً أو تواصل مع الدعم.' },
       { status: 500 }
     )
  }

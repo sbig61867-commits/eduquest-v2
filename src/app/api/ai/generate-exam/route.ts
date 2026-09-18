@@ -38,37 +38,37 @@ function validateQuestions(raw: unknown): Question[] {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const aiLimits = await getAiRateLimits(supabase)
   const rl = await aiRateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded. Try again later.' },
+      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let body: Record<string, unknown>
   try { body = await request.json() } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 })
   }
 
   const { type = 'mixed' } = body
   const rawTopic: string = (body.topic as string) ?? ''
   const count: number = Math.min(Math.max(parseInt(String(body.count ?? '10'), 10) || 10, 1), 30)
 
-  if (!rawTopic.trim()) return NextResponse.json({ error: 'Topic is required' }, { status: 400 })
-  if (rawTopic.length > 200) return NextResponse.json({ error: 'Topic is too long (max 200 chars)' }, { status: 400 })
+  if (!rawTopic.trim()) return NextResponse.json({ error: 'الموضوع مطلوب' }, { status: 400 })
+  if (rawTopic.length > 200) return NextResponse.json({ error: 'الموضوع طويل جداً (بحد أقصى 200 حرف)' }, { status: 400 })
 
   // Strip prompt-injection characters — keep only printable non-special chars
   const safeTopic = rawTopic.trim().replace(/[<>{}[\]`\\'"]/g, '').trim()
-  if (!safeTopic) return NextResponse.json({ error: 'Topic contains invalid characters' }, { status: 400 })
+  if (!safeTopic) return NextResponse.json({ error: 'الموضوع يحتوي على رموز غير مسموحة' }, { status: 400 })
 
   const typeInstructions = type === 'mcq'
     ? 'multiple choice questions with 4 options each'
@@ -99,6 +99,6 @@ Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[generate-exam]', msg)
-    return NextResponse.json({ error: 'Failed to generate questions', detail: msg }, { status: 500 })
+    return NextResponse.json({ error: 'فشل توليد الأسئلة', detail: msg }, { status: 500 })
   }
 }

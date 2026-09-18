@@ -85,7 +85,7 @@ export default async function TeacherDashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-semibold">أحدث الدروس</h3>
-            <Link href="/teacher/lessons" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
+            <Link href="/teacher/lessons" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">عرض الكل ←</Link>
           </div>
           {!recentLessons?.length ? (
             <p className="text-slate-500 text-sm">لا توجد دروس بعد. <Link href="/teacher/lessons" className="text-blue-400 hover:underline">أنشئ درسك الأول.</Link></p>
@@ -111,7 +111,7 @@ export default async function TeacherDashboard() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-semibold">الاختبارات القادمة</h3>
-            <Link href="/teacher/exams" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">View all →</Link>
+            <Link href="/teacher/exams" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">عرض الكل ←</Link>
           </div>
           {!upcomingExams?.length ? (
             <p className="text-slate-500 text-sm">لا توجد اختبارات قادمة. <Link href="/teacher/exams" className="text-blue-400 hover:underline">أنشئ اختباراً.</Link></p>

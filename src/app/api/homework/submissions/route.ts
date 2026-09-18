@@ -16,10 +16,10 @@ function adminClient() {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const lessonId = new URL(request.url).searchParams.get('lesson_id')
-  if (!lessonId) return NextResponse.json({ error: 'lesson_id required' }, { status: 400 })
+  if (!lessonId) return NextResponse.json({ error: 'معرّف الدرس مطلوب' }, { status: 400 })
 
   const admin = adminClient()
   const { data: exams } = await admin
@@ -64,16 +64,16 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   let body: { id?: string; score?: number; grading_status?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { id, score, grading_status } = body
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'المعرّف مطلوب' }, { status: 400 })
   if (grading_status && !['pending', 'reviewing', 'published'].includes(grading_status)) {
-    return NextResponse.json({ error: 'Invalid grading_status' }, { status: 400 })
+    return NextResponse.json({ error: 'حالة تصحيح غير صالحة' }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -86,7 +86,7 @@ export async function PATCH(request: Request) {
     .single()
   const owner = (sub?.exams as unknown as { teacher_id: string } | null)?.teacher_id
   if (!sub || owner !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const patch: Record<string, unknown> = {}
@@ -99,13 +99,13 @@ export async function PATCH(request: Request) {
   }
   if (grading_status) patch.grading_status = grading_status
   if (Object.keys(patch).length === 0) {
-    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    return NextResponse.json({ error: 'لا يوجد ما يُحدَّث' }, { status: 400 })
   }
 
   const { error } = await admin.from('exam_submissions').update(patch).eq('id', id)
   if (error) {
     console.error('[homework/submissions PATCH]', error)
-    return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل التحديث' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

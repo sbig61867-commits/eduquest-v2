@@ -55,7 +55,7 @@ export default async function JoinPage({ params }: Props) {
     )
   }
 
-  const expiresLabel = new Date(invitation.expires_at).toLocaleDateString('ar', {
+  const expiresLabel = new Date(invitation.expires_at).toLocaleDateString('ar-u-ca-gregory-nu-latn', {
     month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 

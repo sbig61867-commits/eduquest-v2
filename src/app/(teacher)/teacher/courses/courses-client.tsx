@@ -367,7 +367,7 @@ export function CoursesClient({ initialCourses }: Props) {
                 <div className="flex flex-col items-center gap-2">
                   <Upload className="w-10 h-10 text-slate-500" />
                   <p className="text-slate-300 font-medium">اضغط لاختيار ملف</p>
-                  <p className="text-slate-500 text-sm">PPTX · DOCX · PDF — Maximum 20 MB</p>
+                  <p className="text-slate-500 text-sm">PPTX · DOCX · PDF — بحد أقصى 20 ميغابايت</p>
                 </div>
               )}
             </div>

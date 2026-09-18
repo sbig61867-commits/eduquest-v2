@@ -15,12 +15,12 @@ export const maxDuration = 30
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   // Extraction is local parsing (cheap) except the Gemini-vision fallback for
@@ -30,17 +30,17 @@ export async function POST(request: Request) {
   const rl = await aiRateLimit(`extract-file:${user.id}`, { limit: 60, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded. Try again later.' },
+      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let formData: FormData
   try { formData = await request.formData() }
-  catch { return NextResponse.json({ error: 'Invalid form data' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات النموذج غير صالحة' }, { status: 400 }) }
 
   const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  if (!file) return NextResponse.json({ error: 'لم يُرفَع أي ملف' }, { status: 400 })
 
   try {
     const text = await extractTextFromFile(file)

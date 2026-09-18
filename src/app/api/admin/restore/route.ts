@@ -16,20 +16,20 @@ const KINDS = new Set(['group', 'lesson', 'exam', 'course'])
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['university_admin', 'super_admin'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   let body: { kind?: string; id?: string; tenant_id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   if (!body.id || !body.kind || !KINDS.has(body.kind)) {
-    return NextResponse.json({ error: 'Missing or invalid kind/id' }, { status: 400 })
+    return NextResponse.json({ error: 'النوع أو المعرّف مفقود أو غير صالح' }, { status: 400 })
   }
 
   // super_admin has no tenant_id of their own (legitimately NULL — they are
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     : profile.tenant_id
 
   if (!tenant_id) {
-    return NextResponse.json({ error: 'tenant_id is required' }, { status: 400 })
+    return NextResponse.json({ error: 'معرّف المؤسسة مطلوب' }, { status: 400 })
   }
 
   const { error } = await adminClient().rpc('restore_entity', {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   })
   if (error) {
     console.error('[api/admin/restore]', error)
-    return NextResponse.json({ error: 'Failed to restore' }, { status: 500 })
+    return NextResponse.json({ error: 'فشلت الاستعادة' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

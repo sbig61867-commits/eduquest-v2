@@ -25,12 +25,12 @@ export function serviceClient() {
 export async function getCaller(): Promise<{ caller: StaffCaller } | { error: NextResponse }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions, is_active').eq('id', user.id).single()
   if (!profile?.tenant_id || profile.is_active === false) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
   }
   return { caller: { id: user.id, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions } }
 }

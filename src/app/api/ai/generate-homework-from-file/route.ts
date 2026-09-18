@@ -112,33 +112,33 @@ function validate(raw: unknown, allowed: Set<string>): GeneratedQuestion[] {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
   }
 
   const aiLimits = await getAiRateLimits(supabase)
   const rl = await aiRateLimit(`homework-file:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded. Try again later.' },
+      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let formData: FormData
   try { formData = await request.formData() }
-  catch { return NextResponse.json({ error: 'Invalid form data' }, { status: 400 }) }
+  catch { return NextResponse.json({ error: 'بيانات النموذج غير صالحة' }, { status: 400 }) }
 
   const sourceText = ((formData.get('sourceText') as string | null) ?? '').trim()
-  if (!sourceText) return NextResponse.json({ error: 'No source text provided' }, { status: 400 })
+  if (!sourceText) return NextResponse.json({ error: 'لم يُقدَّم نص مصدر' }, { status: 400 })
 
   const typesRaw = (formData.get('types') as string | null) ?? 'mcq,true_false'
   const allowed = new Set(typesRaw.split(',').map(t => t.trim()).filter(t => ['mcq', 'true_false', 'essay'].includes(t)))
-  if (allowed.size === 0) return NextResponse.json({ error: 'No valid question types selected' }, { status: 400 })
+  if (allowed.size === 0) return NextResponse.json({ error: 'لم تُحدَّد أنواع أسئلة صالحة' }, { status: 400 })
 
   const count = Math.min(Math.max(parseInt((formData.get('count') as string) ?? '10', 10) || 10, 1), 120)
   const customInstructions = ((formData.get('instructions') as string | null) ?? '').slice(0, 1000).trim()
@@ -241,6 +241,6 @@ ${sourceText.slice(0, 30000)}`
     return NextResponse.json({ questions: collected, requested: count, delivered: collected.length })
   } catch (e) {
     console.error('[generate-homework-from-file] AI:', e)
-    return NextResponse.json({ error: 'AI generation failed. Please try again.' }, { status: 500 })
+    return NextResponse.json({ error: 'فشل التوليد بالذكاء الاصطناعي. حاول مجدداً.' }, { status: 500 })
   }
 }

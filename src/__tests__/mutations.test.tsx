@@ -132,13 +132,13 @@ describe('StudentsClient — API Route mutations', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
     render(<StudentsClient initialStudents={[makeStudent({ is_active: true })]} />)
 
-    expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(screen.getByText('نشط')).toBeInTheDocument()
 
     const buttons = screen.getAllByRole('button')
     await userEvent.click(buttons[buttons.length - 2]) // toggle is second-to-last per row
 
     await waitFor(() => {
-      expect(screen.getByText('Disabled')).toBeInTheDocument()
+      expect(screen.getByText('معطّل')).toBeInTheDocument()
     })
   })
 
@@ -174,8 +174,8 @@ describe('StudentsClient — API Route mutations', () => {
     await userEvent.click(buttons[buttons.length - 2])
 
     await waitFor(() => expect(fetch).toHaveBeenCalled())
-    expect(screen.getByText('Active')).toBeInTheDocument()
-    expect(screen.queryByText('Disabled')).not.toBeInTheDocument()
+    expect(screen.getByText('نشط')).toBeInTheDocument()
+    expect(screen.queryByText('معطّل')).not.toBeInTheDocument()
   })
 
   // Scenario 3 — delete: item removed from list

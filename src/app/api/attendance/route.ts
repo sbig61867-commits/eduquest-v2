@@ -14,11 +14,11 @@ const MAX_RECORDS = 500
 async function authorizeGroup(groupId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!profile?.tenant_id) return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  if (!profile?.tenant_id) return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
 
   const admin = serviceClient()
   const { data: group } = await admin
@@ -29,7 +29,7 @@ async function authorizeGroup(groupId: string) {
 
   const staff = profile.role !== 'teacher' && staffCan(profile, 'manage_attendance')
   const owner = profile.role === 'teacher' && group.teacher_id === user.id
-  if (!staff && !owner) return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  if (!staff && !owner) return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
 
   return { admin, userId: user.id, tenantId: profile.tenant_id as string }
 }
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
   const groupId = params.get('group_id')
   const date = params.get('date')
-  if (!groupId) return NextResponse.json({ error: 'Missing group_id' }, { status: 400 })
+  if (!groupId) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
   if (!isValidSessionDate(date)) return NextResponse.json({ error: 'تاريخ غير صالح' }, { status: 400 })
 
   const auth = await authorizeGroup(groupId)
@@ -97,10 +97,10 @@ export async function GET(request: Request) {
 // POST /api/attendance { group_id, session_date, title?, records: [{ student_id, status, note? }] }
 export async function POST(request: Request) {
   let body: { group_id?: string; session_date?: string; title?: string; records?: unknown }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
 
   const { group_id, session_date } = body
-  if (!group_id) return NextResponse.json({ error: 'Missing group_id' }, { status: 400 })
+  if (!group_id) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
   if (!isValidSessionDate(session_date)) return NextResponse.json({ error: 'تاريخ غير صالح' }, { status: 400 })
   const title = body.title ? String(body.title).trim().slice(0, 120) : null
 
@@ -170,8 +170,8 @@ export async function POST(request: Request) {
 // DELETE /api/attendance { session_id }
 export async function DELETE(request: Request) {
   let body: { session_id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  if (!body.session_id) return NextResponse.json({ error: 'Missing session_id' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  if (!body.session_id) return NextResponse.json({ error: 'معرّف الجلسة مفقود' }, { status: 400 })
 
   const { data: session } = await serviceClient()
     .from('attendance_sessions').select('id, group_id').eq('id', body.session_id).maybeSingle()

@@ -22,13 +22,13 @@ export function extractionErrorResponse(e: unknown): { status: number; error: st
   if (e instanceof ExtractionError) {
     switch (e.code) {
       case 'unsupported': return { status: 400, error: e.message }
-      case 'too_large':   return { status: 400, error: 'File too large (max 20 MB)' }
+      case 'too_large':   return { status: 400, error: 'الملف كبير جداً (الحد الأقصى 20 ميغابايت)' }
       case 'vision_quota':return { status: 422, error: 'This file has no readable text layer (scanned?) and the vision AI quota is temporarily exhausted. Try a text-based PDF/DOCX/PPTX, or try again later.' }
-      case 'empty':       return { status: 422, error: 'No text could be extracted from this file. It may be image-only or empty.' }
-      case 'unreadable':  return { status: 422, error: 'Failed to read file content. Make sure it is a valid and non-corrupted file.' }
+      case 'empty':       return { status: 422, error: 'تعذّر استخراج نص من هذا الملف. قد يكون صوراً فقط أو فارغاً.' }
+      case 'unreadable':  return { status: 422, error: 'تعذّرت قراءة محتوى الملف. تأكد أنه ملف صالح وغير تالف.' }
     }
   }
-  return { status: 422, error: 'Failed to read file content.' }
+  return { status: 422, error: 'تعذّرت قراءة محتوى الملف.' }
 }
 
 const IMAGE_MIME: Record<string, string> = {
@@ -144,7 +144,7 @@ export async function extractTextFromFile(file: File, opts: ExtractOptions = {})
     throw new ExtractionError('unsupported', 'Image files are not supported for this feature')
   }
   if (file.size > EXTRACT_MAX_BYTES) {
-    throw new ExtractionError('too_large', 'File too large (max 20 MB)')
+    throw new ExtractionError('too_large', 'الملف كبير جداً (الحد الأقصى 20 ميغابايت)')
   }
 
   const buffer = await file.arrayBuffer()

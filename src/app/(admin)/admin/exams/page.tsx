@@ -120,7 +120,7 @@ export default async function AdminExamsPage() {
         <div className="space-y-6">
           {exams.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">🕒 Exams</h3>
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">🕒 الاختبارات</h3>
               <Table rows={exams} homework={false} />
             </div>
           )}

@@ -336,8 +336,8 @@ describe('MessagesClient — remove', () => {
   it('success → message removed + router.refresh called', async () => {
     mockFrom.mockReturnValue(supaChain({ error: null }))
     render(<MessagesClient initialMessages={[MESSAGE]} />)
-    // No aria-label on this button — it has visible text "Delete" instead.
-    const del = screen.getByRole('button', { name: /delete/i })
+    // No aria-label on this button — it has visible text "حذف" instead.
+    const del = screen.getByRole('button', { name: /حذف/ })
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {
