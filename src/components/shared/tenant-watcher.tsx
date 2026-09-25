@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 // and non-admin users don't have SELECT on the universities row that would
 // change. Polling on a server endpoint (service-role) is simpler and honest.
 const POLL_INTERVAL_MS = 60_000
+const MIN_GAP_MS = 30_000
 
 export function TenantWatcher() {
   const router = useRouter()
@@ -21,8 +22,18 @@ export function TenantWatcher() {
     const supabase = createClient()
     let stopped = false
 
+    // Focus and visibility events fire constantly (every alt-tab), so a check
+    // is skipped when one ran less than MIN_GAP_MS ago, and the interval does
+    // nothing while the tab is hidden. A suspended user is still caught on the
+    // first check after they come back.
+    let lastCheck = 0
+
     async function check() {
       if (stopped) return
+      if (document.visibilityState === 'hidden') return
+      const now = Date.now()
+      if (now - lastCheck < MIN_GAP_MS) return
+      lastCheck = now
       try {
         const res = await fetch('/api/session/check', { cache: 'no-store' })
         if (res.status === 401) return // no session yet — leave it to the proxy
@@ -42,11 +53,13 @@ export function TenantWatcher() {
     const id = window.setInterval(check, POLL_INTERVAL_MS)
     const onFocus = () => check()
     window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
 
     return () => {
       stopped = true
       window.clearInterval(id)
       window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
     }
   }, [router])
 

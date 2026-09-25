@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 // GET /api/session/check — cheap liveness check for the user's session.
@@ -11,7 +11,9 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 // leaks tenant data to the client.
 export async function GET() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Local JWT verification (getClaims) — no Auth-server round-trip on a poll.
+  // The live row read below is what decides disabled/deleted/role changes.
+  const user = await getAuthUser(supabase)
   if (!user) return NextResponse.json({ ok: false, reason: 'no_session' }, { status: 401 })
 
   const admin = createAdminClient(
@@ -40,7 +42,7 @@ export async function GET() {
   // (~1h), which would otherwise let a demoted user keep acting under their
   // old role for up to that long. Force a sign-out here instead so the next
   // login mints a fresh JWT with the current role.
-  const claimedRole = (user.app_metadata?.user_role ?? user.app_metadata?.role) as string | undefined
+  const claimedRole = user.role
   if (claimedRole && claimedRole !== profile.role) {
     return NextResponse.json({ ok: false, reason: 'role_changed' })
   }

@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { getTranslations } from 'next-intl/server'
 
 interface Notif { id: string; type: string; title: string; subtitle: string; date: string; href: string }
@@ -10,7 +10,9 @@ interface Notif { id: string; type: string; title: string; subtitle: string; dat
 // items are derived from recent domain activity, newest first.
 export async function GET() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Read-only and polled every minute: verify the JWT locally rather than a
+  // round-trip to the Auth server. Every query below is RLS-scoped anyway.
+  const user = await getAuthUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase

@@ -1,12 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClipboardList, ShieldCheck, Clock, Play, CheckCircle2, RotateCcw, BookOpen, GraduationCap } from 'lucide-react'
-import { ExamTaker } from './exam-taker'
 import type { Exam } from '@/types'
+
+// The exam screen pulls in LiveKit (~480 KB) and the proctoring detectors.
+// Load it only when a student actually opens an exam, not with the list.
+const ExamTaker = dynamic(() => import('./exam-taker').then(m => m.ExamTaker), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-xl bg-slate-800 animate-pulse" />,
+})
 
 type ExamWithContext = Exam & {
   groups?: { name: string } | null

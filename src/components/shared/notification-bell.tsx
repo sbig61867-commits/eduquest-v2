@@ -48,7 +48,8 @@ export function NotificationBell() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() is a fetch helper; setState fires after await, not synchronously on mount
     load()
-    const t = setInterval(load, 60_000) // refresh badge every minute
+    // Refresh the badge every minute, but not for a tab nobody is looking at.
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 60_000)
     return () => clearInterval(t)
   }, [])
 
