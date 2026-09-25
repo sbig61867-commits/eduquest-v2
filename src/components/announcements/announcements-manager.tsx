@@ -10,11 +10,13 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
-import { AnnouncementsBanner } from '@/components/student/announcements-banner'
+import { AnnouncementsBanner, AnnouncementImage } from '@/components/student/announcements-banner'
 import { Modal } from '@/components/ui/modal'
 import { BannerDesigner } from '@/components/announcements/banner-designer'
 import { type AnnouncementAudience } from '@/lib/announcement-audience'
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock } from 'lucide-react'
+import { prepareImageForUpload, ImagePrepError } from '@/lib/prepare-image'
+import { buildContactUrl, parseContactUrl, CONTACT_TYPES, type ContactType } from '@/lib/announcement-contact'
+import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock, MessageCircle, Phone, Mail, Link2 } from 'lucide-react'
 
 interface CopySuggestion { title: string; body: string; cta_label: string }
 
@@ -83,6 +85,7 @@ const AUDIENCE_OPTIONS: {
 
 const emptyForm = (canTargetUniversity: boolean) => ({
   title: '', body: '', image_url: '', link_url: '', cta_label: '',
+  contact_type: 'whatsapp' as ContactType, contact_value: '',
   audience: (canTargetUniversity ? 'all' : 'center') as AnnouncementAudience,
   group_ids: [] as string[],
   starts_at: '', ends_at: '', is_published: true,
@@ -147,6 +150,8 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: a.body ?? '',
       image_url: a.image_url ?? '',
       link_url: a.link_url ?? '',
+      contact_type: parseContactUrl(a.link_url).type,
+      contact_value: parseContactUrl(a.link_url).value,
       cta_label: a.cta_label ?? '',
       audience: a.audience,
       group_ids: a.group_ids,
@@ -159,14 +164,26 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
 
   async function uploadImage(file: File) {
     setUploading(true)
-    const fd = new FormData()
-    fd.append('file', file)
-    const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
-    const data = await res.json()
-    setUploading(false)
-    if (!res.ok) return toast.error(data.error ?? t('uploadFailed'))
-    setForm(f => ({ ...f, image_url: data.url }))
-    toast.success(t('uploaded'))
+    try {
+      // Any size or shape: shrunk on this device (same aspect ratio) to fit the 4 MB cap.
+      let ready: File
+      try { ready = await prepareImageForUpload(file) } catch (e) {
+        return toast.error(e instanceof ImagePrepError && e.code === 'tooLarge' ? t('imageTooBig') : t('imageUnreadable'))
+      }
+      const fd = new FormData()
+      fd.append('file', ready)
+      const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
+      // A proxy-level rejection (e.g. body too large) is not JSON; the old
+      // bare res.json() threw and left the button spinning forever.
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(data.error ?? t('uploadFailed'))
+      setForm(f => ({ ...f, image_url: data.url }))
+      toast.success(t('uploaded'))
+    } catch {
+      toast.error(t('uploadFailed'))
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function save() {
@@ -187,14 +204,23 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       return toast.error(t('endInPast'))
     }
 
+    const link_url = buildContactUrl(form.contact_type, form.contact_value, form.title)
+    if (link_url === null) return toast.error(t(`contact.invalid.${form.contact_type}`))
+
     setBusy(true)
     const editing = editingId
+    const { contact_type: _type, contact_value: _value, ...payload } = form
+    void _type; void _value
     const res = await fetch('/api/announcements', {
       method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, ...(editing ? { id: editing } : {}), starts_at, ends_at }),
+      body: JSON.stringify({
+        // An unlabelled contact button is labelled by the viewer's own language
+        // ("Contact on WhatsApp"), so the label is left empty rather than filled here.
+        ...payload, ...(editing ? { id: editing } : {}), starts_at, ends_at, link_url,
+      }),
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     setBusy(false)
     if (!res.ok) return toast.error(data.error ?? (editing ? t('updateFailed') : t('createFailed')))
     toast.success(editing ? t('savedEdits') : (form.is_published ? t('publishedOk') : t('savedDraft')))
@@ -215,7 +241,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: JSON.stringify({ id: a.id, is_published: !a.is_published }),
     })
     setBusy(false)
-    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? t('toggleFailed')) }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); return toast.error(d.error ?? t('toggleFailed')) }
     router.refresh()
   }
 
@@ -228,7 +254,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: JSON.stringify({ id: a.id }),
     })
     setBusy(false)
-    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? t('deleteFailed')) }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); return toast.error(d.error ?? t('deleteFailed')) }
     toast.success(t('deleted'))
     router.refresh()
   }
@@ -307,9 +333,9 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
           <div className="space-y-2">
             <span className="text-sm text-slate-300">{t('imageLabel')}</span>
             {form.image_url ? (
-              <div className="relative w-full max-w-sm">
+              <div className="relative w-full max-w-md">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.image_url} alt={t('imageAlt')} className="rounded-lg border border-slate-700 w-full object-cover max-h-48" />
+                <img src={form.image_url} alt={t('imageAlt')} className="rounded-lg border border-slate-700 w-full h-auto object-contain max-h-48 bg-slate-950" />
                 <button
                   onClick={() => setForm(f => ({ ...f, image_url: '' }))}
                   className="absolute top-2 start-2 bg-slate-900/80 rounded-full p-1.5 text-slate-300 hover:text-white"
@@ -319,9 +345,9 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             ) : (
               <div>
                 <input
-                  ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                  ref={fileRef} type="file" accept="image/*"
                   className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f) }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = '' }}
                 />
                 <div className="flex gap-2 flex-wrap">
                   <Button variant="ghost" onClick={() => setDesigning(true)}>
@@ -336,25 +362,47 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>{t('linkLabel')}</span>
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
-                value={form.link_url}
-                onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
-                placeholder="https://…"
-              />
-            </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>{t('ctaLabel')}</span>
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
-                value={form.cta_label}
-                onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
-                placeholder={t('ctaPlaceholder')}
-              />
-            </label>
+          {/* Contact / call-to-action button */}
+          <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+            <div>
+              <span className="text-sm text-slate-300">{t('contact.title')}</span>
+              <p className="text-slate-500 text-xs mt-0.5">{t('contact.hint')}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {CONTACT_TYPES.map(type => {
+                const Icon = { whatsapp: MessageCircle, phone: Phone, email: Mail, link: Link2 }[type]
+                return (
+                  <button key={type} type="button"
+                    onClick={() => setForm(f => ({ ...f, contact_type: type, contact_value: '' }))}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                      form.contact_type === type ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
+                    }`}
+                  ><Icon className="w-4 h-4" /> {t(`contact.types.${type}`)}</button>
+                )
+              })}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="text-sm text-slate-300 space-y-1.5 block">
+                <span>{t(`contact.valueLabel.${form.contact_type}`)}</span>
+                <input
+                  dir="ltr"
+                  inputMode={form.contact_type === 'whatsapp' || form.contact_type === 'phone' ? 'tel' : form.contact_type === 'email' ? 'email' : 'url'}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  value={form.contact_value}
+                  onChange={e => setForm(f => ({ ...f, contact_value: e.target.value }))}
+                  placeholder={t(`contact.placeholder.${form.contact_type}`)}
+                />
+              </label>
+              <label className="text-sm text-slate-300 space-y-1.5 block">
+                <span>{t('ctaLabel')}</span>
+                <input
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  value={form.cta_label}
+                  onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
+                  placeholder={form.contact_type === 'link' ? t('ctaPlaceholder') : t(`contact.cta.${form.contact_type}`)}
+                />
+              </label>
+            </div>
           </div>
 
           {/* Audience */}
@@ -441,7 +489,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 title: form.title.trim() || t('previewFallbackTitle'),
                 body: form.body.trim() || null,
                 image_url: form.image_url || null,
-                link_url: form.link_url || null,
+                link_url: buildContactUrl(form.contact_type, form.contact_value, form.title) || null,
                 cta_label: form.cta_label || null,
               }]} />
             </div>
@@ -477,10 +525,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             const status = announcementStatus(a)
             return (
             <div key={a.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-              {a.image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.image_url} alt="" className="h-36 w-full object-cover bg-slate-800" />
-              )}
+              {a.image_url && <AnnouncementImage src={a.image_url} className="max-h-48" />}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-white font-semibold">{a.title}</h3>

@@ -211,13 +211,6 @@
       "titleOne": "إعلان جديد",
       "dismiss": "تم"
     },
-    "banner": {
-      "badge": "إعلان",
-      "learnMore": "اعرف المزيد",
-      "slide": "الإعلان {n}",
-      "prev": "السابق",
-      "next": "التالي"
-    },
     "quick": {
       "courses": "مساقاتي",
       "coursesEmpty": "لا توجد مساقات بعد",

@@ -408,7 +408,7 @@
     "removeImage": "Remove image",
     "designBanner": "Design a banner",
     "uploadImage": "Upload an image",
-    "imageHint": "Design a banner in the browser for free, or upload a JPG / PNG / WebP / GIF up to 4 MB",
+    "imageHint": "Any size or shape — large images are compressed on your device without cropping or stretching. Tip: a wide 3:1 image (e.g. 1200×400) fills the card best.",
     "linkLabel": "Link (optional)",
     "ctaLabel": "Button text (optional)",
     "ctaPlaceholder": "Register now",
@@ -432,7 +432,42 @@
     "edit": "Edit",
     "hide": "Hide",
     "publish": "Publish",
-    "delete": "Delete"
+    "delete": "Delete",
+    "contact": {
+      "title": "Contact button (how students reach you to register)",
+      "hint": "Students see a button that opens WhatsApp with the announcement title already written, calls you, or opens an email to you.",
+      "types": {
+        "whatsapp": "WhatsApp",
+        "phone": "Phone call",
+        "email": "Email",
+        "link": "Web link"
+      },
+      "valueLabel": {
+        "whatsapp": "WhatsApp number with country code",
+        "phone": "Phone number",
+        "email": "Email address",
+        "link": "Link"
+      },
+      "placeholder": {
+        "whatsapp": "+966 5x xxx xxxx",
+        "phone": "+966 1x xxx xxxx",
+        "email": "centre@example.com",
+        "link": "https://…"
+      },
+      "cta": {
+        "whatsapp": "Contact on WhatsApp",
+        "phone": "Call us",
+        "email": "Email us"
+      },
+      "invalid": {
+        "whatsapp": "Enter a WhatsApp number with its country code (8–15 digits)",
+        "phone": "Enter a valid phone number",
+        "email": "Enter a valid email address",
+        "link": "The link must start with https:// or http://"
+      }
+    },
+    "imageTooBig": "This image could not be made small enough to upload (an animated GIF must be under 4 MB).",
+    "imageUnreadable": "This image format can't be read in your browser — save it as JPG or PNG and try again."
   },
   "invitations": {
     "createFailed": "Failed to create the invitation",
@@ -478,13 +513,153 @@
     "groupOptional": "Group (optional)"
   },
   "banner": {
+    "tabs": {
+      "templates": "Templates",
+      "text": "Text",
+      "style": "Style",
+      "image": "Image"
+    },
+    "templatesHint": "Pick a ready-made template — it previews your own wording. Fields you typed are kept; the rest take the template's sample text.",
+    "shuffle": "Surprise me",
+    "download": "Download",
     "themes": {
       "navy": "Navy",
       "emerald": "Emerald",
       "sunset": "Sunset",
       "violet": "Violet",
+      "rose": "Rose",
+      "teal": "Teal",
+      "sky": "Sky",
+      "crimson": "Crimson",
+      "heritage": "Green & gold",
+      "mono": "Black & gold",
       "light": "Light",
-      "mono": "Black & gold"
+      "sand": "Sand"
+    },
+    "layouts": {
+      "classic": "Classic",
+      "centered": "Centred",
+      "split": "Split panel",
+      "event": "Date card",
+      "card": "Glass card",
+      "ribbon": "Corner ribbon",
+      "minimal": "Minimal",
+      "frame": "Framed"
+    },
+    "patterns": {
+      "circles": "Circles",
+      "diagonal": "Stripes",
+      "dots": "Dots",
+      "waves": "Waves",
+      "grid": "Grid",
+      "triangles": "Triangles",
+      "rings": "Rings",
+      "confetti": "Confetti",
+      "stars": "Geometric stars",
+      "none": "None"
+    },
+    "sizes": {
+      "sm": "Small",
+      "md": "Medium",
+      "lg": "Large"
+    },
+    "directions": {
+      "auto": "Automatic",
+      "rtl": "Right to left",
+      "ltr": "Left to right"
+    },
+    "colors": {
+      "bg1": "Background 1",
+      "bg2": "Background 2",
+      "text": "Text",
+      "accent": "Accent"
+    },
+    "presets": {
+      "general": {
+        "name": "General announcement",
+        "badge": "Announcement",
+        "headline": "Important news for all students",
+        "subline": "Read the details on the platform and share them with your classmates",
+        "footer": "Student Affairs"
+      },
+      "registration": {
+        "name": "Registration open",
+        "badge": "Registration open",
+        "headline": "Enrol now in the new term's courses",
+        "subline": "Places are limited — register before the deadline",
+        "footer": "Continuing Education Centre"
+      },
+      "exam": {
+        "name": "Exam date",
+        "badge": "Exam",
+        "headline": "Midterm exam",
+        "subline": "Review the lessons and be on the platform ten minutes early",
+        "highlight": "15",
+        "caption": "October"
+      },
+      "event": {
+        "name": "Event",
+        "badge": "You're invited",
+        "headline": "Open day and student activities",
+        "subline": "Talks, workshops and prizes for everyone",
+        "footer": "Main hall · 10:00 AM"
+      },
+      "achievement": {
+        "name": "Congratulations",
+        "badge": "Well done",
+        "headline": "Congratulations to our top students",
+        "subline": "We're proud of your effort this term — keep it up",
+        "footer": "The administration"
+      },
+      "holiday": {
+        "name": "Holiday greeting",
+        "headline": "Happy holidays",
+        "subline": "Wishing you and your families joy and success",
+        "footer": "From all of us at the institution"
+      },
+      "urgent": {
+        "name": "Urgent notice",
+        "badge": "Urgent",
+        "headline": "Change to today's schedule",
+        "subline": "Check the updated timetable on the platform",
+        "footer": "Academic Affairs"
+      },
+      "offer": {
+        "name": "Special offer",
+        "badge": "Limited offer",
+        "headline": "Discount on professional courses",
+        "subline": "Valid until the end of the month",
+        "highlight": "30%",
+        "caption": "off"
+      },
+      "webinar": {
+        "name": "Online session",
+        "badge": "Live online",
+        "headline": "Online session: study skills",
+        "subline": "Join from home through the platform",
+        "footer": "Thursday · 7:00 PM"
+      },
+      "course": {
+        "name": "New course",
+        "badge": "New",
+        "headline": "A new course is now available",
+        "subline": "Start learning today at your own pace",
+        "footer": "Continuing Education Centre"
+      },
+      "deadline": {
+        "name": "Deadline",
+        "badge": "Reminder",
+        "headline": "Last day to submit assignments",
+        "subline": "Late submissions will not be accepted",
+        "highlight": "30",
+        "caption": "September"
+      },
+      "welcome": {
+        "name": "Welcome",
+        "headline": "Welcome to the new term",
+        "subline": "We wish you a year full of learning and success",
+        "footer": "The administration"
+      }
     },
     "fallbackHeadline": "Announcement title",
     "notAnImage": "Choose an image file",
@@ -498,12 +673,38 @@
     "subline": "Subline",
     "badge": "Badge (e.g. Registration open)",
     "footer": "Footer (e.g. centre name or date)",
+    "highlight": "Highlight (e.g. 15 or 30%)",
+    "caption": "Under the highlight (e.g. October)",
+    "highlightHint": "The highlight appears in the “Split panel” and “Date card” layouts; when it is empty they show the icon instead.",
+    "layout": "Layout",
+    "palette": "Colours",
+    "pattern": "Pattern",
+    "patternHiddenByPhoto": "Patterns are hidden while a background image is used.",
+    "icon": "Icon",
+    "noIcon": "No icon",
+    "size": "Headline size",
+    "direction": "Text direction",
     "accent": "Accent colour",
     "overlay": "Image dimming",
     "removePhoto": "Remove image",
+    "replacePhoto": "Replace image",
     "bgPhoto": "Background image",
     "privacyNote": "The design is rendered on your device and saved as a compressed 1200×400 image. The original photo is never uploaded — only the final banner.",
     "cancel": "Cancel",
-    "use": "Use this banner"
+    "use": "Use this banner",
+    "elements": {
+      "icon": "Icon",
+      "badge": "Badge",
+      "headline": "Headline",
+      "subline": "Subline",
+      "footer": "Footer",
+      "highlight": "Highlight"
+    },
+    "elementSize": "Size",
+    "elementColor": "Colour",
+    "elementShadow": "Shadow",
+    "elementReset": "Reset",
+    "dragHint": "Click any element on the banner to select it, then drag it — or use the arrow keys (Shift for bigger steps).",
+    "resetAll": "Reset all positions"
   }
 }
