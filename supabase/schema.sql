@@ -677,7 +677,7 @@ CREATE TABLE survey_responses (
 -- separately on live DB)
 -- ============================================================
 CREATE TABLE ai_usage_log (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
   user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
   feature     TEXT NOT NULL,
