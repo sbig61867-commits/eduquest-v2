@@ -48,7 +48,7 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
         setLoadedFor(targetId)
       })
     return () => { cancelled = true }
-  }, [open, endpoint, idKey, targetId])
+  }, [open, endpoint, idKey, targetId, t])
 
   async function change(method: 'POST' | 'DELETE', studentId: string) {
     if (!targetId) return

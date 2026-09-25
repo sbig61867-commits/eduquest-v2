@@ -18,7 +18,7 @@ interface RawSubmission {
   submitted_at: string
   proctoring_events: Array<{ type?: string }> | null
 }
-interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[] }
+interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[]; type?: string }
 
 export default async function GradesPage() {
   const t = await getTranslations('student.grades')
@@ -56,7 +56,9 @@ export default async function GradesPage() {
   const examMap = new Map<string, RpcExam>(
     ((rpcExams ?? []) as RpcExam[]).map(e => [e.id, e])
   )
-  const isHomework = (e?: RpcExam) => !!e && (e.duration_minutes <= 0 || e.duration_minutes >= 43200)
+  // The feed's `type` is authoritative; the duration sentinel is only the
+  // fallback for a database without student_exams_expose_type_migration.
+  const isHomework = (e?: RpcExam) => !!e && (e.type ? e.type === 'homework' : (e.duration_minutes <= 0 || e.duration_minutes >= 43200))
 
   const submissions = ((raw ?? []) as RawSubmission[]).map(sub => {
     const exam = examMap.get(sub.exam_id)

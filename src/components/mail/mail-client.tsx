@@ -36,7 +36,7 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
         toast.error(data.error ?? t('loadFailed'))
       }
       setLoading(false)
-    }), [])
+    }), [t])
 
   useEffect(() => { void load() }, [load])
 
@@ -52,7 +52,7 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
       load()
     }
     return () => ch.close()
-  }, [load])
+  }, [load, t])
 
   // Backup for browsers without BroadcastChannel: poll while the popup flow is open.
   useEffect(() => {

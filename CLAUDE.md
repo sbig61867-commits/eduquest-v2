@@ -121,17 +121,13 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - `center_dashboard_migration.sql` — `get_center_dashboard(p_days)` aggregate-only JSONB feed (tenant from `auth.uid()`, `view_reports` guard mirroring `permissions.ts`) + 3 windowed indexes. **Apply after** `attendance_migration.sql`. ✅ (found applied on the live DB 2026-09-17 — `get_center_dashboard` present)
 - `mail_connections_migration.sql` — institutional mailbox linking. A staff member (`university_admin`, or `center_manager` with `manage_students`) links **their own** Google mailbox via Google's own OAuth popup (`/api/mail/google/start` → `/callback`); only `gmail.send` + openid/email are requested (never read access — read scopes are "restricted" and need a paid security assessment). Uses a **dedicated OAuth client "EduQuest Mail"** (`GOOGLE_MAIL_CLIENT_ID/SECRET`) in Google Cloud project `primal-duality-507719-n6` — **never touch the "EduQuest Web" client there, it is Supabase's Google sign-in**, and never switch that consent screen back to Testing (it would lock out Google sign-in). Tokens are AES-256-GCM encrypted in the app (`MAIL_TOKEN_ENCRYPTION_KEY`, `src/lib/mail/crypto.ts`); `mail_connections` has **no policies and all grants revoked** (status served by `/api/mail/connection`). `/api/mail/send` only emails active students/teachers of the caller's tenant by user id (≤50/request, 300/day rate limit) and logs every attempt in `mail_messages`. The callback notifies the page over `BroadcastChannel('eduquest-mail')` because `Cross-Origin-Opener-Policy: same-origin` severs `window.opener`. UI `/center/mail` (بريدي). ✅ 2026-09-17 — applied via Supabase MCP; grants verified live (mail_connections: anon/authenticated SELECT false, RLS on; mail_messages: authenticated SELECT true, INSERT false).
 - `locale_preferences_migration.sql` — `tenants.default_locale` (NOT NULL, DEFAULT `'ar'` ⇒ no behaviour change) + nullable `users.locale` (NULL = inherit the institution). No policy change: `users_update` pins columns by enumeration, so `locale` is self-writable while every pinned column stays pinned even in the same statement. Read once per session by `src/proxy.ts` `ensureLocaleCookie` into the `eq_locale` cookie — never per request. Also used for the invitation email language (institution default, else the inviter's). ✅ 2026-09-25 — dry-run in a forced-rollback transaction, then applied via Supabase MCP; `supabase/tests/locale_rls_check.sql` before and after: 2/2 legitimate paths work, 9/9 attack rows blocked.
-
-## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
-
 - `student_exams_expose_type_migration.sql` — adds `type` and `lesson_id` to `get_student_exams()`'s
   return columns. Homework lives in the `exams` table (`type='homework'`, `lesson_id` set), but the
   student feed returned neither column, so the UI classified rows by a **duration sentinel**
   (`<= 0 || >= 43200`). That misread a real exam saved with an out-of-range duration as untimed
   homework, which also stripped its countdown and auto-submit. Requires `DROP FUNCTION` first
   (changed OUT columns) and re-asserts the grant matrix. **Until it is applied**, the client falls
-  back to the sentinel and homework does not appear under its lesson — no crash either way.
-
+  back to the sentinel and homework does not appear under its lesson — no crash either way. ✅ 2026-09-25 — live body diffed against the migration first (identical apart from the two new columns), dry-run in a rolled-back transaction, then applied via Supabase MCP; verified: new OUT columns present, `anon` EXECUTE false (live anon RPC call → 401), `authenticated` true, `search_path` pinned. `student/grades` now prefers `type` too; the duration sentinel is only the pre-migration fallback.
 - `engagement_metrics_migration.sql` — platform engagement ("digital attendance"): `get_group_engagement(group, days)`
   (per student: submitted/assigned, course items completed, active days, last activity, a 60/40 engagement score)
   and `get_tenant_engagement(days)` (one aggregate row per group). SECURITY DEFINER with pinned `search_path`,
@@ -143,10 +139,12 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   `src/lib/engagement.ts` — no AI, deterministic. A group appears under a course only via `groups.course_id`.
   Verified in rolled-back transactions on the live DB 2026-09-19 (teacher on own group returns the expected JSON;
   guard matrix: student denied, teacher-owner / university_admin / super_admin allowed; course analytics against
-  seeded fixtures returned items_total 2 / avg_progress 50 / active 1 / group attendance 100 exactly as expected).
+  seeded fixtures returned items_total 2 / avg_progress 50 / active 1 / group attendance 100 exactly as expected). ✅ (found applied on the live DB 2026-09-25 — `get_group_engagement`, `get_course_analytics` present)
+- `center_manager_capabilities_migration.sql` — lets `center_manager` read `courses` / `course_enrollments` in its tenant (writes stay service-role only). Required by `/center/courses`. ✅ (found applied on the live DB 2026-09-25 — `courses_select` grants `center_manager` tenant read)
 
-- `center_manager_capabilities_migration.sql` — lets `center_manager` read `courses` / `course_enrollments` in its tenant (writes stay service-role only). Required by `/center/courses`.
+## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
+None as of 2026-09-25.
 
 ## Centre manager panel
 

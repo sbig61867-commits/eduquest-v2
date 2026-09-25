@@ -202,7 +202,7 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
     if (!ctx) return
     const family = getComputedStyle(document.body).fontFamily || 'sans-serif'
     render(ctx, design, photo, family, t('fallbackHeadline'))
-  }, [design, photo, fontsReady])
+  }, [design, photo, fontsReady, t])
 
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.src) }, [photo])
 

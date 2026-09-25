@@ -68,7 +68,7 @@ export function AttendanceClient({ groups }: { groups: Option[] }) {
         setLoadedKey(`${groupId}|${date}|${revision}`)
       })
     return () => { cancelled = true }
-  }, [groupId, date, revision])
+  }, [groupId, date, revision, t])
 
   function setStatus(id: string, status: Status | '') {
     setMarks(m => ({ ...m, [id]: { note: m[id]?.note ?? '', status } }))
