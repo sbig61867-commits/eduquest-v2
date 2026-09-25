@@ -55,7 +55,7 @@
   "courseUpdateFailed": "Could not update the course",
   "createFailed": "Could not create",
   "ctaTooLong": "The button text is too long",
-  "ctaUrlScheme": "The button link must start with https:// or http://",
+  "ctaUrlScheme": "The button must be a web link (https://), a phone number or an email address",
   "dailySendLimit": "You have reached the daily sending limit",
   "decisionSaveFailed": "Could not save the decision",
   "descriptionTooLong": "The description is too long",

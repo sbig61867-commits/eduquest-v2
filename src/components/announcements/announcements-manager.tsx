@@ -14,7 +14,8 @@ import { AnnouncementsBanner, AnnouncementImage } from '@/components/student/ann
 import { Modal } from '@/components/ui/modal'
 import { BannerDesigner } from '@/components/announcements/banner-designer'
 import { type AnnouncementAudience } from '@/lib/announcement-audience'
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock } from 'lucide-react'
+import { buildContactUrl, parseContactUrl, CONTACT_TYPES, type ContactType } from '@/lib/announcement-contact'
+import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock, MessageCircle, Phone, Mail, Link2 } from 'lucide-react'
 
 interface CopySuggestion { title: string; body: string; cta_label: string }
 
@@ -83,6 +84,7 @@ const AUDIENCE_OPTIONS: {
 
 const emptyForm = (canTargetUniversity: boolean) => ({
   title: '', body: '', image_url: '', link_url: '', cta_label: '',
+  contact_type: 'whatsapp' as ContactType, contact_value: '',
   audience: (canTargetUniversity ? 'all' : 'center') as AnnouncementAudience,
   group_ids: [] as string[],
   starts_at: '', ends_at: '', is_published: true,
@@ -147,6 +149,8 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: a.body ?? '',
       image_url: a.image_url ?? '',
       link_url: a.link_url ?? '',
+      contact_type: parseContactUrl(a.link_url).type,
+      contact_value: parseContactUrl(a.link_url).value,
       cta_label: a.cta_label ?? '',
       audience: a.audience,
       group_ids: a.group_ids,
@@ -194,12 +198,21 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       return toast.error(t('endInPast'))
     }
 
+    const link_url = buildContactUrl(form.contact_type, form.contact_value, form.title)
+    if (link_url === null) return toast.error(t(`contact.invalid.${form.contact_type}`))
+
     setBusy(true)
     const editing = editingId
+    const { contact_type: _type, contact_value: _value, ...payload } = form
+    void _type; void _value
     const res = await fetch('/api/announcements', {
       method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, ...(editing ? { id: editing } : {}), starts_at, ends_at }),
+      body: JSON.stringify({
+        // An unlabelled contact button is labelled by the viewer's own language
+        // ("Contact on WhatsApp"), so the label is left empty rather than filled here.
+        ...payload, ...(editing ? { id: editing } : {}), starts_at, ends_at, link_url,
+      }),
     })
     const data = await res.json().catch(() => ({}))
     setBusy(false)
@@ -343,25 +356,47 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>{t('linkLabel')}</span>
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
-                value={form.link_url}
-                onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
-                placeholder="https://…"
-              />
-            </label>
-            <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>{t('ctaLabel')}</span>
-              <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
-                value={form.cta_label}
-                onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
-                placeholder={t('ctaPlaceholder')}
-              />
-            </label>
+          {/* Contact / call-to-action button */}
+          <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+            <div>
+              <span className="text-sm text-slate-300">{t('contact.title')}</span>
+              <p className="text-slate-500 text-xs mt-0.5">{t('contact.hint')}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {CONTACT_TYPES.map(type => {
+                const Icon = { whatsapp: MessageCircle, phone: Phone, email: Mail, link: Link2 }[type]
+                return (
+                  <button key={type} type="button"
+                    onClick={() => setForm(f => ({ ...f, contact_type: type, contact_value: '' }))}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                      form.contact_type === type ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
+                    }`}
+                  ><Icon className="w-4 h-4" /> {t(`contact.types.${type}`)}</button>
+                )
+              })}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="text-sm text-slate-300 space-y-1.5 block">
+                <span>{t(`contact.valueLabel.${form.contact_type}`)}</span>
+                <input
+                  dir="ltr"
+                  inputMode={form.contact_type === 'whatsapp' || form.contact_type === 'phone' ? 'tel' : form.contact_type === 'email' ? 'email' : 'url'}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  value={form.contact_value}
+                  onChange={e => setForm(f => ({ ...f, contact_value: e.target.value }))}
+                  placeholder={t(`contact.placeholder.${form.contact_type}`)}
+                />
+              </label>
+              <label className="text-sm text-slate-300 space-y-1.5 block">
+                <span>{t('ctaLabel')}</span>
+                <input
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  value={form.cta_label}
+                  onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
+                  placeholder={form.contact_type === 'link' ? t('ctaPlaceholder') : t(`contact.cta.${form.contact_type}`)}
+                />
+              </label>
+            </div>
           </div>
 
           {/* Audience */}
@@ -448,7 +483,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 title: form.title.trim() || t('previewFallbackTitle'),
                 body: form.body.trim() || null,
                 image_url: form.image_url || null,
-                link_url: form.link_url || null,
+                link_url: buildContactUrl(form.contact_type, form.contact_value, form.title) || null,
                 cta_label: form.cta_label || null,
               }]} />
             </div>

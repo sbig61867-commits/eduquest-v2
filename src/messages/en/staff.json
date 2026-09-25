@@ -432,7 +432,40 @@
     "edit": "Edit",
     "hide": "Hide",
     "publish": "Publish",
-    "delete": "Delete"
+    "delete": "Delete",
+    "contact": {
+      "title": "Contact button (how students reach you to register)",
+      "hint": "Students see a button that opens WhatsApp with the announcement title already written, calls you, or opens an email to you.",
+      "types": {
+        "whatsapp": "WhatsApp",
+        "phone": "Phone call",
+        "email": "Email",
+        "link": "Web link"
+      },
+      "valueLabel": {
+        "whatsapp": "WhatsApp number with country code",
+        "phone": "Phone number",
+        "email": "Email address",
+        "link": "Link"
+      },
+      "placeholder": {
+        "whatsapp": "+966 5x xxx xxxx",
+        "phone": "+966 1x xxx xxxx",
+        "email": "centre@example.com",
+        "link": "https://…"
+      },
+      "cta": {
+        "whatsapp": "Contact on WhatsApp",
+        "phone": "Call us",
+        "email": "Email us"
+      },
+      "invalid": {
+        "whatsapp": "Enter a WhatsApp number with its country code (8–15 digits)",
+        "phone": "Enter a valid phone number",
+        "email": "Enter a valid email address",
+        "link": "The link must start with https:// or http://"
+      }
+    }
   },
   "invitations": {
     "createFailed": "Failed to create the invitation",

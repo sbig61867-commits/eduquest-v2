@@ -7,6 +7,7 @@ import { getTenantSettings } from '@/lib/structure-mode'
 import {
   canEditAnnouncement, canTargetUniversity, resolveAudience, AUDIENCE_DENIED,
 } from '@/lib/announcement-audience'
+import { isAllowedCtaUrl } from '@/lib/announcement-contact'
 
 // Announcements are authored by staff holding `manage_announcements`
 // (university_admin / center_manager, or super_admin) and surface on the
@@ -99,11 +100,8 @@ export async function POST(request: Request) {
   if (body.body && String(body.body).length > MAX_BODY) return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
   if (body.cta_label && String(body.cta_label).length > MAX_CTA) return NextResponse.json({ ...(await apiErr('ctaTooLong')) }, { status: 400 })
 
-  if (body.link_url) {
-    const scheme = String(body.link_url).trim().toLowerCase()
-    if (!scheme.startsWith('https://') && !scheme.startsWith('http://')) {
-      return NextResponse.json({ ...(await apiErr('ctaUrlScheme')) }, { status: 400 })
-    }
+  if (body.link_url && !isAllowedCtaUrl(String(body.link_url))) {
+    return NextResponse.json({ ...(await apiErr('ctaUrlScheme')) }, { status: 400 })
   }
 
   if (body.image_url && !isOwnBucketImage(String(body.image_url))) {
@@ -195,11 +193,8 @@ export async function PATCH(request: Request) {
   if (body.cta_label !== undefined && body.cta_label && String(body.cta_label).length > MAX_CTA) {
     return NextResponse.json({ ...(await apiErr('ctaTooLong')) }, { status: 400 })
   }
-  if (body.link_url !== undefined && body.link_url) {
-    const scheme = String(body.link_url).trim().toLowerCase()
-    if (!scheme.startsWith('https://') && !scheme.startsWith('http://')) {
-      return NextResponse.json({ ...(await apiErr('ctaUrlScheme')) }, { status: 400 })
-    }
+  if (body.link_url !== undefined && body.link_url && !isAllowedCtaUrl(String(body.link_url))) {
+    return NextResponse.json({ ...(await apiErr('ctaUrlScheme')) }, { status: 400 })
   }
   if (body.image_url !== undefined && body.image_url && !isOwnBucketImage(String(body.image_url))) {
     return NextResponse.json({ ...(await apiErr('imageMustUpload')) }, { status: 400 })

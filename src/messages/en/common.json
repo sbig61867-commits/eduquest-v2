@@ -131,6 +131,11 @@
     "prev": "Previous",
     "next": "Next",
     "more": "Show more",
-    "less": "Show less"
+    "less": "Show less",
+    "contact": {
+      "whatsapp": "Contact on WhatsApp",
+      "phone": "Call us",
+      "email": "Email us"
+    }
   }
 }

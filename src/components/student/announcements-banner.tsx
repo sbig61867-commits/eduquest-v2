@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Megaphone, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
+import { Megaphone, ChevronLeft, ChevronRight, ExternalLink, MessageCircle, Phone, Mail } from 'lucide-react'
+import { parseContactUrl, isWebUrl } from '@/lib/announcement-contact'
 
 // Motion announcement banner on the student home. Pure CSS/RAF-free:
 // a cross-fading slide with an auto-advance timer, a subtle entrance
@@ -85,15 +86,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
 
           {a.link_url && (
             <div>
-              <a
-                href={a.link_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-              >
-                {a.cta_label?.trim() || t('learnMore')}
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <CtaButton url={a.link_url} label={a.cta_label?.trim() || ''} t={t} />
             </div>
           )}
         </div>
@@ -186,5 +179,23 @@ export function AnnouncementImage({ src, className = 'max-h-[22rem]' }: { src: s
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" className={`relative block w-full h-auto object-contain mx-auto ${className}`} />
     </div>
+  )
+}
+
+function CtaButton({ url, label, t }: { url: string; label: string; t: (key: string) => string }) {
+  const { type } = parseContactUrl(url)
+  const web = isWebUrl(url)
+  const Icon = type === 'whatsapp' ? MessageCircle : type === 'phone' ? Phone : type === 'email' ? Mail : ExternalLink
+  const color = type === 'whatsapp' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'
+  const fallback = type === 'link' ? t('learnMore') : t(`contact.${type}`)
+  return (
+    <a
+      href={url}
+      {...(web ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      className={`inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg text-white transition-colors ${color}`}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {label || fallback}
+    </a>
   )
 }

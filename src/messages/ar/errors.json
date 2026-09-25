@@ -55,7 +55,7 @@
   "courseUpdateFailed": "فشل تحديث المساق",
   "createFailed": "تعذّر الإنشاء",
   "ctaTooLong": "نص الزر طويل جداً",
-  "ctaUrlScheme": "رابط الزر يجب أن يبدأ بـ https:// أو http://",
+  "ctaUrlScheme": "يجب أن يكون الزر رابطاً (https://) أو رقم هاتف أو بريداً إلكترونياً",
   "dailySendLimit": "تجاوزت حد الإرسال اليومي",
   "decisionSaveFailed": "تعذّر حفظ القرار",
   "descriptionTooLong": "الوصف طويل جداً",
