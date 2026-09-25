@@ -1,3 +1,4 @@
+import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
@@ -44,19 +45,19 @@ function isBlockedAddress(ip: string): boolean {
 }
 
 /** Resolve the host and reject unless every answer is a public unicast address. */
-async function assertPublicHost(hostname: string): Promise<string | null> {
+async function assertPublicHost(hostname: string): Promise<ApiErrorCode | null> {
   if (isIP(hostname)) {
-    return isBlockedAddress(hostname) ? 'الرابط يشير إلى عنوان داخلي غير مسموح' : null
+    return isBlockedAddress(hostname) ? 'internalAddressBlocked' : null
   }
   let addrs: { address: string }[]
   try {
     addrs = await lookup(hostname, { all: true })
   } catch {
-    return 'تعذّر التعرف على اسم النطاق'
+    return 'unresolvableHost'
   }
-  if (addrs.length === 0) return 'تعذّر التعرف على اسم النطاق'
+  if (addrs.length === 0) return 'unresolvableHost'
   if (addrs.some(a => isBlockedAddress(a.address))) {
-    return 'الرابط يشير إلى عنوان داخلي غير مسموح'
+    return 'internalAddressBlocked'
   }
   return null
 }
@@ -84,35 +85,35 @@ function extractMeta(html: string) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   // Only announcement authors get to make the server fetch a URL. Previously
   // any signed-in account — a student's included — could drive this.
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const rl = await rateLimit(`preview-url:${user.id}`, { limit: 30, windowSecs: 3600 })
   if (!rl.allowed) {
-    return NextResponse.json({ error: 'تجاوزت الحد المسموح، حاول لاحقاً' }, { status: 429 })
+    return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
   }
 
   let body: { url?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const raw = String(body.url ?? '').trim()
-  if (!raw) return NextResponse.json({ error: 'url مطلوب' }, { status: 400 })
+  if (!raw) return NextResponse.json({ ...(await apiErr('urlRequired')) }, { status: 400 })
 
   let url: URL
-  try { url = new URL(raw) } catch { return NextResponse.json({ error: 'رابط غير صالح' }, { status: 400 }) }
+  try { url = new URL(raw) } catch { return NextResponse.json({ ...(await apiErr('invalidUrl')) }, { status: 400 }) }
   if (!['http:', 'https:'].includes(url.protocol)) {
-    return NextResponse.json({ error: 'يجب أن يبدأ الرابط بـ https://' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('urlHttpsRequired')) }, { status: 400 })
   }
 
   const blocked = await assertPublicHost(url.hostname)
-  if (blocked) return NextResponse.json({ error: blocked }, { status: 400 })
+  if (blocked) return NextResponse.json({ ...(await apiErr(blocked)) }, { status: 400 })
 
   try {
     // redirect: 'manual' matters — following redirects would let a public host
@@ -123,14 +124,14 @@ export async function POST(request: Request) {
       redirect: 'manual',
     })
     if (res.status >= 300 && res.status < 400) {
-      return NextResponse.json({ error: 'الرابط يعيد التوجيه، استخدم الرابط النهائي مباشرة' }, { status: 422 })
+      return NextResponse.json({ ...(await apiErr('urlRedirects')) }, { status: 422 })
     }
-    if (!res.ok) return NextResponse.json({ error: `الموقع أعاد ${res.status}` }, { status: 422 })
+    if (!res.ok) return NextResponse.json({ ...(await apiErr('siteReturned', { status: res.status })) }, { status: 422 })
     const ct = res.headers.get('content-type') ?? ''
-    if (!ct.includes('text/html')) return NextResponse.json({ error: 'الرابط لا يشير إلى صفحة HTML' }, { status: 422 })
+    if (!ct.includes('text/html')) return NextResponse.json({ ...(await apiErr('urlNotHtml')) }, { status: 422 })
     // Read at most 64 KB — enough to capture OG tags in the <head>
     const reader = res.body?.getReader()
-    if (!reader) return NextResponse.json({ error: 'لا يمكن قراءة المحتوى' }, { status: 422 })
+    if (!reader) return NextResponse.json({ ...(await apiErr('contentUnreadable')) }, { status: 422 })
     const chunks: Uint8Array[] = []
     let total = 0
     while (true) {
@@ -148,6 +149,6 @@ export async function POST(request: Request) {
     // turns this endpoint into a blind SSRF oracle for mapping the internal
     // network. Log it server-side, return a fixed message.
     console.error('[announcements/preview-url]', e)
-    return NextResponse.json({ error: 'تعذّر جلب الرابط' }, { status: 422 })
+    return NextResponse.json({ ...(await apiErr('urlFetchFailed')) }, { status: 422 })
   }
 }

@@ -1,3 +1,5 @@
+import { getTranslations, getLocale } from 'next-intl/server'
+import { dirFor, toLocale } from '@/i18n/config'
 import { resolveAppUrl } from '@/lib/auth-urls'
 import { serviceClient } from '@/lib/staff-auth'
 import { getMailCaller } from '@/lib/mail/access'
@@ -6,14 +8,21 @@ import { GMAIL_SEND_SCOPE, emailFromIdToken, exchangeCode, revokeToken } from '@
 
 // Google redirects the popup here. We finish the exchange server-side, store
 // the tokens encrypted, then notify the page (BroadcastChannel) and close the popup.
-function popupResult(ok: boolean, message: string) {
+// The message is shown in this popup AND forwarded to the mail page as a
+// toast, so it is resolved in the caller's language here.
+async function popupResult(ok: boolean, key: string, params?: Record<string, string>) {
+  const t = await getTranslations('center.mail.popup')
+  const locale = toLocale(await getLocale())
+  const message = t(key, params)
+  const closeHint = t('closeHint')
   const payload = JSON.stringify({ type: 'eduquest-mail-link', ok, message })
-  const html = `<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>EduQuest</title>
+  const hint = JSON.stringify(closeHint)
+  const html = `<!doctype html><html lang="${locale}" dir="${dirFor(locale)}"><meta charset="utf-8"><title>EduQuest</title>
 <body style="font-family:sans-serif;background:#0f172a;color:#e2e8f0;display:grid;place-items:center;height:100vh;margin:0">
 <p id="m"></p>
 <script>
   var data = ${payload.replace(/</g, '\\u003c')};
-  document.getElementById('m').textContent = data.message + ' — يمكنك إغلاق هذه النافذة';
+  document.getElementById('m').textContent = data.message + ' — ' + ${hint.replace(/</g, '\\u003c')};
   // COOP same-origin (next.config.ts) severs window.opener once the popup has
   // visited accounts.google.com, so notify the page over a same-origin channel.
   try { var ch = new BroadcastChannel('eduquest-mail'); ch.postMessage(data); ch.close(); } catch (e) {}
@@ -24,31 +33,31 @@ function popupResult(ok: boolean, message: string) {
 
 export async function GET(request: Request) {
   const auth = await getMailCaller()
-  if ('error' in auth) return popupResult(false, 'لا تملك صلاحية ربط البريد')
+  if ('error' in auth) return popupResult(false, 'noPermission')
   const { caller } = auth
 
   const url = new URL(request.url)
-  if (url.searchParams.get('error')) return popupResult(false, 'أُلغي الربط من نافذة Google')
-  if (!verifyState(url.searchParams.get('state'), caller.id)) return popupResult(false, 'انتهت صلاحية الطلب، أعد المحاولة')
+  if (url.searchParams.get('error')) return popupResult(false, 'cancelled')
+  if (!verifyState(url.searchParams.get('state'), caller.id)) return popupResult(false, 'expired')
 
   const code = url.searchParams.get('code')
-  if (!code) return popupResult(false, 'لم يُستلم رمز الموافقة من Google')
+  if (!code) return popupResult(false, 'noCode')
 
   const origin = resolveAppUrl(request.url, process.env.NEXT_PUBLIC_APP_URL)
   const tokens = await exchangeCode(origin, code)
   if (!tokens.access_token) {
     console.error('[mail/google/callback] exchange failed', tokens.error)
-    return popupResult(false, 'تعذّر إكمال الربط مع Google')
+    return popupResult(false, 'exchangeFailed')
   }
   if (!tokens.scope?.split(' ').includes(GMAIL_SEND_SCOPE)) {
     await revokeToken(tokens.access_token)
-    return popupResult(false, 'لم تُمنح صلاحية الإرسال — فعّل خيار "إرسال البريد" في نافذة Google')
+    return popupResult(false, 'noSendScope')
   }
   if (!tokens.refresh_token) {
-    return popupResult(false, 'لم يُصدر Google رمز التحديث — أزل وصول EduQuest من حسابك في Google ثم أعد الربط')
+    return popupResult(false, 'noRefreshToken')
   }
   const email = emailFromIdToken(tokens.id_token)
-  if (!email) return popupResult(false, 'تعذّر معرفة عنوان البريد')
+  if (!email) return popupResult(false, 'noEmail')
 
   const { error } = await serviceClient().from('mail_connections').upsert({
     user_id: caller.id,
@@ -65,7 +74,7 @@ export async function GET(request: Request) {
 
   if (error) {
     console.error('[mail/google/callback] save failed', error)
-    return popupResult(false, 'تعذّر حفظ الربط')
+    return popupResult(false, 'saveFailed')
   }
-  return popupResult(true, `تم ربط ${email}`)
+  return popupResult(true, 'linked', { email })
 }

@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
-import { NoPermission } from '@/components/center/no-permission'
+import { NoPermission } from '@/components/shared/no-permission'
 import { MailClient, type Recipient, type RecipientGroup } from '@/components/mail/mail-client'
 
 export default async function CenterMailPage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
-  if (!has('manage_students')) return <NoPermission label="إدارة الطلاب" />
+  if (!has('manage_students')) return <NoPermission capability="manage_students" />
 
   const [{ data: students }, { data: groups }] = await Promise.all([
     supabase.from('users').select('id, full_name, email')

@@ -2,20 +2,24 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, CheckCircle2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 // Staged progress for AI file processing. The API is a single request with
 // no streaming, so progress is simulated: it advances asymptotically toward
 // 92% while the request is in flight (never appearing stuck), then snaps to
 // 100% with a confirmation when `active` flips back to false.
 
+// Thresholds only — a label baked in here would resolve once at import and
+// then serve that one language for the life of the process.
 const STAGES = [
-  { at: 0,  label: 'قراءة الملف...' },
-  { at: 22, label: 'استخراج النص من الملف...' },
-  { at: 48, label: 'الذكاء الاصطناعي يعالج المحتوى...' },
-  { at: 75, label: 'جاري تجهيز النتيجة...' },
-]
+  { at: 0,  key: 'stageRead' },
+  { at: 22, key: 'stageExtract' },
+  { at: 48, key: 'stageProcess' },
+  { at: 75, key: 'stagePrepare' },
+] as const
 
 export function AiProgress({ active }: { active: boolean }) {
+  const t = useTranslations('common.ai')
   const [progress, setProgress] = useState(0)
   const [visible, setVisible] = useState(false)
   const wasActive = useRef(false)
@@ -43,11 +47,11 @@ export function AiProgress({ active }: { active: boolean }) {
 
   const done = progress >= 100
   const stage = done
-    ? 'اكتملت المعالجة بنجاح'
-    : [...STAGES].reverse().find(s => progress >= s.at)?.label ?? STAGES[0].label
+    ? t('stageDone')
+    : t([...STAGES].reverse().find(s => progress >= s.at)?.key ?? STAGES[0].key)
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 space-y-2" dir="rtl">
+    <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 space-y-2">
       <div className="flex items-center gap-2 text-sm">
         {done
           ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />

@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Send, Save, EyeOff } from 'lucide-react'
-
-// Teacher grading view for a lesson's homework: who submitted, their
-// answers, manual points for essay questions, and publishing results.
+import { useTranslations } from 'next-intl'
 
 interface Question {
   id: string; text: string; type: 'mcq' | 'true_false' | 'short_answer' | 'essay'
@@ -29,10 +27,10 @@ function autoScore(questions: Question[], answers: Record<string, string>): numb
 }
 
 export function SubmissionsTab({ lessonId }: { lessonId: string }) {
+  const t = useTranslations('teacher')
   const [homework, setHomework] = useState<HomeworkRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
-  // per-submission essay points: { [subId]: { [questionId]: points } }
   const [essayPoints, setEssayPoints] = useState<Record<string, Record<string, number>>>({})
   const [busy, setBusy] = useState<string>('')
 
@@ -54,7 +52,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: subId, ...patch }),
     })
-    if (!res.ok) toast.error((await res.json()).error ?? 'فشل الحفظ')
+    if (!res.ok) toast.error((await res.json()).error ?? t('submissions.saveFailed'))
     else await load()
     setBusy('')
   }
@@ -66,13 +64,15 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
   }
 
   const STATUS: Record<Submission['grading_status'], { label: string; variant: 'yellow' | 'blue' | 'green' }> = {
-    pending: { label: 'بانتظار التصحيح', variant: 'yellow' },
-    reviewing: { label: 'مُصحَّح — غير منشور', variant: 'blue' },
-    published: { label: 'منشور للطالب', variant: 'green' },
+    pending: { label: t('submissions.statusPending'), variant: 'yellow' },
+    reviewing: { label: t('submissions.statusReviewing'), variant: 'blue' },
+    published: { label: t('submissions.statusPublished'), variant: 'green' },
   }
 
-  if (loading) return <p className="text-slate-500 text-sm py-8 text-center">جاري تحميل التسليمات...</p>
-  if (homework.length === 0) return <p className="text-slate-500 text-sm py-8 text-center">لا توجد واجبات لهذا الدرس بعد.</p>
+  const markUnit = t('courses.builder.markUnit')
+
+  if (loading) return <p className="text-slate-500 text-sm py-8 text-center">{t('submissions.loading')}</p>
+  if (homework.length === 0) return <p className="text-slate-500 text-sm py-8 text-center">{t('submissions.noHomework')}</p>
 
   return (
     <div className="space-y-6">
@@ -84,18 +84,20 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800">
               <div>
                 <p className="text-white font-semibold">{hw.title}</p>
-                <p className="text-slate-500 text-xs mt-0.5">{hw.submissions.length} تسليم · {hw.questions.length} سؤال{hasEssay ? ' · يتضمن أسئلة مقالية' : ''}</p>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  {t('submissions.hwStats', { submissions: hw.submissions.length, questions: hw.questions.length, hasEssay: hasEssay ? t('submissions.hasEssay') : '' })}
+                </p>
               </div>
               {unpublished.length > 0 && (
                 <Button size="sm" variant="secondary"
                   onClick={async () => { for (const s of unpublished) await patchSub(s.id, { grading_status: 'published' }) }}>
-                  <Send className="w-3.5 h-3.5" /> نشر الكل ({unpublished.length})
+                  <Send className="w-3.5 h-3.5" /> {t('submissions.publishAllCount', { count: unpublished.length })}
                 </Button>
               )}
             </div>
 
             {hw.submissions.length === 0 ? (
-              <p className="text-slate-500 text-sm px-5 py-6 text-center">لم يسلّم أي طالب هذا الواجب بعد.</p>
+              <p className="text-slate-500 text-sm px-5 py-6 text-center">{t('submissions.noSubmissions')}</p>
             ) : hw.submissions.map(sub => {
               const open = expanded === sub.id
               const st = STATUS[sub.grading_status]
@@ -126,19 +128,19 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                               <span className="text-slate-500 text-xs font-mono mt-0.5">{qi + 1}.</span>
                               <p className="flex-1 text-slate-200 text-sm">{q.text}</p>
                               {auto && (correct
-                                ? <span className="flex items-center gap-1 text-emerald-400 text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
-                                : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0 / {q.points} د</span>)}
+                                ? <span className="flex items-center gap-1 text-emerald-400 text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} {markUnit}</span>
+                                : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0 / {q.points} {markUnit}</span>)}
                             </div>
                             <p className="text-sm ps-6">
-                              <span className="text-slate-500">إجابة الطالب: </span>
-                              <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || '— لم يجب —'}</span>
+                              <span className="text-slate-500">{t('submissions.studentAnswer')} </span>
+                              <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || t('submissions.notAnswered')}</span>
                             </p>
                             {auto && !correct && (
-                              <p className="text-xs ps-6 text-emerald-400">الإجابة الصحيحة: {q.correct_answer}</p>
+                              <p className="text-xs ps-6 text-emerald-400">{t('submissions.correctAnswerLabel', { answer: q.correct_answer })}</p>
                             )}
                             {!auto && (
                               <div className="flex items-center gap-2 ps-6">
-                                <label className="text-slate-400 text-xs">درجة هذا السؤال:</label>
+                                <label className="text-slate-400 text-xs">{t('submissions.questionGradeLabel')}</label>
                                 <input
                                   type="number" min={0} max={q.points}
                                   value={essayPoints[sub.id]?.[q.id] ?? 0}
@@ -148,7 +150,7 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                                   }))}
                                   className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
-                                <span className="text-slate-500 text-xs">من {q.points}</span>
+                                <span className="text-slate-500 text-xs">{t('submissions.outOf', { max: q.points })}</span>
                               </div>
                             )}
                           </div>
@@ -159,12 +161,12 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                         {hasEssay && (
                           <>
                             <span className="text-slate-300 text-sm">
-                              المجموع النهائي: <span className="text-white font-bold">{totalFor(hw, sub)} / {sub.max_score}</span>
-                              <span className="text-slate-500 text-xs"> (آلي {autoScore(hw.questions, sub.answers)} + مقالي)</span>
+                              {t('submissions.totalScore', { score: totalFor(hw, sub), max: sub.max_score ?? '—' })}
+                              <span className="text-slate-500 text-xs"> {t('submissions.autoEssayNote', { auto: autoScore(hw.questions, sub.answers) })}</span>
                             </span>
                             <Button size="sm" loading={busy === sub.id}
                               onClick={() => patchSub(sub.id, { score: totalFor(hw, sub), grading_status: 'reviewing' })}>
-                              <Save className="w-3.5 h-3.5" /> حفظ التصحيح
+                              <Save className="w-3.5 h-3.5" /> {t('submissions.saveGrading')}
                             </Button>
                           </>
                         )}
@@ -173,12 +175,12 @@ export function SubmissionsTab({ lessonId }: { lessonId: string }) {
                             onClick={() => patchSub(sub.id, hasEssay
                               ? { score: totalFor(hw, sub), grading_status: 'published' }
                               : { grading_status: 'published' })}>
-                            <Send className="w-3.5 h-3.5" /> نشر النتيجة للطالب
+                            <Send className="w-3.5 h-3.5" /> {t('submissions.publishToStudent')}
                           </Button>
                         ) : (
                           <Button size="sm" variant="ghost" loading={busy === sub.id}
                             onClick={() => patchSub(sub.id, { grading_status: 'reviewing' })}>
-                            <EyeOff className="w-3.5 h-3.5" /> إخفاء النتيجة عن الطالب
+                            <EyeOff className="w-3.5 h-3.5" /> {t('submissions.hideFromStudent')}
                           </Button>
                         )}
                       </div>

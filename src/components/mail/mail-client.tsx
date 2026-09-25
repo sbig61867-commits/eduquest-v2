@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +15,7 @@ export interface RecipientGroup { id: string; name: string; member_ids: string[]
 interface Connection { provider: string; email: string; status: string; last_error: string | null }
 
 export function MailClient({ recipients, groups }: { recipients: Recipient[]; groups: RecipientGroup[] }) {
+  const t = useTranslations('center.mail')
   const [loading, setLoading] = useState(true)
   const [configured, setConfigured] = useState(false)
   const [conn, setConn] = useState<Connection | null>(null)
@@ -31,7 +33,7 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
         setConfigured(!!data.configured?.google)
         setConn((data.connections as Connection[]).find(c => c.provider === 'google') ?? null)
       } else {
-        toast.error(data.error ?? 'تعذّر تحميل حالة البريد')
+        toast.error(data.error ?? t('loadFailed'))
       }
       setLoading(false)
     }), [])
@@ -45,8 +47,8 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
     ch.onmessage = (e: MessageEvent<{ type?: string; ok?: boolean; message?: string }>) => {
       if (e.data?.type !== 'eduquest-mail-link') return
       setLinking(false)
-      if (e.data.ok) toast.success(e.data.message ?? 'تم الربط')
-      else toast.error(e.data.message ?? 'تعذّر الربط')
+      if (e.data.ok) toast.success(e.data.message ?? t('linked'))
+      else toast.error(e.data.message ?? t('linkFailed'))
       load()
     }
     return () => ch.close()
@@ -68,19 +70,19 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
     const left = window.screenX + (window.outerWidth - w) / 2
     const top = window.screenY + (window.outerHeight - h) / 2
     const popup = window.open('/api/mail/google/start', 'eduquest-mail-link', `width=${w},height=${h},left=${left},top=${top}`)
-    if (!popup) return toast.error('اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة')
+    if (!popup) return toast.error(t('popupBlocked'))
     setLinking(true)
   }
 
   async function unlink() {
-    if (!(await confirmDialog('إلغاء ربط بريدك؟ لن تتمكن من إرسال الرسائل حتى تعيد الربط.'))) return
+    if (!(await confirmDialog(t('unlinkConfirm')))) return
     setBusy('unlink')
     const res = await fetch('/api/mail/connection', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: 'google' }),
     })
     setBusy('')
-    if (!res.ok) return toast.error('تعذّر إلغاء الربط')
-    toast.success('تم إلغاء الربط')
+    if (!res.ok) return toast.error(t('unlinkFailed'))
+    toast.success(t('unlinked'))
     setConn(null)
   }
 
@@ -100,9 +102,9 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
   }
 
   async function send() {
-    if (selected.size === 0) return toast.error('اختر مستلماً واحداً على الأقل')
-    if (!subject.trim() || !body.trim()) return toast.error('العنوان والنص مطلوبان')
-    if (!(await confirmDialog(`إرسال الرسالة من ${conn?.email} إلى ${selected.size} مستلم؟`))) return
+    if (selected.size === 0) return toast.error(t('pickRecipient'))
+    if (!subject.trim() || !body.trim()) return toast.error(t('subjectBodyRequired'))
+    if (!(await confirmDialog(t('sendConfirm', { from: conn?.email ?? '', count: selected.size })))) return
     setBusy('send')
     const res = await fetch('/api/mail/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -112,10 +114,10 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
     setBusy('')
     if (!res.ok) {
       if (data.code === 'RELINK_REQUIRED' || data.code === 'NOT_LINKED') load()
-      return toast.error(data.error ?? 'تعذّر الإرسال')
+      return toast.error(data.error ?? t('sendFailed'))
     }
-    if (data.failed) toast.warning(`أُرسلت ${data.sent} وفشلت ${data.failed}`)
-    else toast.success(`أُرسلت ${data.sent} رسالة`)
+    if (data.failed) toast.warning(t('sentPartial', { sent: data.sent, failed: data.failed }))
+    else toast.success(t('sentAll', { sent: data.sent }))
     setSelected(new Set()); setSubject(''); setBody('')
   }
 
@@ -124,62 +126,62 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
   const linkingNow = linking && !active
 
   return (
-    <div className="space-y-6 max-w-4xl" dir="rtl">
+    <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-2xl font-bold text-white">بريدي</h2>
-        <p className="text-slate-400 mt-1">راسل الطلاب من بريد مؤسستك مباشرة</p>
+        <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+        <p className="text-slate-400 mt-1">{t('subtitle')}</p>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <Mail className="w-5 h-5 text-slate-400" />
-            {loading ? <span className="text-slate-500 text-sm">جارٍ التحميل…</span>
+            {loading ? <span className="text-slate-500 text-sm">{t('loading')}</span>
               : conn ? (
                 <div>
                   <p className="text-white text-sm font-medium" dir="ltr">{conn.email}</p>
-                  <Badge variant={active ? 'green' : 'red'}>{active ? 'متصل' : 'يحتاج إعادة ربط'}</Badge>
+                  <Badge variant={active ? 'green' : 'red'}>{active ? t('connected') : t('needsRelink')}</Badge>
                 </div>
-              ) : <span className="text-slate-400 text-sm">لا يوجد بريد مربوط</span>}
+              ) : <span className="text-slate-400 text-sm">{t('noMailbox')}</span>}
           </div>
           <div className="flex gap-2">
             {conn && (
               <Button variant="ghost" size="sm" loading={busy === 'unlink'} onClick={unlink}>
-                <Unlink className="w-4 h-4" /> إلغاء الربط
+                <Unlink className="w-4 h-4" /> {t('unlink')}
               </Button>
             )}
             {(!conn || !active) && (
               <Button onClick={link} disabled={!configured || loading} loading={linkingNow}>
-                {conn ? <RefreshCw className="w-4 h-4" /> : <Link2 className="w-4 h-4" />} {conn ? 'إعادة الربط' : 'ربط بريد Google'}
+                {conn ? <RefreshCw className="w-4 h-4" /> : <Link2 className="w-4 h-4" />} {conn ? t('relink') : t('linkGoogle')}
               </Button>
             )}
           </div>
         </div>
         {!loading && !configured && (
-          <p className="text-amber-400 text-xs">ربط Gmail غير مُعدّ على الخادم بعد (مفاتيح Google غير مضافة).</p>
+          <p className="text-amber-400 text-xs">{t('notConfigured')}</p>
         )}
         <p className="text-slate-500 text-xs">
-          تُفتح نافذة Google نفسها — المنصة لا ترى كلمة مرورك، وتحصل فقط على إذن <b>إرسال</b> البريد (لا قراءته). يمكنك إلغاء الإذن في أي وقت.
+          {t.rich('privacyNote', { b: (c) => <b>{c}</b> })}
         </p>
       </div>
 
       {active && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">رسالة جديدة</h3>
+          <h3 className="text-white font-semibold">{t('compose')}</h3>
           <div className="flex gap-2 flex-wrap">
-            <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="ابحث عن مستلم…"
+            <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={t('searchRecipient')}
               className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm" />
             {groups.length > 0 && (
               <select value="" onChange={e => addGroup(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm">
-                <option value="">إضافة مجموعة كاملة…</option>
+                <option value="">{t('addGroup')}</option>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.member_ids.length})</option>)}
               </select>
             )}
-            {selected.size > 0 && <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>مسح الاختيار</Button>}
+            {selected.size > 0 && <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('clearSelection')}</Button>}
           </div>
           <div className="max-h-56 overflow-y-auto border border-slate-800 rounded-lg divide-y divide-slate-800">
-            {visible.length === 0 && <p className="text-slate-500 text-sm p-3">لا يوجد مستلمون</p>}
+            {visible.length === 0 && <p className="text-slate-500 text-sm p-3">{t('noRecipients')}</p>}
             {visible.map(r => (
               <label key={r.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-800/50">
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
@@ -188,15 +190,15 @@ export function MailClient({ recipients, groups }: { recipients: Recipient[]; gr
               </label>
             ))}
           </div>
-          <p className="text-slate-500 text-xs">{selected.size} مستلم (50 كحد أقصى في المرة)</p>
-          <Input label="العنوان" value={subject} maxLength={200} onChange={e => setSubject(e.target.value)} />
+          <p className="text-slate-500 text-xs">{t('selectedCount', { count: selected.size })}</p>
+          <Input label={t('subject')} value={subject} maxLength={200} onChange={e => setSubject(e.target.value)} />
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-300">نص الرسالة</span>
+            <span className="text-sm font-medium text-slate-300">{t('body')}</span>
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={8} maxLength={20000}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm" />
           </label>
           <div className="flex justify-end">
-            <Button loading={busy === 'send'} onClick={send}><Send className="w-4 h-4" /> إرسال</Button>
+            <Button loading={busy === 'send'} onClick={send}><Send className="w-4 h-4" /> {t('send')}</Button>
           </div>
         </div>
       )}

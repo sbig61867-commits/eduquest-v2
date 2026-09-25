@@ -1,11 +1,15 @@
 export const dynamic = 'force-dynamic'
 
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 export default async function NotificationsPage() {
+  const t = await getTranslations('student.notifications')
+  const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
@@ -69,7 +73,7 @@ export default async function NotificationsPage() {
       id: `grade-${g.id}`,
       type: 'grade' as const,
       title: `Grade posted: ${Array.isArray(g.exams) ? (g.exams[0]?.title ?? 'Exam') : (g.exams?.title ?? 'Exam')}`,
-      subtitle: `Score: ${g.score} points`,
+      subtitle: t('scorePoints', { score: g.score ?? 0 }),
       date: g.submitted_at,
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -89,18 +93,18 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">الإشعارات</h2>
-        <p className="text-slate-400 mt-1">النشاط الأخير في مجموعاتك</p>
+        <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+        <p className="text-slate-400 mt-1">{t('subtitle')}</p>
       </div>
 
       {notifications.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-white font-medium">لا توجد إشعارات بعد</p>
+          <p className="text-white font-medium">{t('empty')}</p>
           <p className="text-slate-400 text-sm mt-1">
             {groupIds.length === 0
-              ? 'لست مسجّلاً في أي مجموعة بعد.'
-              : 'ستظهر الدروس والاختبارات الجديدة هنا.'}
+              ? t('noGroups')
+              : t('noGroupsHint')}
           </p>
         </div>
       ) : (
@@ -117,7 +121,7 @@ export default async function NotificationsPage() {
                   <p className="text-white text-sm font-medium">{n.title}</p>
                   <p className="text-slate-400 text-xs mt-0.5">{n.subtitle}</p>
                 </div>
-                <span className="text-slate-500 text-xs shrink-0">{formatDate(n.date)}</span>
+                <span className="text-slate-500 text-xs shrink-0">{formatDate(n.date, locale)}</span>
               </div>
             )
           })}

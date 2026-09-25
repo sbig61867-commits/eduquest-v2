@@ -35,7 +35,14 @@ export interface TargetOption {
   kind: 'group' | 'teacher'
 }
 
-export const DAY_LABELS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+/**
+ * Day indexes only, 0=Sunday…6=Saturday (the numbering the DB uses).
+ * The names live in the `common.days` message namespace — an array of
+ * literals here would resolve once at import and serve one language for the
+ * life of the process, which is how Arabic day names ended up inside the
+ * English student and teacher timetables.
+ */
+export const DAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const
 
 /** '09:30:00' → '09:30' */
 export function formatTime(t: string): string {

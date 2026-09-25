@@ -4,7 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SchedulesManager } from '@/components/schedules/schedules-manager'
 import { loadSchedulesPage } from '@/lib/schedules-data'
-import { ShieldAlert } from 'lucide-react'
+import { NoPermission } from '@/components/shared/no-permission'
 
 export default async function AdminSchedulesPage() {
   const supabase = await createClient()
@@ -13,14 +13,7 @@ export default async function AdminSchedulesPage() {
 
   const { allowed, schedules, targets } = await loadSchedulesPage(supabase, user.id, user.tenant_id)
 
-  if (!allowed) {
-    return (
-      <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl" dir="rtl">
-        <ShieldAlert className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-        <p className="text-slate-400">لا تملك صلاحية إدارة جداول المواعيد.</p>
-      </div>
-    )
-  }
+  if (!allowed) return <NoPermission capability="manage_schedules" />
 
   return <SchedulesManager schedules={schedules} targets={targets} />
 }

@@ -30,6 +30,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: mockRefresh, push: mockPush }),
 }))
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+  useLocale: () => 'ar',
+}))
+
 vi.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, className, disabled, loading }: {
     children: React.ReactNode; onClick?: () => void

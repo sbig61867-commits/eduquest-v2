@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { ImagePlus, Upload, X } from 'lucide-react'
@@ -16,7 +17,6 @@ const H = 400
 
 interface Template {
   id: string
-  name: string
   bg: [string, string]
   text: string
   accent: string
@@ -24,12 +24,12 @@ interface Template {
 }
 
 const TEMPLATES: Template[] = [
-  { id: 'navy',    name: 'أزرق رسمي',   bg: ['#0f172a', '#1e3a8a'], text: '#ffffff', accent: '#60a5fa', shape: 'circles' },
-  { id: 'emerald', name: 'أخضر',        bg: ['#064e3b', '#047857'], text: '#ffffff', accent: '#6ee7b7', shape: 'diagonal' },
-  { id: 'sunset',  name: 'غروب',        bg: ['#7c2d12', '#ea580c'], text: '#ffffff', accent: '#fed7aa', shape: 'waves' },
-  { id: 'violet',  name: 'بنفسجي',      bg: ['#2e1065', '#6d28d9'], text: '#ffffff', accent: '#c4b5fd', shape: 'dots' },
-  { id: 'light',   name: 'فاتح',        bg: ['#f8fafc', '#e2e8f0'], text: '#0f172a', accent: '#2563eb', shape: 'diagonal' },
-  { id: 'mono',    name: 'داكن بسيط',   bg: ['#020617', '#111827'], text: '#f8fafc', accent: '#fbbf24', shape: 'none' },
+  { id: 'navy',   bg: ['#0f172a', '#1e3a8a'], text: '#ffffff', accent: '#60a5fa', shape: 'circles' },
+  { id: 'emerald',        bg: ['#064e3b', '#047857'], text: '#ffffff', accent: '#6ee7b7', shape: 'diagonal' },
+  { id: 'sunset',        bg: ['#7c2d12', '#ea580c'], text: '#ffffff', accent: '#fed7aa', shape: 'waves' },
+  { id: 'violet',      bg: ['#2e1065', '#6d28d9'], text: '#ffffff', accent: '#c4b5fd', shape: 'dots' },
+  { id: 'light',        bg: ['#f8fafc', '#e2e8f0'], text: '#0f172a', accent: '#2563eb', shape: 'diagonal' },
+  { id: 'mono',   bg: ['#020617', '#111827'], text: '#f8fafc', accent: '#fbbf24', shape: 'none' },
 ]
 
 interface Design {
@@ -102,7 +102,7 @@ function drawShapes(ctx: CanvasRenderingContext2D, t: Template, accent: string) 
   ctx.restore()
 }
 
-function render(ctx: CanvasRenderingContext2D, d: Design, photo: HTMLImageElement | null, fontFamily: string) {
+function render(ctx: CanvasRenderingContext2D, d: Design, photo: HTMLImageElement | null, fontFamily: string, fallbackHeadline: string) {
   const t = TEMPLATES.find(x => x.id === d.templateId) ?? TEMPLATES[0]
   ctx.clearRect(0, 0, W, H)
 
@@ -144,7 +144,7 @@ function render(ctx: CanvasRenderingContext2D, d: Design, photo: HTMLImageElemen
 
   ctx.fillStyle = t.text
   ctx.font = `700 60px ${fontFamily}`
-  for (const line of wrapLines(ctx, d.headline.trim() || 'عنوان الإعلان', maxW, 2)) {
+  for (const line of wrapLines(ctx, d.headline.trim() || fallbackHeadline, maxW, 2)) {
     ctx.fillText(line, right, y + 40)
     y += 72
   }
@@ -174,6 +174,7 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
   onUploaded: (url: string) => void
   onCancel: () => void
 }) {
+  const t = useTranslations('staff.banner')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [photo, setPhoto] = useState<HTMLImageElement | null>(null)
@@ -200,7 +201,7 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
     const ctx = canvasRef.current?.getContext('2d')
     if (!ctx) return
     const family = getComputedStyle(document.body).fontFamily || 'sans-serif'
-    render(ctx, design, photo, family)
+    render(ctx, design, photo, family, t('fallbackHeadline'))
   }, [design, photo, fontsReady])
 
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.src) }, [photo])
@@ -210,11 +211,11 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
   }
 
   function loadPhoto(file: File) {
-    if (!file.type.startsWith('image/')) return toast.error('اختر ملف صورة')
-    if (file.size > 10 * 1024 * 1024) return toast.error('الصورة أكبر من 10 ميغابايت')
+    if (!file.type.startsWith('image/')) return toast.error(t('notAnImage'))
+    if (file.size > 10 * 1024 * 1024) return toast.error(t('tooLarge'))
     const img = new Image()
     img.onload = () => setPhoto(img)
-    img.onerror = () => toast.error('تعذّر قراءة الصورة')
+    img.onerror = () => toast.error(t('loadFailed'))
     img.src = URL.createObjectURL(file)
   }
 
@@ -223,60 +224,60 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
     if (!canvas) return
     setUploading(true)
     const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', 0.85))
-    if (!blob) { setUploading(false); return toast.error('تعذّر تصدير التصميم') }
+    if (!blob) { setUploading(false); return toast.error(t('exportFailed')) }
     const ext = blob.type === 'image/webp' ? 'webp' : 'png'
     const fd = new FormData()
     fd.append('file', new File([blob], `banner.${ext}`, { type: blob.type }))
     const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
     const data = await res.json().catch(() => ({}))
     setUploading(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر رفع التصميم')
-    toast.success(`تم حفظ البانر (${Math.round(blob.size / 1024)} كيلوبايت)`)
+    if (!res.ok) return toast.error(data.error ?? t('uploadFailed'))
+    toast.success(t('uploaded', { size: Math.round(blob.size / 1024) }))
     onUploaded(data.url)
   }
 
   const field = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm'
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4">
       <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
-        <canvas ref={canvasRef} width={W} height={H} className="w-full h-auto block" aria-label="معاينة البانر" />
+        <canvas ref={canvasRef} width={W} height={H} className="w-full h-auto block" aria-label={t('canvasAria')} />
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {TEMPLATES.map(t => (
+        {TEMPLATES.map(tpl => (
           <button
-            key={t.id}
-            onClick={() => pickTemplate(t)}
-            aria-pressed={design.templateId === t.id}
+            key={tpl.id}
+            onClick={() => pickTemplate(tpl)}
+            aria-pressed={design.templateId === tpl.id}
             className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs border ${
-              design.templateId === t.id ? 'border-blue-500 text-white' : 'border-slate-700 text-slate-400'
+              design.templateId === tpl.id ? 'border-blue-500 text-white' : 'border-slate-700 text-slate-400'
             }`}
           >
-            <span className="w-5 h-5 rounded" style={{ background: `linear-gradient(135deg, ${t.bg[0]}, ${t.bg[1]})` }} />
-            {t.name}
+            <span className="w-5 h-5 rounded" style={{ background: `linear-gradient(135deg, ${tpl.bg[0]}, ${tpl.bg[1]})` }} />
+            {t(`themes.${tpl.id}`)}
           </button>
         ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label className="space-y-1 block text-sm text-slate-300">
-          <span>العنوان على البانر</span>
+          <span>{t('headline')}</span>
           <input className={field} maxLength={80} value={design.headline}
             onChange={e => setDesign(d => ({ ...d, headline: e.target.value }))} />
         </label>
         <label className="space-y-1 block text-sm text-slate-300">
-          <span>سطر فرعي</span>
+          <span>{t('subline')}</span>
           <input className={field} maxLength={140} value={design.subline}
             onChange={e => setDesign(d => ({ ...d, subline: e.target.value }))} />
         </label>
         <label className="space-y-1 block text-sm text-slate-300">
-          <span>شارة (مثال: التسجيل مفتوح)</span>
+          <span>{t('badge')}</span>
           <input className={field} maxLength={30} value={design.badge}
             onChange={e => setDesign(d => ({ ...d, badge: e.target.value }))} />
         </label>
         <label className="space-y-1 block text-sm text-slate-300">
-          <span>تذييل (مثال: اسم المركز أو الموعد)</span>
+          <span>{t('footer')}</span>
           <input className={field} maxLength={60} value={design.footer}
             onChange={e => setDesign(d => ({ ...d, footer: e.target.value }))} />
         </label>
@@ -284,7 +285,7 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
 
       <div className="flex items-center gap-4 flex-wrap">
         <label className="flex items-center gap-2 text-sm text-slate-300">
-          لون مميز
+          {t('accent')}
           <input type="color" value={design.accent}
             onChange={e => setDesign(d => ({ ...d, accent: e.target.value }))}
             className="w-9 h-9 rounded bg-transparent border border-slate-700" />
@@ -294,26 +295,26 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
         {photo ? (
           <>
             <label className="flex items-center gap-2 text-sm text-slate-300">
-              تعتيم الصورة
+              {t('overlay')}
               <input type="range" min={0} max={0.85} step={0.05} value={design.overlay}
                 onChange={e => setDesign(d => ({ ...d, overlay: Number(e.target.value) }))} />
             </label>
-            <Button variant="ghost" size="sm" onClick={() => setPhoto(null)}><X className="w-3.5 h-3.5" /> إزالة الصورة</Button>
+            <Button variant="ghost" size="sm" onClick={() => setPhoto(null)}><X className="w-3.5 h-3.5" /> {t('removePhoto')}</Button>
           </>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
-            <ImagePlus className="w-3.5 h-3.5" /> صورة خلفية
+            <ImagePlus className="w-3.5 h-3.5" /> {t('bgPhoto')}
           </Button>
         )}
       </div>
 
       <p className="text-slate-500 text-xs">
-        يُرسم التصميم على جهازك ويُحفظ كصورة مضغوطة 1200×400. لا تُرفع الصورة الأصلية — فقط البانر النهائي.
+        {t('privacyNote')}
       </p>
 
       <div className="flex gap-2 justify-end">
-        <Button variant="ghost" onClick={onCancel}>إلغاء</Button>
-        <Button loading={uploading} onClick={exportAndUpload}><Upload className="w-4 h-4" /> استخدام هذا البانر</Button>
+        <Button variant="ghost" onClick={onCancel}>{t('cancel')}</Button>
+        <Button loading={uploading} onClick={exportAndUpload}><Upload className="w-4 h-4" /> {t('use')}</Button>
       </div>
     </div>
   )

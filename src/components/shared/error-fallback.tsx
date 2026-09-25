@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { useTranslations } from 'next-intl'
 import { RefreshCw, Home } from 'lucide-react'
 
 interface ErrorFallbackProps {
@@ -17,7 +18,8 @@ interface ErrorFallbackProps {
  * that's the ID Vercel shows in its function logs) so production issues are
  * traceable even before a monitoring service is wired in.
  */
-export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'الذهاب للوحة' }: ErrorFallbackProps) {
+export default function ErrorFallback({ error, reset, homeHref, homeLabel }: ErrorFallbackProps) {
+  const t = useTranslations('common.error')
   useEffect(() => {
     console.error('[error-boundary]', error.digest ?? '', error)
     Sentry.captureException(error)
@@ -29,9 +31,9 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'ا�
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-600/20 mb-1">
           <span className="text-red-400 text-3xl">!</span>
         </div>
-        <h1 className="text-xl font-bold text-white">حدث خطأ ما</h1>
+        <h1 className="text-xl font-bold text-white">{t('title')}</h1>
         <p className="text-slate-400 text-sm leading-relaxed">
-          حدث خطأ غير متوقع. بياناتك آمنة — حاول مجدداً، وإن استمرت المشكلة فتواصل مع مدير مؤسستك.
+          {t('body')}
         </p>
         {error.digest && (
           <p className="text-xs text-slate-500 font-mono">Error ID: {error.digest}</p>
@@ -42,7 +44,7 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'ا�
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors text-sm"
           >
             <RefreshCw className="w-4 h-4" />
-            حاول مجدداً
+            {t('retry')}
           </button>
           {homeHref && (
             <a
@@ -50,7 +52,7 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel = 'ا�
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-slate-200 font-medium rounded-lg transition-colors text-sm"
             >
               <Home className="w-4 h-4" />
-              {homeLabel}
+              {homeLabel ?? t('home')}
             </a>
           )}
         </div>

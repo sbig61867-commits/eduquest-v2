@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,21 +24,17 @@ export interface PersonRow {
   is_university_student?: boolean
 }
 
-const COPY = {
-  teacher: { title: 'المدربون', one: 'مدرب', add: 'إضافة مدرب' },
-  student: { title: 'الطلاب', one: 'طالب', add: 'إضافة طالب' },
-} as const
-
 export function PeopleClient({ role, initialPeople, canSetAffiliation = false }: {
   role: 'teacher' | 'student'
   initialPeople: PersonRow[]
   /** Holds `announce_to_university`: may classify a student as a university student. */
   canSetAffiliation?: boolean
 }) {
+  const t = useTranslations('staff.people')
+  const locale = useLocale() as Locale
   const router = useRouter()
-  const copy = COPY[role]
   const [people, setPeople] = useState(initialPeople)
-  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'invite' | 'account'>('invite')
@@ -55,7 +53,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
   }
 
   async function submit() {
-    if (!form.email.trim()) return toast.error('البريد الإلكتروني مطلوب')
+    if (!form.email.trim()) return toast.error(t('emailRequired'))
     setBusy('submit')
     const res = mode === 'invite'
       ? await fetch('/api/invitations', {
@@ -80,11 +78,11 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
         })
     const data = await res.json().catch(() => ({}))
     setBusy('')
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر تنفيذ العملية')
+    if (!res.ok) return toast.error(data.error ?? t('actionFailed'))
     if (mode === 'invite') {
-      toast.success('تم إرسال الدعوة إلى البريد')
+      toast.success(t('invited'))
     } else {
-      toast.success(`تم إنشاء حساب ال${copy.one}`)
+      toast.success(t(`${role}.created`))
       if (data.user) setPeople(prev => [data.user as PersonRow, ...prev])
     }
     close()
@@ -101,9 +99,9 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
     })
     const data = await res.json().catch(() => ({}))
     setBusy('')
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر تغيير التصنيف')
+    if (!res.ok) return toast.error(data.error ?? t('affiliationFailed'))
     setPeople(prev => prev.map(x => (x.id === p.id ? { ...x, is_university_student: next } : x)))
-    toast.success(next ? `صار ${terms.institutionStudentAr} أيضاً` : 'صار متدرب مركز فقط')
+    toast.success(next ? t('nowInstitution', { label: terms.institutionStudent }) : t('nowCentreOnly'))
     router.refresh()
   }
 
@@ -116,21 +114,21 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
     })
     const data = await res.json().catch(() => ({}))
     setBusy('')
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر تغيير الحالة')
+    if (!res.ok) return toast.error(data.error ?? t('statusFailed'))
     setPeople(prev => prev.map(x => (x.id === p.id ? { ...x, is_active: !x.is_active } : x)))
     router.refresh()
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-white">{copy.title}</h2>
+          <h2 className="text-2xl font-bold text-white">{t(`${role}.title`)}</h2>
           <p className="text-slate-400 mt-1">
-            {people.length} {copy.one} · {people.filter(p => p.is_active).length} نشط
+            {t(`${role}.summary`, { count: people.length, active: people.filter(p => p.is_active).length })}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}><UserPlus className="w-4 h-4" /> {copy.add}</Button>
+        <Button onClick={() => setOpen(true)}><UserPlus className="w-4 h-4" /> {t(`${role}.add`)}</Button>
       </div>
 
       <div className="relative">
@@ -138,7 +136,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="بحث بالاسم أو البريد…"
+          placeholder={t('search')}
           className="w-full pe-10 ps-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
@@ -147,16 +145,16 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">الاسم</th>
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3 hidden md:table-cell">البريد</th>
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3 hidden lg:table-cell">الانضمام</th>
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">الحالة</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">{t('thName')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3 hidden md:table-cell">{t('thEmail')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3 hidden lg:table-cell">{t('thJoined')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">{t('thStatus')}</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-slate-500 py-10">لا توجد نتائج</td></tr>
+              <tr><td colSpan={5} className="text-center text-slate-500 py-10">{t('empty')}</td></tr>
             )}
             {filtered.map(p => (
               <tr key={p.id} className="hover:bg-slate-800/50">
@@ -164,13 +162,13 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
                 <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">
                   <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{p.email}</span>
                 </td>
-                <td className="px-5 py-4 hidden lg:table-cell text-slate-400 text-sm">{formatDate(p.created_at)}</td>
+                <td className="px-5 py-4 hidden lg:table-cell text-slate-400 text-sm">{formatDate(p.created_at, locale)}</td>
                 <td className="px-5 py-4">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant={p.is_active ? 'green' : 'red'}>{p.is_active ? 'نشط' : 'معطّل'}</Badge>
+                    <Badge variant={p.is_active ? 'green' : 'red'}>{p.is_active ? t('active') : t('disabled')}</Badge>
                     {role === 'student' && (
                       <Badge variant={p.is_university_student === false ? 'gray' : 'blue'}>
-                        {p.is_university_student === false ? 'متدرب مركز' : terms.institutionStudentAr}
+                        {p.is_university_student === false ? t('centreTrainee') : terms.institutionStudent}
                       </Badge>
                     )}
                   </div>
@@ -180,11 +178,11 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
                     {showAffiliation && (
                       <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggleAffiliation(p)}>
                         <GraduationCap className="w-3.5 h-3.5" />
-                        {p.is_university_student === false ? `اعتباره ${terms.institutionStudentAr}` : 'اعتباره متدرب مركز'}
+                        {p.is_university_student === false ? t('makeInstitution', { label: terms.institutionStudent }) : t('makeCentreOnly')}
                       </Button>
                     )}
                     <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggle(p)}>
-                      <Power className="w-3.5 h-3.5" /> {p.is_active ? 'تعطيل' : 'تفعيل'}
+                      <Power className="w-3.5 h-3.5" /> {p.is_active ? t('disable') : t('enable')}
                     </Button>
                   </div>
                 </td>
@@ -194,8 +192,8 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
         </table>
       </div>
 
-      <Modal open={open} onClose={close} title={copy.add}>
-        <div className="space-y-4" dir="rtl">
+      <Modal open={open} onClose={close} title={t(`${role}.add`)}>
+        <div className="space-y-4">
           <div className="flex gap-2">
             {(['invite', 'account'] as const).map(m => (
               <button
@@ -204,22 +202,22 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
                 className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-colors ${
                   mode === m ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
                 }`}
-              >{m === 'invite' ? 'دعوة بالبريد (مستحسن)' : 'إنشاء حساب مباشرة'}</button>
+              >{m === 'invite' ? t('modeInvite') : t('modeAccount')}</button>
             ))}
           </div>
           <p className="text-slate-500 text-xs">
             {mode === 'invite'
-              ? 'يصل رابط انضمام إلى البريد، ويختار صاحب الحساب كلمة مروره بنفسه.'
-              : 'تُنشئ الحساب بكلمة مرور مؤقتة وتسلّمها له بنفسك.'}
+              ? t('inviteHint')
+              : t('accountHint')}
           </p>
           {mode === 'account' && (
-            <Input label="الاسم الكامل" value={form.full_name}
+            <Input label={t('fullName')} value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
           )}
-          <Input label="البريد الإلكتروني" type="email" dir="ltr" value={form.email}
+          <Input label={t('email')} type="email" dir="ltr" value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           {mode === 'account' && (
-            <Input label="كلمة مرور مؤقتة (8 أحرف على الأقل)" type="password" dir="ltr" value={form.password}
+            <Input label={t('tempPassword')} type="password" dir="ltr" value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
           )}
           {showAffiliation && (
@@ -231,16 +229,16 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
                 onChange={e => setIsUniversityStudent(e.target.checked)}
               />
               <span>
-                {terms.institutionStudentAr} أيضاً
+                {t('alsoInstitution', { label: terms.institutionStudent })}
                 <span className="block text-slate-500 text-xs">
-                  اتركه فارغاً لمتدرب جاء للمركز من خارج {terms.institutionAr} — عندها لا تصله إعلانات {terms.institutionAr}.
+                  {t('affiliationHint', { institution: terms.institution })}
                 </span>
               </span>
             </label>
           )}
           <div className="flex gap-2 justify-end pt-2">
-            <Button variant="ghost" onClick={close}>إلغاء</Button>
-            <Button loading={busy === 'submit'} onClick={submit}>{mode === 'invite' ? 'إرسال الدعوة' : 'إنشاء الحساب'}</Button>
+            <Button variant="ghost" onClick={close}>{t('cancel')}</Button>
+            <Button loading={busy === 'submit'} onClick={submit}>{mode === 'invite' ? t('sendInvite') : t('createAccount')}</Button>
           </div>
         </div>
       </Modal>

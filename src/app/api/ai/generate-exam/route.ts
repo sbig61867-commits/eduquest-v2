@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
@@ -38,37 +39,37 @@ function validateQuestions(raw: unknown): Question[] {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const aiLimits = await getAiRateLimits(supabase)
   const rl = await aiRateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
+      { ...(await apiErr('rateLimited')) },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let body: Record<string, unknown>
   try { body = await request.json() } catch {
-    return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   }
 
   const { type = 'mixed' } = body
   const rawTopic: string = (body.topic as string) ?? ''
   const count: number = Math.min(Math.max(parseInt(String(body.count ?? '10'), 10) || 10, 1), 30)
 
-  if (!rawTopic.trim()) return NextResponse.json({ error: 'الموضوع مطلوب' }, { status: 400 })
-  if (rawTopic.length > 200) return NextResponse.json({ error: 'الموضوع طويل جداً (بحد أقصى 200 حرف)' }, { status: 400 })
+  if (!rawTopic.trim()) return NextResponse.json({ ...(await apiErr('subjectRequired')) }, { status: 400 })
+  if (rawTopic.length > 200) return NextResponse.json({ ...(await apiErr('topicTooLong')) }, { status: 400 })
 
   // Strip prompt-injection characters — keep only printable non-special chars
   const safeTopic = rawTopic.trim().replace(/[<>{}[\]`\\'"]/g, '').trim()
-  if (!safeTopic) return NextResponse.json({ error: 'الموضوع يحتوي على رموز غير مسموحة' }, { status: 400 })
+  if (!safeTopic) return NextResponse.json({ ...(await apiErr('topicInvalidChars')) }, { status: 400 })
 
   const typeInstructions = type === 'mcq'
     ? 'multiple choice questions with 4 options each'
@@ -76,7 +77,8 @@ export async function POST(request: Request) {
     ? 'true/false questions'
     : 'a mix: 60% multiple choice (4 options) and 40% true/false'
 
-  const prompt = `Generate exactly ${count} ${typeInstructions} about the topic: ${safeTopic}. For university students.
+  const prompt = `Generate exactly ${count} ${typeInstructions} about the topic: ${safeTopic}.
+Write every question and every MCQ option in the SAME language as the topic above — if the topic is in Arabic, the questions and options must be in Arabic. The only exception is true_false, whose options stay the literal English "True"/"False" (the platform stores those as canonical values and shows the student صح/خطأ).
 Return ONLY a valid JSON array, no markdown:
 [
   {"id":"1","text":"Question?","type":"mcq","options":["A","B","C","D"],"correct_answer":"A","points":10},
@@ -99,6 +101,6 @@ Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[generate-exam]', msg)
-    return NextResponse.json({ error: 'فشل توليد الأسئلة', detail: msg }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('questionsFailed')), detail: msg }, { status: 500 })
   }
 }

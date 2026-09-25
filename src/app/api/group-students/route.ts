@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -23,7 +24,7 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
 
   const managerAllowed = profile?.role === 'center_manager' && staffCan(profile, 'manage_groups')
   if (!profile?.tenant_id || (!managerAllowed && !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? ''))) {
-    return { error: 'ممنوع', status: 403, profile: null, group: null }
+    return { ...(await apiErr('forbidden')), status: 403, profile: null, group: null }
   }
 
   const { data: group } = await adminClient()
@@ -33,11 +34,11 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
     .single()
 
   if (!group || group.tenant_id !== profile.tenant_id) {
-    return { error: 'لم يُعثر على المجموعة', status: 404, profile: null, group: null }
+    return { ...(await apiErr('groupNotFound')), status: 404, profile: null, group: null }
   }
 
   if (profile.role === 'teacher' && group.teacher_id !== userId) {
-    return { error: 'ممنوع', status: 403, profile: null, group: null }
+    return { ...(await apiErr('forbidden')), status: 403, profile: null, group: null }
   }
 
   return { error: null, status: 200, profile, group }
@@ -48,10 +49,10 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const groupId = new URL(request.url).searchParams.get('group_id')
-  if (!groupId) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
+  if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
 
   const { error, status } = await resolveGroupOwnership(user.id, groupId)
   if (error) return NextResponse.json({ error }, { status })
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
 
   if (dbErr) {
     console.error('[group-students GET]', dbErr)
-    return NextResponse.json({ error: 'فشل جلب الطلاب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('studentsLoadFailed')) }, { status: 500 })
   }
 
   type UserItem = { id: string; full_name: string; email: string }
@@ -77,15 +78,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { group_id?: string; student_id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { group_id, student_id } = body
   if (!group_id || !student_id) {
-    return NextResponse.json({ error: 'معرّف المجموعة أو الطالب مفقود' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('missingGroupOrStudent')) }, { status: 400 })
   }
 
   const { error, status, group } = await resolveGroupOwnership(user.id, group_id)
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     .single()
 
   if (!student || student.tenant_id !== group.tenant_id) {
-    return NextResponse.json({ error: 'لم يُعثر على الطالب في هذه المؤسسة' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('studentNotInTenant')) }, { status: 404 })
   }
 
   // Group rule: seat cap (max_students NULL = no cap; column absent pre-migration).
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
     const { data: already } = await adminClient()
       .from('group_students').select('student_id').eq('group_id', group_id).eq('student_id', student_id).maybeSingle()
     if (!already && (count ?? 0) >= maxStudents) {
-      return NextResponse.json({ error: `المجموعة ممتلئة (${maxStudents} طالب كحد أقصى)` }, { status: 409 })
+      return NextResponse.json({ ...(await apiErr('groupFull', { max: maxStudents })) }, { status: 409 })
     }
   }
 
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
 
   if (dbErr) {
     console.error('[group-students POST]', dbErr)
-    return NextResponse.json({ error: 'فشل تسجيل الطالب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('enrollFailed')) }, { status: 500 })
   }
 
   // A group that is a section of a course also enrols the student in that course.
@@ -141,15 +142,15 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { group_id?: string; student_id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { group_id, student_id } = body
   if (!group_id || !student_id) {
-    return NextResponse.json({ error: 'معرّف المجموعة أو الطالب مفقود' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('missingGroupOrStudent')) }, { status: 400 })
   }
 
   const { error, status } = await resolveGroupOwnership(user.id, group_id)
@@ -163,7 +164,7 @@ export async function DELETE(request: Request) {
 
   if (dbErr) {
     console.error('[group-students DELETE]', dbErr)
-    return NextResponse.json({ error: 'فشل إزالة الطالب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('studentRemoveFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

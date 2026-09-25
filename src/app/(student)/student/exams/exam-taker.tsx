@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale, useTranslations } from 'next-intl'
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -22,12 +23,23 @@ interface Props {
 // tenantId remains in Props for the caller's contract, but identity is
 // now derived server-side (from the session) in /api/exam/start and /submit.
 // userId is used locally only to namespace the answer-draft autosave key.
+// Canonical submitted values, never translated: correct_answer is stored as
+// 'True'/'False' and graded in the DB, so only the visible label changes.
+const TRUE_FALSE_VALUES = ['True', 'False'] as const
+
 export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinish }: Props) {
+  const t = useTranslations('student.taker')
+  const locale = useLocale()
   // Homework is untimed: no countdown, no auto-submit — only the due date
-  // (ends_at, enforced server-side) limits it. The student exam feed RPC
-  // doesn't expose `type`, so homework is recognized by its sentinel
-  // duration (43200 = 30 days; legacy rows used 0).
-  const untimed = exam.type === 'homework' || exam.duration_minutes <= 0 || exam.duration_minutes >= 43200
+  // (ends_at, enforced server-side) limits it. `type` is authoritative
+  // whenever the feed supplies it (student_exams_expose_type_migration.sql);
+  // the duration sentinel (43200 = 30 days; legacy rows used 0) is only a
+  // fallback for feeds that predate it. Trusting the sentinel on a row that
+  // does carry a `type` would strip the timer off a real exam whose teacher
+  // happened to save a 0 or >= 43200 duration.
+  const untimed = exam.type
+    ? exam.type === 'homework'
+    : (exam.duration_minutes <= 0 || exam.duration_minutes >= 43200)
   const [started, setStarted] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [current, setCurrent] = useState(0)
@@ -250,7 +262,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         await document.documentElement.requestFullscreen()
       } catch {
         setCameraStatus('error')
-        toast.error('إذن الكاميرا والميكروفون مطلوب لهذا الاختبار المراقَب.')
+        toast.error(t('mediaPermission'))
         return
       }
     }
@@ -291,7 +303,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       streamRef.current?.getTracks().forEach(t => t.stop())
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
       setCameraStatus('idle')
-      toast.error('خطأ في الشبكة. تعذّر بدء الاختبار.')
+      toast.error(t('startNetworkError'))
     }
   }
 
@@ -330,7 +342,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
       if (!res.ok) {
         setSubmitting(false)
-        toast.error('فشل الإرسال. يرجى المحاولة مرة أخرى.')
+        toast.error(t('submitFailed'))
         return
       }
 
@@ -346,7 +358,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       // fetch() itself threw (offline/DNS/CORS) — answers are untouched in
       // state, so the student can just press Submit again once reconnected.
       setSubmitting(false)
-      toast.error('خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
+      toast.error(t('networkError'))
     }
   }
 
@@ -364,14 +376,14 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
             <Send className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white">{untimed ? 'تم تسليم الواجب!' : 'تم تسليم الاختبار!'}</h2>
+          <h2 className="text-2xl font-bold text-white">{untimed ? t('doneHomework') : t('doneExam')}</h2>
           {finalScore ? (
-            <p className="text-slate-400">درجتك: <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
+            <p className="text-slate-400">{t('yourScore')} <span className="text-white font-bold text-xl">{finalScore.score}/{finalScore.maxScore}</span></p>
           ) : (
-            <p className="text-amber-400 text-sm">تم استلام إجاباتك — ستظهر علامتك بعد أن يصحّح المعلم وينشر النتائج.</p>
+            <p className="text-amber-400 text-sm">{t('pendingReview')}</p>
           )}
-          {violations.length > 0 && <p className="text-amber-400 text-sm">{violations.length} proctoring violation(s) recorded</p>}
-          <Button onClick={onFinish} className="mt-4">العودة للاختبارات</Button>
+          {violations.length > 0 && <p className="text-amber-400 text-sm">{t('violationsRecorded', { count: violations.length })}</p>}
+          <Button onClick={onFinish} className="mt-4">{t('backToExams')}</Button>
         </div>
       </div>
     )
@@ -384,22 +396,22 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">{exam.title}</h2>
             <p className="text-slate-400">
-              {exam.questions.length} questions · {untimed
-                ? (exam.ends_at ? `واجب — سلّمه قبل ${new Date(exam.ends_at).toLocaleString('ar')}` : 'واجب — بدون وقت محدد')
-                : `${exam.duration_minutes} minutes`}
+              {t('questionCount', { count: exam.questions.length })} · {untimed
+                ? (exam.ends_at ? t('homeworkDue', { date: new Date(exam.ends_at).toLocaleString(locale) }) : t('homeworkNoDue'))
+                : t('minutes', { count: exam.duration_minutes })}
             </p>
           </div>
           <div className="space-y-3">
             {[
               untimed
-                ? 'هذا واجب بدون مؤقت — خذ وقتك في الحل.'
-                : `You have ${exam.duration_minutes} minutes to complete this exam.`,
+                ? t('untimedHint')
+                : t('ruleTime', { minutes: t('minutes', { count: exam.duration_minutes }) }),
               untimed
-                ? (exam.ends_at ? `آخر موعد للتسليم: ${new Date(exam.ends_at).toLocaleString('ar')}` : null)
-                : 'Once started, the timer cannot be paused.',
-              exam.proctoring_enabled ? 'Camera and microphone access required (proctored exam).' : null,
-              exam.proctoring_enabled ? 'Tab switching and exiting fullscreen will be recorded.' : null,
-              'Make sure you have a stable internet connection.',
+                ? (exam.ends_at ? t('deadline', { date: new Date(exam.ends_at).toLocaleString(locale) }) : null)
+                : t('ruleNoPause'),
+              exam.proctoring_enabled ? t('ruleCamera') : null,
+              exam.proctoring_enabled ? t('ruleTabs') : null,
+              t('ruleInternet'),
             ].filter(Boolean).map((rule, i) => (
               <div key={i} className="flex items-start gap-2 text-sm text-slate-300">
                 <span className="text-blue-400 mt-0.5">•</span>
@@ -414,8 +426,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <div className="flex items-start gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
             <Monitor className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <p className="text-slate-400 text-xs leading-relaxed">
-              يُفضَّل استخدام جهاز سطح مكتب أو لوحي لتجربة أكثر استقراراً، خصوصاً في الاختبارات الرسمية —
-              هذه نصيحة لتفادي مشاكل محتملة، وليست شرطاً؛ يمكنك أداء الاختبار من أي جهاز يدعم الكاميرا والميكروفون.
+              {t('desktopRecommendation')}
             </p>
           </div>
 
@@ -423,7 +434,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             <>
               <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
                 <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
-                <p className="text-blue-300 text-sm">هذا الاختبار مراقَب. مراقبة الكاميرا مفعّلة.</p>
+                <p className="text-blue-300 text-sm">{t('proctoredNotice')}</p>
               </div>
 
               {/* Explicit in-app consent — required before the Start button
@@ -439,17 +450,14 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
                   className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0"
                 />
                 <span className="text-slate-300 text-xs leading-relaxed">
-                  أوافق على تفعيل مراقبة الاختبار: الكشف عن الوجه والاتجاه والأجسام المشبوهة يعمل بالكامل على
-                  جهازي، ولا تُرسَل أي صورة للتحليل خارج جهازي. عند حدوث مخالفة شديدة (مثل ظهور شخص إضافي أو
-                  خروج من الشاشة الكاملة)، تُحفَظ لقطة واحدة كدليل يراجعه معلم المادة فقط. إن توقفت الكاميرا أو
-                  الميكروفون أثناء الاختبار، سيُسجَّل ذلك تلقائياً للمراقِب.
+                  {t('consentText')}
                 </span>
               </label>
             </>
           )}
 
           <Button onClick={startExam} className="w-full" size="lg" disabled={exam.proctoring_enabled && !consentGiven}>
-            بدء الاختبار
+            {t('start')}
           </Button>
         </div>
       </div>
@@ -505,7 +513,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
         </div>
-        <span className="text-slate-400 text-sm shrink-0">{Object.keys(answers).length} answered</span>
+        <span className="text-slate-400 text-sm shrink-0">{t('answered', { count: Object.keys(answers).length })}</span>
       </div>
 
       {/* Question Card */}
@@ -527,18 +535,24 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
               </label>
             ))}
 
-            {question.type === 'true_false' && ['True', 'False'].map(opt => (
-              <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${answers[question.id] === opt ? 'bg-blue-600/20 border-blue-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}>
-                <input type="radio" name={question.id} value={opt} checked={answers[question.id] === opt} onChange={() => setAnswers(a => ({ ...a, [question.id]: opt }))} className="sr-only" />
+            {/* The VALUE submitted stays the canonical 'True'/'False' the whole
+                codebase stores in correct_answer (AI generators, the teacher
+                editor and the in-DB grader all agree on it) — only the LABEL
+                is Arabic. Rendering the label as the value would mean the
+                student submits the Arabic label against a correct_answer of 'True' and
+                every true/false question grades as wrong. */}
+            {question.type === 'true_false' && TRUE_FALSE_VALUES.map(value => (
+              <label key={value} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${answers[question.id] === value ? 'bg-blue-600/20 border-blue-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-slate-800'}`}>
+                <input type="radio" name={question.id} value={value} checked={answers[question.id] === value} onChange={() => setAnswers(a => ({ ...a, [question.id]: value }))} className="sr-only" />
                 <span className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 border-current">
-                  {answers[question.id] === opt && <span className="w-3 h-3 rounded-full bg-blue-400" />}
+                  {answers[question.id] === value && <span className="w-3 h-3 rounded-full bg-blue-400" />}
                 </span>
-                <span>{opt}</span>
+                <span>{value === 'True' ? t('true') : t('false')}</span>
               </label>
             ))}
 
             {(question.type === 'short_answer' || question.type === 'essay') && (
-              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="اكتب إجابتك هنا…" />
+              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder={t('answerPlaceholder')} />
             )}
           </div>
         </div>
@@ -547,7 +561,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button variant="secondary" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>
-          <ChevronLeft className="w-4 h-4" /> السابق
+          <ChevronLeft className="w-4 h-4" /> {t('prev')}
         </Button>
         <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
           {exam.questions.map((_, i) => (
@@ -557,10 +571,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           ))}
         </div>
         {current < exam.questions.length - 1 ? (
-          <Button onClick={() => setCurrent(c => c + 1)}>التالي <ChevronRight className="w-4 h-4" /></Button>
+          <Button onClick={() => setCurrent(c => c + 1)}>{t('next')} <ChevronRight className="w-4 h-4" /></Button>
         ) : (
           <Button variant="primary" onClick={handleSubmit} loading={submitting} className="bg-emerald-600 hover:bg-emerald-500">
-            <Send className="w-4 h-4" /> إرسال
+            <Send className="w-4 h-4" /> {t('submit')}
           </Button>
         )}
       </div>

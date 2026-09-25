@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -14,11 +15,11 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
   const supabase = await createClient()
   const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', userId).single()
   if (!profile?.tenant_id || !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? '')) {
-    return { error: 'ممنوع', status: 403, group: null }
+    return { ...(await apiErr('forbidden')), status: 403, group: null }
   }
   const { data: group } = await adminClient().from('groups').select('id, teacher_id, tenant_id').eq('id', groupId).single()
-  if (!group || group.tenant_id !== profile.tenant_id) return { error: 'لم يُعثر على المجموعة', status: 404, group: null }
-  if (profile.role === 'teacher' && group.teacher_id !== userId) return { error: 'ممنوع', status: 403, group: null }
+  if (!group || group.tenant_id !== profile.tenant_id) return { ...(await apiErr('groupNotFound')), status: 404, group: null }
+  if (profile.role === 'teacher' && group.teacher_id !== userId) return { ...(await apiErr('forbidden')), status: 403, group: null }
   return { error: null, status: 200, group }
 }
 
@@ -26,10 +27,10 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const groupId = new URL(request.url).searchParams.get('group_id')
-  if (!groupId) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
+  if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
 
   const { error, status } = await resolveGroupOwnership(user.id, groupId)
   if (error) return NextResponse.json({ error }, { status })
@@ -52,12 +53,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { group_id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
   const groupId = body.group_id
-  if (!groupId) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
+  if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
 
   const { error, status, group } = await resolveGroupOwnership(user.id, groupId)
   if (error || !group) return NextResponse.json({ error }, { status })
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
 
   if (dbErr) {
     console.error('[surveys POST]', dbErr)
-    return NextResponse.json({ error: 'فشل إنشاء الاستبيان' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('surveyCreateFailed')) }, { status: 500 })
   }
   return NextResponse.json({ survey: data }, { status: 201 })
 }
@@ -83,12 +84,12 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { group_id?: string; is_open?: boolean }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
   const { group_id: groupId, is_open } = body
-  if (!groupId || typeof is_open !== 'boolean') return NextResponse.json({ error: 'معرّف المجموعة أو حالة الفتح مفقودة' }, { status: 400 })
+  if (!groupId || typeof is_open !== 'boolean') return NextResponse.json({ ...(await apiErr('missingGroupOrOpen')) }, { status: 400 })
 
   const { error, status } = await resolveGroupOwnership(user.id, groupId)
   if (error) return NextResponse.json({ error }, { status })
@@ -99,7 +100,7 @@ export async function PATCH(request: Request) {
 
   if (dbErr) {
     console.error('[surveys PATCH]', dbErr)
-    return NextResponse.json({ error: 'فشل تحديث الاستبيان' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('surveyUpdateFailed')) }, { status: 500 })
   }
   return NextResponse.json({ survey: data })
 }

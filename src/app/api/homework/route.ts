@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -33,14 +34,14 @@ async function ownsHomework(hwId: string, teacherId: string, tenantId: string) {
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const lessonId = searchParams.get('lesson_id')
-  if (!lessonId) return NextResponse.json({ error: 'معرّف الدرس مطلوب' }, { status: 400 })
+  if (!lessonId) return NextResponse.json({ ...(await apiErr('lessonIdRequired')) }, { status: 400 })
 
   const profile = await getProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const { data, error } = await supabase
     .from('exams')
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
-  if (error) return NextResponse.json({ error: 'فشل جلب الواجبات' }, { status: 500 })
+  if (error) return NextResponse.json({ ...(await apiErr('homeworkLoadFailed')) }, { status: 500 })
   return NextResponse.json(data ?? [])
 }
 
@@ -59,30 +60,30 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(user.id)
   if (!profile?.tenant_id || !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   let body: { lesson_id?: string; group_id?: string; title?: string; questions?: unknown[]; due_date?: string; auto_publish?: boolean }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { lesson_id, group_id, title, questions, due_date, auto_publish } = body
 
   if (!lesson_id || !group_id || !title?.trim()) {
-    return NextResponse.json({ error: 'معرّف الدرس والمجموعة والعنوان مطلوبة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('lessonGroupTitleRequired')) }, { status: 400 })
   }
   if (!Array.isArray(questions) || questions.length === 0) {
-    return NextResponse.json({ error: 'مطلوب سؤال واحد على الأقل' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('questionRequired')) }, { status: 400 })
   }
 
   // Verify teacher owns the lesson
   const lesson = await getOwnedLesson(lesson_id, user.id, profile.tenant_id)
   if (!lesson) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Verify the target group too — it is client-supplied and decides who the
@@ -94,10 +95,10 @@ export async function POST(request: Request) {
   const { data: group } = await adminClient()
     .from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
   if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'لم يُعثر على المجموعة' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
   }
   if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Students see homework in lists detached from the lesson (exams page,
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('[api/homework POST]', error)
-    return NextResponse.json({ error: 'فشل إنشاء الواجب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('homeworkCreateFailed')) }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }
@@ -145,19 +146,19 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { id?: string; is_published?: boolean; title?: string; questions?: unknown[] }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { id, ...rest } = body
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
   if (!(await ownsHomework(id, user.id, profile.tenant_id))) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const update: Record<string, unknown> = {}
@@ -168,7 +169,7 @@ export async function PATCH(request: Request) {
   const { data, error } = await adminClient()
     .from('exams').update(update).eq('id', id).select().single()
 
-  if (error) return NextResponse.json({ error: 'فشل تحديث الواجب' }, { status: 500 })
+  if (error) return NextResponse.json({ ...(await apiErr('homeworkUpdateFailed')) }, { status: 500 })
   return NextResponse.json(data)
 }
 
@@ -176,25 +177,25 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  if (!body.id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!body.id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
   if (!(await ownsHomework(body.id, user.id, profile.tenant_id))) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Archive by default; hard delete only when the owner enabled it.
   const { error, mode } = await deleteEntity(adminClient(), supabase, 'exam', body.id, user.id, profile.tenant_id)
   if (error) {
     console.error('[api/homework DELETE]', error)
-    return NextResponse.json({ error: 'فشل حذف الواجب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('homeworkDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ ok: true, mode })
 }

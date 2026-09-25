@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic'
 
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, BarChart2, Bell } from 'lucide-react'
@@ -11,6 +13,8 @@ interface LessonRow { id: string; title: string; created_at: string; groups: { n
 interface GradeRow { id: string; score: number; max_score: number; exams: { title: string } | null }
 
 export default async function StudentDashboard() {
+  const t = await getTranslations('student.dashboard')
+  const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
 
@@ -43,10 +47,10 @@ export default async function StudentDashboard() {
   const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
 
   const cards = [
-    { label: 'الدروس المتاحة', value: lessonCount ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'الاختبارات القادمة', value: exams ?? 0, icon: ClipboardList, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'الاختبارات المؤدّاة', value: submissions ?? 0, icon: BarChart2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'الإشعارات', value: '0', icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: t('statLessons'), value: lessonCount ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: t('statUpcoming'), value: exams ?? 0, icon: ClipboardList, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: t('statTaken'), value: submissions ?? 0, icon: BarChart2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: t('statNotifications'), value: '0', icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   const lessonList = (recentLessons ?? []) as unknown as LessonRow[]
@@ -55,8 +59,8 @@ export default async function StudentDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">لوحتي</h2>
-        <p className="text-slate-400 mt-1">تابع تقدّمك وأنشطتك القادمة</p>
+        <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+        <p className="text-slate-400 mt-1">{t('subtitle')}</p>
       </div>
 
       <AnnouncementsBanner announcements={announcements} />
@@ -82,9 +86,9 @@ export default async function StudentDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">أحدث الدروس</h3>
+          <h3 className="text-white font-semibold mb-4">{t('latestLessons')}</h3>
           {lessonList.length === 0 ? (
-            <p className="text-slate-500 text-sm">لم تُسنَد دروس بعد.</p>
+            <p className="text-slate-500 text-sm">{t('noLessons')}</p>
           ) : (
             <ul className="space-y-3">
               {lessonList.map(l => (
@@ -95,7 +99,7 @@ export default async function StudentDashboard() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-white text-sm font-medium truncate group-hover:text-blue-400 transition-colors">{l.title}</p>
-                      <p className="text-slate-500 text-xs">{l.groups?.name ?? '—'} · {formatDate(l.created_at)}</p>
+                      <p className="text-slate-500 text-xs">{l.groups?.name ?? '—'} · {formatDate(l.created_at, locale)}</p>
                     </div>
                   </Link>
                 </li>
@@ -104,9 +108,9 @@ export default async function StudentDashboard() {
           )}
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h3 className="text-white font-semibold mb-4">درجاتي</h3>
+          <h3 className="text-white font-semibold mb-4">{t('myGrades')}</h3>
           {gradeList.length === 0 ? (
-            <p className="text-slate-500 text-sm">لا توجد درجات بعد.</p>
+            <p className="text-slate-500 text-sm">{t('noGrades')}</p>
           ) : (
             <ul className="space-y-3">
               {gradeList.map(g => (

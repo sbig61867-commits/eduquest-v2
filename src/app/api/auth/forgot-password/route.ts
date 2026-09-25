@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
@@ -27,11 +28,11 @@ export async function POST(request: Request) {
     const body = await request.json()
     email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   } catch {
-    return NextResponse.json({ error: 'طلب غير صالح' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('badRequest')) }, { status: 400 })
   }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'مطلوب بريد إلكتروني صالح' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('invalidEmail')) }, { status: 400 })
   }
 
   // Rate limit by email — 3 attempts per hour prevents email spam to one address

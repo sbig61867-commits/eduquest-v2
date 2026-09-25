@@ -1,5 +1,8 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
+import { useTranslations, useLocale } from 'next-intl'
+import { formatDate } from '@/lib/utils'
+import type { Locale } from '@/i18n/config'
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -26,6 +29,8 @@ export interface ArchiveRow {
 }
 
 export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
+  const t = useTranslations('admin.archive')
+  const locale = useLocale() as Locale
   const router = useRouter()
   const [items, setItems] = useState(rows)
   const [year, setYear] = useState<string>('all')
@@ -47,7 +52,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
   })
 
   async function restore(r: ArchiveRow) {
-    if (!(await confirmDialog(`Restore "${r.title}" from the archive? It will become visible on the platform again.`))) return
+    if (!(await confirmDialog(t('restoreConfirm', { title: r.title })))) return
     setBusy(r.id)
     const res = await fetch('/api/admin/restore', {
       method: 'POST',
@@ -55,19 +60,19 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       body: JSON.stringify({ kind: r.kind, id: r.id }),
     })
     if (res.ok) { setItems(prev => prev.map(x => x.id === r.id ? { ...x, is_archived: false, deleted_at: null } : x)); router.refresh() }
-    else toast.error((await res.json().catch(() => ({}))).error ?? 'Failed to restore')
+    else toast.error((await res.json().catch(() => ({}))).error ?? t('restoreFailed'))
     setBusy('')
   }
 
   const archivedCount = items.filter(r => r.is_archived).length
-  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">{terms.institution} Archive</h2>
+        <h2 className="text-2xl font-bold text-white">{t('title', { institution: terms.institution })}</h2>
         <p className="text-slate-400 mt-1">
-          Full historical record — {items.length} classes &amp; courses ({archivedCount} archived). All submissions and grades are preserved for future reference.
+          {t('subtitle', { count: items.length, archived: archivedCount })}
         </p>
       </div>
 
@@ -75,16 +80,16 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="ابحث بالاسم أو المعلم…"
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={t('search')}
             className="w-full ps-9 pe-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <select value={year} onChange={e => setYear(e.target.value)}
           className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="all">كل السنوات</option>
+          <option value="all">{t('allYears')}</option>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <div className="flex rounded-lg border border-slate-700 overflow-hidden">
-          {([['all', 'All'], ['live', 'Active'], ['archived', 'Archived']] as const).map(([v, label]) => (
+          {([['all', t('filterAll')], ['live', t('filterLive')], ['archived', t('filterArchived')]] as const).map(([v, label]) => (
             <button key={v} onClick={() => setStatus(v)}
               className={`px-3 py-2 text-sm transition-colors ${status === v ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
               {label}
@@ -96,7 +101,7 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
       {filtered.length === 0 ? (
         <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
           <Archive className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد عناصر مطابقة.</p>
+          <p className="text-slate-400">{t('empty')}</p>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -110,28 +115,28 @@ export function ArchiveClient({ rows }: { rows: ArchiveRow[] }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-white font-semibold truncate">{r.title}</h3>
-                      <Badge variant={r.kind === 'group' ? 'blue' : 'gray'}>{r.kind === 'group' ? 'صف' : 'مساق'}</Badge>
+                      <Badge variant={r.kind === 'group' ? 'blue' : 'gray'}>{r.kind === 'group' ? t('kindGroup') : t('kindCourse')}</Badge>
                       {r.is_archived
-                        ? <Badge variant="yellow">مؤرشف</Badge>
-                        : <Badge variant="green">نشط</Badge>}
+                        ? <Badge variant="yellow">{t('archivedBadge')}</Badge>
+                        : <Badge variant="green">{t('liveBadge')}</Badge>}
                     </div>
                     <p className="text-slate-500 text-xs mt-1 flex items-center gap-1.5 flex-wrap">
-                      <GraduationCap className="w-3.5 h-3.5" /> {r.teacher_name ?? 'Unknown'}
+                      <GraduationCap className="w-3.5 h-3.5" /> {r.teacher_name ?? t('unknownTeacher')}
                       <span className="mx-1">·</span>
-                      أُنشئ {new Date(r.created_at).toLocaleDateString('ar-u-ca-gregory-nu-latn')}
-                      {r.deleted_at && <><span className="mx-1">·</span>أُرشف {new Date(r.deleted_at).toLocaleDateString('ar-u-ca-gregory-nu-latn')}</>}
+                      {t('created', { date: formatDate(r.created_at, locale) })}
+                      {r.deleted_at && <><span className="mx-1">·</span>{t('archivedAt', { date: formatDate(r.deleted_at, locale) })}</>}
                     </p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                      <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{r.student_count} students</span>
-                      {r.kind === 'group' && <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" />{r.lesson_count} lessons</span>}
-                      <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{r.exam_count} exams/homework</span>
-                      <span className="text-emerald-400">{r.submission_count} submissions</span>
+                      <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{t('students', { count: r.student_count })}</span>
+                      {r.kind === 'group' && <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" />{t('lessons', { count: r.lesson_count })}</span>}
+                      <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{t('exams', { count: r.exam_count })}</span>
+                      <span className="text-emerald-400">{t('submissions', { count: r.submission_count })}</span>
                     </div>
                   </div>
                 </div>
                 {r.is_archived && (
                   <Button size="sm" variant="secondary" loading={busy === r.id} onClick={() => restore(r)}>
-                    <ArchiveRestore className="w-3.5 h-3.5" /> استعادة
+                    <ArchiveRestore className="w-3.5 h-3.5" /> {t('restore')}
                   </Button>
                 )}
               </div>

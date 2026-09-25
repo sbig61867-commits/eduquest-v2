@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ function writeSeen(ids: string[]) {
 }
 
 export function AnnouncementPopup() {
+  const t = useTranslations('student.widgets.popup')
   const [unseen, setUnseen] = useState<StudentAnnouncement[]>([])
 
   useEffect(() => {
@@ -49,13 +51,13 @@ export function AnnouncementPopup() {
     <Modal
       open={unseen.length > 0}
       onClose={dismiss}
-      title={unseen.length > 1 ? `إعلانات جديدة (${unseen.length})` : 'إعلان جديد'}
+      title={unseen.length > 1 ? t('titleMany', { count: unseen.length }) : t('titleOne')}
       size="lg"
     >
-      <div className="space-y-4" dir="rtl">
+      <div className="space-y-4" dir="auto">
         <AnnouncementsBanner announcements={unseen} />
         <div className="flex justify-end">
-          <Button onClick={dismiss}>تم</Button>
+          <Button onClick={dismiss}>{t('dismiss')}</Button>
         </div>
       </div>
     </Modal>

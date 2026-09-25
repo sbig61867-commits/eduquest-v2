@@ -1,16 +1,20 @@
 import { DemoCard } from '@/components/demo/demo-shell'
-import { demoExams } from '@/lib/demo/data'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
+import { getDemoData } from '@/lib/demo/data'
 
-export default function DemoStudentExams() {
+export default async function DemoStudentExams() {
+  const t = await getTranslations('public.demo')
+  const d = getDemoData((await getLocale()) as Locale)
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">اختباراتي</h2>
+      <h2 className="text-2xl font-bold text-white">{t('student.myExams')}</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {demoExams.map((e) => (
+        {d.exams.map((e) => (
           <DemoCard key={e.id} title={e.title}>
-            <p className="text-slate-400 text-sm">التاريخ: {e.date}</p>
-            <p className="text-slate-400 text-sm mb-3">المدة: {e.duration} دقيقة</p>
-            <button className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white">دخول الاختبار</button>
+            <p className="text-slate-400 text-sm">{t('common.date', { date: e.date })}</p>
+            <p className="text-slate-400 text-sm mb-3">{t('common.duration', { count: e.duration })}</p>
+            <button className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white">{t('student.enterExam')}</button>
           </DemoCard>
         ))}
       </div>

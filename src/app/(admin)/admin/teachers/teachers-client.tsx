@@ -1,5 +1,7 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,6 +15,8 @@ import type { User } from '@/types'
 interface Props { initialTeachers: User[] }
 
 export function TeachersClient({ initialTeachers }: Props) {
+  const t = useTranslations('admin.people')
+  const locale = useLocale() as Locale
   const [teachers, setTeachers] = useState(initialTeachers)
   const [search, setSearch] = useState('')
   const supabase = createClient()
@@ -48,7 +52,7 @@ export function TeachersClient({ initialTeachers }: Props) {
   }
 
   async function deleteTeacher(id: string) {
-    if (!(await confirmDialog('هل أنت متأكد؟ سيؤدي هذا إلى حذف المعلم وكل بياناته.'))) return
+    if (!(await confirmDialog(t('teachers.deleteConfirm')))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
       setTeachers(prev => prev.filter(t => t.id !== id))
@@ -60,11 +64,11 @@ export function TeachersClient({ initialTeachers }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">المعلمون</h2>
-          <p className="text-slate-400 mt-1">{teachers.length} total teachers</p>
+          <h2 className="text-2xl font-bold text-white">{t('teachers.title')}</h2>
+          <p className="text-slate-400 mt-1">{t('teachers.summary', { count: teachers.length })}</p>
         </div>
         <Button onClick={() => router.push('/admin/invitations')}>
-          <UserPlus className="w-4 h-4" /> دعوة معلم
+          <UserPlus className="w-4 h-4" /> {t('teachers.invite')}
         </Button>
       </div>
 
@@ -73,7 +77,7 @@ export function TeachersClient({ initialTeachers }: Props) {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="ابحث عن معلم…"
+          placeholder={t('teachers.search')}
           className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
@@ -82,17 +86,17 @@ export function TeachersClient({ initialTeachers }: Props) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الاسم</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">البريد الإلكتروني</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">تاريخ الانضمام</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">المساقات</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('common.name')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">{t('common.email')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">{t('common.joined')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('common.status')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">{t('teachers.thCourses')}</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="text-center text-slate-500 py-10">لم يُعثر على معلمين</td></tr>
+              <tr><td colSpan={6} className="text-center text-slate-500 py-10">{t('teachers.empty')}</td></tr>
             )}
             {filtered.map(teacher => (
               <tr key={teacher.id} className="hover:bg-slate-800/50 transition-colors">
@@ -110,17 +114,17 @@ export function TeachersClient({ initialTeachers }: Props) {
                   </span>
                 </td>
                 <td className="px-5 py-4 hidden lg:table-cell">
-                  <span className="text-slate-400 text-sm">{formatDate(teacher.created_at)}</span>
+                  <span className="text-slate-400 text-sm">{formatDate(teacher.created_at, locale)}</span>
                 </td>
                 <td className="px-5 py-4">
                   <Badge variant={teacher.is_active ? 'green' : 'red'}>
-                    {teacher.is_active ? 'نشط' : 'معطّل'}
+                    {teacher.is_active ? t('common.active') : t('common.disabled')}
                   </Badge>
                 </td>
                 <td className="px-5 py-4 hidden xl:table-cell">
                   <button
                     onClick={() => toggleCoursePermission(teacher)}
-                    title={teacher.can_create_courses ? 'سحب صلاحية إنشاء المساقات' : 'منح صلاحية إنشاء المساقات'}
+                    title={teacher.can_create_courses ? t('teachers.revokeCourses') : t('teachers.grantCourses')}
                     className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
                       teacher.can_create_courses
                         ? 'bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20'
@@ -128,7 +132,7 @@ export function TeachersClient({ initialTeachers }: Props) {
                     }`}
                   >
                     <BookOpen className="w-3 h-3" />
-                    {teacher.can_create_courses ? 'مسموح' : 'غير مسموح'}
+                    {teacher.can_create_courses ? t('teachers.allowed') : t('teachers.notAllowed')}
                   </button>
                 </td>
                 <td className="px-5 py-4">

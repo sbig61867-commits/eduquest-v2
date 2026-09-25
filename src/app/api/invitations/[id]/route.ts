@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -21,18 +22,18 @@ export async function PATCH(
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!caller) return NextResponse.json({ error: 'لم يُعثر على الملف الشخصي' }, { status: 403 })
+  if (!caller) return NextResponse.json({ ...(await apiErr('profileNotFound')) }, { status: 403 })
 
   // Fetch the invitation to check ownership and current state
   const { data: invitation } = await supabase
     .from('invitations').select('*').eq('id', id).single()
 
   if (!invitation) {
-    return NextResponse.json({ error: 'لم يُعثر على الدعوة' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('invitationNotFound')) }, { status: 404 })
   }
 
   if (invitation.status !== 'pending') {
@@ -49,7 +50,7 @@ export async function PATCH(
     (caller.role === 'university_admin' && invitation.tenant_id === caller.tenant_id)
 
   if (!canRevoke) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { error } = await adminClient()
@@ -60,7 +61,7 @@ export async function PATCH(
 
   if (error) {
     console.error('[invitations/revoke]', error)
-    return NextResponse.json({ error: 'فشل إلغاء الدعوة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('invitationRevokeFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

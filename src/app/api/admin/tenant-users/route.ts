@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 
@@ -7,7 +8,7 @@ export async function GET(request: Request) {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user || user.role !== 'super_admin') {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { searchParams } = new URL(request.url)
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   const search   = searchParams.get('search') ?? ''
   const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
 
-  if (!tenantId) return NextResponse.json({ error: 'معرّف المؤسسة مطلوب' }, { status: 400 })
+  if (!tenantId) return NextResponse.json({ ...(await apiErr('tenantIdRequired')) }, { status: 400 })
 
   let query = supabase
     .from('users')
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
 
   if (error) {
     console.error('[tenant-users]', error)
-    return NextResponse.json({ error: 'فشل تحميل المستخدمين' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('usersLoadFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ users: data ?? [], total: count ?? 0, page, pageSize: PAGE_SIZE })

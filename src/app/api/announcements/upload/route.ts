@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -43,17 +44,17 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const limit = await rateLimit(`announcement_upload:${user.id}`, { limit: 20, windowSecs: 3600 })
   if (!limit.allowed) {
-    return NextResponse.json({ error: 'تجاوزت الحد المسموح، حاول لاحقاً' }, { status: 429 })
+    return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
   }
 
   let file: File | null = null
@@ -62,13 +63,13 @@ export async function POST(request: Request) {
     const f = form.get('file')
     if (f instanceof File) file = f
   } catch {
-    return NextResponse.json({ error: 'طلب غير صالح' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('badRequest')) }, { status: 400 })
   }
-  if (!file) return NextResponse.json({ error: 'لم يتم إرسال ملف' }, { status: 400 })
+  if (!file) return NextResponse.json({ ...(await apiErr('noFileUploaded')) }, { status: 400 })
 
   const ext = ALLOWED.get(file.type)
-  if (!ext) return NextResponse.json({ error: 'صيغة غير مدعومة (JPG/PNG/WebP/GIF فقط)' }, { status: 400 })
-  if (file.size > MAX_BYTES) return NextResponse.json({ error: 'حجم الصورة يتجاوز 4 ميغابايت' }, { status: 400 })
+  if (!ext) return NextResponse.json({ ...(await apiErr('unsupportedImage')) }, { status: 400 })
+  if (file.size > MAX_BYTES) return NextResponse.json({ ...(await apiErr('imageTooLarge4')) }, { status: 400 })
 
   const bytes = new Uint8Array(await file.arrayBuffer())
 
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   // Content-Type above is client-supplied and not trustworthy on its own.
   const realType = sniffedType(bytes)
   if (!realType || !ALLOWED.has(realType)) {
-    return NextResponse.json({ error: 'محتوى الملف لا يطابق صورة صالحة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('imageContentInvalid')) }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
   })
   if (error) {
     console.error('[api/announcements/upload]', error)
-    return NextResponse.json({ error: 'تعذّر رفع الصورة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('imageUploadFailed')) }, { status: 500 })
   }
 
   const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path)

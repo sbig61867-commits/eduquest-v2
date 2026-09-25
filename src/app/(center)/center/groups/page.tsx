@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
-import { NoPermission } from '@/components/center/no-permission'
+import { NoPermission } from '@/components/shared/no-permission'
 import { CenterGroupsClient, type CenterGroupRow } from '@/components/center/groups-client'
 
 interface RawGroup {
@@ -20,7 +20,7 @@ interface RawGroup {
 
 export default async function CenterGroupsPage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
-  if (!has('manage_groups')) return <NoPermission label="إدارة المجموعات" />
+  if (!has('manage_groups')) return <NoPermission capability="manage_groups" />
 
   const [{ data: groups }, { data: teachers }, { data: students }, { data: courses }] = await Promise.all([
     supabase.from('groups')

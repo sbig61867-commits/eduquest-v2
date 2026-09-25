@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -35,23 +36,23 @@ async function getProfile(supabase: Awaited<ReturnType<typeof createClient>>, us
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(supabase, user.id)
   if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   let body: { to_user_id?: string; type?: string; subject?: string; group_id?: string; message?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { to_user_id, type = 'general', subject, group_id, message } = body
-  if (!to_user_id) return NextResponse.json({ error: 'المستلِم مطلوب' }, { status: 400 })
-  if (!subject?.trim()) return NextResponse.json({ error: 'الموضوع مطلوب' }, { status: 400 })
+  if (!to_user_id) return NextResponse.json({ ...(await apiErr('recipientRequiredOne')) }, { status: 400 })
+  if (!subject?.trim()) return NextResponse.json({ ...(await apiErr('subjectRequired')) }, { status: 400 })
   if (!REQUEST_TYPES.includes(type as typeof REQUEST_TYPES[number])) {
-    return NextResponse.json({ error: 'نوع الطلب غير صالح' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('invalidRequestType')) }, { status: 400 })
   }
-  if (to_user_id === user.id) return NextResponse.json({ error: 'لا يمكن إرسال طلب لنفسك' }, { status: 400 })
+  if (to_user_id === user.id) return NextResponse.json({ ...(await apiErr('cannotRequestSelf')) }, { status: 400 })
 
   const admin = adminClient()
 
@@ -60,11 +61,11 @@ export async function POST(request: Request) {
   const { data: recipient } = await admin
     .from('users').select('id, role, tenant_id').eq('id', to_user_id).single()
   if (!recipient || recipient.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'المستلِم غير موجود في مؤسستك' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('recipientNotInTenant')) }, { status: 404 })
   }
   const allowedRecipientRole = profile.role === 'teacher' ? 'university_admin' : 'teacher'
   if (recipient.role !== allowedRecipientRole) {
-    return NextResponse.json({ error: 'وجهة الطلب غير مسموحة' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('requestTargetNotAllowed')) }, { status: 403 })
   }
 
   // If a group is attached, verify it belongs to the tenant (and, for a
@@ -72,10 +73,10 @@ export async function POST(request: Request) {
   if (group_id) {
     const { data: group } = await admin.from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
     if (!group || group.tenant_id !== profile.tenant_id) {
-      return NextResponse.json({ error: 'المجموعة غير موجودة' }, { status: 404 })
+      return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
     }
     if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'ليست مجموعتك' }, { status: 403 })
+      return NextResponse.json({ ...(await apiErr('notYourGroup')) }, { status: 403 })
     }
   }
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
 
   if (error || !created) {
     console.error('[api/requests POST]', error)
-    return NextResponse.json({ error: 'تعذّر إنشاء الطلب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('requestCreateFailed')) }, { status: 500 })
   }
 
   if (message?.trim()) {
@@ -111,38 +112,38 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(supabase, user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { id?: string; status?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { id, status } = body
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
   if (!status || !STATUSES.includes(status as typeof STATUSES[number])) {
-    return NextResponse.json({ error: 'حالة غير صالحة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('invalidStatus')) }, { status: 400 })
   }
 
   const admin = adminClient()
   const { data: req } = await admin
     .from('staff_requests').select('id, tenant_id, from_user_id, to_user_id, status').eq('id', id).single()
   if (!req || req.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'الطلب غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('requestNotFound')) }, { status: 404 })
   }
   const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
   if (!isParticipant && profile.role !== 'university_admin' && profile.role !== 'super_admin') {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Validate state machine: check valid from-state and who may make this transition.
   const transition = ALLOWED_TRANSITIONS[status]
   if (!transition) {
-    return NextResponse.json({ error: 'الانتقال إلى هذه الحالة غير مسموح' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('transitionNotAllowed')) }, { status: 400 })
   }
   if (!transition.from.includes(req.status)) {
-    return NextResponse.json({ error: `لا يمكن تغيير حالة الطلب من ${req.status} إلى ${status}` }, { status: 409 })
+    return NextResponse.json({ ...(await apiErr('badTransition', { from: req.status, to: status })) }, { status: 409 })
   }
   const isSender    = req.from_user_id === user.id
   const isRecipient = req.to_user_id   === user.id
@@ -153,7 +154,7 @@ export async function PATCH(request: Request) {
     !isSuperAdmin &&
     transition.allowedBy === 'recipient' && !isRecipient
   ) {
-    return NextResponse.json({ error: 'ليس لديك صلاحية هذا الإجراء على الطلب' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('requestActionForbidden')) }, { status: 403 })
   }
 
   const { error } = await admin
@@ -163,7 +164,7 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error('[api/requests PATCH]', error)
-    return NextResponse.json({ error: 'تعذّر تحديث الحالة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('statusUpdateFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true, status })
 }

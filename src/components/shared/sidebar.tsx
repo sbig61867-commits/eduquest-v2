@@ -7,12 +7,14 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { createClient } from '@/lib/supabase/client'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 import { getTerms, type Terms } from '@/lib/terminology'
 import { getStudentTrack } from '@/lib/student-track'
 import {
   LogOut, ChevronLeft,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
-  GraduationCap, BookOpen, ClipboardList, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel, Network,
+  GraduationCap, BookOpen, ClipboardList, ClipboardCheck, Activity, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel, Network,
 } from 'lucide-react'
 
 const ICONS = {
@@ -25,6 +27,8 @@ const ICONS = {
   GraduationCap,
   BookOpen,
   ClipboardList,
+  ClipboardCheck,
+  Activity,
   BarChart2,
   Bell,
   Mail,
@@ -59,12 +63,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: SidebarProps) {
+  const t = useTranslations('common.actions')
+  const locale = useLocale() as Locale
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useUIStore()
   const { tenant, reset } = useAuthStore()
   const isCentreTrainee = useAuthStore(s =>
     s.user?.role === 'student' && getStudentTrack(s.user.is_university_student, s.tenant?.has_center) === 'centre')
-  const terms = getTerms(tenant?.institution_type)
+  const terms = getTerms(tenant?.institution_type, locale)
   const router = useRouter()
   const supabase = createClient()
   const [signingOut, setSigningOut] = useState(false)
@@ -173,7 +179,7 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full disabled:opacity-50"
           >
             <LogOut className="w-5 h-5 shrink-0" />
-            {(sidebarOpen || mobileNavOpen) && <span className="text-sm font-medium">{signingOut ? 'جارٍ الخروج…' : 'تسجيل الخروج'}</span>}
+            {(sidebarOpen || mobileNavOpen) && <span className="text-sm font-medium">{signingOut ? t('signingOut') : t('signOut')}</span>}
           </button>
         </div>
       </aside>

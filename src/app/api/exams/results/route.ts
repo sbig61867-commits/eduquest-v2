@@ -1,3 +1,5 @@
+import { getTranslations } from 'next-intl/server'
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -14,12 +16,13 @@ function adminClient() {
 // who submitted, their score, grading status, proctoring flags, plus the
 // full group roster so the teacher sees who hasn't taken it yet.
 export async function GET(request: Request) {
+  const tc = await getTranslations('common')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const examId = new URL(request.url).searchParams.get('exam_id')
-  if (!examId) return NextResponse.json({ error: 'معرّف الاختبار مطلوب' }, { status: 400 })
+  if (!examId) return NextResponse.json({ ...(await apiErr('missingExamId')) }, { status: 400 })
 
   const admin = adminClient()
   const { data: exam } = await admin
@@ -28,7 +31,7 @@ export async function GET(request: Request) {
     .eq('id', examId)
     .single()
   if (!exam || exam.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const maxScore = ((exam.questions as Array<{ points?: number }>) ?? [])
@@ -58,7 +61,7 @@ export async function GET(request: Request) {
     return {
       student_id: r.student_id,
       submission_id: s?.id ?? null,
-      name: u?.full_name ?? 'غير معروف',
+      name: u?.full_name ?? tc('unknown'),
       email: u?.email ?? '',
       submitted: !!s,
       answers: (s?.answers as Record<string, string> | null) ?? {},

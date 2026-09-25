@@ -1,34 +1,36 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
+import { writeLocaleCookie } from '@/components/shared/locale-switcher'
 import { Languages } from 'lucide-react'
 import { pricingEnabled } from '@/lib/pricing/plans'
 
 export type Lang = 'ar' | 'en'
 
-// Shared language state for the public (pre-login) pages, persisted so the
-// choice survives navigation between landing / privacy / terms.
+// Language state for the public (pre-login) pages.
+//
+// This used to be a second, parallel language system — its own
+// `public-lang` localStorage key, its own default, applied only after
+// hydration — so a visitor who chose English here signed in and landed in
+// whatever `eq_locale` said, and every public page flashed Arabic first.
+//
+// It now reads and writes `eq_locale`, the same cookie the app shell and the
+// server render from: one choice, carried across sign-in, rendered correctly
+// on the first byte. The `[lang, setLang]` signature is kept so the pages'
+// existing `lang === 'ar' ? … : …` copy keeps working unchanged.
+//
+// Those inline ternaries are still hardcoded copy, not message files — these
+// files stay in the i18n ratchet backlog until that is extracted. Nothing here
+// hides that.
 export function useLang(): [Lang, (l: Lang) => void] {
-  const [lang, setLangState] = useState<Lang>('ar')
-  useEffect(() => {
-    // Intentional one-time post-hydration sync: the server always renders 'ar'
-    // (no access to localStorage), so the saved choice must be applied after
-    // mount — a hydration-safe pattern, not a cascading-render bug.
-    const saved = localStorage.getItem('public-lang')
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved === 'en') setLangState('en')
-  }, [])
-  // The root <html> is rendered lang="en" (dashboards are English-labelled),
-  // but public pages default to Arabic — keep the document language in step
-  // with what is actually on screen so screen readers pronounce it correctly
-  // (WCAG 3.1.1). Only the attribute; direction stays on each page wrapper.
-  useEffect(() => {
-    document.documentElement.lang = lang
-  }, [lang])
+  const lang = useLocale() as Lang
+  const router = useRouter()
   const setLang = (l: Lang) => {
-    setLangState(l)
-    localStorage.setItem('public-lang', l)
+    if (l === lang) return
+    writeLocaleCookie(l)
+    router.refresh()
   }
   return [lang, setLang]
 }

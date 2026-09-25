@@ -1,28 +1,32 @@
 import { DemoCard } from '@/components/demo/demo-shell'
-import { demoTeachers } from '@/lib/demo/data'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
+import { getDemoData } from '@/lib/demo/data'
 
-export default function DemoAdminTeachers() {
+export default async function DemoAdminTeachers() {
+  const t = await getTranslations('public.demo')
+  const d = getDemoData((await getLocale()) as Locale)
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">المعلمون</h2>
-      <DemoCard title={`${demoTeachers.length} معلمين`}>
+      <h2 className="text-2xl font-bold text-white">{t('admin.teachers')}</h2>
+      <DemoCard title={t('admin.teachersCount', { count: d.teachers.length })}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-end">
+          <table className="w-full text-sm text-start">
             <thead>
               <tr className="text-slate-400 border-b border-slate-800">
-                <th className="py-2 font-medium">الاسم</th>
-                <th className="py-2 font-medium">المادة</th>
-                <th className="py-2 font-medium">المجموعات</th>
-                <th className="py-2 font-medium">الطلاب</th>
+                <th className="py-2 font-medium text-start">{t('common.name')}</th>
+                <th className="py-2 font-medium text-start">{t('admin.subject')}</th>
+                <th className="py-2 font-medium text-start">{t('admin.groups')}</th>
+                <th className="py-2 font-medium text-start">{t('admin.students')}</th>
               </tr>
             </thead>
             <tbody>
-              {demoTeachers.map((t) => (
-                <tr key={t.id} className="border-b border-slate-800/60">
-                  <td className="py-3 text-white">{t.name}</td>
-                  <td className="py-3 text-slate-400">{t.subject}</td>
-                  <td className="py-3 text-slate-400">{t.groups}</td>
-                  <td className="py-3 text-slate-400">{t.students}</td>
+              {d.teachers.map((tc) => (
+                <tr key={tc.id} className="border-b border-slate-800/60">
+                  <td className="py-3 text-white">{tc.name}</td>
+                  <td className="py-3 text-slate-400">{tc.subject}</td>
+                  <td className="py-3 text-slate-400">{tc.groups}</td>
+                  <td className="py-3 text-slate-400">{tc.students}</td>
                 </tr>
               ))}
             </tbody>

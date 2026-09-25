@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { serviceClient } from '@/lib/staff-auth'
 import { rateLimit } from '@/lib/rate-limit'
@@ -18,32 +19,32 @@ export async function POST(request: Request) {
   const { caller } = auth
 
   let body: { recipient_ids?: unknown; subject?: unknown; body?: unknown }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const ids = Array.isArray(body.recipient_ids) ? [...new Set(body.recipient_ids.filter((x): x is string => typeof x === 'string'))] : []
   const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
   const text = typeof body.body === 'string' ? body.body.trim() : ''
-  if (ids.length === 0) return NextResponse.json({ error: 'اختر مستلماً واحداً على الأقل' }, { status: 400 })
-  if (ids.length > MAX_RECIPIENTS) return NextResponse.json({ error: `الحد الأقصى ${MAX_RECIPIENTS} مستلماً في المرة الواحدة` }, { status: 400 })
-  if (!subject || subject.length > 200) return NextResponse.json({ error: 'العنوان مطلوب (حتى 200 حرف)' }, { status: 400 })
-  if (!text || text.length > 20000) return NextResponse.json({ error: 'نص الرسالة مطلوب' }, { status: 400 })
+  if (ids.length === 0) return NextResponse.json({ ...(await apiErr('recipientRequired')) }, { status: 400 })
+  if (ids.length > MAX_RECIPIENTS) return NextResponse.json({ ...(await apiErr('tooManyRecipients', { max: MAX_RECIPIENTS })) }, { status: 400 })
+  if (!subject || subject.length > 200) return NextResponse.json({ ...(await apiErr('subjectRequired200')) }, { status: 400 })
+  if (!text || text.length > 20000) return NextResponse.json({ ...(await apiErr('bodyRequired')) }, { status: 400 })
 
   // Gmail's own daily cap is ~500 (personal) / ~2000 (Workspace); stay well under it.
   const limit = await rateLimit(`mail-send:${caller.id}`, { limit: 300, windowSecs: 86400 })
-  if (!limit.allowed) return NextResponse.json({ error: 'تجاوزت حد الإرسال اليومي' }, { status: 429 })
+  if (!limit.allowed) return NextResponse.json({ ...(await apiErr('dailySendLimit')) }, { status: 429 })
 
   const admin = serviceClient()
   const { data: conn } = await admin
     .from('mail_connections').select('*')
     .eq('user_id', caller.id).eq('provider', 'google').maybeSingle()
   if (!conn || conn.status === 'revoked') {
-    return NextResponse.json({ error: 'اربط بريدك أولاً', code: 'NOT_LINKED' }, { status: 409 })
+    return NextResponse.json({ ...(await apiErr('linkMailboxFirst')), code: 'NOT_LINKED' }, { status: 409 })
   }
 
   const { data: recipients } = await admin
     .from('users').select('id, email, full_name, role')
     .in('id', ids).eq('tenant_id', caller.tenant_id).in('role', ['student', 'teacher']).eq('is_active', true)
-  if (!recipients?.length) return NextResponse.json({ error: 'لا يوجد مستلمون صالحون في مؤسستك' }, { status: 400 })
+  if (!recipients?.length) return NextResponse.json({ ...(await apiErr('noValidRecipients')) }, { status: 400 })
 
   const { data: sender } = await admin.from('users').select('full_name').eq('id', caller.id).maybeSingle()
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
   } catch (e) {
     const relink = (e as Error).message === 'RELINK_REQUIRED'
     return NextResponse.json(
-      { error: relink ? 'انتهى ربط بريدك — أعد الربط' : 'تعذّر الاتصال ببريدك', code: relink ? 'RELINK_REQUIRED' : 'TOKEN_ERROR' },
+      { ...(await apiErr(relink ? 'mailRelinkRequired' : 'mailTokenError')), code: relink ? 'RELINK_REQUIRED' : 'TOKEN_ERROR' },
       { status: 409 },
     )
   }

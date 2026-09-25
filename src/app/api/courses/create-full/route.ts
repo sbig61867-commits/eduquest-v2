@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -33,22 +34,22 @@ interface CourseInput {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, can_create_courses').eq('id', user.id).single()
   if (!profile?.tenant_id || !profile.can_create_courses) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   let body: { course?: CourseInput; source_text?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { course, source_text } = body
-  if (!course?.title?.trim()) return NextResponse.json({ error: 'عنوان المساق مطلوب' }, { status: 400 })
+  if (!course?.title?.trim()) return NextResponse.json({ ...(await apiErr('courseTitleRequired')) }, { status: 400 })
   if (!Array.isArray(course.units) || course.units.length === 0) {
-    return NextResponse.json({ error: 'مطلوب وحدة واحدة على الأقل' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('unitRequired')) }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 
   if (courseErr || !newCourse) {
     console.error('[create-full] course insert:', courseErr)
-    return NextResponse.json({ error: 'فشل إنشاء المساق' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('courseCreateFailed')) }, { status: 500 })
   }
 
   // 2. Create units + lessons

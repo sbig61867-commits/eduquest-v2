@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -20,15 +21,15 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { examId?: string; answers?: Record<string, string> }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { examId, answers } = body
   if (!examId || !answers || typeof answers !== 'object') {
-    return NextResponse.json({ error: 'معرّف الاختبار أو الإجابات مفقودة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('missingExamOrAnswers')) }, { status: 400 })
   }
 
   // Only update if the attempt is still in_progress (never overwrite a submitted attempt)
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('[exam/draft] error', error)
-    return NextResponse.json({ error: 'فشل حفظ المسودة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('draftSaveFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

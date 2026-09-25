@@ -45,7 +45,7 @@ export default async function SuperAdminPermissionsPage() {
   const grantable = Object.fromEntries(CAPABILITIES.map(c => [c, true])) as Record<Capability, boolean>
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">الصلاحيات</h2>
         <p className="text-slate-400 mt-1">

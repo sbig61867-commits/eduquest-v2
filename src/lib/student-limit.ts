@@ -38,6 +38,6 @@ export async function checkStudentLimit(
   return { allowed: count < tenant.student_limit, limit: tenant.student_limit, current: count }
 }
 
-export const STUDENT_LIMIT_MESSAGE =
-  'وصلت مؤسستك إلى الحد الأقصى لعدد الطلاب في باقتها الحالية. تواصل مع إدارة المنصة لترقية الباقة. ' +
-  'Your institution has reached the student limit for its current plan.'
+// An API error code, not text: the route translates it into the caller's
+// language. It used to be one string holding both languages back to back.
+export const STUDENT_LIMIT_CODE = 'studentLimit' as const

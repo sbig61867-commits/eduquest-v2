@@ -1,5 +1,7 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getTranslations } from 'next-intl/server'
 
 interface Notif { id: string; type: string; title: string; subtitle: string; date: string; href: string }
 
@@ -9,12 +11,14 @@ interface Notif { id: string; type: string; title: string; subtitle: string; dat
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   const role = profile?.role
   const items: Notif[] = []
+  // Titles are built here, so they are resolved in the caller's language here.
+  const t = await getTranslations('common.notifications.items')
 
   if (role === 'student') {
     const { data: memberOf } = await supabase.from('group_students').select('group_id').eq('student_id', user.id)
@@ -28,14 +32,14 @@ export async function GET() {
     ])
     for (const l of (lessons ?? []) as Array<{ id: string; title: string; created_at: string; groups: { name: string } | { name: string }[] | null }>) {
       const g = Array.isArray(l.groups) ? l.groups[0] : l.groups
-      items.push({ id: `lesson-${l.id}`, type: 'lesson', title: `درس جديد: ${l.title}`, subtitle: g?.name ?? '', date: l.created_at, href: '/student/lessons' })
+      items.push({ id: `lesson-${l.id}`, type: 'lesson', title: t('newLesson', { title: l.title }), subtitle: g?.name ?? '', date: l.created_at, href: '/student/lessons' })
     }
     for (const e of ((rpcExams ?? []) as Array<{ id: string; title: string; created_at: string }>).slice(0, 8)) {
-      items.push({ id: `exam-${e.id}`, type: 'exam', title: `اختبار جديد: ${e.title}`, subtitle: '', date: e.created_at, href: '/student/exams' })
+      items.push({ id: `exam-${e.id}`, type: 'exam', title: t('newExam', { title: e.title }), subtitle: '', date: e.created_at, href: '/student/exams' })
     }
     for (const gr of (grades ?? []) as Array<{ id: string; score: number; max_score: number | null; submitted_at: string; exams: { title: string } | { title: string }[] | null }>) {
       const ex = Array.isArray(gr.exams) ? gr.exams[0] : gr.exams
-      items.push({ id: `grade-${gr.id}`, type: 'grade', title: `نُشرت نتيجة: ${ex?.title ?? 'اختبار'}`, subtitle: `${gr.score}${gr.max_score ? `/${gr.max_score}` : ''}`, date: gr.submitted_at, href: '/student/grades' })
+      items.push({ id: `grade-${gr.id}`, type: 'grade', title: t('gradePublished', { title: ex?.title ?? t('examFallback') }), subtitle: `${gr.score}${gr.max_score ? `/${gr.max_score}` : ''}`, date: gr.submitted_at, href: '/student/grades' })
     }
 
   } else if (role === 'teacher') {
@@ -52,8 +56,7 @@ export async function GET() {
       for (const s of (subs ?? []) as Array<{ id: string; exam_id: string; submitted_at: string; users: { full_name: string } | { full_name: string }[] | null }>) {
         const ex = examMap.get(s.exam_id)
         const u = Array.isArray(s.users) ? s.users[0] : s.users
-        const kind = ex?.type === 'homework' ? 'واجب' : 'اختبار'
-        items.push({ id: `sub-${s.id}`, type: 'submission', title: `تسليم جديد في ${kind}: ${ex?.title ?? ''}`, subtitle: u?.full_name ?? '', date: s.submitted_at, href: '/teacher/exams' })
+        items.push({ id: `sub-${s.id}`, type: 'submission', title: t('newSubmission', { kind: ex?.type === 'homework' ? 'homework' : 'exam', title: ex?.title ?? '' }), subtitle: u?.full_name ?? '', date: s.submitted_at, href: '/teacher/exams' })
       }
     }
 
@@ -64,7 +67,7 @@ export async function GET() {
       .eq('tenant_id', profile!.tenant_id).in('role', ['teacher', 'student'])
       .order('created_at', { ascending: false }).limit(15)
     for (const u of (users ?? []) as Array<{ id: string; full_name: string; role: string; created_at: string }>) {
-      items.push({ id: `user-${u.id}`, type: 'user', title: `${u.role === 'teacher' ? 'معلم' : 'طالب'} جديد: ${u.full_name}`, subtitle: '', date: u.created_at, href: u.role === 'teacher' ? '/admin/teachers' : '/admin/students' })
+      items.push({ id: `user-${u.id}`, type: 'user', title: t('newUser', { role: u.role, name: u.full_name }), subtitle: '', date: u.created_at, href: u.role === 'teacher' ? '/admin/teachers' : '/admin/students' })
     }
 
   } else if (role === 'super_admin') {
@@ -73,10 +76,10 @@ export async function GET() {
       supabase.from('tenants').select('id, name, created_at').order('created_at', { ascending: false }).limit(8),
     ])
     for (const m of (msgs ?? []) as Array<{ id: string; name: string; subject: string | null; created_at: string; is_read: boolean }>) {
-      items.push({ id: `msg-${m.id}`, type: 'message', title: `رسالة تواصل من ${m.name}`, subtitle: m.subject ?? '', date: m.created_at, href: '/super-admin/messages' })
+      items.push({ id: `msg-${m.id}`, type: 'message', title: t('contactMessage', { name: m.name }), subtitle: m.subject ?? '', date: m.created_at, href: '/super-admin/messages' })
     }
     for (const tn of (tenants ?? []) as Array<{ id: string; name: string; created_at: string }>) {
-      items.push({ id: `tenant-${tn.id}`, type: 'tenant', title: `مؤسسة جديدة: ${tn.name}`, subtitle: '', date: tn.created_at, href: '/super-admin/tenants' })
+      items.push({ id: `tenant-${tn.id}`, type: 'tenant', title: t('newTenant', { name: tn.name }), subtitle: '', date: tn.created_at, href: '/super-admin/tenants' })
     }
   }
 

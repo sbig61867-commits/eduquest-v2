@@ -15,11 +15,11 @@ interface TenantUsageRow {
 }
 
 const FEATURE_LABEL: Record<string, string> = {
-  lesson: 'Lessons',
-  exam: 'Exams',
-  'course-pptx': 'Courses',
-  'homework-from-file': 'Homework (file)',
-  'lesson-from-file': 'Lessons (file)',
+  lesson: 'الدروس',
+  exam: 'الاختبارات',
+  'course-pptx': 'المساقات',
+  'homework-from-file': 'الواجبات (من ملف)',
+  'lesson-from-file': 'الدروس (من ملف)',
 }
 
 export default async function AiUsagePage() {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
@@ -21,6 +22,7 @@ interface QuickData {
 }
 
 export function StudentQuickAccessPanel() {
+  const t = useTranslations('student.widgets.quick')
   const [open, setOpen] = useState(false)
   const [data, setData] = useState<QuickData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -80,25 +82,25 @@ export function StudentQuickAccessPanel() {
 
   const sections = data ? [
     {
-      label: 'مساقاتي',
+      label: t('courses'),
       icon: Layers,
       color: 'text-violet-400',
       items: data.courses.map(c => ({ label: c.title, href: '/student/courses' })),
-      emptyText: 'لا توجد مساقات بعد',
+      emptyText: t('coursesEmpty'),
     },
     {
-      label: 'أحدث الدروس',
+      label: t('lessons'),
       icon: BookOpen,
       color: 'text-blue-400',
       items: data.lessons.map(l => ({ label: l.title, href: `/student/lessons` })),
-      emptyText: 'لا توجد دروس بعد',
+      emptyText: t('lessonsEmpty'),
     },
     {
-      label: 'الاختبارات',
+      label: t('exams'),
       icon: ClipboardList,
       color: 'text-amber-400',
       items: data.exams.map(e => ({ label: e.title, href: '/student/exams' })),
-      emptyText: 'لا توجد اختبارات',
+      emptyText: t('examsEmpty'),
     },
   ] : []
 
@@ -120,7 +122,7 @@ export function StudentQuickAccessPanel() {
           'rounded-s-xl p-2.5 shadow-lg',
           open && 'end-72',
         )}
-        title={open ? 'إغلاق الوصول السريع' : 'وصول سريع'}
+        title={open ? t('close') : t('open')}
       >
         {open
           ? <PanelRightClose className="w-4 h-4" />
@@ -138,13 +140,13 @@ export function StudentQuickAccessPanel() {
         open ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full',
       )}>
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-white font-semibold text-sm">وصول سريع</h3>
+          <h3 className="text-white font-semibold text-sm">{t('title')}</h3>
           {loading && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {!data && !loading && (
-            <p className="text-slate-500 text-xs text-center mt-8">جارٍ فتح اللوحة…</p>
+            <p className="text-slate-500 text-xs text-center mt-8">{t('loading')}</p>
           )}
 
           {sections.map(({ label, icon: Icon, color, items, emptyText }) => (
@@ -179,7 +181,7 @@ export function StudentQuickAccessPanel() {
             onClick={fetchData}
             className="w-full text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
           >
-            تحديث
+            {t('refresh')}
           </button>
         </div>
       </div>

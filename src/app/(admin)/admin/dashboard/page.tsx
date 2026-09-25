@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { getTerms } from '@/lib/terminology'
@@ -41,21 +43,23 @@ export default async function AdminDashboard() {
     getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length),
     getTenantSettings(supabase, tenantId),
   ])
-  const terms = getTerms(settings.institution_type)
+  const t = await getTranslations('admin.dashboard')
+  const locale = (await getLocale()) as Locale
+  const terms = getTerms(settings.institution_type, locale)
   const activity = allLessons.slice(0, 5)
 
   const cards = [
-    { label: 'المعلمون', value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'الطلاب', value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'الدروس', value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'الاختبارات', value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: t('cards.teachers'), value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: t('cards.students'), value: stats.students, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: t('cards.lessons'), value: stats.lessons, icon: BookOpen, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+    { label: t('cards.exams'), value: stats.exams, icon: ClipboardList, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">{terms.institution} Dashboard</h2>
-        <p className="text-slate-400 mt-1">نظرة عامة على مؤسستك</p>
+        <h2 className="text-2xl font-bold text-white">{t('title', { institution: terms.institution })}</h2>
+        <p className="text-slate-400 mt-1">{t('subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -76,9 +80,9 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <h3 className="text-white font-semibold mb-4">النشاط الأخير</h3>
+        <h3 className="text-white font-semibold mb-4">{t('recentActivity')}</h3>
         {activity.length === 0 ? (
-          <p className="text-slate-500 text-sm">لا يوجد نشاط بعد.</p>
+          <p className="text-slate-500 text-sm">{t('noActivity')}</p>
         ) : (
           <ul className="space-y-3">
             {activity.map(a => (
@@ -88,9 +92,9 @@ export default async function AdminDashboard() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-medium truncate">
-                    {a.teacher_name ?? 'Teacher'} {a.is_published ? 'published' : 'created'} lesson “{a.title}”
+                    {t(a.is_published ? 'activityPublished' : 'activityCreated', { teacher: a.teacher_name ?? t('teacherFallback'), title: a.title })}
                   </p>
-                  <p className="text-slate-500 text-xs">{formatDate(a.created_at)}</p>
+                  <p className="text-slate-500 text-xs">{formatDate(a.created_at, locale)}</p>
                 </div>
               </li>
             ))}

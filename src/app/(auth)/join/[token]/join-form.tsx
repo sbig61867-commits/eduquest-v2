@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
@@ -23,6 +24,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
   const [googleLoading, setGoogleLoading]   = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const t = useTranslations('auth.join')
   const isDev = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEV_MODE === 'true'
 
   async function handleGoogleSignIn() {
@@ -46,11 +48,11 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('كلمتا المرور غير متطابقتين.')
+      setError(t('passwordMismatch'))
       return
     }
     if (password.length < 8) {
-      setError('يجب ألا تقل كلمة المرور عن 8 أحرف.')
+      setError(t('passwordTooShort'))
       return
     }
 
@@ -93,7 +95,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       router.push(getRoleDashboardPath(role))
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setError('حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
+      setError(t('networkError'))
       setDebugInfo(JSON.stringify({ network_error: msg }, null, 2))
       console.error('[join-form]', err)
       setLoading(false)
@@ -102,7 +104,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
 
   return (
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-      <h2 className="text-lg font-semibold text-white mb-5">أنشئ حسابك</h2>
+      <h2 className="text-lg font-semibold text-white mb-5">{t('formTitle')}</h2>
 
       {error && (
         <div className="mb-4 space-y-2">
@@ -112,7 +114,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
           {isDev && debugInfo && (
             <details className="rounded-lg bg-slate-800 border border-slate-700 text-xs">
               <summary className="px-3 py-2 text-amber-400 cursor-pointer select-none font-mono">
-                🛠 Dev — تفاصيل الخطأ
+                🛠 Dev — {t('devDetails')}
               </summary>
               <pre className="px-3 pb-3 text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
                 {debugInfo}
@@ -125,7 +127,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Email — editable for public links, read-only for private */}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">البريد الإلكتروني</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('email')}</label>
           {isPublic ? (
             <input
               type="email"
@@ -144,46 +146,46 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
                 className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed select-none"
               />
               <p className="text-xs text-slate-500 mt-1">
-                هذه الدعوة مرتبطة بهذا البريد حصراً.
+                {t('lockedEmail')}
               </p>
             </>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">الاسم الكامل</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('fullName')}</label>
           <input
             type="text"
             value={fullName}
             onChange={e => setFullName(e.target.value)}
             required
             minLength={2}
-            placeholder="اسمك الكامل"
+            placeholder={t('fullNamePlaceholder')}
             className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">كلمة المرور</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('password')}</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             minLength={8}
-            placeholder="8 أحرف على الأقل"
+            placeholder={t('passwordPlaceholder')}
             className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">تأكيد كلمة المرور</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('confirmPassword')}</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             required
-            placeholder="أعد كتابة كلمة المرور"
+            placeholder={t('confirmPlaceholder')}
             className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           />
         </div>
@@ -197,13 +199,13 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
               : 'bg-blue-600 hover:bg-blue-500'
           }`}
         >
-          {loading ? 'Creating account…' : 'انضم إلى إديوكويست'}
+          {loading ? t('submitLoading') : t('submit')}
         </button>
       </form>
 
       <div className="flex items-center gap-3 mt-5">
         <div className="flex-1 h-px bg-white/10" />
-        <span className="text-xs text-slate-500">أو</span>
+        <span className="text-xs text-slate-500">{t('or')}</span>
         <div className="flex-1 h-px bg-white/10" />
       </div>
 
@@ -214,7 +216,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
         className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 px-4 bg-white hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-medium rounded-lg transition-colors"
       >
         <GoogleIcon />
-        {googleLoading ? 'جارٍ التحويل إلى Google...' : 'المتابعة باستخدام Google'}
+        {googleLoading ? t('googleLoading') : t('google')}
       </button>
     </div>
   )

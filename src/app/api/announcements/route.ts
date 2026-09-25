@@ -1,3 +1,4 @@
+import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -32,13 +33,13 @@ interface Caller {
 async function authorize(): Promise<{ caller: Caller } | { error: NextResponse }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+    return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   }
   return {
     caller: {
@@ -71,12 +72,12 @@ function isOwnBucketImage(url: string): boolean {
 }
 
 /** starts_at/ends_at must be valid ISO instants, end strictly after start. */
-function validateWindow(startsAt: unknown, endsAt: unknown): string | null {
+function validateWindow(startsAt: unknown, endsAt: unknown): ApiErrorCode | null {
   const start = startsAt ? new Date(String(startsAt)) : null
   const end = endsAt ? new Date(String(endsAt)) : null
-  if (start && isNaN(start.getTime())) return 'تاريخ البداية غير صالح'
-  if (end && isNaN(end.getTime())) return 'تاريخ النهاية غير صالح'
-  if (start && end && end.getTime() <= start.getTime()) return 'يجب أن يكون تاريخ النهاية بعد تاريخ البداية'
+  if (start && isNaN(start.getTime())) return 'invalidStartDate'
+  if (end && isNaN(end.getTime())) return 'invalidEndDate'
+  if (start && end && end.getTime() <= start.getTime()) return 'endBeforeStart'
   return null
 }
 
@@ -90,38 +91,38 @@ export async function POST(request: Request) {
   const { caller } = auth
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const title = String(body.title ?? '').trim()
-  if (!title) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
-  if (title.length > MAX_TITLE) return NextResponse.json({ error: 'العنوان طويل جداً' }, { status: 400 })
-  if (body.body && String(body.body).length > MAX_BODY) return NextResponse.json({ error: 'النص طويل جداً' }, { status: 400 })
-  if (body.cta_label && String(body.cta_label).length > MAX_CTA) return NextResponse.json({ error: 'نص الزر طويل جداً' }, { status: 400 })
+  if (!title) return NextResponse.json({ ...(await apiErr('titleRequired')) }, { status: 400 })
+  if (title.length > MAX_TITLE) return NextResponse.json({ ...(await apiErr('titleTooLong')) }, { status: 400 })
+  if (body.body && String(body.body).length > MAX_BODY) return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
+  if (body.cta_label && String(body.cta_label).length > MAX_CTA) return NextResponse.json({ ...(await apiErr('ctaTooLong')) }, { status: 400 })
 
   if (body.link_url) {
     const scheme = String(body.link_url).trim().toLowerCase()
     if (!scheme.startsWith('https://') && !scheme.startsWith('http://')) {
-      return NextResponse.json({ error: 'رابط الزر يجب أن يبدأ بـ https:// أو http://' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('ctaUrlScheme')) }, { status: 400 })
     }
   }
 
   if (body.image_url && !isOwnBucketImage(String(body.image_url))) {
-    return NextResponse.json({ error: 'الصورة يجب رفعها عبر أداة الرفع' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('imageMustUpload')) }, { status: 400 })
   }
 
   const windowError = validateWindow(body.starts_at, body.ends_at)
-  if (windowError) return NextResponse.json({ error: windowError }, { status: 400 })
+  if (windowError) return NextResponse.json({ ...(await apiErr(windowError)) }, { status: 400 })
 
   // The audience — and whether this announcement is pinned to centre students —
   // is decided from the caller's capability, never taken from the request body.
   const decided = resolveAudience(body.audience, caller.mayTargetUniversity)
-  if ('error' in decided) return NextResponse.json({ error: decided.error }, { status: 403 })
+  if ('error' in decided) return NextResponse.json({ ...(await apiErr(decided.error)) }, { status: 403 })
   const { audience, center_students_only } = decided
   const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : []
 
   const admin = adminClient()
   if (audience === 'groups' && !(await validateGroups(admin, caller.tenant_id, groupIds))) {
-    return NextResponse.json({ error: 'المجموعات المحددة غير صالحة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('invalidGroups')) }, { status: 400 })
   }
 
   const { data: created, error } = await admin
@@ -145,7 +146,7 @@ export async function POST(request: Request) {
 
   if (error || !created) {
     console.error('[api/announcements POST]', error)
-    return NextResponse.json({ error: 'تعذّر إنشاء الإعلان' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('announcementCreateFailed')) }, { status: 500 })
   }
 
   if (audience === 'groups' && groupIds.length > 0) {
@@ -162,10 +163,10 @@ export async function PATCH(request: Request) {
   const { caller } = auth
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const id = String(body.id ?? '')
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin
@@ -173,35 +174,35 @@ export async function PATCH(request: Request) {
     .select('id, tenant_id, audience, center_students_only')
     .eq('id', id).single()
   if (!existing || existing.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'الإعلان غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('announcementNotFound')) }, { status: 404 })
   }
   // An author pinned to the centre may not take over an announcement that
   // reaches university students — publishing/hiding it included.
   if (!canEditAnnouncement(existing, caller.mayTargetUniversity)) {
-    return NextResponse.json({ error: AUDIENCE_DENIED }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr(AUDIENCE_DENIED)) }, { status: 403 })
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.title !== undefined) {
     const t = String(body.title).trim()
-    if (!t) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
-    if (t.length > MAX_TITLE) return NextResponse.json({ error: 'العنوان طويل جداً' }, { status: 400 })
+    if (!t) return NextResponse.json({ ...(await apiErr('titleRequired')) }, { status: 400 })
+    if (t.length > MAX_TITLE) return NextResponse.json({ ...(await apiErr('titleTooLong')) }, { status: 400 })
     update.title = t
   }
   if (body.body !== undefined && body.body && String(body.body).length > MAX_BODY) {
-    return NextResponse.json({ error: 'النص طويل جداً' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
   }
   if (body.cta_label !== undefined && body.cta_label && String(body.cta_label).length > MAX_CTA) {
-    return NextResponse.json({ error: 'نص الزر طويل جداً' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('ctaTooLong')) }, { status: 400 })
   }
   if (body.link_url !== undefined && body.link_url) {
     const scheme = String(body.link_url).trim().toLowerCase()
     if (!scheme.startsWith('https://') && !scheme.startsWith('http://')) {
-      return NextResponse.json({ error: 'رابط الزر يجب أن يبدأ بـ https:// أو http://' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('ctaUrlScheme')) }, { status: 400 })
     }
   }
   if (body.image_url !== undefined && body.image_url && !isOwnBucketImage(String(body.image_url))) {
-    return NextResponse.json({ error: 'الصورة يجب رفعها عبر أداة الرفع' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('imageMustUpload')) }, { status: 400 })
   }
   for (const f of ['body', 'image_url', 'link_url', 'cta_label'] as const) {
     if (body[f] !== undefined) update[f] = body[f] ? String(body[f]) : null
@@ -218,17 +219,17 @@ export async function PATCH(request: Request) {
     const effectiveStart = 'starts_at' in update ? update.starts_at : currentRow?.starts_at ?? null
     const effectiveEnd = 'ends_at' in update ? update.ends_at : currentRow?.ends_at ?? null
     const windowError = validateWindow(effectiveStart, effectiveEnd)
-    if (windowError) return NextResponse.json({ error: windowError }, { status: 400 })
+    if (windowError) return NextResponse.json({ ...(await apiErr(windowError)) }, { status: 400 })
   }
   if (body.is_published !== undefined) update.is_published = body.is_published === true
 
   if (body.audience !== undefined) {
     const decided = resolveAudience(body.audience, caller.mayTargetUniversity)
-    if ('error' in decided) return NextResponse.json({ error: decided.error }, { status: 403 })
+    if ('error' in decided) return NextResponse.json({ ...(await apiErr(decided.error)) }, { status: 403 })
     const { audience } = decided
     const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : []
     if (audience === 'groups' && !(await validateGroups(admin, caller.tenant_id, groupIds))) {
-      return NextResponse.json({ error: 'المجموعات المحددة غير صالحة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('invalidGroups')) }, { status: 400 })
     }
     update.audience = audience
     update.center_students_only = decided.center_students_only
@@ -242,7 +243,7 @@ export async function PATCH(request: Request) {
   const { error } = await admin.from('announcements').update(update).eq('id', id)
   if (error) {
     console.error('[api/announcements PATCH]', error)
-    return NextResponse.json({ error: 'تعذّر تحديث الإعلان' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('announcementUpdateFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true })
 }
@@ -253,8 +254,8 @@ export async function DELETE(request: Request) {
   const { caller } = auth
 
   let body: { id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
-  if (!body.id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
+  if (!body.id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin
@@ -262,16 +263,16 @@ export async function DELETE(request: Request) {
     .select('id, tenant_id, audience, center_students_only')
     .eq('id', body.id).single()
   if (!existing || existing.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'الإعلان غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('announcementNotFound')) }, { status: 404 })
   }
   if (!canEditAnnouncement(existing, caller.mayTargetUniversity)) {
-    return NextResponse.json({ error: AUDIENCE_DENIED }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr(AUDIENCE_DENIED)) }, { status: 403 })
   }
 
   const { error } = await admin.from('announcements').delete().eq('id', body.id)
   if (error) {
     console.error('[api/announcements DELETE]', error)
-    return NextResponse.json({ error: 'تعذّر حذف الإعلان' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('announcementDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true })
 }

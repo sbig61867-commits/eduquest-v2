@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS } from '@/i18n/config'
+import { resolveLocale } from '@/i18n/resolve'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
@@ -54,6 +56,57 @@ function claimsFromUser(user: { app_metadata?: Record<string, unknown> }): Claim
     role: meta.user_role as Role | undefined,
     isActive: typeof meta.is_active === 'boolean' ? meta.is_active : undefined,
   }
+}
+
+/**
+ * Establish the `eq_locale` cookie — once, not per request.
+ *
+ * The locale chain (user → tenant → platform) lives in the database, but
+ * reading it on every navigation would undo the whole reason the proxy uses
+ * getClaims() instead of getUser(): no per-request DB round-trip. So the chain
+ * is collapsed exactly once, on the first authenticated request that arrives
+ * without the cookie (i.e. right after login, or after the user clears it),
+ * and every request afterwards reads the cookie alone — zero queries.
+ *
+ * The cookie is written even when the query fails or returns nothing. That is
+ * deliberate: it caps the cost of the exceptional path at one query per
+ * session rather than one per request, and the value it falls back to is the
+ * platform default, which is what would have been rendered anyway.
+ *
+ * Tolerating a failed query also makes this safe to ship BEFORE
+ * supabase/locale_preferences_migration.sql is applied — `users.locale` and
+ * `tenants.default_locale` do not exist yet, PostgREST 400s, and the platform
+ * default stands. Same pattern as src/lib/structure-mode.ts.
+ *
+ * Not in the JWT: locale is a display preference with no authorization value,
+ * and app_metadata only re-mints on token refresh (~1h), so a language switch
+ * would appear to do nothing for an hour. A cookie is both cheaper and
+ * immediate.
+ */
+async function ensureLocaleCookie(
+  request: NextRequest,
+  response: NextResponse,
+  supabase: Awaited<ReturnType<typeof updateSession>>['supabase'],
+  userId: string
+): Promise<void> {
+  if (request.cookies.get(LOCALE_COOKIE)) return
+
+  let user: unknown
+  let tenant: unknown
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('locale, tenants(default_locale)')
+      .eq('id', userId)
+      .single()
+    const row = data as { locale?: unknown; tenants?: { default_locale?: unknown } | null } | null
+    user = row?.locale
+    tenant = row?.tenants?.default_locale
+  } catch {
+    // Pre-migration, or a transient Supabase error. Fall through to default.
+  }
+
+  response.cookies.set(LOCALE_COOKIE, resolveLocale({ user, tenant }), LOCALE_COOKIE_OPTIONS)
 }
 
 export async function proxy(request: NextRequest) {
@@ -140,6 +193,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=unauthorized', request.url))
     }
   }
+
+  // Last thing before the response leaves: no-op on every request that already
+  // carries the cookie, which is all of them after the first.
+  await ensureLocaleCookie(request, supabaseResponse, supabase, user.sub)
 
   return supabaseResponse
 }

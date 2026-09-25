@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { buildXlsx, type Cell } from '@/lib/xlsx'
@@ -11,12 +12,12 @@ import { buildXlsx, type Cell } from '@/lib/xlsx'
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id && profile?.role !== 'super_admin') {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { searchParams } = new URL(request.url)
@@ -36,14 +37,14 @@ export async function GET(request: Request) {
   const { data: appeals, error } = await query
   if (error) {
     console.error('[api/appeals/report]', error)
-    return NextResponse.json({ error: 'تعذّر جلب التقرير' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('reportFailed')) }, { status: 500 })
   }
 
   if (format === 'json') {
     return NextResponse.json({ count: appeals?.length ?? 0, appeals: appeals ?? [] })
   }
 
-  if (!appeals?.length) return NextResponse.json({ error: 'لا توجد بيانات' }, { status: 404 })
+  if (!appeals?.length) return NextResponse.json({ ...(await apiErr('noData')) }, { status: 404 })
 
   const STATUS_LABEL: Record<string, string> = { pending: 'قيد المراجعة', upheld: 'قُبل الطعن', rejected: 'رُفض الطعن' }
   const headers = ['تاريخ التقديم', 'الطالب', 'المادة/المجموعة', 'الاختبار', 'المعلم المراقِب', 'نوع المخالفة المطعون بها', 'وقت المخالفة', 'نص الطعن', 'الحالة', 'رد المعلم', 'تاريخ البت']

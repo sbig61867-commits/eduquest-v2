@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -10,6 +11,7 @@ const MIN_PW_LEN = 8
 export default function ResetPasswordPage() {
   const router   = useRouter()
   const supabase = createClient()
+  const t        = useTranslations('auth.resetPassword')
 
   const [sessionReady, setSessionReady] = useState<'loading' | 'ok' | 'expired'>('loading')
   const [password,     setPassword]     = useState('')
@@ -37,11 +39,11 @@ export default function ResetPasswordPage() {
     setError('')
 
     if (password.length < MIN_PW_LEN) {
-      setError(`Password must be at least ${MIN_PW_LEN} characters.`)
+      setError(t('lengthError', { min: MIN_PW_LEN }))
       return
     }
     if (password !== confirm) {
-      setError('كلمتا المرور غير متطابقتين.')
+      setError(t('mismatchError'))
       return
     }
 
@@ -64,7 +66,7 @@ export default function ResetPasswordPage() {
       // Password DID change; only the sign-out failed. Don't redirect into a
       // half-signed-in state — tell the user and let them sign in manually.
       console.error('post-reset signOut failed:', signOutErr.message)
-      setError('Your password was changed, but signing out failed. Please close this tab and sign in again with your new password.')
+      setError(t('signOutFailed'))
       setLoading(false)
       return
     }
@@ -92,15 +94,15 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-600/20 mb-2">
             <span className="text-red-400 text-3xl">✕</span>
           </div>
-          <h1 className="text-xl font-bold text-white">الرابط منتهٍ أو غير صالح</h1>
+          <h1 className="text-xl font-bold text-white">{t('expiredTitle')}</h1>
           <p className="text-slate-400 text-sm leading-relaxed">
-            رابط إعادة التعيين هذا مستخدَم أو منتهٍ. روابط الاستعادة صالحة لساعة واحدة وتُستخدم مرة واحدة فقط.
+            {t('expiredBody')}
           </p>
           <a
             href="/forgot-password"
             className="inline-block px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors text-sm"
           >
-            طلب رابط جديد
+            {t('expiredCta')}
           </a>
         </div>
       </div>
@@ -114,9 +116,9 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600/20 mb-2">
             <span className="text-emerald-400 text-3xl">✓</span>
           </div>
-          <h1 className="text-xl font-bold text-white">تم تحديث كلمة المرور</h1>
+          <h1 className="text-xl font-bold text-white">{t('successTitle')}</h1>
           <p className="text-slate-400 text-sm">
-            تم تغيير كلمة المرور وتسجيل خروجك من كل الأجهزة. يرجى تسجيل الدخول بكلمة المرور الجديدة. جارٍ التحويل…
+            {t('successBody')}
           </p>
         </div>
       </div>
@@ -132,9 +134,9 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
             <span className="text-white text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">تعيين كلمة مرور جديدة</h1>
+          <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
           <p className="text-slate-400 text-sm">
-            Choose a strong password — at least {MIN_PW_LEN} characters.
+            {t('subtitle', { min: MIN_PW_LEN })}
           </p>
         </div>
 
@@ -148,7 +150,7 @@ export default function ResetPasswordPage() {
           {/* New password */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              كلمة المرور الجديدة
+              {t('newPassword')}
             </label>
             <div className="relative">
               <input
@@ -173,7 +175,7 @@ export default function ResetPasswordPage() {
             {/* Strength hint */}
             {password.length > 0 && password.length < MIN_PW_LEN && (
               <p className="text-xs text-amber-400 mt-1">
-                {MIN_PW_LEN - password.length} more character{MIN_PW_LEN - password.length !== 1 ? 's' : ''} needed
+                {t('strengthHint', { remaining: MIN_PW_LEN - password.length })}
               </p>
             )}
           </div>
@@ -181,7 +183,7 @@ export default function ResetPasswordPage() {
           {/* Confirm password */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">
-              تأكيد كلمة المرور الجديدة
+              {t('confirmPassword')}
             </label>
             <div className="relative">
               <input
@@ -205,7 +207,7 @@ export default function ResetPasswordPage() {
             {/* Live match indicator */}
             {confirm.length > 0 && (
               <p className={`text-xs mt-1 ${password === confirm ? 'text-emerald-400' : 'text-red-400'}`}>
-                {password === confirm ? 'Passwords match ✓' : 'كلمتا المرور غير متطابقتين'}
+                {password === confirm ? t('match') : t('noMatch')}
               </p>
             )}
           </div>
@@ -215,7 +217,7 @@ export default function ResetPasswordPage() {
             disabled={loading || password.length < MIN_PW_LEN || password !== confirm}
             className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
-            {loading ? 'Updating…' : 'تحديث كلمة المرور'}
+            {loading ? t('submitLoading') : t('submit')}
           </button>
         </form>
       </div>

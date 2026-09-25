@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { Role } from '@/types'
 import { getTerms } from '@/lib/terminology'
+import { DEFAULT_LOCALE, type Locale } from '@/i18n/config'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -18,35 +19,61 @@ export function getRoleDashboardPath(role: Role): string {
   return paths[role]
 }
 
-// `institutionType` only changes the university_admin label (see
-// src/lib/terminology.ts); omitting it keeps the original wording.
-export function getRoleLabel(role: Role, institutionType?: string | null): string {
-  const labels: Record<Role, string> = {
+// Two axes meet here: `institutionType` picks the tenant's word for the
+// university_admin role (see src/lib/terminology.ts), `locale` picks the
+// language. Both default so unmigrated callers keep today's wording; inside
+// MIGRATED_DIRS the locale is mandatory, enforced by the ratchet in
+// src/__tests__/i18n-no-hardcoded-strings.test.ts.
+const ROLE_LABELS: Record<Locale, Record<Exclude<Role, 'university_admin'>, string>> = {
+  ar: {
     super_admin: 'المدير العام',
-    university_admin: getTerms(institutionType).institutionAdminAr,
     center_manager: 'مدير المركز',
     teacher: 'معلم',
     student: 'طالب',
-  }
-  return labels[role]
+  },
+  en: {
+    super_admin: 'Owner',
+    center_manager: 'Centre Manager',
+    teacher: 'Teacher',
+    student: 'Student',
+  },
 }
 
-// Locale is pinned rather than just 'ar': a bare 'ar' resolves per environment,
-// and ar-EG / ar-SA render Arabic-Indic digits (١٥) — and on some ICU builds the
-// Islamic calendar — which would make dates disagree with the Latin numerals used
-// everywhere else in the UI. -ca-gregory-nu-latn fixes both regardless of host.
-const AR_DATE_LOCALE = 'ar-u-ca-gregory-nu-latn'
+export function getRoleLabel(
+  role: Role,
+  institutionType?: string | null,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  if (role === 'university_admin') return getTerms(institutionType, locale).institutionAdmin
+  return ROLE_LABELS[locale][role]
+}
 
-export function formatDate(dateString: string): string {
-  return new Intl.DateTimeFormat(AR_DATE_LOCALE, {
+// Each locale is pinned to an explicit extension sequence rather than the bare
+// tag: a bare 'ar' resolves per environment, and ar-EG / ar-SA render
+// Arabic-Indic digits (١٥) — and on some ICU builds the Islamic calendar —
+// which would make dates disagree with the Latin numerals used everywhere else
+// in the UI. -ca-gregory-nu-latn fixes both regardless of host.
+const DATE_LOCALE: Record<Locale, string> = {
+  ar: 'ar-u-ca-gregory-nu-latn',
+  en: 'en-u-ca-gregory-nu-latn',
+}
+
+// The `locale` default exists only for the unmigrated i18n backlog, whose pages
+// are still Arabic top to bottom — an Arabic date there is consistent, not
+// mixed. Inside MIGRATED_DIRS the argument is mandatory, enforced by the
+// ratchet in src/__tests__/i18n-no-hardcoded-strings.test.ts, because there a
+// pinned Arabic month is exactly the half-Arabic/half-English leak the
+// extraction exists to remove.
+export function formatDate(dateString: string, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(DATE_LOCALE[locale], {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   }).format(new Date(dateString))
 }
 
-export function formatDateTime(dateString: string): string {
-  return new Intl.DateTimeFormat(AR_DATE_LOCALE, {
+export function formatDateTime(dateString: string, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(DATE_LOCALE[locale], {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

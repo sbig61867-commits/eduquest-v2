@@ -1,0 +1,123 @@
+{
+  "appName": "EduQuest",
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "retry": "Retry",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…"
+  },
+  "state": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Something went wrong"
+  },
+  "locale": {
+    "switchLabel": "Language",
+    "en": "English",
+    "ar": "العربية"
+  },
+  "counts": {
+    "exams": "{count, plural, =0 {No exams} one {One exam} other {# exams}}",
+    "students": "{count, plural, =0 {No students} one {One student} other {# students}}"
+  },
+  "greeting": "Welcome back, {name}",
+  "nav": {
+    "openMenu": "Open menu"
+  },
+  "notifications": {
+    "label": "Notifications",
+    "refreshing": "Refreshing…",
+    "empty": "No notifications yet",
+    "items": {
+      "newLesson": "New lesson: {title}",
+      "newExam": "New exam: {title}",
+      "gradePublished": "Result published: {title}",
+      "examFallback": "Exam",
+      "newSubmission": "{kind, select, homework{New homework submission} other{New exam submission}}: {title}",
+      "newUser": "{role, select, teacher{New teacher} other{New student}}: {name}",
+      "contactMessage": "Contact message from {name}",
+      "newTenant": "New institution: {name}"
+    }
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred. Your data is safe — try again, and if the problem persists contact your institution manager.",
+    "retry": "Try again",
+    "home": "Go to dashboard"
+  },
+  "ai": {
+    "stageRead": "Reading the file…",
+    "stageExtract": "Extracting text from the file…",
+    "stageProcess": "AI is processing the content…",
+    "stagePrepare": "Preparing the result…",
+    "stageDone": "Processing completed successfully"
+  },
+  "quota": {
+    "title": "AI limits for this hour",
+    "exhaustedCount": "{count} exhausted",
+    "loading": "Loading…",
+    "none": "No limits to show.",
+    "windowHint": "The hour starts from your first request; later requests do not extend it.",
+    "refresh": "Refresh",
+    "renewsIn": "Renews in",
+    "exhaustedRenewsIn": "Exhausted — renews in",
+    "features": {
+      "lesson": "Lesson from a topic",
+      "lesson-file": "Lesson from a file",
+      "exam": "Exam generation",
+      "homework-file": "Homework from a file",
+      "course-file": "Course from a file",
+      "item-content": "Course item content",
+      "course_suggestions": "Course improvement suggestions",
+      "announcement_copy": "Announcement wording",
+      "extract-file": "Text extraction from a scanned file"
+    }
+  },
+  "lessonTabs": {
+    "listen": "Listen to pronunciation",
+    "listenTo": "Listen to the pronunciation of {term}",
+    "showTranslation": "I don't understand — show the Arabic translation",
+    "translate": "Translate",
+    "answerPlaceholder": "Type your answer here…",
+    "correctAnswer": "Correct answer: {answer}",
+    "modelAnswer": "Model answer for comparison: {answer}",
+    "checkAnswers": "Check my answers",
+    "score": "Your score: {score} / {total}",
+    "selfCheckExtra": "(+{count} self-assessed)",
+    "retry": "Try again",
+    "answerAllFirst": "Answer all questions first"
+  },
+  "days": {
+    "0": "Sunday",
+    "1": "Monday",
+    "2": "Tuesday",
+    "3": "Wednesday",
+    "4": "Thursday",
+    "5": "Friday",
+    "6": "Saturday"
+  },
+  "schedule": {
+    "noSlots": "No slots",
+    "slotCount": "{count} slots",
+    "gridEmpty": "No slots in this timetable yet."
+  },
+  "meta": {
+    "title": "EduQuest — Learning Platform",
+    "description": "A multi-institution learning platform with AI-powered learning tools"
+  },
+  "notFound": {
+    "code": "Error 404",
+    "title": "This page does not exist",
+    "body": "The link may be outdated, or the item was archived by your institution. Your account and data are unaffected.",
+    "home": "Back to EduQuest",
+    "metaTitle": "Page not found · EduQuest"
+  },
+  "globalError": {
+    "body": "An unexpected error occurred. Please try again."
+  },
+  "unknown": "Unknown"
+}

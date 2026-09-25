@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { PolicyPage } from '@/components/public/policy'
 
-export const metadata: Metadata = {
-  title: 'سياسة الخصوصية — EduQuest',
-  description: 'سياسة الخصوصية لمنصة EduQuest التعليمية. EduQuest Privacy Policy.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('public.meta.privacy')
+  return { title: t('title'), description: t('description') }
 }
 
 export default function PrivacyPage() {

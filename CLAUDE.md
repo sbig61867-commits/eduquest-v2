@@ -113,12 +113,39 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
+- `student_exams_expose_type_migration.sql` — adds `type` and `lesson_id` to `get_student_exams()`'s
+  return columns. Homework lives in the `exams` table (`type='homework'`, `lesson_id` set), but the
+  student feed returned neither column, so the UI classified rows by a **duration sentinel**
+  (`<= 0 || >= 43200`). That misread a real exam saved with an out-of-range duration as untimed
+  homework, which also stripped its countdown and auto-submit. Requires `DROP FUNCTION` first
+  (changed OUT columns) and re-asserts the grant matrix. **Until it is applied**, the client falls
+  back to the sentinel and homework does not appear under its lesson — no crash either way.
+
+- `engagement_metrics_migration.sql` — platform engagement ("digital attendance"): `get_group_engagement(group, days)`
+  (per student: submitted/assigned, course items completed, active days, last activity, a 60/40 engagement score)
+  and `get_tenant_engagement(days)` (one aggregate row per group). SECURITY DEFINER with pinned `search_path`,
+  identity/tenant re-derived from `auth.uid()`, `anon` revoked, and **no scores anywhere** so it stays inside
+  admin_metadata_only's "numbers, not content". Read through `src/lib/engagement.ts`; UI `/teacher/engagement`
+  (renders an "apply the migration" state until it is applied). Also `get_course_analytics(days)` — one row per
+  course with its linked groups (progress / platform engagement / class attendance), feeding `/center/analytics`
+  (`view_reports`), whose strengths-weaknesses-suggestions come from the rule-based `courseInsights()` in
+  `src/lib/engagement.ts` — no AI, deterministic. A group appears under a course only via `groups.course_id`.
+  Verified in rolled-back transactions on the live DB 2026-09-19 (teacher on own group returns the expected JSON;
+  guard matrix: student denied, teacher-owner / university_admin / super_admin allowed; course analytics against
+  seeded fixtures returned items_total 2 / avg_progress 50 / active 1 / group attendance 100 exactly as expected).
+
 - `center_manager_capabilities_migration.sql` — lets `center_manager` read `courses` / `course_enrollments` in its tenant (writes stay service-role only). Required by `/center/courses`.
 
 
 ## Centre manager panel
 
 Each university has exactly one continuing-education centre, so `center_manager` is tenant-scoped (no `centers` table). Its pages under `src/app/(center)/center/*` gate per capability via `src/lib/center-access.ts`; route handlers use `src/lib/staff-auth.ts` (`staffCan`, `canManageAccountRole` — a centre manager can only ever create/invite/(de)activate `teacher`/`student`). Capabilities added 2026-09-13: `manage_courses` (create a course, assign it to a teacher, enrol students via `/api/course-enrollments`) and `manage_attendance` (`/api/attendance`, also open to a group's own teacher). Staff-created groups/courses always carry a real `teacher_id`. Because `university_admin` defaults ON, admins can now also edit/delete any course in their tenant through `/api/courses`.
+
+Course analytics (`/center/analytics`, `view_reports`) reads `get_course_analytics` + `get_tenant_engagement` and
+shows strengths/weaknesses/suggestions from the rule-based `courseInsights()` — no AI on page load. AI phrasing is
+**on demand only**: `/api/ai/course-suggestions` (POST `{course_id, days}`) re-computes the course's numbers
+server-side through the user session, feeds them to `groqChat`, and is rate-limited 10/h per user + logged via
+`logAiUsage`. Never call it from a render path.
 
 Announcements tooling (free, no new storage): `components/announcements/banner-designer.tsx` renders a 1200×400 banner on a `<canvas>` in the author's browser (templates, RTL text, optional background photo) and uploads only the final WebP through `/api/announcements/upload`; `/api/ai/announcement-copy` suggests title/body/CTA via `groqChat` (text only, `manage_announcements` + 15/h rate limit). Datetime inputs are converted local→ISO in `announcements-manager.tsx` — a bare `datetime-local` string is stored as UTC by Postgres and shifts the window by the viewer's offset. The route rejects `image_url` values outside the project's `announcement-images` bucket.
 

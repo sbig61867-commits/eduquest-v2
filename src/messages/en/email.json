@@ -1,0 +1,8 @@
+{
+  "invitation": {
+    "subject": "You have been invited to {institution}",
+    "heading": "Join {institution} on EduQuest",
+    "cta": "Accept the invitation",
+    "expiry": "This link expires on {date}."
+  }
+}

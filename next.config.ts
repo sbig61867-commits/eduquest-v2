@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// next-intl is used as a message/formatting layer ONLY: no routing, no
+// [locale] segment, no /ar|/en URL prefixes and no next-intl middleware. The
+// plugin's single job here is to point the server runtime at the request
+// config below; locale itself is resolved from the eq_locale cookie.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 // Content-Security-Policy.
 //
@@ -76,7 +83,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+// Composition order is load-bearing: next-intl is applied to the plain config
+// first, and Sentry wraps the result, so withSentryConfig still sees (and
+// keeps) every setting it did before — headers, source-map deletion, the lot.
+// Inverting this would hand next-intl an already-instrumented config to
+// re-wrap. Sentry behaviour is unchanged by this commit.
+export default withSentryConfig(withNextIntl(nextConfig), {
   org: "eduquest-20",
   project: "eduquest-v2",
   silent: !process.env.CI,

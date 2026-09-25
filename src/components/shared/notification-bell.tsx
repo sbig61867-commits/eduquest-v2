@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2, Send, UserPlus, Mail, Building2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 interface Notif { id: string; type: string; title: string; subtitle: string; date: string; href: string }
 
@@ -20,6 +22,8 @@ const COLORS: Record<string, string> = {
 const SEEN_KEY = 'eq_notif_seen_at'
 
 export function NotificationBell() {
+  const t = useTranslations('common.notifications')
+  const locale = useLocale() as Locale
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Notif[]>([])
@@ -71,7 +75,7 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={toggle} aria-label="الإشعارات"
+      <button onClick={toggle} aria-label={t('label')}
         className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
         <Bell className="w-5 h-5" />
         {unread > 0 && (
@@ -82,19 +86,30 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        // Pin the panel to the viewport's right edge (LTR anchor) so it never
-        // spills off-screen regardless of the page's RTL/LTR direction; on
-        // mobile it spans almost the full width with a small margin.
-        <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 end-3 sm:right-0 sm:left-auto w-[calc(100vw-1.5rem)] sm:w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50" dir="rtl">
+        // Anchored with LOGICAL insets so the panel opens INTO the page, not
+        // off its edge: `end-0` pins the edge nearest the bell and the panel
+        // grows towards the middle of the screen — under RTL the bell sits on
+        // the left, so the panel now extends rightwards instead of spilling
+        // past the left edge (the old `right-0` was a physical anchor: correct
+        // in LTR, off-screen in RTL).
+        //
+        // `dir="rtl"` MUST stay off this element. Chrome resolves
+        // `inset-inline-*` on an absolutely positioned box against that box's
+        // OWN direction, so a hardcoded rtl here would make `end-0` extend
+        // rightwards in English too and clip on the right. The direction the
+        // insets must follow is the page's, which this element inherits; the
+        // Arabic text keeps its own direction on the inner wrapper below.
+        <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 end-3 sm:end-0 sm:start-auto w-[calc(100vw-1.5rem)] sm:w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50">
+          <div>
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <span className="text-white font-semibold text-sm">الإشعارات</span>
-            {loading && <span className="text-slate-500 text-xs">تحديث...</span>}
+            <span className="text-white font-semibold text-sm">{t('label')}</span>
+            {loading && <span className="text-slate-500 text-xs">{t('refreshing')}</span>}
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
             {items.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <Bell className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                <p className="text-slate-400 text-sm">لا توجد إشعارات بعد</p>
+                <p className="text-slate-400 text-sm">{t('empty')}</p>
               </div>
             ) : items.map(n => {
               const Icon = ICONS[n.type] ?? Bell
@@ -109,12 +124,13 @@ export function NotificationBell() {
                   <span className="flex-1 min-w-0">
                     <span className="block text-white text-sm truncate">{n.title}</span>
                     {n.subtitle && <span className="block text-slate-400 text-xs truncate">{n.subtitle}</span>}
-                    <span className="block text-slate-500 text-[11px] mt-0.5">{formatDate(n.date)}</span>
+                    <span className="block text-slate-500 text-[11px] mt-0.5">{formatDate(n.date, locale)}</span>
                   </span>
                   {isNew && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1.5" />}
                 </button>
               )
             })}
+          </div>
           </div>
         </div>
       )}

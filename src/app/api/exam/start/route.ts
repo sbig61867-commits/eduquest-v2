@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -27,14 +28,14 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { examId?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { examId } = body
-  if (!examId) return NextResponse.json({ error: 'معرّف الاختبار مفقود' }, { status: 400 })
+  if (!examId) return NextResponse.json({ ...(await apiErr('missingExamId')) }, { status: 400 })
 
   // Verify the exam exists and is published, and resolve its tenant + group
   const { data: exam } = await adminClient()
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     .eq('is_published', true)
     .single()
 
-  if (!exam) return NextResponse.json({ error: 'لم يُعثر على الاختبار' }, { status: 404 })
+  if (!exam) return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
 
   // Verify enrollment in the exam's group
   const { data: enrollment } = await supabase
@@ -54,15 +55,15 @@ export async function POST(request: Request) {
     .eq('student_id', user.id)
     .single()
 
-  if (!enrollment) return NextResponse.json({ error: 'غير مسجّل في هذا الاختبار' }, { status: 403 })
+  if (!enrollment) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
 
   // Enforce the exam window at start time too (clear error before they begin)
   const now = Date.now()
   if (exam.starts_at && now < new Date(exam.starts_at).getTime()) {
-    return NextResponse.json({ error: 'هذا الاختبار لم يُفتح بعد.' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('examNotOpen')) }, { status: 403 })
   }
   if (exam.ends_at && now > new Date(exam.ends_at).getTime()) {
-    return NextResponse.json({ error: 'انتهت فترة الاختبار.' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('examEnded')) }, { status: 403 })
   }
 
   // Via the service-role client so EXECUTE can be revoked from anon/authenticated
@@ -76,10 +77,10 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.message?.includes('ALREADY_SUBMITTED')) {
-      return NextResponse.json({ error: 'تم تسليم هذا الاختبار من قبل.' }, { status: 409 })
+      return NextResponse.json({ ...(await apiErr('examAlreadySubmitted')) }, { status: 409 })
     }
     console.error('[exam/start] error', error)
-    return NextResponse.json({ error: 'فشل بدء الاختبار' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('examStartFailed')) }, { status: 500 })
   }
 
   if (
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
     typeof (result as Record<string, unknown>).resumed !== 'boolean'
   ) {
     console.error('[exam/start] unexpected RPC result shape', result)
-    return NextResponse.json({ error: 'فشل بدء الاختبار' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('examStartFailed')) }, { status: 500 })
   }
   const out = result as { started_at: string; resumed: boolean }
   return NextResponse.json({ startedAt: out.started_at, resumed: out.resumed })

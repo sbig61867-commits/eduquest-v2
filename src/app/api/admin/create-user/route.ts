@@ -1,8 +1,9 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import { checkStudentLimit, STUDENT_LIMIT_MESSAGE } from '@/lib/student-limit'
+import { checkStudentLimit, STUDENT_LIMIT_CODE } from '@/lib/student-limit'
 import { canManageAccountRole } from '@/lib/staff-auth'
 import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
@@ -30,20 +31,20 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user: caller } } = await supabase.auth.getUser()
-    if (!caller) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+    if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
     const { data: callerProfile } = await supabase
       .from('users').select('role, tenant_id, permissions').eq('id', caller.id).single()
 
     if (!callerProfile || !['university_admin', 'super_admin', 'center_manager'].includes(callerProfile.role)) {
-      return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+      return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     }
 
     // 20 user creations per admin per hour
     const rl = await rateLimit(`create-user:${caller.id}`, { limit: 20, windowSecs: 3600 })
     if (!rl.allowed) {
       return NextResponse.json(
-        { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
+        { ...(await apiErr('rateLimited')) },
         { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
       )
     }
@@ -52,13 +53,13 @@ export async function POST(request: Request) {
     const { full_name, email, password, role } = body
 
     if (!full_name?.trim() || !email?.trim() || !password || !role) {
-      return NextResponse.json({ error: 'حقول مطلوبة ناقصة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'صيغة البريد الإلكتروني غير صالحة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('invalidEmail')) }, { status: 400 })
     }
     if (password.length < 8) {
-      return NextResponse.json({ error: 'يجب ألا تقل كلمة المرور عن 8 أحرف' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
     }
 
     const ALLOWED: Record<string, string[]> = {
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
     }
     // A centre manager additionally needs the matching per-user capability.
     if (callerProfile.role === 'center_manager' && !canManageAccountRole(callerProfile, role)) {
-      return NextResponse.json({ error: 'لا تملك صلاحية إضافة هذا النوع من الحسابات' }, { status: 403 })
+      return NextResponse.json({ ...(await apiErr('cannotCreateRole')) }, { status: 403 })
     }
 
     const tenant_id = callerProfile.role === 'super_admin'
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
       : callerProfile.tenant_id
 
     if (!tenant_id) {
-      return NextResponse.json({ error: 'يجب اختيار مؤسسة لهذا الدور' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('tenantRequiredForRole')) }, { status: 400 })
     }
 
     const adminClient = getAdminClient()
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
     if (role === 'student') {
       const seat = await checkStudentLimit(adminClient, tenant_id)
       if (!seat.allowed) {
-        return NextResponse.json({ error: STUDENT_LIMIT_MESSAGE, limit: seat.limit }, { status: 403 })
+        return NextResponse.json({ ...(await apiErr(STUDENT_LIMIT_CODE)), limit: seat.limit }, { status: 403 })
       }
     }
 
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
       // Supabase's own email check is stricter than ours; say so plainly instead of the raw English message.
       if (/invalid format/i.test(message)) {
         return NextResponse.json(
-          { error: `صيغة البريد الإلكتروني غير مقبولة (${email.trim()}). استخدم بريداً بصيغة عادية مثل name@example.com بدون مسافات أو أحرف عربية.` },
+          { ...(await apiErr('emailFormatRejected', { email: email.trim() })) },
           { status: 400 },
         )
       }
@@ -142,13 +143,13 @@ export async function POST(request: Request) {
       console.error('[create-user] profile upsert error:', upsertError)
       // Rollback: delete the auth user so we don't leave orphaned auth entries
       await adminClient.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json({ error: 'فشل إنشاء ملف المستخدم. حاول مجدداً.' }, { status: 500 })
+      return NextResponse.json({ ...(await apiErr('userProfileCreateFailed')) }, { status: 500 })
     }
 
     return NextResponse.json({ user: profile })
 
   } catch (err) {
     console.error('[create-user] unexpected error:', err)
-    return NextResponse.json({ error: 'حدث خطأ غير متوقع. حاول مجدداً.' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('unexpected')) }, { status: 500 })
   }
 }

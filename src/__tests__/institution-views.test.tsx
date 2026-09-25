@@ -7,7 +7,11 @@
  *   - a university student vs a centre trainee
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render as rtlRender, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+
+import arMessages from '@/messages/ar'
+import { DEFAULT_LOCALE } from '@/i18n/config'
 import type { Tenant, User } from '@/types'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -35,6 +39,17 @@ const user = (over: Partial<User>): User => ({
   tenant_id: 't1', is_active: true, can_create_courses: false, created_at: '2026-09-01T00:00:00Z', ...over,
 })
 const signIn = (u: User, t: Tenant) => useAuthStore.setState({ user: u, tenant: t, isLoading: false })
+
+// The shell reads from the message layer now (the locale switcher in the
+// header, the student pages), so these renders need the same provider the
+// real layouts mount. Pinned to the default locale: these tests assert what
+// an Arabic-locale user sees, which is what they asserted before i18n.
+const render = (ui: React.ReactElement) =>
+  rtlRender(
+    <NextIntlClientProvider locale={DEFAULT_LOCALE} messages={arMessages}>
+      {ui}
+    </NextIntlClientProvider>
+  )
 
 // The admin sidebar exactly as src/app/(admin)/layout.tsx declares it
 const ADMIN_NAV: NavItem[] = [

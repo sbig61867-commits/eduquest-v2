@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
-import { NoPermission } from '@/components/center/no-permission'
+import { NoPermission } from '@/components/shared/no-permission'
 import { PeopleClient, type PersonRow } from '@/components/center/people-client'
 
 export default async function CenterTeachersPage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
-  if (!has('manage_teachers')) return <NoPermission label="إدارة المدربين" />
+  if (!has('manage_teachers')) return <NoPermission capability="manage_teachers" />
 
   const { data } = await supabase
     .from('users')

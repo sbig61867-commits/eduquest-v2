@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState, useRef } from 'react'
@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 interface Course {
   id: string
@@ -44,6 +46,8 @@ interface Props {
 }
 
 export function CoursesClient({ initialCourses }: Props) {
+  const t = useTranslations('teacher')
+  const locale = useLocale() as Locale
   const [courses, setCourses] = useState(initialCourses)
   const [showAdd, setShowAdd] = useState(false)
   const [showPptx, setShowPptx] = useState(false)
@@ -51,13 +55,12 @@ export function CoursesClient({ initialCourses }: Props) {
   const [form, setForm] = useState({ title: '', description: '', language: '', has_levels: true })
   const router = useRouter()
 
-  // PPTX flow state
   const [pptxStep, setPptxStep] = useState<'upload' | 'preview' | 'confirm'>('upload')
   const [pptxFile, setPptxFile] = useState<File | null>(null)
   const [pptxLoading, setPptxLoading] = useState(false)
   const [pptxError, setPptxError] = useState('')
   const [generatedCourse, setGeneratedCourse] = useState<GeneratedCourse | null>(null)
-  const [sourceText, setSourceText] = useState('') // extracted file text — bound to AI content generation
+  const [sourceText, setSourceText] = useState('')
   const [expandedUnits, setExpandedUnits] = useState<Set<number>>(new Set([0]))
   const [creating, setCreating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -93,7 +96,7 @@ export function CoursesClient({ initialCourses }: Props) {
   }
 
   async function deleteCourse(id: string) {
-    if (!(await confirmDialog('Delete this course? All levels, units, and content will be permanently removed.'))) return
+    if (!(await confirmDialog(t('courses.deleteCourseConfirm')))) return
     const res = await fetch('/api/courses', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -101,8 +104,6 @@ export function CoursesClient({ initialCourses }: Props) {
     })
     if (res.ok) { setCourses(prev => prev.filter(c => c.id !== id)); router.refresh() }
   }
-
-  // ── PPTX flow ──
 
   function openPptxModal() {
     setPptxStep('upload')
@@ -129,14 +130,14 @@ export function CoursesClient({ initialCourses }: Props) {
       const res = await fetch('/api/ai/generate-course-pptx', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) {
-        setPptxError(data.error ?? 'فشلت معالجة الملف')
+        setPptxError(data.error ?? 'Failed')
       } else {
         setGeneratedCourse(data.course)
         setSourceText(data.sourceText ?? '')
         setPptxStep('preview')
       }
     } catch {
-      setPptxError('خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
+      setPptxError(t('lessonDetail.connectionError'))
     }
     setPptxLoading(false)
   }
@@ -191,9 +192,16 @@ export function CoursesClient({ initialCourses }: Props) {
         toast.error(data.error ?? 'Failed to create course')
       }
     } catch {
-      toast.error('خطأ في الشبكة. يرجى المحاولة مرة أخرى.')
+      toast.error(t('lessonDetail.connectionError'))
     }
     setCreating(false)
+  }
+
+  const STEPS = ['upload', 'preview', 'confirm'] as const
+  const stepLabels: Record<string, string> = {
+    upload: t('courses.pptxModal.stepUpload'),
+    preview: t('courses.pptxModal.stepPreview'),
+    confirm: t('courses.pptxModal.stepConfirm'),
   }
 
   return (
@@ -201,15 +209,15 @@ export function CoursesClient({ initialCourses }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">مساقاتي</h2>
-          <p className="text-slate-400 mt-1">{courses.length} courses · Continuing Education Center</p>
+          <h2 className="text-2xl font-bold text-white">{t('courses.title')}</h2>
+          <p className="text-slate-400 mt-1">{t('courses.enrolledCount', { count: courses.length })}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={openPptxModal}>
-            <Upload className="w-4 h-4" /> استيراد من PPTX
+            <Upload className="w-4 h-4" /> {t('courses.importPptx')}
           </Button>
           <Button onClick={() => setShowAdd(true)}>
-            <Plus className="w-4 h-4" /> مساق جديد
+            <Plus className="w-4 h-4" /> {t('courses.newCourse')}
           </Button>
         </div>
       </div>
@@ -218,8 +226,8 @@ export function CoursesClient({ initialCourses }: Props) {
       {courses.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <GraduationCap className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 mb-1">لا توجد مساقات بعد.</p>
-          <p className="text-slate-500 text-sm">أنشئ يدوياً أو استورد من ملف PowerPoint.</p>
+          <p className="text-slate-400 mb-1">{t('courses.noCourses')}</p>
+          <p className="text-slate-500 text-sm">{t('courses.noCoursesHint')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -230,7 +238,7 @@ export function CoursesClient({ initialCourses }: Props) {
                   <GraduationCap className="w-5 h-5 text-violet-400" />
                 </div>
                 <Badge variant={course.is_published ? 'green' : 'yellow'}>
-                  {course.is_published ? 'منشور' : 'مسودة'}
+                  {course.is_published ? t('exams.published') : t('exams.draft')}
                 </Badge>
               </div>
               <h3 className="text-white font-semibold mb-1">{course.title}</h3>
@@ -243,23 +251,23 @@ export function CoursesClient({ initialCourses }: Props) {
                 )}
                 <span className="flex items-center gap-1">
                   <Layers className="w-3 h-3" />
-                  {course.has_levels ? 'بمستويات' : 'مسطّح'}
+                  {course.has_levels ? t('courses.withLevelsBadge') : t('courses.flatBadge')}
                 </span>
                 <span className="flex items-center gap-1">
                   <Users className="w-3 h-3" />
-                  {course.course_enrollments?.[0]?.count ?? 0} enrolled
+                  {t('courses.enrolledCount', { count: course.course_enrollments?.[0]?.count ?? 0 })}
                 </span>
               </div>
-              <p className="text-slate-600 text-xs mb-4">أُنشئ {formatDate(course.created_at)}</p>
+              <p className="text-slate-600 text-xs mb-4">{t('courses.createdAt', { date: formatDate(course.created_at, locale) })}</p>
               <div className="space-y-2 pt-3 border-t border-slate-800">
                 <Button className="w-full" onClick={() => router.push(`/teacher/courses/${course.id}`)}>
-                  <Pencil className="w-4 h-4" /> بناء المساق
+                  <Pencil className="w-4 h-4" /> {t('courses.buildCourse')}
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" className="flex-1" onClick={() => togglePublish(course)}>
                     {course.is_published
-                      ? <><EyeOff className="w-3.5 h-3.5" /> إلغاء النشر</>
-                      : <><Eye className="w-3.5 h-3.5" /> نشر</>}
+                      ? <><EyeOff className="w-3.5 h-3.5" /> {t('lessonDetail.unpublish')}</>
+                      : <><Eye className="w-3.5 h-3.5" /> {t('lessonDetail.publish')}</>}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteCourse(course.id)} className="hover:text-red-400 hover:bg-red-500/10">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -272,33 +280,33 @@ export function CoursesClient({ initialCourses }: Props) {
       )}
 
       {/* Manual create modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="مساق جديد">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={t('courses.modal.title')}>
         <form onSubmit={handleCreate} className="space-y-4">
           <Input
-            label="عنوان المساق"
+            label={t('courses.modal.nameLabel')}
             value={form.title}
             onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
             required
-            placeholder="مثال: الإنجليزية للمبتدئين"
+            placeholder={t('courses.modal.namePlaceholder')}
           />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">الوصف (اختياري)</label>
+            <label className="block text-sm font-medium text-slate-300">{t('courses.modal.descOptLabel')}</label>
             <textarea
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               rows={3}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
-              placeholder="وصف موجز لهذا المساق…"
+              placeholder={t('courses.modal.descLabel')}
             />
           </div>
           <Input
-            label="اللغة / المادة (اختياري)"
+            label={t('courses.modal.languageLabel')}
             value={form.language}
             onChange={e => setForm(p => ({ ...p, language: e.target.value }))}
-            placeholder="مثال: الإنجليزية، العربية، بايثون…"
+            placeholder={t('courses.modal.languagePlaceholder')}
           />
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-300">بنية المساق</label>
+            <label className="block text-sm font-medium text-slate-300">{t('courses.modal.structureLabel')}</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -306,8 +314,8 @@ export function CoursesClient({ initialCourses }: Props) {
                 className={`p-3 rounded-lg border text-start transition-colors ${form.has_levels ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
               >
                 <Layers className="w-4 h-4 mb-1.5 text-violet-400" />
-                <p className="text-sm font-medium">بمستويات</p>
-                <p className="text-xs text-slate-500 mt-0.5">المساق ← المستويات ← الوحدات ← المحتوى</p>
+                <p className="text-sm font-medium">{t('courses.withLevelsBadge')}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{t('courses.structure.leveled')}</p>
               </button>
               <button
                 type="button"
@@ -315,33 +323,33 @@ export function CoursesClient({ initialCourses }: Props) {
                 className={`p-3 rounded-lg border text-start transition-colors ${!form.has_levels ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}
               >
                 <BookOpen className="w-4 h-4 mb-1.5 text-blue-400" />
-                <p className="text-sm font-medium">مسطّح</p>
-                <p className="text-xs text-slate-500 mt-0.5">المساق ← الوحدات ← المحتوى</p>
+                <p className="text-sm font-medium">{t('courses.flatBadge')}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{t('courses.structure.flat')}</p>
               </button>
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
-            <Button type="submit" loading={loading} className="flex-1">إنشاء المساق</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">{t('courses.modal.cancel')}</Button>
+            <Button type="submit" loading={loading} className="flex-1">{t('courses.modal.create')}</Button>
           </div>
         </form>
       </Modal>
 
       {/* PPTX Import Modal */}
-      <Modal open={showPptx} onClose={() => { if (!pptxLoading && !creating) setShowPptx(false) }} title="استيراد مساق من PowerPoint" size="xl">
+      <Modal open={showPptx} onClose={() => { if (!pptxLoading && !creating) setShowPptx(false) }} title={t('courses.pptxModal.title')} size="xl">
         {/* Step indicator */}
         <div className="flex items-center gap-2 mb-6">
-          {(['upload', 'preview', 'confirm'] as const).map((step, i) => (
+          {STEPS.map((step, i) => (
             <div key={step} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                 pptxStep === step ? 'bg-violet-600 text-white' :
-                (['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? 'bg-green-600 text-white' :
+                (STEPS.indexOf(pptxStep) > i) ? 'bg-green-600 text-white' :
                 'bg-slate-800 text-slate-500'
               }`}>
-                {(['upload', 'preview', 'confirm'].indexOf(pptxStep) > i) ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                {(STEPS.indexOf(pptxStep) > i) ? <Check className="w-3.5 h-3.5" /> : i + 1}
               </div>
               <span className={`text-xs ${pptxStep === step ? 'text-white font-medium' : 'text-slate-500'}`}>
-                {step === 'upload' ? 'رفع الملف' : step === 'preview' ? 'مراجعة الهيكل' : 'إنشاء الكورس'}
+                {stepLabels[step]}
               </span>
               {i < 2 && <div className="w-8 h-px bg-slate-700" />}
             </div>
@@ -361,13 +369,13 @@ export function CoursesClient({ initialCourses }: Props) {
                 <div className="flex flex-col items-center gap-2">
                   <FileText className="w-10 h-10 text-violet-400" />
                   <p className="text-white font-medium">{pptxFile.name}</p>
-                  <p className="text-slate-500 text-sm">{(pptxFile.size / 1024 / 1024).toFixed(1)} MB · Click to change</p>
+                  <p className="text-slate-500 text-sm">{(pptxFile.size / 1024 / 1024).toFixed(1)} MB · {t('courses.pptxModal.clickToChange')}</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <Upload className="w-10 h-10 text-slate-500" />
-                  <p className="text-slate-300 font-medium">اضغط لاختيار ملف</p>
-                  <p className="text-slate-500 text-sm">PPTX · DOCX · PDF — بحد أقصى 20 ميغابايت</p>
+                  <p className="text-slate-300 font-medium">{t('courses.pptxModal.drop')}</p>
+                  <p className="text-slate-500 text-sm">{t('courses.pptxModal.hint')}</p>
                 </div>
               )}
             </div>
@@ -389,13 +397,11 @@ export function CoursesClient({ initialCourses }: Props) {
 
             <div className="bg-slate-800/60 rounded-lg px-4 py-3 flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
-              <p className="text-slate-400 text-sm">
-                الذكاء الاصطناعي سيستخرج نص الشرائح تلقائياً ويولد هيكل الكورس (وحدات + دروس) بناءً على المحتوى.
-              </p>
+              <p className="text-slate-400 text-sm">{t('courses.pptxModal.aiNote')}</p>
             </div>
 
             <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setShowPptx(false)} className="flex-1">إلغاء</Button>
+              <Button variant="secondary" onClick={() => setShowPptx(false)} className="flex-1">{t('courses.pptxModal.cancel')}</Button>
               <Button
                 onClick={handlePptxUpload}
                 loading={pptxLoading}
@@ -403,7 +409,7 @@ export function CoursesClient({ initialCourses }: Props) {
                 className="flex-1"
               >
                 <Sparkles className="w-4 h-4" />
-                {pptxLoading ? 'جاري المعالجة...' : 'توليد هيكل الكورس'}
+                {pptxLoading ? t('courses.pptxModal.generating') : t('courses.pptxModal.stepConfirm')}
               </Button>
             </div>
           </div>
@@ -414,18 +420,17 @@ export function CoursesClient({ initialCourses }: Props) {
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pe-1">
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-green-400 shrink-0" />
-              <p className="text-green-400 text-sm">تم توليد هيكل الكورس. راجع المحتوى وعدّل ما تريد قبل الإنشاء.</p>
+              <p className="text-green-400 text-sm">{t('courses.pptxModal.review')}</p>
             </div>
 
-            {/* Course info */}
             <div className="space-y-3">
               <Input
-                label="عنوان الكورس"
+                label={t('courses.pptxModal.nameLabel')}
                 value={generatedCourse.title}
                 onChange={e => setGeneratedCourse({ ...generatedCourse, title: e.target.value })}
               />
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">الوصف</label>
+                <label className="block text-sm font-medium text-slate-300">{t('courses.pptxModal.descLabel')}</label>
                 <textarea
                   value={generatedCourse.description}
                   onChange={e => setGeneratedCourse({ ...generatedCourse, description: e.target.value })}
@@ -438,14 +443,13 @@ export function CoursesClient({ initialCourses }: Props) {
                   <BookOpen className="w-3.5 h-3.5" /> {generatedCourse.language}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" /> {generatedCourse.units.length} وحدة
+                  <Layers className="w-3.5 h-3.5" /> {t('courses.pptxModal.unitsCount', { count: generatedCourse.units.length })}
                 </span>
               </div>
             </div>
 
-            {/* Units */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-300">الوحدات والدروس</p>
+              <p className="text-sm font-medium text-slate-300">{t('courses.pptxModal.unitsLabel')}</p>
               {generatedCourse.units.map((unit, ui) => (
                 <div key={ui} className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
                   <button
@@ -457,7 +461,7 @@ export function CoursesClient({ initialCourses }: Props) {
                       {ui + 1}
                     </span>
                     <span className="text-white text-sm font-medium flex-1">{unit.name}</span>
-                    <span className="text-slate-500 text-xs">{unit.lessons.length} دروس</span>
+                    <span className="text-slate-500 text-xs">{t('courses.pptxModal.lessonsCount', { count: unit.lessons.length })}</span>
                     {expandedUnits.has(ui) ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                   </button>
 
@@ -467,7 +471,7 @@ export function CoursesClient({ initialCourses }: Props) {
                         className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
                         value={unit.name}
                         onChange={e => updateUnitName(ui, e.target.value)}
-                        placeholder="اسم الوحدة"
+                        placeholder={t('courses.pptxModal.unitNamePlaceholder')}
                       />
                       {unit.lessons.map((lesson, li) => (
                         <input
@@ -475,7 +479,7 @@ export function CoursesClient({ initialCourses }: Props) {
                           className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                           value={lesson.title}
                           onChange={e => updateLessonTitle(ui, li, e.target.value)}
-                          placeholder={`درس ${li + 1}`}
+                          placeholder={t('courses.pptxModal.lessonPlaceholder', { n: li + 1 })}
                         />
                       ))}
                     </div>
@@ -485,9 +489,9 @@ export function CoursesClient({ initialCourses }: Props) {
             </div>
 
             <div className="flex gap-3 pt-2 sticky bottom-0 bg-slate-900 pb-1">
-              <Button variant="secondary" onClick={() => setPptxStep('upload')} className="flex-1">رجوع</Button>
+              <Button variant="secondary" onClick={() => setPptxStep('upload')} className="flex-1">{t('courses.pptxModal.back')}</Button>
               <Button onClick={() => setPptxStep('confirm')} className="flex-1">
-                <Check className="w-4 h-4" /> تأكيد وإنشاء
+                <Check className="w-4 h-4" /> {t('courses.pptxModal.confirm')}
               </Button>
             </div>
           </div>
@@ -502,24 +506,22 @@ export function CoursesClient({ initialCourses }: Props) {
               <div className="flex gap-4 text-sm">
                 <span className="text-slate-400 flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-violet-400" />
-                  {generatedCourse.units.length} وحدة
+                  {t('courses.pptxModal.unitsCount', { count: generatedCourse.units.length })}
                 </span>
                 <span className="text-slate-400 flex items-center gap-1.5">
                   <BookOpen className="w-4 h-4 text-blue-400" />
-                  {generatedCourse.units.reduce((s, u) => s + u.lessons.length, 0)} درس
+                  {t('courses.pptxModal.lessonsTotal', { count: generatedCourse.units.reduce((s, u) => s + u.lessons.length, 0) })}
                 </span>
               </div>
             </div>
 
-            <p className="text-slate-400 text-sm text-center">
-              سيتم إنشاء الكورس مع جميع الوحدات والدروس. يمكنك إضافة المحتوى لاحقاً.
-            </p>
+            <p className="text-slate-400 text-sm text-center">{t('courses.pptxModal.willCreate')}</p>
 
             <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setPptxStep('preview')} className="flex-1">رجوع</Button>
+              <Button variant="secondary" onClick={() => setPptxStep('preview')} className="flex-1">{t('courses.pptxModal.back')}</Button>
               <Button onClick={handleConfirmCreate} loading={creating} className="flex-1">
                 <GraduationCap className="w-4 h-4" />
-                {creating ? 'جاري الإنشاء...' : 'إنشاء الكورس'}
+                {creating ? t('courses.pptxModal.creating') : t('courses.pptxModal.create')}
               </Button>
             </div>
           </div>

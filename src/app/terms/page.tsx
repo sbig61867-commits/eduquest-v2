@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { PolicyPage } from '@/components/public/policy'
 
-export const metadata: Metadata = {
-  title: 'شروط الاستخدام — EduQuest',
-  description: 'شروط استخدام منصة EduQuest التعليمية. EduQuest Terms of Use.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('public.meta.terms')
+  return { title: t('title'), description: t('description') }
 }
 
 export default function TermsPage() {

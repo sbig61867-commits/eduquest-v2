@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { GraduationCap, Layers, Eye, EyeOff, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -24,6 +26,8 @@ interface CourseRow {
 }
 
 export default async function AdminCoursesPage() {
+  const t = await getTranslations('admin.content')
+  const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
@@ -45,17 +49,17 @@ export default async function AdminCoursesPage() {
   const count = (rows: { count: number }[] | undefined) => rows?.[0]?.count ?? 0
 
   const stats = [
-    { label: 'المساقات',     value: courses.length,                                   icon: BookOpen,      color: 'text-violet-400',  bg: 'bg-violet-600/20' },
-    { label: 'منشور',   value: courses.filter(c => c.is_published).length,        icon: Eye,           color: 'text-emerald-400', bg: 'bg-emerald-600/20' },
-    { label: 'الوحدات',       value: courses.reduce((s, c) => s + count(c.course_units), 0),       icon: Layers,        color: 'text-blue-400',    bg: 'bg-blue-600/20' },
-    { label: 'التسجيلات',  value: courses.reduce((s, c) => s + count(c.course_enrollments), 0), icon: GraduationCap, color: 'text-amber-400',   bg: 'bg-amber-600/20' },
+    { label: t('courses.cards.courses'),     value: courses.length,                                   icon: BookOpen,      color: 'text-violet-400',  bg: 'bg-violet-600/20' },
+    { label: t('courses.cards.published'),   value: courses.filter(c => c.is_published).length,        icon: Eye,           color: 'text-emerald-400', bg: 'bg-emerald-600/20' },
+    { label: t('courses.cards.units'),       value: courses.reduce((s, c) => s + count(c.course_units), 0),       icon: Layers,        color: 'text-blue-400',    bg: 'bg-blue-600/20' },
+    { label: t('courses.cards.enrollments'),  value: courses.reduce((s, c) => s + count(c.course_enrollments), 0), icon: GraduationCap, color: 'text-amber-400',   bg: 'bg-amber-600/20' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">المساقات</h2>
-        <p className="text-slate-400 mt-1">مساقات منظّمة يبنيها معلمو مؤسستك</p>
+        <h2 className="text-2xl font-bold text-white">{t('courses.title')}</h2>
+        <p className="text-slate-400 mt-1">{t('courses.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -73,9 +77,9 @@ export default async function AdminCoursesPage() {
       {courses.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد مساقات بعد.</p>
+          <p className="text-slate-400">{t('courses.empty')}</p>
           <p className="text-slate-500 text-sm mt-1">
-            ينشئها المعلمون الذين منحتهم صلاحية إنشاء المساقات من لوحاتهم.
+            {t('courses.emptyHint')}
           </p>
         </div>
       ) : (
@@ -83,12 +87,12 @@ export default async function AdminCoursesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مساق</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">الهيكل</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الطلاب</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('courses.thCourse')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">{t('common.teacher')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">{t('courses.thStructure')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('courses.thStudents')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('common.status')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">{t('common.createdAt')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -109,21 +113,21 @@ export default async function AdminCoursesPage() {
                   </td>
                   <td className="px-5 py-4 hidden md:table-cell text-slate-300 text-sm">{course.teacher?.full_name ?? '—'}</td>
                   <td className="px-5 py-4 hidden lg:table-cell text-slate-300 text-sm">
-                    {course.has_levels ? `${count(course.course_levels)} levels · ` : ''}{count(course.course_units)} units
+                    {course.has_levels ? t('courses.levels', { count: count(course.course_levels) }) : ''}{t('courses.units', { count: count(course.course_units) })}
                   </td>
                   <td className="px-5 py-4 text-slate-300 text-sm">{count(course.course_enrollments)}</td>
                   <td className="px-5 py-4">
                     {course.is_published ? (
                       <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                        <Eye className="w-3.5 h-3.5" />منشور
+                        <Eye className="w-3.5 h-3.5" />{t('common.published')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                        <EyeOff className="w-3.5 h-3.5" />مسودة
+                        <EyeOff className="w-3.5 h-3.5" />{t('common.draft')}
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-4 hidden xl:table-cell text-slate-500 text-sm">{formatDate(course.created_at)}</td>
+                  <td className="px-5 py-4 hidden xl:table-cell text-slate-500 text-sm">{formatDate(course.created_at, locale)}</td>
                 </tr>
               ))}
             </tbody>

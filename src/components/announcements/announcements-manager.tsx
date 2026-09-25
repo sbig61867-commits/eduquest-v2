@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -41,7 +43,6 @@ function announcementStatus(a: Pick<AnnouncementRow, 'is_published' | 'starts_at
   if (a.ends_at && new Date(a.ends_at).getTime() < now) return 'ended'
   return 'live'
 }
-const STATUS_LABEL: Record<Status, string> = { draft: 'مسودة', scheduled: 'مجدول', live: 'ظاهر الآن', ended: 'منتهٍ' }
 const STATUS_CLASS: Record<Status, string> = {
   draft: 'text-slate-400 bg-slate-500/10',
   scheduled: 'text-amber-400 bg-amber-500/10',
@@ -71,18 +72,14 @@ export interface GroupOption { id: string; name: string }
 // to anyone who may manage announcements.
 const AUDIENCE_OPTIONS: {
   value: AnnouncementAudience
-  label: string
   icon: typeof Globe
   needsUniversity: boolean
 }[] = [
-  { value: 'all',        label: 'كل الطلاب',    icon: Globe,         needsUniversity: true },
-  { value: 'university', label: 'طلاب الجامعة', icon: GraduationCap, needsUniversity: true },
-  { value: 'center',     label: 'طلاب المركز',  icon: Building2,     needsUniversity: false },
-  { value: 'groups',     label: 'مجموعات محددة', icon: Users,        needsUniversity: false },
+  { value: 'all',        icon: Globe,         needsUniversity: true },
+  { value: 'university', icon: GraduationCap, needsUniversity: true },
+  { value: 'center',     icon: Building2,     needsUniversity: false },
+  { value: 'groups',     icon: Users,         needsUniversity: false },
 ]
-
-const AUDIENCE_LABEL: Record<AnnouncementAudience, string> =
-  Object.fromEntries(AUDIENCE_OPTIONS.map(o => [o.value, o.label])) as Record<AnnouncementAudience, string>
 
 const emptyForm = (canTargetUniversity: boolean) => ({
   title: '', body: '', image_url: '', link_url: '', cta_label: '',
@@ -99,9 +96,11 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
   /** Institution has a continuing-education centre; without one the university/centre audiences don't exist. */
   hasCenter?: boolean
 }) {
-  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
+  const t = useTranslations('staff.announcements')
+  const locale = useLocale() as Locale
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
   const audienceLabel = (value: AnnouncementAudience) =>
-    value === 'university' ? terms.institutionStudentsAr : AUDIENCE_LABEL[value]
+    value === 'university' ? terms.institutionStudents : t(`audience.${value}`)
   const EMPTY = emptyForm(canTargetUniversity)
   const router = useRouter()
   const [composing, setComposing] = useState(false)
@@ -116,7 +115,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
   const [suggestions, setSuggestions] = useState<CopySuggestion[]>([])
 
   async function suggestCopy() {
-    if (brief.trim().length < 5) return toast.error('اكتب وصفاً مختصراً للإعلان أولاً')
+    if (brief.trim().length < 5) return toast.error(t('briefRequired'))
     setSuggesting(true)
     const res = await fetch('/api/ai/announcement-copy', {
       method: 'POST',
@@ -125,14 +124,14 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
     })
     const data = await res.json().catch(() => ({}))
     setSuggesting(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر توليد الاقتراحات')
+    if (!res.ok) return toast.error(data.error ?? t('suggestFailed'))
     setSuggestions(data.suggestions ?? [])
   }
 
   function applySuggestion(s: CopySuggestion) {
     setForm(f => ({ ...f, title: s.title, body: s.body, cta_label: s.cta_label || f.cta_label }))
     setSuggestions([])
-    toast.success('تم تطبيق الاقتراح — راجعه قبل الحفظ')
+    toast.success(t('suggestionApplied'))
   }
 
   function startCreate() {
@@ -165,27 +164,27 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
     const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
     const data = await res.json()
     setUploading(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر رفع الصورة')
+    if (!res.ok) return toast.error(data.error ?? t('uploadFailed'))
     setForm(f => ({ ...f, image_url: data.url }))
-    toast.success('تم رفع الصورة')
+    toast.success(t('uploaded'))
   }
 
   async function save() {
-    if (!form.title.trim()) return toast.error('اكتب عنوان الإعلان')
+    if (!form.title.trim()) return toast.error(t('titleRequired'))
     if (form.audience === 'groups' && form.group_ids.length === 0) {
-      return toast.error('اختر مجموعة واحدة على الأقل')
+      return toast.error(t('groupRequired'))
     }
     const starts_at = localInputToIso(form.starts_at)
     const ends_at = localInputToIso(form.ends_at)
-    if (form.starts_at && !starts_at) return toast.error('تاريخ البداية غير صالح')
-    if (form.ends_at && !ends_at) return toast.error('تاريخ النهاية غير صالح')
+    if (form.starts_at && !starts_at) return toast.error(t('badStart'))
+    if (form.ends_at && !ends_at) return toast.error(t('badEnd'))
     if (starts_at && ends_at && new Date(ends_at).getTime() <= new Date(starts_at).getTime()) {
-      return toast.error('يجب أن يكون تاريخ النهاية بعد تاريخ البداية')
+      return toast.error(t('endBeforeStart'))
     }
     // A published announcement whose end is already past saves fine but is
     // invisible to every student — the exact silent failure seen live.
     if (form.is_published && ends_at && new Date(ends_at).getTime() <= Date.now()) {
-      return toast.error('تاريخ النهاية مضى — لن يظهر الإعلان لأي طالب. غيّره أو اتركه فارغاً')
+      return toast.error(t('endInPast'))
     }
 
     setBusy(true)
@@ -197,8 +196,8 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
     })
     const data = await res.json()
     setBusy(false)
-    if (!res.ok) return toast.error(data.error ?? (editing ? 'تعذّر تحديث الإعلان' : 'تعذّر إنشاء الإعلان'))
-    toast.success(editing ? 'تم حفظ التعديلات' : (form.is_published ? 'تم نشر الإعلان' : 'تم حفظ المسودة'))
+    if (!res.ok) return toast.error(data.error ?? (editing ? t('updateFailed') : t('createFailed')))
+    toast.success(editing ? t('savedEdits') : (form.is_published ? t('publishedOk') : t('savedDraft')))
     setForm(EMPTY)
     setEditingId(null)
     setComposing(false)
@@ -207,7 +206,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
 
   async function togglePublish(a: AnnouncementRow) {
     if (!a.is_published && announcementStatus({ ...a, is_published: true }) === 'ended') {
-      return toast.error('انتهت مدة هذا الإعلان — عدّل تاريخ النهاية أولاً ليظهر للطلاب')
+      return toast.error(t('expiredCannotPublish'))
     }
     setBusy(true)
     const res = await fetch('/api/announcements', {
@@ -216,12 +215,12 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: JSON.stringify({ id: a.id, is_published: !a.is_published }),
     })
     setBusy(false)
-    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? 'تعذّر التحديث') }
+    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? t('toggleFailed')) }
     router.refresh()
   }
 
   async function remove(a: AnnouncementRow) {
-    if (!(await confirmDialog(`حذف الإعلان "${a.title}"؟`))) return
+    if (!(await confirmDialog(t('deleteConfirm', { title: a.title })))) return
     setBusy(true)
     const res = await fetch('/api/announcements', {
       method: 'DELETE',
@@ -229,35 +228,35 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: JSON.stringify({ id: a.id }),
     })
     setBusy(false)
-    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? 'تعذّر الحذف') }
-    toast.success('تم الحذف')
+    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? t('deleteFailed')) }
+    toast.success(t('deleted'))
     router.refresh()
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الإعلانات</h2>
+          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
           <p className="text-slate-400 mt-1">
-            {announcements.length} إعلان · {announcements.filter(a => a.is_published).length} منشور
+            {t('summary', { count: announcements.length, published: announcements.filter(a => a.is_published).length })}
           </p>
         </div>
         <Button onClick={() => {
           if (composing) { setComposing(false); setEditingId(null); setForm(EMPTY) } else { startCreate() }
         }}>
-          <Plus className="w-4 h-4" /> إعلان جديد
+          <Plus className="w-4 h-4" /> {t('newAnnouncement')}
         </Button>
       </div>
 
       {composing && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">{editingId ? 'تعديل الإعلان' : 'إعلان جديد'}</h3>
+          <h3 className="text-white font-semibold">{editingId ? t('editTitle') : t('createTitle')}</h3>
 
           {/* Free AI copy helper (Groq, text only) */}
           <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-2">
             <span className="text-sm text-slate-300 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-400" /> مساعد الصياغة (اختياري)
+              <Sparkles className="w-4 h-4 text-amber-400" /> {t('aiTitle')}
             </span>
             <div className="flex gap-2 flex-col sm:flex-row">
               <input
@@ -265,9 +264,9 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 value={brief}
                 maxLength={600}
                 onChange={e => setBrief(e.target.value)}
-                placeholder="صف الإعلان باختصار: دورة إكسل للمبتدئين، تبدأ الأحد، 4 أسابيع…"
+                placeholder={t('briefPlaceholder')}
               />
-              <Button variant="ghost" loading={suggesting} onClick={suggestCopy}>اقترح صياغات</Button>
+              <Button variant="ghost" loading={suggesting} onClick={suggestCopy}>{t('suggestBtn')}</Button>
             </div>
             {suggestions.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -281,40 +280,40 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 ))}
               </div>
             )}
-            <p className="text-slate-600 text-xs">الاقتراحات نصية فقط ولا تُحفظ حتى تضغط «حفظ». راجع أي تاريخ أو رقم بنفسك.</p>
+            <p className="text-slate-600 text-xs">{t('aiHint')}</p>
           </div>
 
           <label className="text-sm text-slate-300 space-y-1.5 block">
-            <span>العنوان</span>
+            <span>{t('titleLabel')}</span>
             <input
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="مثال: فتح التسجيل لدورة اللغة الإنجليزية"
+              placeholder={t('titlePlaceholder')}
             />
           </label>
 
           <label className="text-sm text-slate-300 space-y-1.5 block">
-            <span>النص</span>
+            <span>{t('bodyLabel')}</span>
             <textarea
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm min-h-[90px]"
               value={form.body}
               onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-              placeholder="تفاصيل الإعلان…"
+              placeholder={t('bodyPlaceholder')}
             />
           </label>
 
           {/* Image */}
           <div className="space-y-2">
-            <span className="text-sm text-slate-300">صورة / تصميم (اختياري)</span>
+            <span className="text-sm text-slate-300">{t('imageLabel')}</span>
             {form.image_url ? (
               <div className="relative w-full max-w-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.image_url} alt="معاينة" className="rounded-lg border border-slate-700 w-full object-cover max-h-48" />
+                <img src={form.image_url} alt={t('imageAlt')} className="rounded-lg border border-slate-700 w-full object-cover max-h-48" />
                 <button
                   onClick={() => setForm(f => ({ ...f, image_url: '' }))}
                   className="absolute top-2 start-2 bg-slate-900/80 rounded-full p-1.5 text-slate-300 hover:text-white"
-                  aria-label="إزالة الصورة"
+                  aria-label={t('removeImage')}
                 ><X className="w-4 h-4" /></button>
               </div>
             ) : (
@@ -326,20 +325,20 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 />
                 <div className="flex gap-2 flex-wrap">
                   <Button variant="ghost" onClick={() => setDesigning(true)}>
-                    <Palette className="w-4 h-4" /> صمّم بانر
+                    <Palette className="w-4 h-4" /> {t('designBanner')}
                   </Button>
                   <Button variant="ghost" loading={uploading} onClick={() => fileRef.current?.click()}>
-                    <ImagePlus className="w-4 h-4" /> رفع صورة
+                    <ImagePlus className="w-4 h-4" /> {t('uploadImage')}
                   </Button>
                 </div>
-                <p className="text-slate-500 text-xs mt-1">صمّم بانراً من قالب جاهز، أو ارفع صورة JPG / PNG / WebP / GIF حتى 4 ميغابايت</p>
+                <p className="text-slate-500 text-xs mt-1">{t('imageHint')}</p>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>رابط (اختياري)</span>
+              <span>{t('linkLabel')}</span>
               <input
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 value={form.link_url}
@@ -348,19 +347,19 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
               />
             </label>
             <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>نص الزر (اختياري)</span>
+              <span>{t('ctaLabel')}</span>
               <input
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 value={form.cta_label}
                 onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
-                placeholder="سجّل الآن"
+                placeholder={t('ctaPlaceholder')}
               />
             </label>
           </div>
 
           {/* Audience */}
           <div className="space-y-2">
-            <span className="text-sm text-slate-300">الجمهور</span>
+            <span className="text-sm text-slate-300">{t('audienceLabel')}</span>
             <div className="flex gap-2 flex-wrap">
               {AUDIENCE_OPTIONS.filter(opt => hasCenter || (opt.value !== 'university' && opt.value !== 'center')).map(opt => {
                 const locked = opt.needsUniversity && !canTargetUniversity
@@ -369,7 +368,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                   <button
                     key={opt.value}
                     disabled={locked}
-                    title={locked ? `تحتاج صلاحية «مخاطبة ${terms.institutionStudentsAr}»` : undefined}
+                    title={locked ? t('audienceLocked', { students: terms.institutionStudents }) : undefined}
                     onClick={() => setForm(f => ({ ...f, audience: opt.value }))}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
                       locked
@@ -384,13 +383,12 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             </div>
             {!canTargetUniversity && (
               <p className="text-slate-500 text-xs">
-                إعلاناتك تصل لطلاب المركز فقط (المسجّلين في دورة، أو غير المصنّفين {terms.institutionStudentAr}).
-                لمخاطبة {terms.institutionStudentsAr} اطلب صلاحية «مخاطبة {terms.institutionStudentsAr}».
+                {t('audienceNote', { student: terms.institutionStudent, students: terms.institutionStudents })}
               </p>
             )}
             {form.audience === 'groups' && (
               <div className="flex flex-wrap gap-2 pt-1">
-                {groups.length === 0 && <p className="text-slate-500 text-xs">لا توجد مجموعات.</p>}
+                {groups.length === 0 && <p className="text-slate-500 text-xs">{t('noGroups')}</p>}
                 {groups.map(g => {
                   const on = form.group_ids.includes(g.id)
                   return (
@@ -412,7 +410,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>يبدأ في (اختياري)</span>
+              <span>{t('startsAt')}</span>
               <input type="datetime-local"
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 value={form.starts_at}
@@ -420,7 +418,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
               />
             </label>
             <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>ينتهي في (اختياري)</span>
+              <span>{t('endsAt')}</span>
               <input type="datetime-local"
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 value={form.ends_at}
@@ -432,15 +430,15 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" checked={form.is_published}
               onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))} />
-            نشر مباشرةً
+            {t('publishNow')}
           </label>
 
           {(form.title.trim() || form.body.trim() || form.image_url) && (
             <div className="space-y-1.5">
-              <span className="text-sm text-slate-300">معاينة (كما يظهر للطالب)</span>
+              <span className="text-sm text-slate-300">{t('previewLabel')}</span>
               <AnnouncementsBanner announcements={[{
                 id: 'preview',
-                title: form.title.trim() || 'عنوان الإعلان',
+                title: form.title.trim() || t('previewFallbackTitle'),
                 body: form.body.trim() || null,
                 image_url: form.image_url || null,
                 link_url: form.link_url || null,
@@ -450,13 +448,13 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
           )}
 
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" onClick={() => { setComposing(false); setEditingId(null); setForm(EMPTY) }}>إلغاء</Button>
-            <Button loading={busy} onClick={save}>{editingId ? 'حفظ التعديلات' : 'حفظ'}</Button>
+            <Button variant="ghost" onClick={() => { setComposing(false); setEditingId(null); setForm(EMPTY) }}>{t('cancel')}</Button>
+            <Button loading={busy} onClick={save}>{editingId ? t('saveEdits') : t('save')}</Button>
           </div>
         </div>
       )}
 
-      <Modal open={designing} onClose={() => setDesigning(false)} title="تصميم بانر الإعلان" size="xl">
+      <Modal open={designing} onClose={() => setDesigning(false)} title={t('designerTitle')} size="xl">
         {designing && (
           <BannerDesigner
             initialHeadline={form.title}
@@ -470,8 +468,8 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       {announcements.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Megaphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد إعلانات بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">أنشئ إعلاناً ليظهر لطلابك في صفحتهم الرئيسية.</p>
+          <p className="text-slate-400">{t('empty')}</p>
+          <p className="text-slate-500 text-sm mt-1">{t('emptyHint')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -487,26 +485,26 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-white font-semibold">{a.title}</h3>
                   <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${STATUS_CLASS[status]}`}>
-                    {STATUS_LABEL[status]}
+                    {t(`status.${status}`)}
                   </span>
                 </div>
                 {a.body && <p className="text-slate-400 text-sm mt-1 line-clamp-2">{a.body}</p>}
                 <p className="text-slate-500 text-xs mt-2 flex items-center gap-1.5">
                   {a.audience === 'groups'
-                    ? <><Users className="w-3 h-3" /> {a.group_ids.length} مجموعة</>
-                    : <><Globe className="w-3 h-3" /> {AUDIENCE_LABEL[a.audience]}</>}
-                  {a.center_students_only && a.audience !== 'center' && ' · طلاب المركز فقط'}
-                  {' · '}{formatDate(a.created_at)}
+                    ? <><Users className="w-3 h-3" /> {t('groupsCount', { count: a.group_ids.length })}</>
+                    : <><Globe className="w-3 h-3" /> {audienceLabel(a.audience)}</>}
+                  {a.center_students_only && a.audience !== 'center' && t('centerOnlyNote')}
+                  {' · '}{formatDate(a.created_at, locale)}
                 </p>
                 <div className="flex gap-2 mt-3 flex-wrap">
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => startEdit(a)}>
-                    <Pencil className="w-3.5 h-3.5" /> تعديل
+                    <Pencil className="w-3.5 h-3.5" /> {t('edit')}
                   </Button>
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => togglePublish(a)}>
-                    {a.is_published ? <><EyeOff className="w-3.5 h-3.5" /> إخفاء</> : <><Eye className="w-3.5 h-3.5" /> نشر</>}
+                    {a.is_published ? <><EyeOff className="w-3.5 h-3.5" /> {t('hide')}</> : <><Eye className="w-3.5 h-3.5" /> {t('publish')}</>}
                   </Button>
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => remove(a)}>
-                    <Trash2 className="w-3.5 h-3.5" /> حذف
+                    <Trash2 className="w-3.5 h-3.5" /> {t('delete')}
                   </Button>
                 </div>
               </div>

@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -22,30 +23,30 @@ interface ProctoringEventLike { type?: string; timestamp?: string }
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, full_name').eq('id', user.id).single()
   if (!profile || profile.role !== 'student' || !profile.tenant_id) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const rl = await rateLimit(`appeal:${user.id}`, { limit: 20, windowSecs: 3600 })
   if (!rl.allowed) {
-    return NextResponse.json({ error: 'تجاوزت الحد المسموح، حاول لاحقاً' }, { status: 429 })
+    return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
   }
 
   let body: { submissionId?: string; violationType?: string; violationAt?: string; message?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { submissionId, violationType, violationAt } = body
   const message = body.message?.trim()
-  if (!submissionId) return NextResponse.json({ error: 'submissionId مطلوب' }, { status: 400 })
+  if (!submissionId) return NextResponse.json({ ...(await apiErr('submissionIdRequired')) }, { status: 400 })
   if (!message || message.length < 5) {
-    return NextResponse.json({ error: 'يرجى كتابة تفاصيل الطعن (5 أحرف على الأقل)' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('appealTooShort')) }, { status: 400 })
   }
   if (message.length > 2000) {
-    return NextResponse.json({ error: 'النص طويل جداً' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -60,14 +61,14 @@ export async function POST(request: Request) {
     .eq('student_id', user.id)
     .single()
 
-  if (!submission) return NextResponse.json({ error: 'التسليم غير موجود' }, { status: 404 })
+  if (!submission) return NextResponse.json({ ...(await apiErr('submissionNotFound')) }, { status: 404 })
 
   const exam = submission.exams as unknown as {
     id: string; title: string; teacher_id: string; group_id: string; tenant_id: string
     groups: { name: string } | null
   } | null
-  if (!exam) return NextResponse.json({ error: 'الاختبار غير موجود' }, { status: 404 })
-  if (exam.tenant_id !== profile.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!exam) return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
+  if (exam.tenant_id !== profile.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   // If disputing a specific event, it must actually exist on this submission
   // — otherwise a student could file an appeal against a violation that was
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     const events = (submission.proctoring_events as ProctoringEventLike[] | null) ?? []
     const found = events.some(e => e.type === violationType && e.timestamp === violationAt)
     if (!found) {
-      return NextResponse.json({ error: 'لم يتم العثور على هذه المخالفة في سجل تسليمك' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('violationNotFound')) }, { status: 400 })
     }
   }
 
@@ -104,10 +105,10 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ error: 'سبق أن قدّمت طعناً على هذه المخالفة' }, { status: 409 })
+      return NextResponse.json({ ...(await apiErr('appealExists')) }, { status: 409 })
     }
     console.error('[api/appeals POST]', error)
-    return NextResponse.json({ error: 'تعذّر إرسال الطعن' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('appealSendFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ id: created.id }, { status: 201 })

@@ -145,7 +145,7 @@ export function TenantsClient({ initialTenants }: Props) {
     if (!res.ok) {
       setAdminError(data.error ?? 'فشل إنشاء المدير')
     } else {
-      setAdminSuccess(`✓ Admin "${data.user.full_name}" created — they can now log in with ${adminForm.email}`)
+      setAdminSuccess(`✓ أُنشئ المدير "${data.user.full_name}" — يمكنه الآن تسجيل الدخول بـ ${adminForm.email}`)
       setAdminForm({ full_name: '', email: '', password: '' })
     }
     setAdminLoading(false)

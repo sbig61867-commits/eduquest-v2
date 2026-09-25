@@ -3,6 +3,7 @@
 import { Fragment, useState } from 'react'
 import { Markdown } from '@/components/shared/markdown'
 import { CheckCircle2, XCircle, RotateCcw, Volume2, Languages } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 // Renders lesson Markdown as tabs, one per top-level `## ` section.
 // Sections whose body contains structured questions (### Qn blocks with an
@@ -52,13 +53,14 @@ function speak(text: string) {
 }
 
 function VocabItem({ term, explanation, translation }: { term: string; explanation: string; translation?: string }) {
+  const t = useTranslations('common.lessonTabs')
   const [showTr, setShowTr] = useState(false)
   return (
     <div className="flex items-start gap-2.5 rounded-lg border border-slate-700/70 bg-slate-800/40 px-3 py-2.5">
       <button
         onClick={() => speak(term)}
-        title="استمع للنطق"
-        aria-label={`استمع لنطق ${term}`}
+        title={t('listen')}
+        aria-label={t('listenTo', { term })}
         className="shrink-0 mt-0.5 w-7 h-7 rounded-full bg-violet-600/20 text-violet-300 hover:bg-violet-600 hover:text-white flex items-center justify-center transition-colors"
       >
         <Volume2 className="w-3.5 h-3.5" />
@@ -73,10 +75,10 @@ function VocabItem({ term, explanation, translation }: { term: string; explanati
             : (
               <button
                 onClick={() => setShowTr(true)}
-                title="لم أفهم — أظهر الترجمة العربية"
+                title={t('showTranslation')}
                 className="ms-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-500 text-slate-300 hover:text-white hover:border-violet-400 hover:bg-violet-500/10 text-sm transition-colors align-middle"
               >
-                <Languages className="w-4 h-4" /> ترجمة
+                <Languages className="w-4 h-4" /> {t('translate')}
               </button>
             )
         )}
@@ -232,6 +234,7 @@ function isSelfCheck(q: QuizQuestion): boolean {
 }
 
 function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQuestion[] }) {
+  const t = useTranslations('common.lessonTabs')
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [checked, setChecked] = useState(false)
 
@@ -298,15 +301,15 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
                   value={given}
                   disabled={checked}
                   onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}
-                  placeholder="اكتب إجابتك هنا..."
+                  placeholder={t('answerPlaceholder')}
                   dir="auto"
                   className={`w-full sm:w-80 px-3 py-2 rounded-lg border bg-slate-800/60 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 ${
                     checked ? (correct ? 'border-emerald-500' : 'border-red-500') : 'border-slate-700'
                   }`}
                 />
-                {wrong && <p className="text-emerald-400 text-xs">الإجابة الصحيحة: {q.answer}</p>}
+                {wrong && <p className="text-emerald-400 text-xs">{t('correctAnswer', { answer: q.answer })}</p>}
                 {checked && selfCheck && (
-                  <p className="text-sky-300 text-xs bg-sky-500/10 rounded px-2 py-1.5 mt-1">الإجابة النموذجية للمقارنة: {q.answer}</p>
+                  <p className="text-sky-300 text-xs bg-sky-500/10 rounded px-2 py-1.5 mt-1">{t('modelAnswer', { answer: q.answer })}</p>
                 )}
               </div>
             )}
@@ -321,26 +324,26 @@ function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQ
             disabled={!allAnswered}
             className="px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
           >
-            تحقق من إجاباتي
+            {t('checkAnswers')}
           </button>
         ) : (
           <>
             <div className={`px-4 py-2 rounded-lg text-sm font-bold ${
               score === gradable.length ? 'bg-emerald-500/15 text-emerald-400' : score >= gradable.length / 2 ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'
             }`}>
-              نتيجتك: {score} / {gradable.length}
-              {gradable.length < questions.length && <span className="font-normal opacity-70"> (+{questions.length - gradable.length} سؤال تقييم ذاتي)</span>}
+              {t('score', { score, total: gradable.length })}
+              {gradable.length < questions.length && <span className="font-normal opacity-70"> {t('selfCheckExtra', { count: questions.length - gradable.length })}</span>}
             </div>
             <button
               onClick={reset}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400 text-sm transition-colors"
             >
-              <RotateCcw className="w-4 h-4" /> إعادة المحاولة
+              <RotateCcw className="w-4 h-4" /> {t('retry')}
             </button>
           </>
         )}
         {!checked && !allAnswered && (
-          <span className="text-slate-500 text-xs">أجب على كل الأسئلة أولاً</span>
+          <span className="text-slate-500 text-xs">{t('answerAllFirst')}</span>
         )}
       </div>
     </div>

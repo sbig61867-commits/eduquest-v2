@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { deleteEntity } from '@/lib/delete-entity'
@@ -29,15 +30,15 @@ function mayManageGroups(profile: Profile | null): profile is Profile & { tenant
 
 export async function POST(request: Request) {
   const { user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
-  if (!mayManageGroups(profile)) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!mayManageGroups(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { name?: string; description?: string; teacher_id?: string } & Record<string, unknown>
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { name, description } = body
-  if (!name?.trim()) return NextResponse.json({ error: 'اسم المجموعة مطلوب' }, { status: 400 })
+  if (!name?.trim()) return NextResponse.json({ ...(await apiErr('groupNameRequired')) }, { status: 400 })
 
   const admin = serviceClient()
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   const parsed = parseGroupFields(body)
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
   if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
-    return NextResponse.json({ error: 'الكورس غير موجود في مؤسستك' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('courseNotInTenant')) }, { status: 400 })
   }
 
   // Teachers always own the groups they create. Staff assign a real teacher;
@@ -54,11 +55,11 @@ export async function POST(request: Request) {
   if (profile.role !== 'teacher') {
     if (body.teacher_id) {
       if (!(await isTenantTeacher(admin, profile.tenant_id, body.teacher_id))) {
-        return NextResponse.json({ error: 'المدرب المحدد غير موجود في مؤسستك' }, { status: 400 })
+        return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
       }
       teacherId = body.teacher_id
     } else if (profile.role === 'center_manager') {
-      return NextResponse.json({ error: 'اختر مدرب المجموعة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('chooseGroupTeacher')) }, { status: 400 })
     }
   }
 
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('[api/groups POST]', error)
-    return NextResponse.json({ error: 'فشل إنشاء المجموعة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('groupCreateFailed')) }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 201 })
@@ -85,25 +86,25 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const { user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
-  if (!mayManageGroups(profile)) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!mayManageGroups(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: {
     id?: string; name?: string; description?: string; is_active?: boolean; teacher_id?: string
     academic_unit_id?: string | null; term_id?: string | null
   } & Record<string, unknown>
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { id, name, description, is_active, teacher_id, academic_unit_id, term_id } = body
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
-  if (name !== undefined && !name.trim()) return NextResponse.json({ error: 'الاسم لا يمكن أن يكون فارغاً' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
+  if (name !== undefined && !name.trim()) return NextResponse.json({ ...(await apiErr('nameEmpty')) }, { status: 400 })
   const classifying = academic_unit_id !== undefined || term_id !== undefined
   const parsed = parseGroupFields(body)
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
   const hasGroupFields = Object.keys(parsed.update).length > 0
   if (name === undefined && is_active === undefined && teacher_id === undefined && !classifying && !hasGroupFields) {
-    return NextResponse.json({ error: 'لا يوجد ما يُحدَّث' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
   }
 
   const admin = serviceClient()
@@ -111,10 +112,10 @@ export async function PATCH(request: Request) {
     .from('groups').select('id, teacher_id, tenant_id').eq('id', id).single()
 
   if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'لم يُعثر على المجموعة' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
   }
   if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const update: Record<string, unknown> = {}
@@ -124,25 +125,25 @@ export async function PATCH(request: Request) {
   if (is_active !== undefined) update.is_active = is_active
   if (teacher_id !== undefined) {
     // Reassigning the teacher is a staff action, never a teacher's.
-    if (profile.role === 'teacher') return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    if (profile.role === 'teacher') return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     if (!(await isTenantTeacher(admin, profile.tenant_id, teacher_id))) {
-      return NextResponse.json({ error: 'المدرب المحدد غير موجود في مؤسستك' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
     }
     update.teacher_id = teacher_id
   }
   if (hasGroupFields) {
     // Course link / image / cap / instructions are staff settings, not a teacher's.
-    if (profile.role === 'teacher') return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    if (profile.role === 'teacher') return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
-      return NextResponse.json({ error: 'الكورس غير موجود في مؤسستك' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('courseNotInTenant')) }, { status: 400 })
     }
     Object.assign(update, parsed.update)
   }
   if (classifying) {
     // Placing a group in the academic structure is a staff action.
-    if (!staffCan(profile, 'manage_academic_structure')) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    if (!staffCan(profile, 'manage_academic_structure')) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     if ((await getTenantStructureMode(admin, profile.tenant_id)) !== 'academic') {
-      return NextResponse.json({ error: 'الهيكل الأكاديمي غير مفعّل لمؤسستك' }, { status: 409 })
+      return NextResponse.json({ ...(await apiErr('academicDisabled')) }, { status: 409 })
     }
     for (const [column, table, value] of [
       ['academic_unit_id', 'academic_units', academic_unit_id],
@@ -153,7 +154,7 @@ export async function PATCH(request: Request) {
         // The DB trigger rejects a foreign-tenant link too; this gives a clean 400.
         const { data: target } = await admin
           .from(table).select('id').eq('id', value).eq('tenant_id', profile.tenant_id).is('deleted_at', null).maybeSingle()
-        if (!target) return NextResponse.json({ error: 'غير موجود في مؤسستك' }, { status: 400 })
+        if (!target) return NextResponse.json({ ...(await apiErr('notInTenant')) }, { status: 400 })
       }
       update[column] = value
     }
@@ -164,7 +165,7 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error('[api/groups PATCH]', error)
-    return NextResponse.json({ error: 'فشل تحديث المجموعة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('groupUpdateFailed')) }, { status: 500 })
   }
 
   return NextResponse.json(data)
@@ -172,25 +173,25 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const { supabase, user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
-  if (!mayManageGroups(profile)) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!mayManageGroups(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { id } = body
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = serviceClient()
   const { data: group } = await admin
     .from('groups').select('id, teacher_id, tenant_id').eq('id', id).single()
 
   if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'لم يُعثر على المجموعة' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
   }
   if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Archive by default; permanently delete only if the owner enabled hard
@@ -198,7 +199,7 @@ export async function DELETE(request: Request) {
   const { error, mode } = await deleteEntity(admin, supabase, 'group', id, user.id, profile.tenant_id)
   if (error) {
     console.error('[api/groups DELETE]', error)
-    return NextResponse.json({ error: 'فشل حذف المجموعة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('groupDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true, mode })
 }

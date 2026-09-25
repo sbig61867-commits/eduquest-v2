@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
@@ -29,28 +30,28 @@ function parseAiJsonResponse(text: string): GeneratedCourse {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, can_create_courses, tenant_id').eq('id', user.id).single()
   if (!profile?.can_create_courses) {
-    return NextResponse.json({ error: 'ممنوع: صلاحية إنشاء المساقات غير مفعّلة لحسابك' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('courseCreationDisabled')) }, { status: 403 })
   }
 
   const rl = await aiRateLimit(`course-file:${user.id}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
+      { ...(await apiErr('rateLimited')) },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let formData: FormData
   try { formData = await request.formData() }
-  catch { return NextResponse.json({ error: 'بيانات النموذج غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 }) }
 
   const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'لم يُرفَع أي ملف' }, { status: 400 })
+  if (!file) return NextResponse.json({ ...(await apiErr('noFileUploaded')) }, { status: 400 })
 
   let slideText: string
   try {
@@ -114,6 +115,6 @@ ${truncatedText}`
     return NextResponse.json({ course, charCount: slideText.length, sourceText: slideText.slice(0, 12000) })
   } catch (e) {
     console.error('[generate-course-file] AI error:', e)
-    return NextResponse.json({ error: 'فشل توليد بنية المساق من الملف.' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('courseFromFileFailed')) }, { status: 500 })
   }
 }

@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import { Geist, IBM_Plex_Sans_Arabic } from 'next/font/google'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { AuthProvider } from '@/components/shared/auth-provider'
 import { Toaster } from '@/components/ui/toast'
+import { dirFor, toLocale } from '@/i18n/config'
+import { ScopedIntlProvider } from '@/i18n/provider'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -20,17 +23,40 @@ const plexArabic = IBM_Plex_Sans_Arabic({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: 'إديوكويست — منصة تعليمية',
-  description: 'منصة تعليمية متعددة المؤسسات بأدوات تعلّم مدعومة بالذكاء الاصطناعي',
+// Resolved per request: a static `metadata` export is evaluated once and
+// would pin the browser tab title to one language for every visitor.
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('common.meta')
+  return { title: t('title'), description: t('description') }
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// `lang` and `dir` are derived from the resolved locale — neither is hardcoded
+// any more. The locale comes from the eq_locale cookie (set once in
+// src/proxy.ts from the user → tenant → platform chain); absent a cookie it is
+// the platform default, which on this branch is `ar`, so the rendered output
+// is byte-identical to the previous hardcoded version until a locale is
+// actually chosen. One shared tree — there is no second layout per language.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = toLocale(await getLocale())
+
   return (
-    <html lang="ar" dir="rtl" className={`${geist.variable} ${plexArabic.variable} h-full`} suppressHydrationWarning translate="no">
+    <html
+      lang={locale}
+      dir={dirFor(locale)}
+      className={`${geist.variable} ${plexArabic.variable} h-full`}
+      suppressHydrationWarning
+      translate="no"
+    >
       <body className="h-full bg-slate-950 antialiased">
-        <AuthProvider>{children}</AuthProvider>
-        <Toaster />
+        {/* C1: `common` and `auth` are shipped at root level. Every page sits
+            under this provider; `auth` is shared across public auth routes
+            (login, join, reset-password, forgot-password). Route-specific
+            namespaces belong on a route-group provider — see
+            src/app/(admin)/layout.tsx. */}
+        <ScopedIntlProvider namespaces={['common', 'auth']}>
+          <AuthProvider>{children}</AuthProvider>
+          <Toaster />
+        </ScopedIntlProvider>
       </body>
     </html>
   )

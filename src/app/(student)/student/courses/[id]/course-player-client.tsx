@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -57,17 +58,13 @@ const TYPE_ICON: Record<string, typeof FileText> = {
   video: Video,
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  text: 'شرح',
-  grammar: 'Grammar',
-  idioms: 'Idioms',
-  rules: 'Rules',
-  task: 'Task',
-  quiz: 'Quiz',
-  video: 'Video',
-}
+// Item-type labels come from the message layer, looked up at render. As a
+// module constant this froze one locale for the whole process — and half of
+// it was still English while the rest of the screen was Arabic.
+const ITEM_TYPES = ['text', 'grammar', 'idioms', 'rules', 'task', 'quiz', 'video'] as const
 
 export function CoursePlayerClient({ course, levels, completedIds, studentId, tenantId }: Props) {
+  const t = useTranslations('student.player')
   const supabase = createClient()
   const [completed, setCompleted] = useState<Set<string>>(() => new Set(completedIds))
   const [saving, setSaving] = useState(false)
@@ -112,13 +109,13 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
     setSaving(false)
 
     if (error) {
-      toast.error('تعذّر حفظ تقدّمك. يرجى المحاولة مرة أخرى.')
+      toast.error(t('saveFailed'))
       return
     }
 
     setCompleted(prev => new Set(prev).add(current.item.id))
     if (activeIndex < total - 1) setActiveIndex(activeIndex + 1)
-    else toast.success('اكتمل المساق. أحسنت.')
+    else toast.success(t('completed'))
   }
 
   if (total === 0) {
@@ -130,8 +127,8 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
         </div>
         <EmptyState
           icon={GraduationCap}
-          title="لم يُنشر شيء بعد"
-          description="Your instructor has not published any content for this course. Check back soon."
+          title={t('nothingPublished')}
+          description={t('nothingPublishedHint')}
         />
       </div>
     )
@@ -148,14 +145,14 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
         <h1 className="text-xl font-semibold text-fg">{course.title}</h1>
         <p className="text-[13px] text-fg-muted mt-1.5">
           {course.teacherName && <>{course.teacherName} · </>}
-          {doneCount} of {total} sections complete
+          {t('sectionsDone', { done: doneCount, total })}
         </p>
         <div className="mt-3 w-full bg-border rounded-full h-1.5">
           <div
             className="bg-accent h-1.5 rounded-full transition-all"
             style={{ width: `${percent}%` }}
             role="progressbar"
-            aria-label="تقدّم المساق"
+            aria-label={t('progress')}
             aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}
@@ -165,7 +162,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
         {/* Outline */}
-        <nav aria-label="محتويات المساق" className="bg-surface border border-border rounded-lg p-2 lg:sticky lg:top-4">
+        <nav aria-label={t('contents')} className="bg-surface border border-border rounded-lg p-2 lg:sticky lg:top-4">
           {levels.map(level => {
             const isOpen = level.title === '' ? true : openLevels[level.id] !== false
             return (
@@ -210,7 +207,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
                                 ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-success" aria-hidden="true" />
                                 : <PlayCircle className="w-3.5 h-3.5 shrink-0 text-fg-muted" aria-hidden="true" />}
                               <span className="truncate">{item.title}</span>
-                              {isDone && <span className="sr-only">(completed)</span>}
+                              {isDone && <span className="sr-only">{t('completedSr')}</span>}
                             </button>
                           </li>
                         )
@@ -231,7 +228,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] uppercase tracking-wide text-fg-muted">
-                {TYPE_LABEL[current.item.type] ?? current.item.type}
+                {(ITEM_TYPES as readonly string[]).includes(current.item.type) ? t(`itemType.${current.item.type}`) : current.item.type}
                 {current.unitTitle && <> · {current.unitTitle}</>}
               </p>
               <h2 className="text-[15px] font-semibold text-fg leading-snug mt-0.5">{current.item.title}</h2>
@@ -239,14 +236,14 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             {completed.has(current.item.id) && (
               <span className="flex items-center gap-1.5 text-[12px] text-success shrink-0">
                 <Check className="w-3.5 h-3.5" aria-hidden="true" />
-                تم
+                {t('player.done')}
               </span>
             )}
           </div>
 
           {current.item.body.trim()
             ? <Markdown content={current.item.body} />
-            : <p className="text-[13px] text-fg-muted">لا يوجد محتوى مكتوب لهذا القسم بعد.</p>}
+            : <p className="text-[13px] text-fg-muted">{t('noContent')}</p>}
 
           {/* Section navigation */}
           <div className="flex flex-wrap items-center gap-3 mt-8 pt-5 border-t border-border">
@@ -258,12 +255,12 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             >
               <ArrowLeft className="w-4 h-4 rtl:hidden" aria-hidden="true" />
               <ArrowRight className="w-4 h-4 hidden rtl:inline" aria-hidden="true" />
-              السابق
+              {t('player.prev')}
             </Button>
 
             {!completed.has(current.item.id) ? (
               <Button size="sm" loading={saving} onClick={markComplete}>
-                تعليم كمكتمل
+                {t('player.markComplete')}
               </Button>
             ) : (
               <Button
@@ -271,14 +268,14 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
                 disabled={activeIndex >= total - 1}
                 onClick={() => setActiveIndex(i => Math.min(total - 1, i + 1))}
               >
-                التالي
+                {t('player.next')}
                 <ArrowRight className="w-4 h-4 rtl:hidden" aria-hidden="true" />
                 <ArrowLeft className="w-4 h-4 hidden rtl:inline" aria-hidden="true" />
               </Button>
             )}
 
             <span className="text-[12px] text-fg-muted ms-auto">
-              Section {activeIndex + 1} of {total}
+              {t('sectionOf', { n: activeIndex + 1, total })}
             </span>
           </div>
         </article>
@@ -288,6 +285,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
 }
 
 function BackLink() {
+  const t = useTranslations('student')
   return (
     <Link
       href="/student/courses"
@@ -295,7 +293,7 @@ function BackLink() {
     >
       <ArrowLeft className="w-3.5 h-3.5 rtl:hidden" aria-hidden="true" />
       <ArrowRight className="w-3.5 h-3.5 hidden rtl:inline" aria-hidden="true" />
-      كل المساقات
+      {t('player.allCourses')}
     </Link>
   )
 }

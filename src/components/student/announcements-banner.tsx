@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Megaphone, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 
 // Motion announcement banner on the student home. Pure CSS/RAF-free:
@@ -20,6 +21,7 @@ export interface StudentAnnouncement {
 const ROTATE_MS = 7000
 
 export function AnnouncementsBanner({ announcements }: { announcements: StudentAnnouncement[] }) {
+  const t = useTranslations('student.widgets.banner')
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
 
@@ -36,7 +38,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
 
   return (
     <div
-      dir="rtl"
+      dir="auto"
       className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/40"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -57,7 +59,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
         <div className="p-5 flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-              <Megaphone className="w-3 h-3" /> إعلان
+              <Megaphone className="w-3 h-3" /> {t('badge')}
             </span>
           </div>
 
@@ -71,7 +73,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
             >
-              {a.cta_label?.trim() || 'اعرف المزيد'}
+              {a.cta_label?.trim() || t('learnMore')}
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
@@ -86,7 +88,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
                 <button
                   key={item.id}
                   onClick={() => setIndex(i)}
-                  aria-label={`الإعلان ${i + 1}`}
+                  aria-label={t('slide', { n: i + 1 })}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
                     i === index ? 'w-6 bg-blue-500' : 'w-1.5 bg-slate-600 hover:bg-slate-500'
                   }`}
@@ -96,12 +98,12 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
             <div className="flex gap-1">
               <button
                 onClick={() => setIndex(i => (i - 1 + count) % count)}
-                aria-label="السابق"
+                aria-label={t('prev')}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               ><ChevronRight className="w-4 h-4" /></button>
               <button
                 onClick={() => setIndex(i => (i + 1) % count)}
-                aria-label="التالي"
+                aria-label={t('next')}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               ><ChevronLeft className="w-4 h-4" /></button>
             </div>

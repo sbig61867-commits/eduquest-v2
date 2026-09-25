@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Archive, ChevronRight, CalendarRange, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -41,11 +43,13 @@ type TermForm = { id?: string; name: string; starts_on: string; ends_on: string;
 async function send(url: string, method: string, body: unknown) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error ?? 'Request failed')
+  if (!res.ok) throw new Error(data.error ?? '')
   return data
 }
 
 export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) {
+  const tr = useTranslations('admin.academicClient')
+  const locale = useLocale() as Locale
   const router = useRouter()
   const [tab, setTab] = useState<'units' | 'terms'>('units')
   const [units, setUnits] = useState(initialUnits)
@@ -75,7 +79,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
       setUnitForm(null)
       router.refresh()
     } catch (err) {
-      toast((err as Error).message, 'error')
+      toast((err as Error).message || tr('requestFailed'), 'error')
     } finally {
       setSaving(false)
     }
@@ -83,14 +87,14 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
 
   async function archiveUnit(unit: AcademicUnit) {
     const extra = unit.level === 1 && childrenOf(unit.id).length
-      ? ` and its ${childrenOf(unit.id).length} ${t.unitsL2.toLowerCase()}` : ''
-    if (!(await confirmDialog(`Archive "${unit.name}"${extra}? Linked groups and courses keep their data.`))) return
+      ? tr('archiveChildren', { count: childrenOf(unit.id).length, units: t.unitsL2 }) : ''
+    if (!(await confirmDialog(tr('archiveUnitConfirm', { name: unit.name, extra })))) return
     try {
       await send('/api/academic/units', 'DELETE', { id: unit.id })
       setUnits(prev => prev.filter(u => u.id !== unit.id && u.parent_id !== unit.id))
       router.refresh()
     } catch (err) {
-      toast((err as Error).message, 'error')
+      toast((err as Error).message || tr('requestFailed'), 'error')
     }
   }
 
@@ -108,7 +112,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
       setTermForm(null)
       router.refresh()
     } catch (err) {
-      toast((err as Error).message, 'error')
+      toast((err as Error).message || tr('requestFailed'), 'error')
     } finally {
       setSaving(false)
     }
@@ -119,17 +123,17 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
       await send('/api/academic/terms', 'PATCH', { id: term.id, is_current: true })
       setPeriods(prev => prev.map(p => ({ ...p, is_current: p.id === term.id })))
     } catch (err) {
-      toast((err as Error).message, 'error')
+      toast((err as Error).message || tr('requestFailed'), 'error')
     }
   }
 
   async function archiveTerm(term: AcademicTerm) {
-    if (!(await confirmDialog(`Archive "${term.name}"?`))) return
+    if (!(await confirmDialog(tr('archiveTermConfirm', { name: term.name })))) return
     try {
       await send('/api/academic/terms', 'DELETE', { id: term.id })
       setPeriods(prev => prev.filter(p => p.id !== term.id))
     } catch (err) {
-      toast((err as Error).message, 'error')
+      toast((err as Error).message || tr('requestFailed'), 'error')
     }
   }
 
@@ -140,25 +144,25 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">الهيكل الأكاديمي</h2>
+          <h2 className="text-2xl font-bold text-white">{tr('title')}</h2>
           <p className="text-slate-400 mt-1">
             {t.unitsL1} › {t.unitsL2} · {t.terms}
           </p>
         </div>
         {tab === 'units'
-          ? <Button onClick={() => setUnitForm({ parent_id: null, name: '', code: '' })}><Plus className="w-4 h-4" /> New {t.unitL1}</Button>
-          : <Button onClick={() => setTermForm({ name: '', starts_on: '', ends_on: '', is_current: periods.length === 0 })}><Plus className="w-4 h-4" /> New {t.term}</Button>}
+          ? <Button onClick={() => setUnitForm({ parent_id: null, name: '', code: '' })}><Plus className="w-4 h-4" /> {tr('addUnit', { unit: t.unitL1 })}</Button>
+          : <Button onClick={() => setTermForm({ name: '', starts_on: '', ends_on: '', is_current: periods.length === 0 })}><Plus className="w-4 h-4" /> {tr('addTerm', { term: t.term })}</Button>}
       </div>
 
       <div className="flex gap-2">
-        <button className={tabClass(tab === 'units')} onClick={() => setTab('units')}>{t.unitsL1} &amp; {t.unitsL2}</button>
+        <button className={tabClass(tab === 'units')} onClick={() => setTab('units')}>{tr('unitsTab', { l1: t.unitsL1, l2: t.unitsL2 })}</button>
         <button className={tabClass(tab === 'terms')} onClick={() => setTab('terms')}>{t.terms}</button>
       </div>
 
       {tab === 'units' && (
         level1.length === 0 ? (
           <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
-            <p className="text-slate-400">No {t.unitsL1.toLowerCase()} yet.</p>
+            <p className="text-slate-400">{tr('noUnits', { units: t.unitsL1 })}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -173,10 +177,10 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                     <Button variant="ghost" size="sm" onClick={() => setUnitForm({ parent_id: unit.id, name: '', code: '' })}>
                       <Plus className="w-4 h-4" /> {t.unitL2}
                     </Button>
-                    <Button variant="ghost" size="sm" aria-label="تعديل" onClick={() => setUnitForm({ id: unit.id, parent_id: null, name: unit.name, code: unit.code ?? '' })}>
+                    <Button variant="ghost" size="sm" aria-label={tr('edit')} onClick={() => setUnitForm({ id: unit.id, parent_id: null, name: unit.name, code: unit.code ?? '' })}>
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" aria-label="Archive" className="hover:text-amber-400" onClick={() => archiveUnit(unit)}>
+                    <Button variant="ghost" size="sm" aria-label={tr('archive')} className="hover:text-amber-400" onClick={() => archiveUnit(unit)}>
                       <Archive className="w-4 h-4" />
                     </Button>
                   </div>
@@ -191,10 +195,10 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                           {child.code && <span className="text-slate-500 text-xs font-mono">{child.code}</span>}
                         </span>
                         <span className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="sm" aria-label="تعديل" onClick={() => setUnitForm({ id: child.id, parent_id: unit.id, name: child.name, code: child.code ?? '' })}>
+                          <Button variant="ghost" size="sm" aria-label={tr('edit')} onClick={() => setUnitForm({ id: child.id, parent_id: unit.id, name: child.name, code: child.code ?? '' })}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
-                          <Button variant="ghost" size="sm" aria-label="Archive" className="hover:text-amber-400" onClick={() => archiveUnit(child)}>
+                          <Button variant="ghost" size="sm" aria-label={tr('archive')} className="hover:text-amber-400" onClick={() => archiveUnit(child)}>
                             <Archive className="w-3.5 h-3.5" />
                           </Button>
                         </span>
@@ -212,7 +216,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
         periods.length === 0 ? (
           <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
             <CalendarRange className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400">No {t.terms.toLowerCase()} yet.</p>
+            <p className="text-slate-400">{tr('noTerms', { terms: t.terms })}</p>
           </div>
         ) : (
           <div className="bg-slate-900 border border-slate-800 rounded-xl divide-y divide-slate-800">
@@ -221,20 +225,20 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                 <div className="min-w-0">
                   <p className="text-white font-medium flex items-center gap-2">
                     {term.name}
-                    {term.is_current && <Badge variant="green">الحالي</Badge>}
+                    {term.is_current && <Badge variant="green">{tr('current')}</Badge>}
                   </p>
-                  <p className="text-slate-500 text-xs">{formatDate(term.starts_on)} – {formatDate(term.ends_on)}</p>
+                  <p className="text-slate-500 text-xs">{formatDate(term.starts_on, locale)} – {formatDate(term.ends_on, locale)}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {!term.is_current && (
                     <Button variant="ghost" size="sm" onClick={() => makeCurrent(term)}>
-                      <Star className="w-4 h-4" /> تعيين كحالي
+                      <Star className="w-4 h-4" /> {tr('setCurrent')}
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" aria-label="تعديل" onClick={() => setTermForm({ ...term })}>
+                  <Button variant="ghost" size="sm" aria-label={tr('edit')} onClick={() => setTermForm({ ...term })}>
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" aria-label="Archive" className="hover:text-amber-400" onClick={() => archiveTerm(term)}>
+                  <Button variant="ghost" size="sm" aria-label={tr('archive')} className="hover:text-amber-400" onClick={() => archiveTerm(term)}>
                     <Archive className="w-4 h-4" />
                   </Button>
                 </div>
@@ -247,7 +251,7 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
       <Modal
         open={!!unitForm}
         onClose={() => setUnitForm(null)}
-        title={`${unitForm?.id ? 'تعديل' : 'جديد'} ${unitForm?.parent_id ? t.unitL2 : t.unitL1}`}
+        title={tr(unitForm?.id ? 'editUnit' : 'addUnit', { unit: unitForm?.parent_id ? t.unitL2 : t.unitL1 })}
       >
         {unitForm && (
           <form onSubmit={saveUnit} className="space-y-4">
@@ -256,37 +260,37 @@ export function AcademicClient({ terms: t, initialUnits, initialTerms }: Props) 
                 {t.unitL1}: <span className="text-white">{units.find(u => u.id === unitForm.parent_id)?.name}</span>
               </p>
             )}
-            <Input label="الاسم" value={unitForm.name} maxLength={120} required
+            <Input label={tr('name')} value={unitForm.name} maxLength={120} required
               onChange={e => setUnitForm(f => f && { ...f, name: e.target.value })} />
-            <Input label="الرمز (اختياري)" value={unitForm.code} maxLength={30}
+            <Input label={tr('code')} value={unitForm.code} maxLength={30}
               onChange={e => setUnitForm(f => f && { ...f, code: e.target.value })} />
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" className="flex-1" onClick={() => setUnitForm(null)}>إلغاء</Button>
-              <Button type="submit" loading={saving} className="flex-1">حفظ</Button>
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setUnitForm(null)}>{tr('cancel')}</Button>
+              <Button type="submit" loading={saving} className="flex-1">{tr('save')}</Button>
             </div>
           </form>
         )}
       </Modal>
 
-      <Modal open={!!termForm} onClose={() => setTermForm(null)} title={`${termForm?.id ? 'تعديل' : 'جديد'} ${t.term}`}>
+      <Modal open={!!termForm} onClose={() => setTermForm(null)} title={tr(termForm?.id ? 'editTerm' : 'addTerm', { term: t.term })}>
         {termForm && (
           <form onSubmit={saveTerm} className="space-y-4">
-            <Input label="الاسم" value={termForm.name} maxLength={120} required placeholder="2026–2027 · 1"
+            <Input label={tr('name')} value={termForm.name} maxLength={120} required placeholder="2026–2027 · 1"
               onChange={e => setTermForm(f => f && { ...f, name: e.target.value })} />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="يبدأ" type="date" value={termForm.starts_on} required
+              <Input label={tr('starts')} type="date" value={termForm.starts_on} required
                 onChange={e => setTermForm(f => f && { ...f, starts_on: e.target.value })} />
-              <Input label="ينتهي" type="date" value={termForm.ends_on} required min={termForm.starts_on || undefined}
+              <Input label={tr('ends')} type="date" value={termForm.ends_on} required min={termForm.starts_on || undefined}
                 onChange={e => setTermForm(f => f && { ...f, ends_on: e.target.value })} />
             </div>
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input type="checkbox" checked={termForm.is_current}
                 onChange={e => setTermForm(f => f && { ...f, is_current: e.target.checked })} />
-              Current {t.term.toLowerCase()}
+              {tr('isCurrent', { term: t.term })}
             </label>
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" className="flex-1" onClick={() => setTermForm(null)}>إلغاء</Button>
-              <Button type="submit" loading={saving} className="flex-1">حفظ</Button>
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setTermForm(null)}>{tr('cancel')}</Button>
+              <Button type="submit" loading={saving} className="flex-1">{tr('save')}</Button>
             </div>
           </form>
         )}

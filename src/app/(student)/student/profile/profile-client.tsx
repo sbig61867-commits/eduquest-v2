@@ -1,11 +1,13 @@
 'use client'
 
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { User, Building2, Users, CheckCircle2, GraduationCap, School } from 'lucide-react'
-import { CENTRE_TRAINEE_LABEL_AR, type StudentTrack } from '@/lib/student-track'
+import type { StudentTrack } from '@/lib/student-track'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -41,6 +43,8 @@ interface Props {
 }
 
 export function StudentProfileClient({ profile, groups, affiliation }: Props) {
+  const t = useTranslations('student.profile')
+  const locale = useLocale() as Locale
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -72,7 +76,7 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
     setLoading(false)
   }
 
-  if (!profile) return <div className="text-slate-400">لم يُعثر على الملف الشخصي.</div>
+  if (!profile) return <div className="text-slate-400">{t('notFound')}</div>
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -91,27 +95,27 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
           <Building2 className="w-5 h-5 text-slate-400" />
           <div>
-            <p className="text-xs text-slate-500">المؤسسة</p>
+            <p className="text-xs text-slate-500">{t('institution')}</p>
             <p className="text-white text-sm font-medium">{profile.tenants?.name ?? '—'}</p>
           </div>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
           <User className="w-5 h-5 text-slate-400" />
           <div>
-            <p className="text-xs text-slate-500">عضو منذ</p>
-            <p className="text-white text-sm font-medium">{formatDate(profile.created_at)}</p>
+            <p className="text-xs text-slate-500">{t('memberSince')}</p>
+            <p className="text-white text-sm font-medium">{formatDate(profile.created_at, locale)}</p>
           </div>
         </div>
       </div>
 
       {/* Affiliation — centre trainees are never shown faculties/departments */}
       {affiliation?.track === 'centre' && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3" dir="rtl">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
           <School className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-amber-300 text-sm font-semibold">{CENTRE_TRAINEE_LABEL_AR}</p>
+            <p className="text-amber-300 text-sm font-semibold">{t('centreTrainee')}</p>
             <p className="text-slate-400 text-xs mt-1">
-              مسجّل عن طريق مركز التعليم المستمر في {profile.tenants?.name ?? 'المؤسسة'} — تصلك دورات المركز وإعلاناته.
+              {t('centreEnrolled', { institution: profile.tenants?.name ?? t('institution') })}
             </p>
           </div>
         </div>
@@ -130,43 +134,43 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
 
       {/* Edit name */}
       <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold">تعديل الملف الشخصي</h3>
+        <h3 className="text-white font-semibold">{t('edit')}</h3>
 
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
         {saved && (
           <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> تم تحديث الاسم بنجاح
+            <CheckCircle2 className="w-4 h-4" /> {t('saved')}
           </div>
         )}
 
         <Input
-          label="الاسم الكامل"
+          label={t('fullName')}
           value={fullName}
           onChange={e => setFullName(e.target.value)}
           required
-          placeholder="اسمك الكامل"
+          placeholder={t('fullNamePlaceholder')}
         />
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">البريد الإلكتروني</label>
+          <label className="block text-sm font-medium text-slate-300">{t('email')}</label>
           <input
             value={profile.email}
             disabled
             className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed"
           />
-          <p className="text-xs text-slate-500">لا يمكن تغيير البريد الإلكتروني</p>
+          <p className="text-xs text-slate-500">{t('emailLocked')}</p>
         </div>
-        <Button type="submit" loading={loading}>حفظ التغييرات</Button>
+        <Button type="submit" loading={loading}>{t('save')}</Button>
       </form>
 
       {/* My Groups */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-white font-semibold flex items-center gap-2">
-          <Users className="w-4 h-4 text-slate-400" /> My Groups ({groups.length})
+          <Users className="w-4 h-4 text-slate-400" /> {t('myGroups', { count: groups.length })}
         </h3>
         {groups.length === 0 ? (
-          <p className="text-slate-400 text-sm">لست مسجّلاً في أي مجموعة بعد.</p>
+          <p className="text-slate-400 text-sm">{t('noGroups')}</p>
         ) : (
           <div className="space-y-2">
             {groups.map(g => (
@@ -177,7 +181,7 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
                 <div>
                   <p className="text-white text-sm font-medium">{g.name}</p>
                   <p className="text-slate-400 text-xs">
-                    Teacher: {g.teacher?.full_name ?? '—'}
+                    {t('teacher', { name: g.teacher?.full_name ?? '—' })}
                   </p>
                   {g.description && (
                     <p className="text-slate-500 text-xs mt-0.5">{g.description}</p>

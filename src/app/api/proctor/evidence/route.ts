@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -27,22 +28,22 @@ const SEVERE_TYPES = new Set([
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { examId?: string; type?: string; imageBase64?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { examId, type, imageBase64 } = body
   if (!examId || !type || !imageBase64) {
-    return NextResponse.json({ error: 'حقول مفقودة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
   }
   if (!SEVERE_TYPES.has(type)) {
     // Evidence is only for severe events — silently ignore anything else.
     return NextResponse.json({ stored: false, reason: 'not_severe' })
   }
   if (imageBase64.length > MAX_BYTES) {
-    return NextResponse.json({ error: 'الصورة كبيرة جداً' }, { status: 413 })
+    return NextResponse.json({ ...(await apiErr('imageTooLarge')) }, { status: 413 })
   }
 
   const admin = adminClient()
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
   const { data: enrollment } = await supabase
     .from('group_students').select('student_id')
     .eq('group_id', exam.group_id).eq('student_id', user.id).single()
-  if (!enrollment) return NextResponse.json({ error: 'غير مسجّل' }, { status: 403 })
+  if (!enrollment) return NextResponse.json({ ...(await apiErr('notEnrolled')) }, { status: 403 })
 
   // Enforce the per-exam cap on the SERVER (source of truth). Path layout:
   //   proctoring-evidence/<examId>/<studentId>/<ts>-<type>.jpg
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     .upload(path, buffer, { contentType: 'image/jpeg', upsert: false })
   if (upErr) {
     console.error('[proctor/evidence] upload', upErr)
-    return NextResponse.json({ error: 'فشل الرفع' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('uploadFailed')) }, { status: 500 })
   }
 
   // Link the stored image to a proctoring event (in_progress attempts only).

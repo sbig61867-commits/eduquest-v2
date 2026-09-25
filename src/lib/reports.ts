@@ -27,7 +27,7 @@ export interface CallerProfile { role: string; tenant_id: string | null }
 // ── Authorization (future-ready) ──────────────────────────────────
 export function canAccessReport(profile: CallerProfile): { ok: boolean; reason?: string } {
   if (profile.role === 'super_admin') return { ok: true }
-  return { ok: false, reason: 'Reports are currently restricted to the platform owner.' }
+  return { ok: false, reason: 'reportsRestricted' }
 }
 
 export function reportsAdminClient(): SupabaseClient {

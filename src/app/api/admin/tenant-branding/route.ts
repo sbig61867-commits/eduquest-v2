@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -24,30 +25,30 @@ function adminClient() {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id || profile.role !== 'university_admin') {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   let body: { name?: unknown; logo_url?: unknown }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const name = typeof body.name === 'string' ? body.name.trim() : ''
-  if (!name) return NextResponse.json({ error: 'اسم المؤسسة مطلوب' }, { status: 400 })
-  if (name.length > 120) return NextResponse.json({ error: 'اسم المؤسسة طويل جداً' }, { status: 400 })
+  if (!name) return NextResponse.json({ ...(await apiErr('tenantNameRequired')) }, { status: 400 })
+  if (name.length > 120) return NextResponse.json({ ...(await apiErr('tenantNameTooLong')) }, { status: 400 })
 
   const rawLogo = typeof body.logo_url === 'string' ? body.logo_url.trim() : ''
   let logoUrl: string | null = null
   if (rawLogo) {
     let parsed: URL
-    try { parsed = new URL(rawLogo) } catch { return NextResponse.json({ error: 'رابط الشعار غير صالح' }, { status: 400 }) }
+    try { parsed = new URL(rawLogo) } catch { return NextResponse.json({ ...(await apiErr('logoUrlInvalid')) }, { status: 400 }) }
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return NextResponse.json({ error: 'رابط الشعار يجب أن يبدأ بـ https://' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('logoUrlScheme')) }, { status: 400 })
     }
-    if (rawLogo.length > 2048) return NextResponse.json({ error: 'رابط الشعار طويل جداً' }, { status: 400 })
+    if (rawLogo.length > 2048) return NextResponse.json({ ...(await apiErr('logoUrlTooLong')) }, { status: 400 })
     logoUrl = parsed.toString()
   }
 
@@ -61,7 +62,7 @@ export async function PATCH(request: Request) {
 
   if (error || !data) {
     console.error('[api/admin/tenant-branding PATCH]', error)
-    return NextResponse.json({ error: 'تعذّر حفظ الإعدادات' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('settingsSaveFailed')) }, { status: 500 })
   }
   return NextResponse.json({ tenant: data })
 }

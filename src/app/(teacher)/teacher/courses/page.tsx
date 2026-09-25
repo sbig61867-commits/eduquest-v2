@@ -4,11 +4,14 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CoursesClient } from './courses-client'
 import { Lock, GraduationCap } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 
 export default async function CoursesPage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
+
+  const t = await getTranslations('teacher')
 
   const { data: profile } = await supabase
     .from('users')
@@ -16,20 +19,19 @@ export default async function CoursesPage() {
     .eq('id', user.id)
     .single()
 
-  // Show a friendly "permission required" page instead of silent redirect
   if (!profile?.can_create_courses) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-5">
           <Lock className="w-8 h-8 text-slate-500" />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">المساقات — تتطلب صلاحية</h2>
+        <h2 className="text-xl font-bold text-white mb-2">{t('courses.noPermission')}</h2>
         <p className="text-slate-400 max-w-sm">
-          تحتاج أن يفعّل مدير مؤسستك صلاحية إنشاء المساقات لحسابك قبل الوصول إلى هذا القسم.
+          {t('courses.requestPermission')}
         </p>
         <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 border border-slate-800">
           <GraduationCap className="w-4 h-4 text-slate-500" />
-          <span className="text-slate-500 text-sm">اطلب من مدير مؤسستك منحك صلاحية إنشاء المساقات</span>
+          <span className="text-slate-500 text-sm">{t('courses.requestPermission')}</span>
         </div>
       </div>
     )

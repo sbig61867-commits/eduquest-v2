@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "home": {
+      "title": "EduQuest — منصة تعليمية سحابية للمؤسسات التعليمية",
+      "description": "منصة متكاملة تجمع الدروس والاختبارات والعلامات والمراقبة الذكية، مع بيئة معزولة لكل مؤسسة تعليمية."
+    },
+    "contact": {
+      "title": "تواصل معنا — EduQuest",
+      "description": "تواصل مع فريق EduQuest — اطلب اشتراكاً لمؤسستك أو أرسل استفسارك."
+    },
+    "features": {
+      "title": "المميزات — EduQuest",
+      "description": "مميزات منصة EduQuest: توليد الدروس والاختبارات بالذكاء الاصطناعي، مراقبة ذكية، عزل كامل لكل مؤسسة، وعلامات فورية."
+    },
+    "pricing": {
+      "title": "الأسعار — EduQuest",
+      "description": "باقات EduQuest للجامعات والمدارس والمعاهد ومراكز التدريب — تجربة مجانية ثم اشتراك حسب حجم مؤسستك."
+    },
+    "privacy": {
+      "title": "سياسة الخصوصية — EduQuest",
+      "description": "سياسة الخصوصية لمنصة EduQuest التعليمية."
+    },
+    "terms": {
+      "title": "شروط الاستخدام — EduQuest",
+      "description": "شروط استخدام منصة EduQuest التعليمية."
+    }
+  },
+  "demo": {
+    "meta": {
+      "title": "العرض التجريبي — EduQuest",
+      "description": "تصفّح منصة EduQuest بأربعة أدوار ببيانات وهمية وبدون تسجيل دخول.",
+      "admin": "العرض التجريبي — لوحة مدير المؤسسة — EduQuest",
+      "center": "العرض التجريبي — لوحة مدير المركز — EduQuest",
+      "student": "العرض التجريبي — لوحة الطالب — EduQuest",
+      "teacher": "العرض التجريبي — لوحة المعلم — EduQuest",
+      "roleDescription": "جولة تجريبية في {role} على منصة EduQuest ببيانات وهمية."
+    },
+    "landing": {
+      "title": "جرّب EduQuest بنفسك",
+      "subtitle": "اختر دورًا لتتصفح المنصة ببيانات وهمية — بدون تسجيل دخول",
+      "convinced": "مقتنع؟",
+      "contact": "تواصل معنا",
+      "activate": "لتفعيل المنصة لمؤسستك التعليمية."
+    },
+    "roles": {
+      "admin": {
+        "label": "مدير المؤسسة",
+        "desc": "إدارة المعلمين، الطلاب، المساقات والطلبات",
+        "dash": "لوحة مدير المؤسسة"
+      },
+      "teacher": {
+        "label": "المعلم",
+        "desc": "إدارة المجموعات، الدروس والاختبارات",
+        "dash": "لوحة المعلم"
+      },
+      "student": {
+        "label": "الطالب",
+        "desc": "المساقات، الاختبارات والعلامات",
+        "dash": "لوحة الطالب"
+      },
+      "center": {
+        "label": "مدير مركز التعليم المستمر",
+        "desc": "الجداول والإعلانات",
+        "dash": "لوحة مدير المركز"
+      }
+    },
+    "shell": {
+      "demoMode": "وضع تجريبي",
+      "tryAnother": "جرّب دوراً آخر",
+      "exit": "الخروج من التجربة",
+      "banner": "هذه بيانات تجريبية وهمية لغرض العرض —",
+      "bannerContact": "تواصل معنا",
+      "bannerEnd": "لتجربة حقيقية بمؤسستك"
+    },
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "teachers": "المعلمون",
+      "students": "الطلاب",
+      "courses": "المساقات",
+      "schedules": "الجداول",
+      "announcements": "الإعلانات",
+      "exams": "الاختبارات",
+      "grades": "العلامات",
+      "groups": "المجموعات"
+    },
+    "common": {
+      "units": "{count} وحدات",
+      "published": "منشور",
+      "draft": "مسودة",
+      "minutes": "{count} دقيقة",
+      "date": "التاريخ: {date}",
+      "duration": "المدة: {count} دقيقة",
+      "submissionsCount": "{count} تسليم",
+      "submissionsLabel": "التسليمات: {count}",
+      "students": "{count} طالب",
+      "sample": "عيّنة من الطلاب",
+      "name": "الاسم",
+      "group": "المجموعة",
+      "welcome": "مرحبًا {name}"
+    },
+    "admin": {
+      "title": "لوحة تحكم المؤسسة",
+      "subtitle": "نظرة عامة على مؤسستك",
+      "teachers": "المعلمون",
+      "students": "الطلاب",
+      "courses": "المساقات",
+      "exams": "الاختبارات",
+      "latestCourses": "أحدث المساقات",
+      "avg": "المعدل",
+      "subject": "المادة",
+      "groups": "المجموعات",
+      "teachersCount": "{count} معلمين"
+    },
+    "center": {
+      "title": "لوحة تحكم مركز التعليم المستمر",
+      "subtitle": "نظرة عامة",
+      "activeSchedules": "جداول نشطة",
+      "announcements": "إعلانات",
+      "openRequests": "طلبات مفتوحة",
+      "requests": "الطلبات",
+      "publishedAnnouncements": "الإعلانات المنشورة",
+      "weeklySchedules": "الجداول الأسبوعية",
+      "status": {
+        "pending": "قيد المراجعة",
+        "answered": "تم الرد"
+      }
+    },
+    "student": {
+      "title": "لوحة تحكم الطالب",
+      "enrolled": "المساقات المسجلة",
+      "upcoming": "اختبارات قادمة",
+      "average": "المعدل العام",
+      "latestAnnouncements": "آخر الإعلانات",
+      "myCourses": "مساقاتي",
+      "completedPct": "{pct}% مكتمل",
+      "myExams": "اختباراتي",
+      "enterExam": "دخول الاختبار",
+      "myGrades": "علاماتي",
+      "gradeRecord": "سجل العلامات"
+    },
+    "teacher": {
+      "title": "لوحة تحكم المعلم",
+      "myGroups": "مجموعاتي",
+      "publishedLessons": "دروسي المنشورة",
+      "myExams": "اختباراتي",
+      "upcomingExams": "الاختبارات القادمة",
+      "examMeta": "{date} · {count} دقيقة"
+    }
+  }
+}

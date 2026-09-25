@@ -1,0 +1,8 @@
+{
+  "invitation": {
+    "subject": "لقد تمت دعوتك إلى {institution}",
+    "heading": "انضم إلى {institution} على إديوكويست",
+    "cta": "قبول الدعوة",
+    "expiry": "ينتهي هذا الرابط في {date}."
+  }
+}

@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -36,11 +37,11 @@ const PRIVATE_ONLY_INVITE_ROLES = new Set(['university_admin', 'center_manager']
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile) return NextResponse.json({ error: 'لم يُعثر على الملف الشخصي' }, { status: 403 })
+  if (!profile) return NextResponse.json({ ...(await apiErr('profileNotFound')) }, { status: 403 })
 
   let query = supabase
     .from('invitations')
@@ -73,21 +74,21 @@ export async function GET() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!caller) return NextResponse.json({ error: 'لم يُعثر على الملف الشخصي' }, { status: 403 })
+  if (!caller) return NextResponse.json({ ...(await apiErr('profileNotFound')) }, { status: 403 })
 
   if (!ROLE_CEILING[caller.role]) {
-    return NextResponse.json({ error: 'لا تملك صلاحية إنشاء الدعوات' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('cannotInvite')) }, { status: 403 })
   }
 
   // 50 invitations per user per hour
   const rl = await rateLimit(`invitations:${user.id}`, { limit: 50, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
+      { ...(await apiErr('rateLimited')) },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
     is_university_student?: boolean
   }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { email, role, group_id, expires_hours } = body
   const isPublic = body.is_public === true
@@ -112,7 +113,7 @@ export async function POST(request: Request) {
 
   // ── Validate role ────────────────────────────────────────
   if (!role) {
-    return NextResponse.json({ error: 'الدور مطلوب' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('roleRequired')) }, { status: 400 })
   }
   if (!ROLE_CEILING[caller.role].includes(role)) {
     return NextResponse.json(
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     )
   }
   if (caller.role === 'center_manager' && !canManageAccountRole(caller, role)) {
-    return NextResponse.json({ error: 'لا تملك صلاحية دعوة هذا النوع من الحسابات' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('cannotInviteRole')) }, { status: 403 })
   }
 
   // ── Public link rules ────────────────────────────────────
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
   // holding the URL claim staff access to the tenant.
   if (isPublic && PRIVATE_ONLY_INVITE_ROLES.has(role)) {
     return NextResponse.json(
-      { error: 'دعوات الطاقم (مدير المؤسسة / مدير المركز) يجب أن تكون لبريد محدد دائماً لأسباب أمنية.' },
+      { ...(await apiErr('staffInviteMustBePrivate')) },
       { status: 400 }
     )
   }
@@ -138,10 +139,10 @@ export async function POST(request: Request) {
   // ── Email validation ─────────────────────────────────────
   if (!isPublic) {
     if (!email?.trim()) {
-      return NextResponse.json({ error: 'البريد الإلكتروني مطلوب للدعوات الخاصة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('emailRequiredPrivate')) }, { status: 400 })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'صيغة البريد الإلكتروني غير صالحة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('invalidEmail')) }, { status: 400 })
     }
   }
 
@@ -151,14 +152,14 @@ export async function POST(request: Request) {
     : caller.tenant_id
 
   if (!tenant_id) {
-    return NextResponse.json({ error: 'معرّف المؤسسة مطلوب لهذا الدور' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('tenantIdRequiredForRole')) }, { status: 400 })
   }
 
   // Verify tenant exists and is active
   if (caller.role === 'super_admin') {
     const { data: tenant } = await supabase.from('tenants').select('id, is_active').eq('id', tenant_id).single()
-    if (!tenant) return NextResponse.json({ error: 'لم يُعثر على المؤسسة' }, { status: 404 })
-    if (!tenant.is_active) return NextResponse.json({ error: 'هذه المؤسسة موقوفة حالياً' }, { status: 403 })
+    if (!tenant) return NextResponse.json({ ...(await apiErr('tenantNotFound')) }, { status: 404 })
+    if (!tenant.is_active) return NextResponse.json({ ...(await apiErr('tenantSuspended')) }, { status: 403 })
   }
 
   // ── Centre features ──────────────────────────────────────
@@ -166,23 +167,23 @@ export async function POST(request: Request) {
   // belongs to the institution (the DB trigger refuses the former as well).
   const { has_center: hasCenter } = await getTenantSettings(supabase, tenant_id)
   if (role === 'center_manager' && !hasCenter) {
-    return NextResponse.json({ error: 'لا يوجد مركز تعليم مستمر في مؤسستك' }, { status: 409 })
+    return NextResponse.json({ ...(await apiErr('noCentre')) }, { status: 409 })
   }
 
   // ── Validate group_id if provided ───────────────────────
   if (group_id) {
     if (role !== 'student') {
-      return NextResponse.json({ error: 'معرّف المجموعة صالح لدعوات الطلاب فقط' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('groupOnlyForStudents')) }, { status: 400 })
     }
     const { data: group } = await supabase
       .from('groups').select('id, name, teacher_id, tenant_id').eq('id', group_id).single()
 
     if (!group || group.tenant_id !== tenant_id) {
-      return NextResponse.json({ error: 'لم يُعثر على المجموعة في هذه المؤسسة' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('groupNotInTenant')) }, { status: 400 })
     }
     // Teachers can only invite to their own groups
     if (caller.role === 'teacher' && group.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'يمكنك دعوة الطلاب إلى مجموعاتك فقط' }, { status: 403 })
+      return NextResponse.json({ ...(await apiErr('inviteOwnGroupsOnly')) }, { status: 403 })
     }
     groupNameSnapshot = group.name
   }
@@ -198,10 +199,10 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.tenant_id === tenant_id) {
-        return NextResponse.json({ error: 'يوجد مستخدم بهذا البريد في هذه المؤسسة بالفعل' }, { status: 409 })
+        return NextResponse.json({ ...(await apiErr('emailExists')) }, { status: 409 })
       }
       return NextResponse.json(
-        { error: 'هذا البريد مسجّل في مؤسسة أخرى. تواصل مع الدعم لنقله.' },
+        { ...(await apiErr('emailInOtherTenant')) },
         { status: 409 }
       )
     }
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
 
     if (!authCheckError && authExists) {
       return NextResponse.json(
-        { error: 'هذا البريد مسجّل بالفعل. إن فقدت الوصول إلى حسابك فتواصل مع الدعم.' },
+        { ...(await apiErr('emailRegistered')) },
         { status: 409 }
       )
     }
@@ -249,7 +250,7 @@ export async function POST(request: Request) {
     // Unique constraint violation = pending invitation already exists for this email+tenant
     if (insertError.code === '23505') {
       return NextResponse.json(
-        { error: 'توجد دعوة معلّقة لهذا البريد. ألغِها أولاً لإنشاء دعوة جديدة.' },
+        { ...(await apiErr('pendingInvitationExists')) },
         { status: 409 }
       )
     }

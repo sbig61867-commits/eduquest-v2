@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Star, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -12,6 +13,7 @@ interface PendingSurvey { id: string; title: string; groupName: string }
 // nothing pending. Placed on the student dashboard so it's seen on login
 // without adding a required step to any other flow.
 export function SurveyCard() {
+  const t = useTranslations('student.widgets.survey')
   const [survey, setSurvey] = useState<PendingSurvey | null | undefined>(undefined)
   const [open, setOpen] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -30,7 +32,7 @@ export function SurveyCard() {
 
   async function submit() {
     if (!survey || easeRating === 0 || preferPlatform === null || recommend === null) {
-      toast.error('يرجى الإجابة عن كل الأسئلة المطلوبة'); return
+      toast.error(t('answerAll')); return
     }
     setLoading(true)
     const res = await fetch('/api/surveys/respond', {
@@ -43,7 +45,7 @@ export function SurveyCard() {
     })
     const data = await res.json()
     setLoading(false)
-    if (!res.ok) { toast.error(data.error ?? 'فشل إرسال التقييم'); return }
+    if (!res.ok) { toast.error(data.error ?? t('sendFailed')); return }
     setSubmitted(true)
     setOpen(false)
   }
@@ -58,17 +60,17 @@ export function SurveyCard() {
             <ClipboardList className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <p className="text-white font-semibold text-sm">قيّم تجربتك مع المنصة</p>
-            <p className="text-slate-400 text-xs mt-0.5">مجموعة {survey.groupName} — يستغرق أقل من دقيقة</p>
+            <p className="text-white font-semibold text-sm">{t('cardTitle')}</p>
+            <p className="text-slate-400 text-xs mt-0.5">{t('cardSubtitle', { group: survey.groupName })}</p>
           </div>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)}>ابدأ التقييم</Button>
+        <Button size="sm" onClick={() => setOpen(true)}>{t('start')}</Button>
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="تقييم تجربة المنصة">
+      <Modal open={open} onClose={() => setOpen(false)} title={t('modalTitle')}>
         <div className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">ما مدى سهولة استخدام المنصة؟</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">{t('ease')}</label>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map(n => (
                 <button key={n} type="button" onClick={() => setEaseRating(n)} className="p-1">
@@ -79,48 +81,48 @@ export function SurveyCard() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">هل تفضل المنصة على الطريقة التقليدية؟</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">{t('prefer')}</label>
             <div className="flex gap-2">
-              <Button type="button" size="sm" variant={preferPlatform === true ? 'primary' : 'secondary'} onClick={() => setPreferPlatform(true)}>نعم</Button>
-              <Button type="button" size="sm" variant={preferPlatform === false ? 'primary' : 'secondary'} onClick={() => setPreferPlatform(false)}>لا</Button>
+              <Button type="button" size="sm" variant={preferPlatform === true ? 'primary' : 'secondary'} onClick={() => setPreferPlatform(true)}>{t('yes')}</Button>
+              <Button type="button" size="sm" variant={preferPlatform === false ? 'primary' : 'secondary'} onClick={() => setPreferPlatform(false)}>{t('no')}</Button>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">هل تنصح زملاءك باستخدامها؟</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">{t('recommend')}</label>
             <div className="flex gap-2">
-              <Button type="button" size="sm" variant={recommend === true ? 'primary' : 'secondary'} onClick={() => setRecommend(true)}>نعم</Button>
-              <Button type="button" size="sm" variant={recommend === false ? 'primary' : 'secondary'} onClick={() => setRecommend(false)}>لا</Button>
+              <Button type="button" size="sm" variant={recommend === true ? 'primary' : 'secondary'} onClick={() => setRecommend(true)}>{t('yes')}</Button>
+              <Button type="button" size="sm" variant={recommend === false ? 'primary' : 'secondary'} onClick={() => setRecommend(false)}>{t('no')}</Button>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">ما أكثر ميزة أفادتك؟ (اختياري)</label>
+            <label className="block text-sm font-medium text-slate-300">{t('bestFeature')}</label>
             <input
               value={bestFeature} onChange={e => setBestFeature(e.target.value)} maxLength={500}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="مثال: التصحيح الفوري للواجبات"
+              placeholder={t('bestFeaturePlaceholder')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">هل واجهت مشكلة؟ (اختياري)</label>
+            <label className="block text-sm font-medium text-slate-300">{t('problem')}</label>
             <input
               value={problemFaced} onChange={e => setProblemFaced(e.target.value)} maxLength={500}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              placeholder="اختياري"
+              placeholder={t('optional')}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">تعليق إضافي (اختياري)</label>
+            <label className="block text-sm font-medium text-slate-300">{t('comment')}</label>
             <textarea
               value={comment} onChange={e => setComment(e.target.value)} rows={3} maxLength={1000}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
             />
           </div>
 
-          <Button onClick={submit} loading={loading} className="w-full">إرسال التقييم</Button>
+          <Button onClick={submit} loading={loading} className="w-full">{t('submit')}</Button>
         </div>
       </Modal>
     </>

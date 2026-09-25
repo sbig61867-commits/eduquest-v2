@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -14,41 +15,41 @@ function adminClient() {
 export async function PATCH(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
   if (!caller || !['university_admin', 'super_admin', 'center_manager'].includes(caller.role)) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   let body: { userId?: string; isActive?: boolean }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { userId, isActive } = body
   if (!userId || typeof isActive !== 'boolean') {
-    return NextResponse.json({ error: 'معرّف المستخدم أو حالة التفعيل مفقودة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('missingUserOrActive')) }, { status: 400 })
   }
 
   // Verify the target user belongs to the caller's tenant (super_admin can update anyone)
   const { data: target } = await supabase
     .from('users').select('id, tenant_id, role').eq('id', userId).single()
 
-  if (!target) return NextResponse.json({ error: 'لم يُعثر على المستخدم' }, { status: 404 })
+  if (!target) return NextResponse.json({ ...(await apiErr('userNotFound')) }, { status: 404 })
 
   if (caller.role !== 'super_admin' && target.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Prevent disabling a super_admin
   if (target.role === 'super_admin') {
-    return NextResponse.json({ error: 'لا يمكن تعديل حساب المدير العام' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('cannotEditOwner')) }, { status: 403 })
   }
   // A centre manager may only (de)activate teachers/students, behind the matching flag.
   if (caller.role === 'center_manager' && !canManageAccountRole(caller, target.role)) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { error } = await adminClient()
@@ -56,7 +57,7 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error('[toggle-user]', error)
-    return NextResponse.json({ error: 'فشل تحديث حالة المستخدم' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('userStatusFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

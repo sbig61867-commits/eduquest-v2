@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
 import type { ProctoringEvent, Question } from '@/types'
 import { AppealReviewList, type AppealRow } from '@/components/teacher/appeal-review-list'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 
 type ViolationIconKey = keyof typeof VIOLATION_ICONS
 
@@ -33,11 +35,6 @@ const VIOLATION_LABELS: Record<string, string> = {
   camera_stopped:      'Camera/Mic Stopped',
 }
 
-// Proctoring runs on the student's device. If a detector fails to load there
-// (old browser, blocked CDN, no WebGL/CPU support), the attempt was only
-// partially monitored. That is recorded as `detector_unavailable` — it is NOT
-// a violation and must not flag the student, but the teacher must see it so
-// "no violations" is never read as "verified clean".
 const isMonitoringGap = (e: ProctoringEvent) => e.type === 'detector_unavailable'
 
 interface ExamRow { title: string; teacher_id: string; proctoring_enabled: boolean; questions: Question[] }
@@ -55,6 +52,8 @@ export default async function ProctoringReportsPage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
+  const t = await getTranslations('teacher')
+  const locale = (await getLocale()) as Locale
 
   const { data: raw } = await supabase
     .from('exam_submissions')
@@ -65,8 +64,6 @@ export default async function ProctoringReportsPage() {
 
   const submissions = (raw ?? []) as unknown as SubmissionRow[]
 
-  // Pending appeals directed at this teacher — exam_appeals_select already
-  // scopes to teacher_id = auth.uid(), no service-role needed.
   const { data: pendingAppeals } = await supabase
     .from('exam_appeals')
     .select('id, student_name, exam_title, group_name, violation_type, student_message, created_at')
@@ -78,7 +75,6 @@ export default async function ProctoringReportsPage() {
   const flagged = submissions.filter(s => violationCount(s) > 0)
   const clean   = submissions.filter(s => violationCount(s) === 0)
 
-  // Proctored exams the teacher can watch live right now.
   const { data: liveExams } = await supabase
     .from('exams')
     .select('id, title')
@@ -92,8 +88,8 @@ export default async function ProctoringReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">تقارير المراقبة</h2>
-        <p className="text-slate-400 mt-1">مراقبة نزاهة كل الاختبارات المراقَبة</p>
+        <h2 className="text-2xl font-bold text-white">{t('proctoring.title')}</h2>
+        <p className="text-slate-400 mt-1">{t('proctoring.subtitle')}</p>
       </div>
 
       <AppealReviewList appeals={(pendingAppeals ?? []) as AppealRow[]} />
@@ -102,8 +98,8 @@ export default async function ProctoringReportsPage() {
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <Radio className="w-4 h-4 text-red-400" />
-            <p className="text-white font-semibold">المراقبة المباشرة</p>
-            <span className="text-slate-500 text-xs">شاهد الطلاب مباشرةً أثناء اختبار مراقَب</span>
+            <p className="text-white font-semibold">{t('proctoring.liveMonitoring')}</p>
+            <span className="text-slate-500 text-xs">{t('proctoring.liveSubtitle')}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {(liveExams ?? []).map(e => (
@@ -118,15 +114,15 @@ export default async function ProctoringReportsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">إجمالي التسليمات</p>
+          <p className="text-slate-400 text-sm mb-1">{t('proctoring.totalSubmissions')}</p>
           <p className="text-3xl font-bold text-white">{submissions.length}</p>
         </div>
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">مُعلَّم</p>
+          <p className="text-slate-400 text-sm mb-1">{t('proctoring.flagged')}</p>
           <p className="text-3xl font-bold text-red-400">{flagged.length}</p>
         </div>
         <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-5">
-          <p className="text-slate-400 text-sm mb-1">نظيف</p>
+          <p className="text-slate-400 text-sm mb-1">{t('proctoring.clean')}</p>
           <p className="text-3xl font-bold text-emerald-400">{clean.length}</p>
         </div>
       </div>
@@ -134,8 +130,8 @@ export default async function ProctoringReportsPage() {
       {!submissions.length ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ShieldCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد تسليمات لاختبارات مراقَبة بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">فعّل المراقبة عند إنشاء اختبار لترى التقارير هنا.</p>
+          <p className="text-slate-400">{t('proctoring.noSubmissions')}</p>
+          <p className="text-slate-500 text-sm mt-1">{t('proctoring.noSubmissionsHint')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -153,10 +149,10 @@ export default async function ProctoringReportsPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-white font-semibold">{sub.users?.full_name ?? '—'}</h3>
-                      <Badge variant={isFlagged ? 'red' : 'green'}>{isFlagged ? `${events.length} violations` : 'Clean'}</Badge>
+                      <Badge variant={isFlagged ? 'red' : 'green'}>{isFlagged ? t('proctoring.violations', { count: events.length }) : t('proctoring.clean')}</Badge>
                     </div>
                     <p className="text-slate-400 text-sm">{sub.users?.email} · {sub.exams?.title}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">Score: {sub.score}/{max} ({pct}%) · {formatDateTime(sub.submitted_at)}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{t('proctoring.scoreLine', { score: sub.score ?? 0, max, pct, at: formatDateTime(sub.submitted_at, locale) })}</p>
                   </div>
                 </div>
 
@@ -164,7 +160,7 @@ export default async function ProctoringReportsPage() {
                   <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 mb-3">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <p className="text-amber-300 text-sm font-medium">المراقبة غير مكتملة على جهاز هذا الطالب</p>
+                      <p className="text-amber-300 text-sm font-medium">{t('proctoring.incompleteMonitoring')}</p>
                       <p className="text-slate-400 text-xs">
                         A detector could not load ({gaps.map(g => g.details?.split(':')[0]).filter(Boolean).join(', ') || 'unknown'}).
                         Not a violation — but a lack of flags here is not proof of a clean attempt.
@@ -175,7 +171,7 @@ export default async function ProctoringReportsPage() {
 
                 {events.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">المخالفات</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{t('proctoring.violations')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {events.map((ev, i) => {
                         const Icon = VIOLATION_ICONS[ev.type as ViolationIconKey] ?? AlertTriangle
@@ -185,7 +181,7 @@ export default async function ProctoringReportsPage() {
                             <div className="min-w-0">
                               <p className="text-red-300 text-sm font-medium">{VIOLATION_LABELS[ev.type] ?? ev.type}</p>
                               {ev.details && <p className="text-slate-500 text-xs truncate">{ev.details}</p>}
-                              {ev.timestamp && <p className="text-slate-600 text-xs">{formatDateTime(ev.timestamp)}</p>}
+                              {ev.timestamp && <p className="text-slate-600 text-xs">{formatDateTime(ev.timestamp, locale)}</p>}
                             </div>
                           </div>
                         )

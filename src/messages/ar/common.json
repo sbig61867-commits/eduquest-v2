@@ -1,0 +1,123 @@
+{
+  "appName": "إديوكويست",
+  "actions": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "close": "إغلاق",
+    "retry": "إعادة المحاولة",
+    "signOut": "تسجيل الخروج",
+    "signingOut": "جارٍ الخروج…"
+  },
+  "state": {
+    "loading": "جارٍ التحميل…",
+    "empty": "لا يوجد شيء بعد",
+    "error": "حدث خطأ ما"
+  },
+  "locale": {
+    "switchLabel": "اللغة",
+    "en": "English",
+    "ar": "العربية"
+  },
+  "counts": {
+    "exams": "{count, plural, zero {لا اختبارات} one {اختبار واحد} two {اختباران} few {# اختبارات} many {# اختباراً} other {# اختبار}}",
+    "students": "{count, plural, zero {لا طلاب} one {طالب واحد} two {طالبان} few {# طلاب} many {# طالباً} other {# طالب}}"
+  },
+  "greeting": "أهلاً بعودتك يا {name}",
+  "nav": {
+    "openMenu": "فتح القائمة"
+  },
+  "notifications": {
+    "label": "الإشعارات",
+    "refreshing": "تحديث…",
+    "empty": "لا توجد إشعارات بعد",
+    "items": {
+      "newLesson": "درس جديد: {title}",
+      "newExam": "اختبار جديد: {title}",
+      "gradePublished": "نُشرت نتيجة: {title}",
+      "examFallback": "اختبار",
+      "newSubmission": "{kind, select, homework{تسليم جديد في واجب} other{تسليم جديد في اختبار}}: {title}",
+      "newUser": "{role, select, teacher{معلم جديد} other{طالب جديد}}: {name}",
+      "contactMessage": "رسالة تواصل من {name}",
+      "newTenant": "مؤسسة جديدة: {name}"
+    }
+  },
+  "error": {
+    "title": "حدث خطأ ما",
+    "body": "حدث خطأ غير متوقع. بياناتك آمنة — حاول مجدداً، وإن استمرت المشكلة فتواصل مع مدير مؤسستك.",
+    "retry": "حاول مجدداً",
+    "home": "الذهاب للوحة"
+  },
+  "ai": {
+    "stageRead": "قراءة الملف…",
+    "stageExtract": "استخراج النص من الملف…",
+    "stageProcess": "الذكاء الاصطناعي يعالج المحتوى…",
+    "stagePrepare": "جاري تجهيز النتيجة…",
+    "stageDone": "اكتملت المعالجة بنجاح"
+  },
+  "quota": {
+    "title": "حدود الذكاء الاصطناعي لهذه الساعة",
+    "exhaustedCount": "{count} نفدت",
+    "loading": "جارٍ التحميل…",
+    "none": "لا توجد حدود لعرضها.",
+    "windowHint": "تبدأ الساعة من أول طلب تستهلكه، ولا تمدّدها الطلبات التالية.",
+    "refresh": "تحديث",
+    "renewsIn": "تتجدد بعد",
+    "exhaustedRenewsIn": "نفدت — تتجدد بعد",
+    "features": {
+      "lesson": "توليد درس من موضوع",
+      "lesson-file": "توليد درس من ملف",
+      "exam": "توليد اختبار",
+      "homework-file": "توليد واجب من ملف",
+      "course-file": "توليد مساق من ملف",
+      "item-content": "توليد محتوى عنصر في مساق",
+      "course_suggestions": "اقتراحات تحسين المساق",
+      "announcement_copy": "صياغة إعلان",
+      "extract-file": "استخراج نص من ملف ممسوح"
+    }
+  },
+  "lessonTabs": {
+    "listen": "استمع للنطق",
+    "listenTo": "استمع لنطق {term}",
+    "showTranslation": "لم أفهم — أظهر الترجمة العربية",
+    "translate": "ترجمة",
+    "answerPlaceholder": "اكتب إجابتك هنا…",
+    "correctAnswer": "الإجابة الصحيحة: {answer}",
+    "modelAnswer": "الإجابة النموذجية للمقارنة: {answer}",
+    "checkAnswers": "تحقق من إجاباتي",
+    "score": "نتيجتك: {score} / {total}",
+    "selfCheckExtra": "(+{count} سؤال تقييم ذاتي)",
+    "retry": "إعادة المحاولة",
+    "answerAllFirst": "أجب على كل الأسئلة أولاً"
+  },
+  "days": {
+    "0": "الأحد",
+    "1": "الإثنين",
+    "2": "الثلاثاء",
+    "3": "الأربعاء",
+    "4": "الخميس",
+    "5": "الجمعة",
+    "6": "السبت"
+  },
+  "schedule": {
+    "noSlots": "لا مواعيد",
+    "slotCount": "{count} موعد",
+    "gridEmpty": "لا توجد مواعيد في هذا الجدول بعد."
+  },
+  "meta": {
+    "title": "إديوكويست — منصة تعليمية",
+    "description": "منصة تعليمية متعددة المؤسسات بأدوات تعلّم مدعومة بالذكاء الاصطناعي"
+  },
+  "notFound": {
+    "code": "خطأ 404",
+    "title": "هذه الصفحة غير موجودة",
+    "body": "قد يكون الرابط قديماً، أو أن العنصر قد أُرشف من قِبل مؤسستك. حسابك وبياناتك غير متأثرة.",
+    "home": "العودة إلى إديوكويست",
+    "metaTitle": "الصفحة غير موجودة · إديوكويست"
+  },
+  "globalError": {
+    "body": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى."
+  },
+  "unknown": "غير معروف"
+}

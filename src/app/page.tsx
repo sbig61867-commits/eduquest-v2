@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { Landing } from '@/components/public/landing'
 
-export const metadata: Metadata = {
-  title: 'EduQuest — منصة تعليمية سحابية للمؤسسات التعليمية',
-  description:
-    'EduQuest منصة تعليمية متكاملة للجامعات والمدارس والمعاهد ومراكز التدريب: دروس واختبارات بالذكاء الاصطناعي، مراقبة ذكية للاختبارات، علامات فورية، وعزل كامل لكل مؤسسة. AI lessons & exams, smart proctoring, instant grades.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('public.meta.home')
+  return { title: t('title'), description: t('description') }
 }
 
 export default function RootPage() {

@@ -1,5 +1,7 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -35,7 +37,10 @@ export function AdminGroupsClient({ initialGroups, academic }: { initialGroups: 
   const [groups, setGroups] = useState(initialGroups)
   const [busy, setBusy] = useState('')
   const [links, setLinks] = useState(academic?.links ?? {})
-  const t = getTerms(useAuthStore(s => s.tenant?.institution_type))
+  const tr = useTranslations('admin.groups')
+  const locale = useLocale() as Locale
+  // `t` is tenant vocabulary (terminology.ts), `tr` is the translator.
+  const t = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
 
   // Level-2 units listed under their parent, e.g. "Faculty › Department"
   const unitOptions = (academic?.units ?? []).flatMap(u => u.level !== 1 ? [] : [
@@ -54,14 +59,14 @@ export function AdminGroupsClient({ initialGroups, academic }: { initialGroups: 
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      toast.error(data.error ?? 'فشل الحفظ')
+      toast.error(data.error ?? tr('saveFailed'))
       setLinks(prev => ({ ...prev, [group.id]: previous }))
     }
   }
 
   async function toggleArchive(group: GroupRow) {
     const archiving = group.is_active
-    if (archiving && !(await confirmDialog(`أرشفة مجموعة "${group.name}"؟ ستختفي عن الطلاب وتبقى كل السجلات والعلامات محفوظة.`))) return
+    if (archiving && !(await confirmDialog(tr('archiveConfirm', { name: group.name })))) return
     setBusy(group.id)
     const res = await fetch('/api/groups', {
       method: 'PATCH',
@@ -69,7 +74,7 @@ export function AdminGroupsClient({ initialGroups, academic }: { initialGroups: 
       body: JSON.stringify({ id: group.id, is_active: !group.is_active }),
     })
     const data = await res.json()
-    if (!res.ok) toast.error(data.error ?? 'فشل تغيير حالة المجموعة')
+    if (!res.ok) toast.error(data.error ?? tr('statusFailed'))
     else {
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_active: data.is_active } : g))
       router.refresh()
@@ -80,26 +85,26 @@ export function AdminGroupsClient({ initialGroups, academic }: { initialGroups: 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">{t.groupsAr}</h2>
-        <p className="text-slate-400 mt-1">{groups.length} مجموعة · {groups.filter(g => !g.is_active).length} مؤرشفة</p>
+        <h2 className="text-2xl font-bold text-white">{t.groups}</h2>
+        <p className="text-slate-400 mt-1">{tr('summary', { count: groups.length, archived: groups.filter(g => !g.is_active).length })}</p>
       </div>
 
       {groups.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد مجموعات بعد — ينشئها المعلمون من لوحاتهم.</p>
+          <p className="text-slate-400">{tr('empty')}</p>
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800 text-start">
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">المجموعة</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden md:table-cell">المعلم</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">{tr('thGroup')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden md:table-cell">{tr('thTeacher')}</th>
                 {academic && <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden lg:table-cell">{t.unitL1} / {t.term}</th>}
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">الطلاب</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden md:table-cell">أنشئت</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">الحالة</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">{tr('thStudents')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3 hidden md:table-cell">{tr('thCreated')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase px-5 py-3">{tr('thStatus')}</th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -136,16 +141,16 @@ export function AdminGroupsClient({ initialGroups, academic }: { initialGroups: 
                     </td>
                   )}
                   <td className="px-5 py-4 text-slate-300 text-sm">{group.group_students?.[0]?.count ?? 0}</td>
-                  <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(group.created_at)}</td>
+                  <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(group.created_at, locale)}</td>
                   <td className="px-5 py-4">
-                    <Badge variant={group.is_active ? 'green' : 'yellow'}>{group.is_active ? 'نشطة' : 'مؤرشفة'}</Badge>
+                    <Badge variant={group.is_active ? 'green' : 'yellow'}>{group.is_active ? tr('active') : tr('archived')}</Badge>
                   </td>
                   <td className="px-5 py-4 text-end">
                     <Button variant="ghost" size="sm" loading={busy === group.id} onClick={() => toggleArchive(group)}
-                      title={group.is_active ? 'أرشفة' : 'استرجاع'}>
+                      title={group.is_active ? tr('archive') : tr('restore')}>
                       {group.is_active
-                        ? <><Archive className="w-3.5 h-3.5" /> أرشفة</>
-                        : <><ArchiveRestore className="w-3.5 h-3.5" /> استرجاع</>}
+                        ? <><Archive className="w-3.5 h-3.5" /> {tr('archive')}</>
+                        : <><ArchiveRestore className="w-3.5 h-3.5" /> {tr('restore')}</>}
                     </Button>
                   </td>
                 </tr>

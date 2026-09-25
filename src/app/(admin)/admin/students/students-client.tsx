@@ -1,5 +1,7 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -20,7 +22,9 @@ interface Props {
 }
 
 export function StudentsClient({ initialStudents, canSetAffiliation = false, hasCenter = true }: Props) {
-  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type))
+  const t = useTranslations('admin.people')
+  const locale = useLocale() as Locale
+  const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
   const [students, setStudents] = useState(initialStudents)
   const [search, setSearch] = useState('')
   const router = useRouter()
@@ -55,7 +59,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
   }
 
   async function deleteStudent(id: string) {
-    if (!(await confirmDialog('إزالة هذا الطالب؟'))) return
+    if (!(await confirmDialog(t('students.deleteConfirm')))) return
     const res = await fetch(`/api/admin/delete-user?id=${id}`, { method: 'DELETE' })
     if (res.ok) { setStudents(prev => prev.filter(s => s.id !== id)); router.refresh() }
   }
@@ -64,32 +68,32 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الطلاب</h2>
-          <p className="text-slate-400 mt-1">{students.length} total students</p>
+          <h2 className="text-2xl font-bold text-white">{t('students.title')}</h2>
+          <p className="text-slate-400 mt-1">{t('students.summary', { count: students.length })}</p>
         </div>
         <Button onClick={() => router.push('/admin/invitations')}>
-          <UserPlus className="w-4 h-4" /> دعوة طالب
+          <UserPlus className="w-4 h-4" /> {t('students.invite')}
         </Button>
       </div>
 
       <div className="relative">
         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث عن طالب…" className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('students.search')} className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الاسم</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">البريد الإلكتروني</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">تاريخ الانضمام</th>
-              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('common.name')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">{t('common.email')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">{t('common.joined')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('common.status')}</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {filtered.length === 0 && <tr><td colSpan={5} className="text-center text-slate-500 py-10">لم يُعثر على طلاب</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={5} className="text-center text-slate-500 py-10">{t('students.empty')}</td></tr>}
             {filtered.map(student => (
               <tr key={student.id} className="hover:bg-slate-800/50 transition-colors">
                 <td className="px-5 py-4">
@@ -99,13 +103,13 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
                   </div>
                 </td>
                 <td className="px-5 py-4 hidden md:table-cell"><span className="text-slate-400 text-sm flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{student.email}</span></td>
-                <td className="px-5 py-4 hidden lg:table-cell"><span className="text-slate-400 text-sm">{formatDate(student.created_at)}</span></td>
+                <td className="px-5 py-4 hidden lg:table-cell"><span className="text-slate-400 text-sm">{formatDate(student.created_at, locale)}</span></td>
                 <td className="px-5 py-4">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant={student.is_active ? 'green' : 'red'}>{student.is_active ? 'نشط' : 'معطّل'}</Badge>
+                    <Badge variant={student.is_active ? 'green' : 'red'}>{student.is_active ? t('common.active') : t('common.disabled')}</Badge>
                     {hasCenter && (
                       <Badge variant={student.is_university_student === false ? 'gray' : 'blue'}>
-                        {student.is_university_student === false ? 'Centre trainee' : terms.institution}
+                        {student.is_university_student === false ? t('students.centreTrainee') : terms.institution}
                       </Badge>
                     )}
                   </div>
@@ -116,7 +120,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
                       <Button
                         variant="ghost"
                         size="sm"
-                        title={student.is_university_student === false ? `Mark as ${terms.institutionStudent.toLowerCase()}` : 'Mark as centre-only trainee'}
+                        title={student.is_university_student === false ? t('students.markInstitution', { label: terms.institutionStudent }) : t('students.markCentreOnly')}
                         onClick={() => toggleAffiliation(student)}
                       ><GraduationCap className="w-4 h-4" /></Button>
                     )}

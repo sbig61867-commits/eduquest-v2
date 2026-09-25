@@ -40,7 +40,8 @@ export interface AudienceDecision {
   center_students_only: boolean
 }
 
-export const AUDIENCE_DENIED = 'لا تملك صلاحية مخاطبة طلاب المؤسسة — يمكنك مخاطبة طلاب المركز فقط'
+// An API error code; the route translates it into the caller's language.
+export const AUDIENCE_DENIED = 'audienceDenied' as const
 
 /**
  * Resolve the audience a request may actually use.
@@ -50,7 +51,7 @@ export const AUDIENCE_DENIED = 'لا تملك صلاحية مخاطبة طلاب
 export function resolveAudience(
   requested: unknown,
   mayTargetUniversity: boolean,
-): AudienceDecision | { error: string } {
+): AudienceDecision | { error: typeof AUDIENCE_DENIED } {
   const audience: AnnouncementAudience = isAnnouncementAudience(requested)
     ? requested
     : (mayTargetUniversity ? 'all' : 'center')

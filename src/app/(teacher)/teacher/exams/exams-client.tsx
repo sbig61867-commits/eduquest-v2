@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useRef, useState } from 'react'
@@ -13,6 +13,8 @@ import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import type { Question } from '@/types'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 interface ResultRow {
   student_id: string; submission_id: string | null; name: string; email: string; submitted: boolean
@@ -37,6 +39,8 @@ interface Props { initialExams: Exam[]; groups: Group[]; proctoringDefault?: boo
 
 export function ExamsClient({ initialExams, groups, proctoringDefault = false }: Props) {
   const router = useRouter()
+  const t = useTranslations('teacher')
+  const locale = useLocale() as Locale
   const [exams, setExams] = useState(initialExams)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault })
@@ -46,8 +50,6 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   const [aiLoading, setAiLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // ── AI from file — questions generated strictly from uploaded material
-  //    (same source-restricted pipeline as homework/lesson generation) ──
   const [genMode, setGenMode] = useState<'topic' | 'file'>('topic')
   const [examFiles, setExamFiles] = useState<File[]>([])
   const examFileRef = useRef<HTMLInputElement>(null)
@@ -58,11 +60,11 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   const [examFileLoading, setExamFileLoading] = useState(false)
   const [examFileError, setExamFileError] = useState('')
 
-  function toggleExamQType(t: string) {
+  function toggleExamQType(qt: string) {
     setExamQTypes(prev => {
       const next = new Set(prev)
-      if (next.has(t)) next.delete(t)
-      else next.add(t)
+      if (next.has(qt)) next.delete(qt)
+      else next.add(qt)
       return next
     })
   }
@@ -89,23 +91,22 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
         setQuestions(prev => [...prev, ...withPoints])
         if (!form.title && examFiles[0]) setForm(p => ({ ...p, title: examFiles[0].name.replace(/\.\w+$/, '') }))
         if (data.delivered < data.requested) {
-          setExamFileError(`تم توليد ${data.delivered} من ${data.requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.`)
+          setExamFileError(t('exams.modal.partialGeneration', { delivered: data.delivered, requested: data.requested }))
         }
       } else {
-        setExamFileError(data.error ?? 'فشل التوليد')
+        setExamFileError(data.error ?? t('exams.modal.generateFailed'))
       }
     } catch {
-      setExamFileError('خطأ في الاتصال. حاول مجدداً.')
+      setExamFileError(t('exams.modal.connectionError'))
     }
     setExamFileLoading(false)
   }
-  const [selectedQ, setSelectedQ] = useState<Set<string>>(new Set()) // bulk-grade selection
+  const [selectedQ, setSelectedQ] = useState<Set<string>>(new Set())
   const [bulkPts, setBulkPts] = useState(1)
   const [results, setResults] = useState<ExamResults | null>(null)
   const [resultsLoading, setResultsLoading] = useState(false)
   const [viewQuestions, setViewQuestions] = useState<Exam | null>(null)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  // manual points per submission: { [submissionId]: { [questionId]: points } }
   const [manualPts, setManualPts] = useState<Record<string, Record<string, number>>>({})
   const [gradeBusy, setGradeBusy] = useState('')
   const [resultsExamId, setResultsExamId] = useState('')
@@ -115,11 +116,10 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     setResultsExamId(examId)
     const res = await fetch(`/api/exams/results?exam_id=${examId}`)
     if (res.ok) setResults(await res.json())
-    else toast.error((await res.json().catch(() => ({}))).error ?? 'فشل تحميل النتائج')
+    else toast.error((await res.json().catch(() => ({}))).error ?? t('exams.results.loadFailed'))
     setResultsLoading(false)
   }
 
-  // Auto-gradable portion of a submission (mcq/true_false), from stored answers.
   function autoScore(r: ResultRow): number {
     if (!results) return 0
     return results.questions.reduce((s, q) =>
@@ -133,7 +133,6 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     return autoScore(r) + manualSum
   }
 
-  // Reuses the generic submission PATCH (verifies exams.teacher_id server-side).
   async function patchSubmission(submissionId: string, patch: { score?: number; grading_status?: string }, examId: string) {
     setGradeBusy(submissionId)
     const res = await fetch('/api/homework/submissions', {
@@ -141,8 +140,8 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: submissionId, ...patch }),
     })
-    if (!res.ok) toast.error((await res.json().catch(() => ({}))).error ?? 'فشل الحفظ')
-    else await openResults(examId) // refresh scores/status
+    if (!res.ok) toast.error((await res.json().catch(() => ({}))).error ?? t('exams.results.saveFailed'))
+    else await openResults(examId)
     setGradeBusy('')
   }
   async function generateQuestions() {
@@ -154,15 +153,13 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
       body: JSON.stringify({ topic: aiTopic, count: aiCount, type: 'mixed' }),
     })
     const data = await res.json()
-    // Default every question to 1 point → a natural total = number of questions
-    // (e.g. 30 questions ⇒ out of 30). The teacher can adjust each below.
     if (data.questions) setQuestions(data.questions.map((q: Question, i: number) => ({ ...q, id: String(i + 1), points: 1 })))
     setAiLoading(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (questions.length === 0) { toast.warning('أضف سؤالاً واحداً على الأقل'); return }
+    if (questions.length === 0) { toast.warning(t('exams.modal.addAtLeastOne')); return }
     setLoading(true)
     const res = await fetch('/api/exams', {
       method: 'POST',
@@ -187,14 +184,14 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
   }
 
   async function deleteExam(id: string) {
-    if (!(await confirmDialog('حذف هذا الاختبار؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فسيُمحى نهائياً مع كل تسليماته وعلاماته (لا رجعة). وإلا فسيُنقل إلى الأرشيف مع حفظ كل السجلات.'))) return
+    if (!(await confirmDialog(t('exams.deleteConfirm')))) return
     const res = await fetch('/api/exams', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     })
     if (!res.ok) {
-      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف الاختبار')
+      toast.error((await res.json().catch(() => ({}))).error ?? t('exams.modal.deleteFailed'))
       return
     }
     setExams(prev => prev.filter(e => e.id !== id))
@@ -205,22 +202,29 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     setQuestions(prev => prev.filter(q => q.id !== id))
   }
 
+  const markUnit = t('exams.modal.markUnit')
+  const qtypeLabels: Record<string, string> = {
+    mcq: t('exams.modal.qtypeMcq'),
+    true_false: t('exams.modal.qtypeTrueFalse'),
+    essay: t('exams.modal.qtypeEssay'),
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الاختبارات</h2>
-          <p className="text-slate-400 mt-1">{exams.length} exams created</p>
+          <h2 className="text-2xl font-bold text-white">{t('exams.title')}</h2>
+          <p className="text-slate-400 mt-1">{t('exams.subtitle', { count: exams.length })}</p>
         </div>
         <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
-          <Plus className="w-4 h-4" /> اختبار جديد
+          <Plus className="w-4 h-4" /> {t('exams.newExam')}
         </Button>
       </div>
 
       {exams.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد اختبارات بعد.</p>
+          <p className="text-slate-400">{t('exams.noExams')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -230,17 +234,17 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-white font-semibold">{exam.title}</h3>
-                    <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? 'منشور' : 'مسودة'}</Badge>
-                    {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 me-1" />مراقَب</Badge>}
+                    <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? t('exams.published') : t('exams.draft')}</Badge>
+                    {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 me-1" />{t('exams.proctored')}</Badge>}
                   </div>
                   <p className="text-slate-400 text-sm flex items-center gap-1.5 flex-wrap">
                     <Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span>
-                    · {exam.duration_minutes} min · {exam.questions.length} questions · {formatDate(exam.created_at)}
+                    · {t('exams.metaLine', { minutes: exam.duration_minutes, questions: exam.questions.length, date: formatDate(exam.created_at, locale) })}
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => setViewQuestions(exam)} title="عرض الأسئلة"><FileQuestion className="w-4 h-4" /></Button>
-                  <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> النتائج</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setViewQuestions(exam)} title={t('exams.viewQuestionsTitle')}><FileQuestion className="w-4 h-4" /></Button>
+                  <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> {t('exams.resultsBtn')}</Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                 </div>
@@ -250,17 +254,16 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
         </div>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="إنشاء اختبار جديد" size="xl">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={t('exams.modal.title')} size="xl">
         <div className="space-y-5 max-h-[70vh] overflow-y-auto pe-1">
-          {/* AI Generator — from a topic, or from the teacher's own files */}
           <div className="flex rounded-lg border border-slate-700 overflow-hidden w-fit">
             <button type="button" onClick={() => setGenMode('topic')}
               className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'topic' ? 'bg-violet-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
-              من عنوان
+              {t('exams.modal.fromTopic')}
             </button>
             <button type="button" onClick={() => setGenMode('file')}
               className={`px-4 py-2 text-sm font-medium transition-colors ${genMode === 'file' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
-              من ملفات
+              {t('exams.modal.fromFile')}
             </button>
           </div>
 
@@ -268,26 +271,26 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
             <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-violet-400" />
-                <span className="text-violet-400 text-sm font-medium">مولّد الأسئلة بالذكاء الاصطناعي</span>
+                <span className="text-violet-400 text-sm font-medium">{t('exams.modal.aiGenerator')}</span>
               </div>
               <div className="flex gap-2">
-                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="الموضوع (مثل: تطبيع قواعد البيانات)" className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder={t('exams.modal.topicPlaceholder')} className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
                 <input type="number" value={aiCount} onChange={e => setAiCount(Number(e.target.value))} min={5} max={30} className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500" />
-                <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">توليد</Button>
+                <Button onClick={generateQuestions} loading={aiLoading} variant="secondary" size="sm">{t('exams.modal.generate')}</Button>
               </div>
             </div>
           ) : (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3" dir="rtl">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Upload className="w-4 h-4 text-blue-400" />
-                <span className="text-blue-300 text-sm font-medium">توليد اختبار من ملف — الأسئلة من محتوى الملف فقط</span>
+                <span className="text-blue-300 text-sm font-medium">{t('exams.modal.fileGenerator')}</span>
               </div>
 
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" onClick={() => examFileRef.current?.click()}
                     className="px-3 py-2 rounded-lg border border-blue-500 bg-blue-500/10 text-blue-300 text-sm hover:bg-blue-500/20 transition-colors">
-                    <Plus className="w-3.5 h-3.5 inline -mt-0.5" /> {examFiles.length ? 'إضافة ملفات أخرى' : 'اختر ملفاً أو أكثر (PDF / DOCX / PPTX / صورة)'}
+                    <Plus className="w-3.5 h-3.5 inline -mt-0.5" /> {examFiles.length ? t('exams.modal.addMoreFiles') : t('exams.modal.addFiles')}
                   </button>
                   <input ref={examFileRef} type="file" multiple accept=".pptx,.docx,.pdf,.jpg,.jpeg,.png,.webp" className="hidden"
                     onChange={e => {
@@ -300,16 +303,16 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                       e.target.value = ''
                     }} />
                   <input type="number" value={examFileCount} onChange={e => setExamFileCount(Number(e.target.value))} min={1} max={120}
-                    title="عدد الأسئلة"
+                    title={t('exams.modal.questionCount')}
                     className="w-16 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <span className="text-slate-500 text-xs">سؤال</span>
+                  <span className="text-slate-500 text-xs">{t('exams.modal.questionUnit')}</span>
                 </div>
                 {examFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {examFiles.map((f, i) => (
                       <span key={f.name + f.size} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs">
                         📄 {f.name}
-                        <button type="button" title="إزالة هذا الملف"
+                        <button type="button" title={t('exams.modal.removeFile')}
                           onClick={() => setExamFiles(prev => prev.filter((_, j) => j !== i))}
                           className="text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
                       </span>
@@ -321,75 +324,72 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
 
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {([['mcq', 'اختيار من متعدد'], ['true_false', 'صح / خطأ'], ['essay', 'مقالي']] as const).map(([t, label]) => (
-                    <div key={t} className="flex items-center gap-1.5">
-                      <button type="button" onClick={() => toggleExamQType(t)}
+                  {(['mcq', 'true_false', 'essay'] as const).map(qt => (
+                    <div key={qt} className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => toggleExamQType(qt)}
                         className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
-                          examQTypes.has(t) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                          examQTypes.has(qt) ? 'border-blue-500 bg-blue-500/15 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-500'
                         }`}>
-                        {examQTypes.has(t) ? '✓ ' : ''}{label}
+                        {examQTypes.has(qt) ? '✓ ' : ''}{qtypeLabels[qt]}
                       </button>
-                      {examQTypes.has(t) && (
+                      {examQTypes.has(qt) && (
                         <>
-                          <input type="number" min={1} max={100} value={examTypePoints[t]}
-                            title={`علامة كل سؤال ${label}`}
-                            onChange={e => setExamTypePoints(p => ({ ...p, [t]: Math.max(1, Number(e.target.value)) }))}
+                          <input type="number" min={1} max={100} value={examTypePoints[qt]}
+                            title={`${t('exams.modal.questionGrade')} ${qtypeLabels[qt]}`}
+                            onChange={e => setExamTypePoints(p => ({ ...p, [qt]: Math.max(1, Number(e.target.value)) }))}
                             className="w-14 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                          <span className="text-slate-500 text-xs">علامة</span>
+                          <span className="text-slate-500 text-xs">{markUnit}</span>
                         </>
                       )}
                     </div>
                   ))}
                 </div>
-                <p className="text-slate-500 text-xs">حدد علامة كل سؤال حسب نوعه — وبعد التوليد يمكنك تعديل علامة أي سؤال منفرداً أو جماعياً.</p>
+                <p className="text-slate-500 text-xs">{t('exams.modal.qtypeHint')}</p>
               </div>
 
               <textarea value={examFileInstructions} onChange={e => setExamFileInstructions(e.target.value)} rows={2}
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder='تعليمات إضافية للذكاء الاصطناعي (اختياري) — مثال: "ركّز على الفصلين 3 و4"' />
+                placeholder={t('exams.modal.instructionsPlaceholder')} />
 
               <AiProgress active={examFileLoading} />
               {examFileError && <p className="text-red-400 text-sm">{examFileError}</p>}
 
               <Button onClick={generateExamFromFile} loading={examFileLoading} disabled={examFiles.length === 0 || examQTypes.size === 0} variant="secondary" size="sm">
-                <Sparkles className="w-4 h-4" /> توليد الأسئلة من الملف
+                <Sparkles className="w-4 h-4" /> {t('exams.modal.generateFromFile')}
               </Button>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="عنوان الاختبار" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="مثال: اختبار منتصف الفصل — الفصول 1-5" />
+            <Input label={t('exams.modal.examTitle')} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder={t('exams.modal.examTitlePlaceholder')} />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">مجموعة</label>
+                <label className="block text-sm font-medium text-slate-300">{t('exams.modal.groupLabel')}</label>
                 <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
-              <Input label="المدة (بالدقائق)" type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
+              <Input label={t('exams.modal.durationLabel')} type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
             </div>
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.proctoring_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />تفعيل المراقبة (كاميرا + كشف التبويبات)</span>
+              <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />{t('exams.modal.proctoringLabel')}</span>
             </label>
 
-            {/* Questions Preview */}
             {questions.length > 0 && (
               <div className="space-y-2">
-                <p className="text-slate-300 text-sm font-medium">{questions.length} Questions Generated</p>
+                <p className="text-slate-300 text-sm font-medium">{t('exams.modal.questionsGenerated', { count: questions.length })}</p>
 
-                {/* Bulk-grade bar: set a uniform mark for selected (or all) questions
-                    at once — no need to edit 100 questions one by one. */}
-                <div className="flex flex-wrap items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2" dir="rtl">
+                <div className="flex flex-wrap items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
                   <button type="button"
                     onClick={() => setSelectedQ(selectedQ.size === questions.length ? new Set() : new Set(questions.map(q => q.id)))}
                     className="text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400">
-                    {selectedQ.size === questions.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                    {selectedQ.size === questions.length ? t('exams.modal.deselectAll') : t('exams.modal.selectAll')}
                   </button>
                   <span className="text-slate-400 text-xs">
-                    {selectedQ.size > 0 ? `${selectedQ.size} محدد` : 'حدّد أسئلة'} — ضع درجة موحّدة:
+                    {selectedQ.size > 0 ? t('exams.modal.selected', { count: selectedQ.size }) : t('exams.modal.selectPrompt')} {t('exams.modal.bulkGrade')}
                   </span>
                   <input type="number" min={1} max={100} value={bulkPts}
                     onChange={e => setBulkPts(Math.max(1, Number(e.target.value)))}
@@ -399,7 +399,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                       const target = selectedQ.size > 0 ? selectedQ : new Set(questions.map(q => q.id))
                       setQuestions(prev => prev.map(x => target.has(x.id) ? { ...x, points: bulkPts } : x))
                     }}>
-                    تطبيق {selectedQ.size > 0 ? 'على المحدد' : 'على الكل'}
+                    {selectedQ.size > 0 ? t('exams.modal.applyToSelected') : t('exams.modal.applyToAll')}
                   </Button>
                 </div>
 
@@ -416,13 +416,13 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                         <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'} className="shrink-0">{q.type}</Badge>
                         <span className="flex items-center gap-1 shrink-0">
                           <input type="number" min={1} max={100} value={q.points}
-                            title="درجة هذا السؤال"
+                            title={t('exams.modal.questionGrade')}
                             onChange={e => {
                               const v = Math.max(1, Number(e.target.value))
                               setQuestions(prev => prev.map(x => x.id === q.id ? { ...x, points: v } : x))
                             }}
                             className="w-14 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-white text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                          <span className="text-slate-500 text-xs">د</span>
+                          <span className="text-slate-500 text-xs">{markUnit}</span>
                         </span>
                         <button onClick={() => removeQuestion(q.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X className="w-3.5 h-3.5" /></button>
                       </div>
@@ -430,24 +430,23 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                   })}
                 </div>
                 <p className="text-slate-400 text-xs mt-2">
-                  {questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
-                  <span className="text-slate-600"> — عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة</span>
+                  {t('exams.modal.questionsSummary', { count: questions.length })} <span className="text-white font-bold">{questions.reduce((s, q) => s + (q.points || 0), 0)}</span>
+                  <span className="text-slate-600"> {t('exams.modal.editHint')}</span>
                 </p>
               </div>
             )}
 
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">إلغاء</Button>
-              <Button type="submit" loading={loading} className="flex-1">Create Exam ({questions.reduce((s, q) => s + (q.points || 0), 0)} د)</Button>
+              <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">{t('exams.modal.cancel')}</Button>
+              <Button type="submit" loading={loading} className="flex-1">{t('exams.modal.createExam', { marks: questions.reduce((s, q) => s + (q.points || 0), 0), unit: markUnit })}</Button>
             </div>
           </form>
         </div>
       </Modal>
 
-      {/* Results */}
-      <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title="نتائج الاختبار" size="xl">
+      <Modal open={resultsLoading || !!results} onClose={() => setResults(null)} title={t('exams.results.modalTitle')} size="xl">
         {resultsLoading ? (
-          <p className="text-slate-500 text-sm py-8 text-center">جارٍ تحميل النتائج…</p>
+          <p className="text-slate-500 text-sm py-8 text-center">{t('exams.results.loading')}</p>
         ) : results ? (
           <div className="space-y-4 max-h-[75vh] overflow-y-auto pe-1">
             <div className="flex flex-wrap items-center gap-3">
@@ -456,22 +455,22 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <p className="text-slate-400 text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {results.group_name}</p>
               </div>
               <div className="ms-auto flex gap-4 text-sm">
-                <span className="text-slate-300">{results.submitted_count}/{results.roster_count} submitted</span>
-                <span className="text-slate-500">out of {results.max_score} marks</span>
+                <span className="text-slate-300">{t('exams.results.submittedOf', { submitted: results.submitted_count, total: results.roster_count })}</span>
+                <span className="text-slate-500">{t('exams.results.outOfMarks', { marks: results.max_score })}</span>
               </div>
             </div>
 
             {results.results.length === 0 ? (
-              <p className="text-slate-500 text-sm py-6 text-center">لا يوجد طلاب مسجّلون في هذه المجموعة بعد.</p>
+              <p className="text-slate-500 text-sm py-6 text-center">{t('exams.results.noStudents')}</p>
             ) : (
               <div className="border border-slate-800 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                      <th className="text-start px-4 py-2.5">طالب</th>
-                      <th className="text-start px-4 py-2.5">الدرجة</th>
-                      <th className="text-start px-4 py-2.5 hidden sm:table-cell">تم التسليم</th>
-                      <th className="text-start px-4 py-2.5">الحالة</th>
+                      <th className="text-start px-4 py-2.5">{t('exams.results.student')}</th>
+                      <th className="text-start px-4 py-2.5">{t('exams.results.score')}</th>
+                      <th className="text-start px-4 py-2.5 hidden sm:table-cell">{t('exams.results.submittedHeader')}</th>
+                      <th className="text-start px-4 py-2.5">{t('exams.results.status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/70">
@@ -495,23 +494,22 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                               {!r.submitted ? <span className="text-slate-600">—</span>
                                 : r.grading_status === 'published' && r.score != null
                                   ? <span className={`font-bold ${pct! >= 60 ? 'text-emerald-400' : 'text-red-400'}`}>{r.score}/{r.max_score} ({pct}%)</span>
-                                  : <span className="text-amber-400 text-xs">بانتظار التصحيح</span>}
+                                  : <span className="text-amber-400 text-xs">{t('exams.results.pending')}</span>}
                             </td>
-                            <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at) : '—'}</td>
+                            <td className="px-4 py-3 hidden sm:table-cell text-slate-400 text-xs">{r.submitted_at ? formatDateTime(r.submitted_at, locale) : '—'}</td>
                             <td className="px-4 py-3">
-                              {!r.submitted ? <Badge variant="gray">لم يُؤدَّ</Badge>
+                              {!r.submitted ? <Badge variant="gray">{t('exams.results.notSubmitted')}</Badge>
                                 : <span className="flex items-center gap-2">
-                                    <Badge variant="green">تم التسليم</Badge>
+                                    <Badge variant="green">{t('exams.results.submittedBadge')}</Badge>
                                     {r.violations > 0 && <span className="flex items-center gap-1 text-red-400 text-xs"><AlertTriangle className="w-3.5 h-3.5" />{r.violations}</span>}
                                   </span>}
                             </td>
                           </tr>
 
-                          {/* Expanded: answers review + manual grading */}
                           {open && r.submitted && r.submission_id && (
                             <tr key={`${r.student_id}-detail`}>
                               <td colSpan={4} className="px-4 py-4 bg-slate-950/50">
-                                <div className="space-y-3" dir="rtl">
+                                <div className="space-y-3">
                                   {results.questions.map((q, qi) => {
                                     const ans = r.answers[q.id] ?? ''
                                     const auto = isAutoQ(q)
@@ -522,17 +520,17 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                           <span className="text-slate-500 text-xs font-mono mt-0.5">{qi + 1}.</span>
                                           <p className="flex-1 text-slate-200 text-sm">{q.text}</p>
                                           {auto && (correct
-                                            ? <span className="flex items-center gap-1 text-emerald-400 text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} د</span>
-                                            : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0/{q.points} د</span>)}
+                                            ? <span className="flex items-center gap-1 text-emerald-400 text-xs shrink-0"><CheckCircle2 className="w-3.5 h-3.5" />{q.points} {markUnit}</span>
+                                            : <span className="flex items-center gap-1 text-red-400 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />0/{q.points} {markUnit}</span>)}
                                         </div>
                                         <p className="text-sm ps-6">
-                                          <span className="text-slate-500">إجابة الطالب: </span>
-                                          <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || '— لم يجب —'}</span>
+                                          <span className="text-slate-500">{t('exams.results.studentAnswer')} </span>
+                                          <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || t('exams.results.noAnswer')}</span>
                                         </p>
-                                        {auto && !correct && <p className="text-xs ps-6 text-emerald-400">الإجابة الصحيحة: {q.correct_answer}</p>}
+                                        {auto && !correct && <p className="text-xs ps-6 text-emerald-400">{t('exams.results.correctAnswer', { answer: q.correct_answer })}</p>}
                                         {!auto && (
                                           <div className="flex items-center gap-2 ps-6">
-                                            <label className="text-slate-400 text-xs">درجة هذا السؤال:</label>
+                                            <label className="text-slate-400 text-xs">{t('exams.results.questionGrade')}</label>
                                             <input type="number" min={0} max={q.points}
                                               value={manualPts[r.submission_id!]?.[q.id] ?? 0}
                                               onChange={e => setManualPts(p => ({
@@ -540,7 +538,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                                 [r.submission_id!]: { ...(p[r.submission_id!] ?? {}), [q.id]: Math.max(0, Math.min(q.points, Number(e.target.value))) },
                                               }))}
                                               className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                                            <span className="text-slate-500 text-xs">من {q.points}</span>
+                                            <span className="text-slate-500 text-xs">{t('exams.results.outOf', { max: q.points })}</span>
                                           </div>
                                         )}
                                       </div>
@@ -551,12 +549,12 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                     {hasManualQ && (
                                       <>
                                         <span className="text-slate-300 text-sm">
-                                          المجموع النهائي: <span className="text-white font-bold">{totalFor(r)} / {r.max_score}</span>
-                                          <span className="text-slate-500 text-xs"> (آلي {autoScore(r)} + يدوي)</span>
+                                          {t('exams.results.finalTotal')} <span className="text-white font-bold">{totalFor(r)} / {r.max_score}</span>
+                                          <span className="text-slate-500 text-xs"> {t('exams.results.autoManual', { auto: autoScore(r) })}</span>
                                         </span>
                                         <Button size="sm" loading={gradeBusy === r.submission_id}
                                           onClick={() => patchSubmission(r.submission_id!, { score: totalFor(r), grading_status: 'reviewing' }, resultsExamId)}>
-                                          <Save className="w-3.5 h-3.5" /> حفظ التصحيح
+                                          <Save className="w-3.5 h-3.5" /> {t('exams.results.saveGrade')}
                                         </Button>
                                       </>
                                     )}
@@ -565,12 +563,12 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                         onClick={() => patchSubmission(r.submission_id!, hasManualQ
                                           ? { score: totalFor(r), grading_status: 'published' }
                                           : { grading_status: 'published' }, resultsExamId)}>
-                                        <Send className="w-3.5 h-3.5" /> نشر النتيجة للطالب
+                                        <Send className="w-3.5 h-3.5" /> {t('exams.results.publish')}
                                       </Button>
                                     ) : (
                                       <Button size="sm" variant="ghost" loading={gradeBusy === r.submission_id}
                                         onClick={() => patchSubmission(r.submission_id!, { grading_status: 'reviewing' }, resultsExamId)}>
-                                        <EyeOff className="w-3.5 h-3.5" /> إخفاء النتيجة عن الطالب
+                                        <EyeOff className="w-3.5 h-3.5" /> {t('exams.results.hide')}
                                       </Button>
                                     )}
                                   </div>
@@ -589,18 +587,17 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
         ) : null}
       </Modal>
 
-      {/* Questions viewer — teacher reviews the exam content after creation */}
-      <Modal open={!!viewQuestions} onClose={() => setViewQuestions(null)} title={viewQuestions ? `أسئلة: ${viewQuestions.title}` : ''} size="xl">
+      <Modal open={!!viewQuestions} onClose={() => setViewQuestions(null)} title={viewQuestions ? t('exams.questionsViewer.titlePrefix', { title: viewQuestions.title }) : ''} size="xl">
         {viewQuestions && (
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pe-1" dir="rtl">
-            <p className="text-slate-400 text-sm">{viewQuestions.questions.length} سؤالاً · العلامة الكاملة: <span className="text-white font-bold">{viewQuestions.questions.reduce((s, q) => s + (q.points || 0), 0)}</span></p>
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pe-1">
+            <p className="text-slate-400 text-sm">{t('exams.questionsViewer.summary', { count: viewQuestions.questions.length })} <span className="text-white font-bold">{viewQuestions.questions.reduce((s, q) => s + (q.points || 0), 0)}</span></p>
             {viewQuestions.questions.map((q, i) => (
               <div key={q.id} className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2 text-start">
                 <div className="flex items-start gap-2">
                   <span className="text-slate-500 text-xs font-mono mt-0.5">{i + 1}.</span>
                   <p className="flex-1 text-white text-sm">{q.text}</p>
                   <Badge variant={q.type === 'mcq' ? 'blue' : q.type === 'true_false' ? 'yellow' : 'gray'}>{q.type}</Badge>
-                  <span className="text-slate-500 text-xs shrink-0">{q.points} د</span>
+                  <span className="text-slate-500 text-xs shrink-0">{q.points} {markUnit}</span>
                 </div>
                 {q.options && q.options.length > 0 && (
                   <ul className="ps-6 space-y-1">
@@ -612,7 +609,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                   </ul>
                 )}
                 {(!q.options || q.options.length === 0) && q.correct_answer && (
-                  <p className="ps-6 text-emerald-400 text-sm">الإجابة: {q.correct_answer}</p>
+                  <p className="ps-6 text-emerald-400 text-sm">{t('exams.results.answerShort', { answer: q.correct_answer })}</p>
                 )}
               </div>
             ))}

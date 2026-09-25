@@ -25,7 +25,11 @@ CREATE TABLE tenants (
     CONSTRAINT tenants_institution_type_check
     CHECK (institution_type IN ('university','school','institute','training_center','company')),
   -- Centre features (student affiliation split, center_manager) — institution_type_migration.sql
-  has_center BOOLEAN NOT NULL DEFAULT TRUE
+  has_center BOOLEAN NOT NULL DEFAULT TRUE,
+  -- UI language for members with no preference of their own; keep the default
+  -- in step with DEFAULT_LOCALE in src/i18n/config.ts (locale_preferences_migration.sql)
+  default_locale TEXT NOT NULL DEFAULT 'ar'
+    CONSTRAINT tenants_default_locale_check CHECK (default_locale IN ('ar','en'))
 );
 
 CREATE TABLE users (
@@ -47,7 +51,11 @@ CREATE TABLE users (
   -- who only ever signed up for a course (FALSE). Decides which announcement
   -- audiences reach them; also pinned by users_update
   -- (student_affiliation_announcements_migration.sql).
-  is_university_student BOOLEAN NOT NULL DEFAULT TRUE
+  is_university_student BOOLEAN NOT NULL DEFAULT TRUE,
+  -- per-user UI language; NULL = inherit tenants.default_locale. Deliberately
+  -- NOT pinned in users_update — a user may set their own language, and the
+  -- other pinned columns stay pinned regardless (locale_preferences_migration.sql)
+  locale TEXT CONSTRAINT users_locale_check CHECK (locale IS NULL OR locale IN ('ar','en'))
 );
 
 CREATE TABLE feature_flags (
@@ -95,6 +103,11 @@ CREATE TABLE exams (
   group_id            UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   teacher_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title               TEXT NOT NULL,
+  -- 'homework' rows are lesson assignments (homework_exam_migration.sql):
+  -- same table, but untimed (sentinel duration), attached to lesson_id, and
+  -- shown to the student under its lesson rather than as a formal exam.
+  type                TEXT NOT NULL DEFAULT 'exam' CHECK (type IN ('exam', 'homework')),
+  lesson_id           UUID REFERENCES lessons(id) ON DELETE CASCADE,
   duration_minutes    INTEGER NOT NULL DEFAULT 60,
   questions           JSONB NOT NULL DEFAULT '[]',
   is_published        BOOLEAN DEFAULT FALSE,

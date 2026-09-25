@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getCaller, serviceClient, staffCan } from '@/lib/staff-auth'
 import { getTenantStructureMode } from '@/lib/structure-mode'
@@ -12,11 +13,11 @@ async function authorize() {
   const res = await getCaller()
   if ('error' in res) return res
   if (!staffCan(res.caller, 'manage_academic_structure')) {
-    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+    return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   }
   // Tenants on the original ('flat') structure can't touch this at all.
   if ((await getTenantStructureMode(serviceClient(), res.caller.tenant_id)) !== 'academic') {
-    return { error: NextResponse.json({ error: 'الهيكل الأكاديمي غير مفعّل لمؤسستك' }, { status: 409 }) }
+    return { error: NextResponse.json({ ...(await apiErr('academicDisabled')) }, { status: 409 }) }
   }
   return res
 }
@@ -43,13 +44,13 @@ export async function POST(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
   const body = await readBody(request)
-  if (!body) return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 })
+  if (!body) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
 
   const name = cleanName(body.name)
-  if (!name) return NextResponse.json({ error: 'الاسم مطلوب (حتى 120 حرفاً)' }, { status: 400 })
+  if (!name) return NextResponse.json({ ...(await apiErr('nameRequired120')) }, { status: 400 })
   const code = cleanCode(body.code)
   if (code === undefined && body.code !== undefined) {
-    return NextResponse.json({ error: 'الرمز طويل جداً' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('codeTooLong')) }, { status: 400 })
   }
 
   const admin = serviceClient()
@@ -58,10 +59,10 @@ export async function POST(request: Request) {
     const { data: parent } = await admin
       .from('academic_units').select('id, tenant_id, level, deleted_at').eq('id', parentId).maybeSingle()
     if (!parent || parent.tenant_id !== caller.tenant_id || parent.deleted_at) {
-      return NextResponse.json({ error: 'الوحدة الأم غير موجودة' }, { status: 404 })
+      return NextResponse.json({ ...(await apiErr('parentUnitNotFound')) }, { status: 404 })
     }
     if (parent.level !== 1) {
-      return NextResponse.json({ error: 'لا يمكن إضافة مستوى ثالث' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('noThirdLevel')) }, { status: 400 })
     }
   }
 
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     .single()
   if (error) {
     console.error('[api/academic/units POST]', error)
-    return NextResponse.json({ error: 'تعذّر الإنشاء' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('createFailed')) }, { status: 500 })
   }
   return NextResponse.json({ unit: data }, { status: 201 })
 }
@@ -90,38 +91,38 @@ export async function PATCH(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
   const body = await readBody(request)
-  if (!body || typeof body.id !== 'string') return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!body || typeof body.id !== 'string') return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = serviceClient()
   const { data: existing } = await admin
     .from('academic_units').select('id, tenant_id, deleted_at').eq('id', body.id).maybeSingle()
   if (!existing || existing.tenant_id !== caller.tenant_id || existing.deleted_at) {
-    return NextResponse.json({ error: 'غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
   }
 
   const update: Record<string, unknown> = {}
   if (body.name !== undefined) {
     const name = cleanName(body.name)
-    if (!name) return NextResponse.json({ error: 'الاسم مطلوب (حتى 120 حرفاً)' }, { status: 400 })
+    if (!name) return NextResponse.json({ ...(await apiErr('nameRequired120')) }, { status: 400 })
     update.name = name
   }
   if (body.code !== undefined) {
     const code = cleanCode(body.code)
-    if (code === undefined) return NextResponse.json({ error: 'الرمز طويل جداً' }, { status: 400 })
+    if (code === undefined) return NextResponse.json({ ...(await apiErr('codeTooLong')) }, { status: 400 })
     update.code = code
   }
   if (body.sort_order !== undefined) {
-    if (!Number.isInteger(body.sort_order)) return NextResponse.json({ error: 'ترتيب غير صالح' }, { status: 400 })
+    if (!Number.isInteger(body.sort_order)) return NextResponse.json({ ...(await apiErr('invalidOrder')) }, { status: 400 })
     update.sort_order = body.sort_order
   }
-  if (Object.keys(update).length === 0) return NextResponse.json({ error: 'لا يوجد ما يُحدَّث' }, { status: 400 })
+  if (Object.keys(update).length === 0) return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
 
   const { data, error } = await admin
     .from('academic_units').update(update).eq('id', body.id)
     .select('id, parent_id, level, name, code, sort_order').single()
   if (error) {
     console.error('[api/academic/units PATCH]', error)
-    return NextResponse.json({ error: 'تعذّر التحديث' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('updateFailed')) }, { status: 500 })
   }
   return NextResponse.json({ unit: data })
 }
@@ -133,13 +134,13 @@ export async function DELETE(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
   const body = await readBody(request)
-  if (!body || typeof body.id !== 'string') return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!body || typeof body.id !== 'string') return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = serviceClient()
   const { data: existing } = await admin
     .from('academic_units').select('id, tenant_id, deleted_at').eq('id', body.id).maybeSingle()
   if (!existing || existing.tenant_id !== caller.tenant_id || existing.deleted_at) {
-    return NextResponse.json({ error: 'غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
   }
 
   const now = new Date().toISOString()
@@ -151,7 +152,7 @@ export async function DELETE(request: Request) {
     .is('deleted_at', null)
   if (error) {
     console.error('[api/academic/units DELETE]', error)
-    return NextResponse.json({ error: 'تعذّر الأرشفة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('archiveFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true })
 }

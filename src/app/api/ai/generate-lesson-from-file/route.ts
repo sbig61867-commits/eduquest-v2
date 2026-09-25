@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
@@ -32,12 +33,12 @@ function getGeminiModel() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Limit comes from super-admin settings (ai_rate_limits.lesson_per_hour),
@@ -46,14 +47,14 @@ export async function POST(request: Request) {
   const rl = await aiRateLimit(`lesson-file:${user.id}`, { limit: aiLimits.lesson_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
+      { ...(await apiErr('rateLimited')) },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   let formData: FormData
   try { formData = await request.formData() }
-  catch { return NextResponse.json({ error: 'بيانات النموذج غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 }) }
 
   const file = formData.get('file') as File | null
   const customInstructions = (formData.get('instructions') as string | null)?.slice(0, 1000) ?? ''
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
   questionTypes = questionTypes.filter(t => (ALLOWED_QTYPES as readonly string[]).includes(t))
   if (questionTypes.length === 0) questionTypes = ['true_false', 'mcq']
 
-  if (!file) return NextResponse.json({ error: 'لم يُرفَع أي ملف' }, { status: 400 })
+  if (!file) return NextResponse.json({ ...(await apiErr('noFileUploaded')) }, { status: 400 })
 
   let fullText: string
   try {
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ content })
   } catch (e) {
     console.error('[generate-lesson-from-file] AI:', e)
-    return NextResponse.json({ error: 'فشل التوليد بالذكاء الاصطناعي. حاول مجدداً.' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
 }
 

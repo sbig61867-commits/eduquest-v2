@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serviceClient, staffCan } from '@/lib/staff-auth'
@@ -14,22 +15,22 @@ const MAX_RECORDS = 500
 async function authorizeGroup(groupId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!profile?.tenant_id) return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+  if (!profile?.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
 
   const admin = serviceClient()
   const { data: group } = await admin
     .from('groups').select('id, tenant_id, teacher_id, deleted_at').eq('id', groupId).maybeSingle()
   if (!group || group.tenant_id !== profile.tenant_id || group.deleted_at) {
-    return { error: NextResponse.json({ error: 'المجموعة غير موجودة' }, { status: 404 }) }
+    return { error: NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 }) }
   }
 
   const staff = profile.role !== 'teacher' && staffCan(profile, 'manage_attendance')
   const owner = profile.role === 'teacher' && group.teacher_id === user.id
-  if (!staff && !owner) return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+  if (!staff && !owner) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
 
   return { admin, userId: user.id, tenantId: profile.tenant_id as string }
 }
@@ -46,8 +47,8 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
   const groupId = params.get('group_id')
   const date = params.get('date')
-  if (!groupId) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
-  if (!isValidSessionDate(date)) return NextResponse.json({ error: 'تاريخ غير صالح' }, { status: 400 })
+  if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
+  if (!isValidSessionDate(date)) return NextResponse.json({ ...(await apiErr('invalidDate')) }, { status: 400 })
 
   const auth = await authorizeGroup(groupId)
   if ('error' in auth) return auth.error
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
 
   if (sessionErr) {
     console.error('[api/attendance GET]', sessionErr)
-    return NextResponse.json({ error: 'جداول الحضور غير متاحة — تأكد من تطبيق attendance_migration.sql' }, { status: 503 })
+    return NextResponse.json({ ...(await apiErr('attendanceUnavailable')) }, { status: 503 })
   }
 
   type U = { id: string; full_name: string; email: string; is_active: boolean }
@@ -97,17 +98,17 @@ export async function GET(request: Request) {
 // POST /api/attendance { group_id, session_date, title?, records: [{ student_id, status, note? }] }
 export async function POST(request: Request) {
   let body: { group_id?: string; session_date?: string; title?: string; records?: unknown }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { group_id, session_date } = body
-  if (!group_id) return NextResponse.json({ error: 'معرّف المجموعة مفقود' }, { status: 400 })
-  if (!isValidSessionDate(session_date)) return NextResponse.json({ error: 'تاريخ غير صالح' }, { status: 400 })
+  if (!group_id) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
+  if (!isValidSessionDate(session_date)) return NextResponse.json({ ...(await apiErr('invalidDate')) }, { status: 400 })
   const title = body.title ? String(body.title).trim().slice(0, 120) : null
 
   if (!Array.isArray(body.records) || body.records.length === 0) {
-    return NextResponse.json({ error: 'لا توجد سجلات حضور' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('noAttendanceRecords')) }, { status: 400 })
   }
-  if (body.records.length > MAX_RECORDS) return NextResponse.json({ error: 'عدد السجلات كبير جداً' }, { status: 400 })
+  if (body.records.length > MAX_RECORDS) return NextResponse.json({ ...(await apiErr('tooManyRecords')) }, { status: 400 })
 
   const records: { student_id: string; status: string; note: string | null }[] = []
   const seen = new Set<string>()
@@ -115,9 +116,9 @@ export async function POST(request: Request) {
     const studentId = typeof raw?.student_id === 'string' ? raw.student_id : ''
     const status = typeof raw?.status === 'string' ? raw.status : ''
     const note = raw?.note ? String(raw.note).trim() : null
-    if (!studentId || !isAttendanceStatus(status)) return NextResponse.json({ error: 'سجل حضور غير صالح' }, { status: 400 })
-    if (note && note.length > MAX_NOTE) return NextResponse.json({ error: 'الملاحظة طويلة جداً' }, { status: 400 })
-    if (seen.has(studentId)) return NextResponse.json({ error: 'طالب مكرر في السجلات' }, { status: 400 })
+    if (!studentId || !isAttendanceStatus(status)) return NextResponse.json({ ...(await apiErr('invalidAttendanceRecord')) }, { status: 400 })
+    if (note && note.length > MAX_NOTE) return NextResponse.json({ ...(await apiErr('noteTooLong')) }, { status: 400 })
+    if (seen.has(studentId)) return NextResponse.json({ ...(await apiErr('duplicateStudent')) }, { status: 400 })
     seen.add(studentId)
     records.push({ student_id: studentId, status, note: note || null })
   }
@@ -129,14 +130,14 @@ export async function POST(request: Request) {
   // Only students actually enrolled in this group can be marked.
   const members = await rosterIds(admin, group_id)
   if (records.some(r => !members.has(r.student_id))) {
-    return NextResponse.json({ error: 'بعض الطلاب ليسوا في هذه المجموعة' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('studentsNotInGroup')) }, { status: 400 })
   }
 
   const { data: existing, error: findErr } = await admin.from('attendance_sessions').select('id')
     .eq('group_id', group_id).eq('session_date', session_date).is('schedule_slot_id', null).maybeSingle()
   if (findErr) {
     console.error('[api/attendance POST find]', findErr)
-    return NextResponse.json({ error: 'جداول الحضور غير متاحة — تأكد من تطبيق attendance_migration.sql' }, { status: 503 })
+    return NextResponse.json({ ...(await apiErr('attendanceUnavailable')) }, { status: 503 })
   }
 
   let sessionId = existing?.id as string | undefined
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
       .select('id').single()
     if (error || !created) {
       console.error('[api/attendance POST session]', error)
-      return NextResponse.json({ error: 'تعذّر إنشاء جلسة الحضور' }, { status: 500 })
+      return NextResponse.json({ ...(await apiErr('sessionCreateFailed')) }, { status: 500 })
     }
     sessionId = created.id as string
   }
@@ -161,7 +162,7 @@ export async function POST(request: Request) {
   )
   if (recErr) {
     console.error('[api/attendance POST records]', recErr)
-    return NextResponse.json({ error: 'تعذّر حفظ الحضور' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('attendanceSaveFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ session_id: sessionId, saved: records.length })
@@ -170,12 +171,12 @@ export async function POST(request: Request) {
 // DELETE /api/attendance { session_id }
 export async function DELETE(request: Request) {
   let body: { session_id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
-  if (!body.session_id) return NextResponse.json({ error: 'معرّف الجلسة مفقود' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
+  if (!body.session_id) return NextResponse.json({ ...(await apiErr('missingSessionId')) }, { status: 400 })
 
   const { data: session } = await serviceClient()
     .from('attendance_sessions').select('id, group_id').eq('id', body.session_id).maybeSingle()
-  if (!session) return NextResponse.json({ error: 'الجلسة غير موجودة' }, { status: 404 })
+  if (!session) return NextResponse.json({ ...(await apiErr('sessionNotFound')) }, { status: 404 })
 
   const auth = await authorizeGroup(session.group_id)
   if ('error' in auth) return auth.error
@@ -183,7 +184,7 @@ export async function DELETE(request: Request) {
   const { error } = await auth.admin.from('attendance_sessions').delete().eq('id', session.id)
   if (error) {
     console.error('[api/attendance DELETE]', error)
-    return NextResponse.json({ error: 'تعذّر حذف الجلسة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('sessionDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

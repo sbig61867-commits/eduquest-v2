@@ -1,3 +1,4 @@
+import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getCaller, serviceClient, staffCan } from '@/lib/staff-auth'
 
@@ -8,16 +9,17 @@ import { getCaller, serviceClient, staffCan } from '@/lib/staff-auth'
 // seat cap and membership atomically and freezes the old course's progress
 // (group_course_transfer_migration.sql).
 
-const ERRORS: Record<string, [number, string]> = {
-  FORBIDDEN:          [403, 'لا تملك صلاحية نقل الطلاب'],
-  STUDENT_NOT_FOUND:  [404, 'الطالب غير موجود'],
-  GROUP_NOT_FOUND:    [404, 'المجموعة غير موجودة'],
-  SAME_GROUP:         [400, 'اختر مجموعة مختلفة'],
-  REASON_REQUIRED:    [400, 'سبب النقل مطلوب'],
-  GROUP_ARCHIVED:     [409, 'المجموعة الجديدة مؤرشفة'],
-  NOT_IN_GROUP:       [409, 'الطالب ليس في المجموعة الحالية'],
-  ALREADY_IN_GROUP:   [409, 'الطالب موجود في المجموعة الجديدة بالفعل'],
-  GROUP_FULL:         [409, 'المجموعة الجديدة ممتلئة'],
+// RPC domain errors -> [HTTP status, API error code]
+const ERRORS: Record<string, [number, ApiErrorCode]> = {
+  FORBIDDEN:          [403, 'cannotTransfer'],
+  STUDENT_NOT_FOUND:  [404, 'studentNotFound'],
+  GROUP_NOT_FOUND:    [404, 'groupNotFound'],
+  SAME_GROUP:         [400, 'sameGroup'],
+  REASON_REQUIRED:    [400, 'transferReasonRequired'],
+  GROUP_ARCHIVED:     [409, 'targetGroupArchived'],
+  NOT_IN_GROUP:       [409, 'studentNotInSourceGroup'],
+  ALREADY_IN_GROUP:   [409, 'studentAlreadyInTarget'],
+  GROUP_FULL:         [409, 'targetGroupFull'],
 }
 
 export async function POST(request: Request) {
@@ -25,21 +27,21 @@ export async function POST(request: Request) {
   if ('error' in res) return res.error
   const { caller } = res
   if (!staffCan(caller, 'manage_students')) {
-    return NextResponse.json({ error: ERRORS.FORBIDDEN[1] }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr(ERRORS.FORBIDDEN[1])) }, { status: 403 })
   }
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const studentId = typeof body.student_id === 'string' ? body.student_id : ''
   const fromGroup = typeof body.from_group_id === 'string' ? body.from_group_id : ''
   const toGroup = typeof body.to_group_id === 'string' ? body.to_group_id : ''
   const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
   if (!studentId || !fromGroup || !toGroup) {
-    return NextResponse.json({ error: 'معرّف الطالب أو المجموعة المصدر أو الهدف مفقود' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('missingTransferFields')) }, { status: 400 })
   }
   if (reason.length < 3 || reason.length > 500) {
-    return NextResponse.json({ error: 'اكتب سبب النقل (3 إلى 500 حرف)' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('transferReasonLength')) }, { status: 400 })
   }
 
   const { data, error } = await serviceClient().rpc('transfer_student_group', {
@@ -53,11 +55,11 @@ export async function POST(request: Request) {
   if (error) {
     const known = Object.keys(ERRORS).find(k => error.message?.includes(k))
     if (known) {
-      const [status, message] = ERRORS[known]
-      return NextResponse.json({ error: message }, { status })
+      const [status, code] = ERRORS[known]
+      return NextResponse.json({ ...(await apiErr(code)) }, { status })
     }
     console.error('[api/group-transfers POST]', error)
-    return NextResponse.json({ error: 'تعذّر نقل الطالب' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('transferFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ transfer_id: data }, { status: 201 })

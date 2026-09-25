@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
-import { NoPermission } from '@/components/center/no-permission'
+import { NoPermission } from '@/components/shared/no-permission'
 import { CenterCoursesClient, type CenterCourseRow } from '@/components/center/courses-client'
 
 interface RawCourse {
@@ -16,7 +16,7 @@ interface RawCourse {
 
 export default async function CenterCoursesPage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
-  if (!has('manage_courses')) return <NoPermission label="إدارة الكورسات" />
+  if (!has('manage_courses')) return <NoPermission capability="manage_courses" />
 
   const [{ data: courses, error }, { data: teachers }, { data: students }] = await Promise.all([
     supabase.from('courses')

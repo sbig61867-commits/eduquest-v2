@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -20,13 +21,13 @@ interface Caller { id: string; tenant_id: string }
 async function authorize(): Promise<{ caller: Caller } | { error: NextResponse }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
+  if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_schedules')) {
-    return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+    return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   }
   return { caller: { id: user.id, tenant_id: profile.tenant_id } }
 }
@@ -38,13 +39,13 @@ export async function POST(request: Request) {
   const { caller } = auth
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const kind = body.kind === 'teacher' ? 'teacher' : 'group'
   const targetId = String(body.target_id ?? '')
   const title = String(body.title ?? '').trim()
-  if (!targetId) return NextResponse.json({ error: 'يجب اختيار المجموعة أو المعلم' }, { status: 400 })
-  if (!title) return NextResponse.json({ error: 'عنوان الجدول مطلوب' }, { status: 400 })
+  if (!targetId) return NextResponse.json({ ...(await apiErr('chooseGroupOrTeacher')) }, { status: 400 })
+  if (!title) return NextResponse.json({ ...(await apiErr('scheduleTitleRequired')) }, { status: 400 })
 
   const admin = adminClient()
 
@@ -53,12 +54,12 @@ export async function POST(request: Request) {
   if (kind === 'group') {
     const { data: group } = await admin.from('groups').select('id, tenant_id').eq('id', targetId).single()
     if (!group || group.tenant_id !== caller.tenant_id) {
-      return NextResponse.json({ error: 'المجموعة غير موجودة' }, { status: 404 })
+      return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
     }
   } else {
     const { data: teacher } = await admin.from('users').select('id, role, tenant_id').eq('id', targetId).single()
     if (!teacher || teacher.tenant_id !== caller.tenant_id || teacher.role !== 'teacher') {
-      return NextResponse.json({ error: 'المعلم غير موجود' }, { status: 404 })
+      return NextResponse.json({ ...(await apiErr('teacherNotFound')) }, { status: 404 })
     }
   }
 
@@ -79,10 +80,10 @@ export async function POST(request: Request) {
   if (error) {
     // Partial unique index: one timetable per group / per teacher.
     if (error.code === '23505') {
-      return NextResponse.json({ error: 'يوجد جدول لهذه المجموعة/المعلم بالفعل' }, { status: 409 })
+      return NextResponse.json({ ...(await apiErr('scheduleExists')) }, { status: 409 })
     }
     console.error('[api/schedules POST]', error)
-    return NextResponse.json({ error: 'تعذّر إنشاء الجدول' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('scheduleCreateFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ id: created!.id }, { status: 201 })
@@ -95,21 +96,21 @@ export async function PATCH(request: Request) {
   const { caller } = auth
 
   let body: Record<string, unknown>
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const id = String(body.id ?? '')
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin.from('schedules').select('id, tenant_id').eq('id', id).single()
   if (!existing || existing.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'الجدول غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('scheduleNotFound')) }, { status: 404 })
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.title !== undefined) {
     const t = String(body.title).trim()
-    if (!t) return NextResponse.json({ error: 'عنوان الجدول مطلوب' }, { status: 400 })
+    if (!t) return NextResponse.json({ ...(await apiErr('scheduleTitleRequired')) }, { status: 400 })
     update.title = t
   }
   if (body.is_published !== undefined) update.is_published = body.is_published === true
@@ -117,7 +118,7 @@ export async function PATCH(request: Request) {
   const { error } = await admin.from('schedules').update(update).eq('id', id)
   if (error) {
     console.error('[api/schedules PATCH]', error)
-    return NextResponse.json({ error: 'تعذّر تحديث الجدول' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('scheduleUpdateFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true })
 }
@@ -129,19 +130,19 @@ export async function DELETE(request: Request) {
   const { caller } = auth
 
   let body: { id?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
-  if (!body.id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
+  if (!body.id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = adminClient()
   const { data: existing } = await admin.from('schedules').select('id, tenant_id').eq('id', body.id).single()
   if (!existing || existing.tenant_id !== caller.tenant_id) {
-    return NextResponse.json({ error: 'الجدول غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('scheduleNotFound')) }, { status: 404 })
   }
 
   const { error } = await admin.from('schedules').delete().eq('id', body.id)
   if (error) {
     console.error('[api/schedules DELETE]', error)
-    return NextResponse.json({ error: 'تعذّر حذف الجدول' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('scheduleDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true })
 }

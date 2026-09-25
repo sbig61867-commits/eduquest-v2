@@ -1,17 +1,18 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { DemoShell, type DemoNavItem } from '@/components/demo/demo-shell'
 
-const items: DemoNavItem[] = [
-  { label: 'لوحة التحكم', href: '/demo/center', icon: 'LayoutDashboard' },
-  { label: 'الجداول', href: '/demo/center/schedules', icon: 'CalendarDays' },
-  { label: 'الإعلانات', href: '/demo/center/announcements', icon: 'Bell' },
-]
-
-export const metadata: Metadata = {
-  title: 'العرض التجريبي — لوحة مدير المركز — EduQuest',
-  description: 'جولة تجريبية في لوحة مدير المركز على منصة EduQuest ببيانات وهمية.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('public.demo')
+  return { title: t('meta.center'), description: t('meta.roleDescription', { role: t('roles.center.dash') }) }
 }
 
-export default function DemoCenterLayout({ children }: { children: React.ReactNode }) {
+export default async function DemoCenterLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations('public.demo')
+  const items: DemoNavItem[] = [
+    { label: t('nav.dashboard'), href: '/demo/center', icon: 'LayoutDashboard' as const },
+    { label: t('nav.schedules'), href: '/demo/center/schedules', icon: 'CalendarDays' as const },
+    { label: t('nav.announcements'), href: '/demo/center/announcements', icon: 'Bell' as const },
+  ]
   return <DemoShell role="center" items={items}>{children}</DemoShell>
 }

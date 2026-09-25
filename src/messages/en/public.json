@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "home": {
+      "title": "EduQuest — Cloud Learning Platform for Educational Institutions",
+      "description": "One platform for lessons, exams, grades and smart proctoring, with an isolated environment for every institution."
+    },
+    "contact": {
+      "title": "Contact — EduQuest",
+      "description": "Contact the EduQuest team — request a subscription for your institution or send us a question."
+    },
+    "features": {
+      "title": "Features — EduQuest",
+      "description": "EduQuest features: AI-generated lessons and exams, smart proctoring, full per-institution isolation, and instant grading."
+    },
+    "pricing": {
+      "title": "Pricing — EduQuest",
+      "description": "EduQuest plans for universities, schools, institutes and training centres — a free trial, then a subscription sized to your institution."
+    },
+    "privacy": {
+      "title": "Privacy Policy — EduQuest",
+      "description": "The EduQuest learning platform's privacy policy."
+    },
+    "terms": {
+      "title": "Terms of Use — EduQuest",
+      "description": "The EduQuest learning platform's terms of use."
+    }
+  },
+  "demo": {
+    "meta": {
+      "title": "Interactive Demo — EduQuest",
+      "description": "Browse the EduQuest platform in four roles with sample data and no sign-in.",
+      "admin": "Demo — Institution Admin Dashboard — EduQuest",
+      "center": "Demo — Centre Manager Dashboard — EduQuest",
+      "student": "Demo — Student Dashboard — EduQuest",
+      "teacher": "Demo — Teacher Dashboard — EduQuest",
+      "roleDescription": "A guided tour of the {role} on EduQuest with sample data."
+    },
+    "landing": {
+      "title": "Try EduQuest yourself",
+      "subtitle": "Pick a role to browse the platform with sample data — no sign-in",
+      "convinced": "Convinced?",
+      "contact": "Contact us",
+      "activate": "to activate the platform for your institution."
+    },
+    "roles": {
+      "admin": {
+        "label": "Institution Admin",
+        "desc": "Manage teachers, students, courses and requests",
+        "dash": "institution admin dashboard"
+      },
+      "teacher": {
+        "label": "Teacher",
+        "desc": "Manage groups, lessons and exams",
+        "dash": "teacher dashboard"
+      },
+      "student": {
+        "label": "Student",
+        "desc": "Courses, exams and grades",
+        "dash": "student dashboard"
+      },
+      "center": {
+        "label": "Continuing Education Centre Manager",
+        "desc": "Timetables and announcements",
+        "dash": "centre manager dashboard"
+      }
+    },
+    "shell": {
+      "demoMode": "Demo mode",
+      "tryAnother": "Try another role",
+      "exit": "Exit the demo",
+      "banner": "This is sample demo data —",
+      "bannerContact": "contact us",
+      "bannerEnd": "for a real trial with your institution"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "teachers": "Teachers",
+      "students": "Students",
+      "courses": "Courses",
+      "schedules": "Timetables",
+      "announcements": "Announcements",
+      "exams": "Exams",
+      "grades": "Grades",
+      "groups": "Groups"
+    },
+    "common": {
+      "units": "{count} units",
+      "published": "Published",
+      "draft": "Draft",
+      "minutes": "{count} min",
+      "date": "Date: {date}",
+      "duration": "Duration: {count} min",
+      "submissionsCount": "{count} submissions",
+      "submissionsLabel": "Submissions: {count}",
+      "students": "{count} students",
+      "sample": "Sample students",
+      "name": "Name",
+      "group": "Group",
+      "welcome": "Welcome, {name}"
+    },
+    "admin": {
+      "title": "Institution Dashboard",
+      "subtitle": "An overview of your institution",
+      "teachers": "Teachers",
+      "students": "Students",
+      "courses": "Courses",
+      "exams": "Exams",
+      "latestCourses": "Latest courses",
+      "avg": "Average",
+      "subject": "Subject",
+      "groups": "Groups",
+      "teachersCount": "{count} teachers"
+    },
+    "center": {
+      "title": "Continuing Education Centre Dashboard",
+      "subtitle": "Overview",
+      "activeSchedules": "Active timetables",
+      "announcements": "Announcements",
+      "openRequests": "Open requests",
+      "requests": "Requests",
+      "publishedAnnouncements": "Published announcements",
+      "weeklySchedules": "Weekly timetables",
+      "status": {
+        "pending": "Under review",
+        "answered": "Answered"
+      }
+    },
+    "student": {
+      "title": "Student Dashboard",
+      "enrolled": "Enrolled courses",
+      "upcoming": "Upcoming exams",
+      "average": "Overall average",
+      "latestAnnouncements": "Latest announcements",
+      "myCourses": "My Courses",
+      "completedPct": "{pct}% complete",
+      "myExams": "My Exams",
+      "enterExam": "Enter exam",
+      "myGrades": "My Grades",
+      "gradeRecord": "Grade record"
+    },
+    "teacher": {
+      "title": "Teacher Dashboard",
+      "myGroups": "My groups",
+      "publishedLessons": "Published lessons",
+      "myExams": "My exams",
+      "upcomingExams": "Upcoming exams",
+      "examMeta": "{date} · {count} min"
+    }
+  }
+}

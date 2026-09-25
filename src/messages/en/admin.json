@@ -1,0 +1,228 @@
+{
+  "dashboardTitle": "Admin Dashboard",
+  "sidebarTitle": "University Admin",
+  "nav": {
+    "dashboard": "Dashboard",
+    "teachers": "Teachers",
+    "students": "Students",
+    "academic": "Academic Structure",
+    "groups": "Groups",
+    "courses": "Courses",
+    "lessons": "Lessons",
+    "exams": "Exams",
+    "requests": "Requests",
+    "appeals": "Appeals",
+    "announcements": "Announcements",
+    "schedules": "Schedules",
+    "centerStaff": "Centre Staff",
+    "archive": "Archive",
+    "invitations": "Invitations",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "{institution} Dashboard",
+    "subtitle": "An overview of your institution",
+    "cards": {
+      "teachers": "Teachers",
+      "students": "Students",
+      "lessons": "Lessons",
+      "exams": "Exams"
+    },
+    "recentActivity": "Recent activity",
+    "noActivity": "No activity yet.",
+    "activityPublished": "{teacher} published lesson “{title}”",
+    "activityCreated": "{teacher} created lesson “{title}”",
+    "teacherFallback": "Teacher"
+  },
+  "academic": {
+    "migrationMissing": "The academic structure is not available yet — apply",
+    "migrationMissingEnd": "."
+  },
+  "centerStaff": {
+    "title": "Centre Managers",
+    "subtitle": "Grant each centre manager the permissions you want — you cannot grant a permission you do not hold yourself.",
+    "emptyHint": "No centre managers yet — invite them from the Invitations page with the “Centre Manager” role."
+  },
+  "appeals": {
+    "title": "Proctoring Appeals",
+    "summary": "{total} appeals in total · {pending} under review",
+    "empty": "No appeals recorded yet.",
+    "status": {
+      "pending": "Under review",
+      "upheld": "Appeal upheld",
+      "rejected": "Appeal rejected"
+    },
+    "meta": "{group} · Proctoring teacher: {teacher} · {violation} · {at}",
+    "generalAppeal": "General appeal",
+    "teacherResponse": "Teacher's response ({at}): {response}",
+    "recipient": "Administration",
+    "downloadFullReport": "Download full report"
+  },
+  "content": {
+    "common": {
+      "teacher": "Teacher",
+      "group": "Group",
+      "status": "Status",
+      "createdAt": "Created",
+      "published": "Published",
+      "draft": "Draft"
+    },
+    "lessons": {
+      "title": "Lessons",
+      "summary": "{count, plural, =0{No lessons} one{# lesson} other{# lessons}} across your institution · {published} published",
+      "empty": "No lessons yet.",
+      "emptyHint": "Teachers create lessons from their dashboards.",
+      "thLesson": "Lesson"
+    },
+    "exams": {
+      "title": "Exams & Homework",
+      "summary": "{exams, plural, =0{No exams} one{# exam} other{# exams}} · {homework} homework · {submissions, plural, =0{no submissions} one{# submission} other{# submissions}}",
+      "empty": "No exams or homework yet.",
+      "emptyHint": "Teachers create them from their dashboards.",
+      "thExam": "Exam",
+      "thHomework": "Homework",
+      "thSubmissions": "Submissions",
+      "untimed": "Untimed",
+      "minutes": "{count} min",
+      "proctored": "Proctored",
+      "sectionExams": "Exams",
+      "sectionHomework": "Homework & activities"
+    },
+    "courses": {
+      "title": "Courses",
+      "subtitle": "Structured courses built by your institution's teachers",
+      "cards": {
+        "courses": "Courses",
+        "published": "Published",
+        "units": "Units",
+        "enrollments": "Enrolments"
+      },
+      "empty": "No courses yet.",
+      "emptyHint": "Teachers you granted course-creation permission build them from their dashboards.",
+      "thCourse": "Course",
+      "thStructure": "Structure",
+      "thStudents": "Students",
+      "levels": "{count} levels · ",
+      "units": "{count} units"
+    }
+  },
+  "people": {
+    "common": {
+      "name": "Name",
+      "email": "Email",
+      "joined": "Joined",
+      "status": "Status",
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "teachers": {
+      "title": "Teachers",
+      "summary": "{count, plural, =0{No teachers} one{# teacher} other{# teachers}}",
+      "invite": "Invite teacher",
+      "search": "Search for a teacher…",
+      "thCourses": "Courses",
+      "empty": "No teachers found",
+      "deleteConfirm": "Are you sure? This deletes the teacher and all their data.",
+      "revokeCourses": "Revoke course-creation permission",
+      "grantCourses": "Grant course-creation permission",
+      "allowed": "Allowed",
+      "notAllowed": "Not allowed"
+    },
+    "students": {
+      "title": "Students",
+      "summary": "{count, plural, =0{No students} one{# student} other{# students}}",
+      "invite": "Invite student",
+      "search": "Search for a student…",
+      "empty": "No students found",
+      "deleteConfirm": "Remove this student?",
+      "centreTrainee": "Centre trainee",
+      "markInstitution": "Mark as {label}",
+      "markCentreOnly": "Mark as centre-only trainee"
+    }
+  },
+  "groups": {
+    "saveFailed": "Save failed",
+    "statusFailed": "Could not change the group status",
+    "archiveConfirm": "Archive the group “{name}”? It will disappear from students while all records and grades are kept.",
+    "summary": "{count} groups · {archived} archived",
+    "empty": "No groups yet — teachers create them from their dashboards.",
+    "thGroup": "Group",
+    "thTeacher": "Teacher",
+    "thStudents": "Students",
+    "thCreated": "Created",
+    "thStatus": "Status",
+    "active": "Active",
+    "archived": "Archived",
+    "archive": "Archive",
+    "restore": "Restore"
+  },
+  "archive": {
+    "title": "{institution} Archive",
+    "subtitle": "Full historical record — {count} classes & courses ({archived} archived). All submissions and grades are preserved for future reference.",
+    "restoreConfirm": "Restore “{title}” from the archive? It will be visible on the platform again.",
+    "restoreFailed": "Failed to restore",
+    "search": "Search by name or teacher…",
+    "allYears": "All years",
+    "filterAll": "All",
+    "filterLive": "Active",
+    "filterArchived": "Archived",
+    "empty": "No matching items.",
+    "kindGroup": "Class",
+    "kindCourse": "Course",
+    "archivedBadge": "Archived",
+    "liveBadge": "Active",
+    "created": "Created {date}",
+    "archivedAt": "Archived {date}",
+    "restore": "Restore",
+    "unknownTeacher": "Unknown",
+    "students": "{count} students",
+    "lessons": "{count} lessons",
+    "exams": "{count} exams/homework",
+    "submissions": "{count} submissions"
+  },
+  "settings": {
+    "saveFailed": "Could not save settings",
+    "networkError": "Network error, please try again",
+    "notFound": "Institution data not found.",
+    "title": "Institution Settings",
+    "subtitle": "Manage your institution's profile",
+    "id": "ID",
+    "status": "Status",
+    "active": "Active",
+    "suspended": "Suspended",
+    "createdAt": "Created",
+    "editProfile": "Edit profile",
+    "saved": "Settings saved successfully",
+    "name": "Institution name",
+    "namePlaceholder": "e.g. Al-Noor School",
+    "logo": "Logo URL (optional)",
+    "logoAlt": "Logo preview",
+    "logoPreview": "Logo preview",
+    "save": "Save changes"
+  },
+  "academicClient": {
+    "requestFailed": "Request failed",
+    "title": "Academic Structure",
+    "archiveUnitConfirm": "Archive “{name}”{extra}? Linked groups and courses keep their data.",
+    "archiveTermConfirm": "Archive “{name}”?",
+    "addUnit": "Add {unit}",
+    "addTerm": "Add {term}",
+    "editUnit": "Edit {unit}",
+    "editTerm": "Edit {term}",
+    "unitsTab": "{l1} & {l2}",
+    "noUnits": "No {units} yet.",
+    "noTerms": "No {terms} yet.",
+    "edit": "Edit",
+    "current": "Current",
+    "setCurrent": "Set as current",
+    "name": "Name",
+    "code": "Code (optional)",
+    "starts": "Starts",
+    "ends": "Ends",
+    "cancel": "Cancel",
+    "save": "Save",
+    "archiveChildren": " and its {count} {units}",
+    "archive": "Archive",
+    "isCurrent": "Current {term}"
+  }
+}

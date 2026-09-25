@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export default function ForgotPasswordPage() {
   const [email,     setEmail]     = useState('')
@@ -10,6 +11,7 @@ export default function ForgotPasswordPage() {
   const [sent,      setSent]      = useState(false)
   const [error,     setError]     = useState('')
   const [disabled,  setDisabled]  = useState(false)
+  const t = useTranslations('auth.forgotPassword')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,7 +28,7 @@ export default function ForgotPasswordPage() {
     const data = await res.json().catch(() => ({}))
 
     if (!res.ok && res.status !== 200) {
-      setError(data.error ?? 'Something went wrong. Please try again.')
+      setError(data.error ?? t('fallbackError'))
     } else {
       setSent(true)
       // Disable resend for 60 s to prevent double-clicking/spam from the UI
@@ -44,27 +46,27 @@ export default function ForgotPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
             <span className="text-white text-2xl font-bold">E</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">إعادة تعيين كلمة المرور</h1>
+          <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
           <p className="text-slate-400 text-sm">
-            أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
+            {t('subtitle')}
           </p>
         </div>
 
         {sent ? (
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm text-center leading-relaxed">
-              إن كان هذا البريد مسجّلاً فستصلك رسالة استعادة قريباً.
+              {t('sent')}
               <br />
-              <span className="text-slate-400 text-xs mt-1 block">تفقّد مجلد الرسائل غير المرغوبة إن لم تصلك خلال دقائق.</span>
+              <span className="text-slate-400 text-xs mt-1 block">{t('spamHint')}</span>
             </div>
             {disabled ? (
-              <p className="text-slate-500 text-xs text-center">يمكنك طلب رابط آخر بعد 60 ثانية تقريباً.</p>
+              <p className="text-slate-500 text-xs text-center">{t('retryHint')}</p>
             ) : (
               <button
                 onClick={() => setSent(false)}
                 className="w-full text-center text-blue-400 hover:text-blue-300 text-sm transition-colors"
               >
-                إرسال رابط آخر
+                {t('sendAnother')}
               </button>
             )}
           </div>
@@ -77,7 +79,7 @@ export default function ForgotPasswordPage() {
             )}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                البريد الإلكتروني
+                {t('email')}
               </label>
               <input
                 type="email"
@@ -94,7 +96,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
             >
-              {loading ? 'Sending…' : 'إرسال رابط الاستعادة'}
+              {loading ? t('submitLoading') : t('submit')}
             </button>
           </form>
         )}
@@ -104,7 +106,7 @@ export default function ForgotPasswordPage() {
             href="/login"
             className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> العودة لتسجيل الدخول
+            <ArrowLeft className="w-3.5 h-3.5" /> {t('backToSignIn')}
           </Link>
         </div>
       </div>

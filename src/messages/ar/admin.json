@@ -1,0 +1,228 @@
+{
+  "dashboardTitle": "لوحة الإدارة",
+  "sidebarTitle": "مدير الجامعة",
+  "nav": {
+    "dashboard": "لوحة المعلومات",
+    "teachers": "المعلمون",
+    "students": "الطلاب",
+    "academic": "الهيكل الأكاديمي",
+    "groups": "المجموعات",
+    "courses": "المساقات",
+    "lessons": "الدروس",
+    "exams": "الاختبارات",
+    "requests": "الطلبات",
+    "appeals": "التظلمات",
+    "announcements": "الإعلانات",
+    "schedules": "الجداول",
+    "centerStaff": "موظفو المركز",
+    "archive": "الأرشيف",
+    "invitations": "الدعوات",
+    "settings": "الإعدادات"
+  },
+  "dashboard": {
+    "title": "لوحة {institution}",
+    "subtitle": "نظرة عامة على مؤسستك",
+    "cards": {
+      "teachers": "المعلمون",
+      "students": "الطلاب",
+      "lessons": "الدروس",
+      "exams": "الاختبارات"
+    },
+    "recentActivity": "النشاط الأخير",
+    "noActivity": "لا يوجد نشاط بعد.",
+    "activityPublished": "نشر {teacher} الدرس «{title}»",
+    "activityCreated": "أنشأ {teacher} الدرس «{title}»",
+    "teacherFallback": "معلم"
+  },
+  "academic": {
+    "migrationMissing": "الهيكل الأكاديمي غير متاح بعد — طبّق",
+    "migrationMissingEnd": "."
+  },
+  "centerStaff": {
+    "title": "مديرو المراكز",
+    "subtitle": "امنح كل مدير مركز الصلاحيات التي تريدها — لا يمكنك منح صلاحية لا تملكها أنت.",
+    "emptyHint": "لا يوجد مديرو مراكز بعد — ادعُهم من صفحة الدعوات بدور «مدير مركز»."
+  },
+  "appeals": {
+    "title": "طعونات المراقبة",
+    "summary": "{total} طعناً إجمالاً · {pending} قيد المراجعة",
+    "empty": "لا توجد طعونات مسجَّلة بعد.",
+    "status": {
+      "pending": "قيد المراجعة",
+      "upheld": "قُبل الطعن",
+      "rejected": "رُفض الطعن"
+    },
+    "meta": "{group} · المعلم المراقِب: {teacher} · {violation} · {at}",
+    "generalAppeal": "طعن عام",
+    "teacherResponse": "رد المعلم ({at}): {response}",
+    "recipient": "الإدارة",
+    "downloadFullReport": "تنزيل التقرير الكامل"
+  },
+  "content": {
+    "common": {
+      "teacher": "المعلم",
+      "group": "المجموعة",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء",
+      "published": "منشور",
+      "draft": "مسودة"
+    },
+    "lessons": {
+      "title": "الدروس",
+      "summary": "{count, plural, zero{لا دروس} one{درس واحد} two{درسان} few{# دروس} many{# درساً} other{# درس}} في مؤسستك · {published} منشور",
+      "empty": "لا توجد دروس بعد.",
+      "emptyHint": "ينشئ المعلمون الدروس من لوحاتهم.",
+      "thLesson": "الدرس"
+    },
+    "exams": {
+      "title": "الاختبارات والواجبات",
+      "summary": "{exams, plural, zero{لا اختبارات} one{اختبار واحد} two{اختباران} few{# اختبارات} many{# اختباراً} other{# اختبار}} · {homework} واجب · {submissions, plural, zero{لا تسليمات} one{تسليم واحد} two{تسليمان} few{# تسليمات} many{# تسليماً} other{# تسليم}}",
+      "empty": "لا توجد اختبارات أو واجبات بعد.",
+      "emptyHint": "ينشئها المعلمون من لوحاتهم.",
+      "thExam": "الاختبار",
+      "thHomework": "الواجب",
+      "thSubmissions": "التسليمات",
+      "untimed": "بدون مؤقت",
+      "minutes": "{count} دقيقة",
+      "proctored": "مراقَب",
+      "sectionExams": "الاختبارات",
+      "sectionHomework": "الواجبات والأنشطة"
+    },
+    "courses": {
+      "title": "المساقات",
+      "subtitle": "مساقات منظّمة يبنيها معلمو مؤسستك",
+      "cards": {
+        "courses": "المساقات",
+        "published": "منشور",
+        "units": "الوحدات",
+        "enrollments": "التسجيلات"
+      },
+      "empty": "لا توجد مساقات بعد.",
+      "emptyHint": "ينشئها المعلمون الذين منحتهم صلاحية إنشاء المساقات من لوحاتهم.",
+      "thCourse": "المساق",
+      "thStructure": "الهيكل",
+      "thStudents": "الطلاب",
+      "levels": "{count} مستوى · ",
+      "units": "{count} وحدة"
+    }
+  },
+  "people": {
+    "common": {
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "joined": "تاريخ الانضمام",
+      "status": "الحالة",
+      "active": "نشط",
+      "disabled": "معطّل"
+    },
+    "teachers": {
+      "title": "المعلمون",
+      "summary": "{count, plural, zero{لا معلمين} one{معلم واحد} two{معلمان} few{# معلمين} many{# معلماً} other{# معلم}}",
+      "invite": "دعوة معلم",
+      "search": "ابحث عن معلم…",
+      "thCourses": "المساقات",
+      "empty": "لم يُعثر على معلمين",
+      "deleteConfirm": "هل أنت متأكد؟ سيؤدي هذا إلى حذف المعلم وكل بياناته.",
+      "revokeCourses": "سحب صلاحية إنشاء المساقات",
+      "grantCourses": "منح صلاحية إنشاء المساقات",
+      "allowed": "مسموح",
+      "notAllowed": "غير مسموح"
+    },
+    "students": {
+      "title": "الطلاب",
+      "summary": "{count, plural, zero{لا طلاب} one{طالب واحد} two{طالبان} few{# طلاب} many{# طالباً} other{# طالب}}",
+      "invite": "دعوة طالب",
+      "search": "ابحث عن طالب…",
+      "empty": "لم يُعثر على طلاب",
+      "deleteConfirm": "إزالة هذا الطالب؟",
+      "centreTrainee": "متدرب مركز",
+      "markInstitution": "اعتباره {label}",
+      "markCentreOnly": "اعتباره متدرب مركز فقط"
+    }
+  },
+  "groups": {
+    "saveFailed": "فشل الحفظ",
+    "statusFailed": "فشل تغيير حالة المجموعة",
+    "archiveConfirm": "أرشفة مجموعة \"{name}\"؟ ستختفي عن الطلاب وتبقى كل السجلات والعلامات محفوظة.",
+    "summary": "{count} مجموعة · {archived} مؤرشفة",
+    "empty": "لا توجد مجموعات بعد — ينشئها المعلمون من لوحاتهم.",
+    "thGroup": "المجموعة",
+    "thTeacher": "المعلم",
+    "thStudents": "الطلاب",
+    "thCreated": "أنشئت",
+    "thStatus": "الحالة",
+    "active": "نشطة",
+    "archived": "مؤرشفة",
+    "archive": "أرشفة",
+    "restore": "استرجاع"
+  },
+  "archive": {
+    "title": "أرشيف {institution}",
+    "subtitle": "السجل التاريخي الكامل — {count} صف ومساق ({archived} مؤرشف). كل التسليمات والعلامات محفوظة للرجوع إليها.",
+    "restoreConfirm": "استعادة \"{title}\" من الأرشيف؟ سيعود ظاهراً في المنصة.",
+    "restoreFailed": "تعذّرت الاستعادة",
+    "search": "ابحث بالاسم أو المعلم…",
+    "allYears": "كل السنوات",
+    "filterAll": "الكل",
+    "filterLive": "النشط",
+    "filterArchived": "المؤرشف",
+    "empty": "لا توجد عناصر مطابقة.",
+    "kindGroup": "صف",
+    "kindCourse": "مساق",
+    "archivedBadge": "مؤرشف",
+    "liveBadge": "نشط",
+    "created": "أُنشئ {date}",
+    "archivedAt": "أُرشف {date}",
+    "restore": "استعادة",
+    "unknownTeacher": "غير معروف",
+    "students": "{count} طالب",
+    "lessons": "{count} درس",
+    "exams": "{count} اختبار/واجب",
+    "submissions": "{count} تسليم"
+  },
+  "settings": {
+    "saveFailed": "تعذّر حفظ الإعدادات",
+    "networkError": "خطأ في الشبكة، حاول مرة أخرى",
+    "notFound": "لم يُعثر على بيانات المؤسسة.",
+    "title": "إعدادات المؤسسة",
+    "subtitle": "أدر ملف مؤسستك",
+    "id": "المعرّف",
+    "status": "الحالة",
+    "active": "نشط",
+    "suspended": "موقوف",
+    "createdAt": "تاريخ الإنشاء",
+    "editProfile": "تعديل الملف الشخصي",
+    "saved": "تم حفظ الإعدادات بنجاح",
+    "name": "اسم المؤسسة",
+    "namePlaceholder": "مثال: مدرسة النور",
+    "logo": "رابط الشعار (اختياري)",
+    "logoAlt": "معاينة الشعار",
+    "logoPreview": "معاينة الشعار",
+    "save": "حفظ التغييرات"
+  },
+  "academicClient": {
+    "requestFailed": "فشل الطلب",
+    "title": "الهيكل الأكاديمي",
+    "archiveUnitConfirm": "أرشفة \"{name}\"{extra}؟ ستحتفظ المجموعات والمساقات المرتبطة ببياناتها.",
+    "archiveTermConfirm": "أرشفة \"{name}\"؟",
+    "addUnit": "إضافة {unit}",
+    "addTerm": "إضافة {term}",
+    "editUnit": "تعديل {unit}",
+    "editTerm": "تعديل {term}",
+    "unitsTab": "{l1} و{l2}",
+    "noUnits": "لا توجد {units} بعد.",
+    "noTerms": "لا توجد {terms} بعد.",
+    "edit": "تعديل",
+    "current": "الحالي",
+    "setCurrent": "تعيين كحالي",
+    "name": "الاسم",
+    "code": "الرمز (اختياري)",
+    "starts": "يبدأ",
+    "ends": "ينتهي",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "archiveChildren": " و{count} {units} تابعة له",
+    "archive": "أرشفة",
+    "isCurrent": "{term} الحالي"
+  }
+}

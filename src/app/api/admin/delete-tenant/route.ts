@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -18,12 +19,12 @@ function adminClient() {
 export async function DELETE(request: Request) {
   const supabase = await createClient()
   const { data: { user: caller } } = await supabase.auth.getUser()
-  if (!caller) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: callerProfile } = await supabase
     .from('users').select('role').eq('id', caller.id).single()
   if (callerProfile?.role !== 'super_admin') {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Catastrophic + irreversible: cap it even for super_admin, mainly as a
@@ -31,13 +32,13 @@ export async function DELETE(request: Request) {
   const rl = await rateLimit(`delete-tenant:${caller.id}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
-      { error: 'تجاوزت الحد المسموح. حاول لاحقاً.' },
+      { ...(await apiErr('rateLimited')) },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
     )
   }
 
   const tenantId = new URL(request.url).searchParams.get('id')
-  if (!tenantId) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!tenantId) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const admin = adminClient()
 
@@ -52,7 +53,7 @@ export async function DELETE(request: Request) {
     .from('users').select('id').eq('tenant_id', tenantId)
   if (listErr) {
     console.error('[delete-tenant] list users:', listErr)
-    return NextResponse.json({ error: 'فشلت قراءة مستخدمي المؤسسة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('tenantUsersReadFailed')) }, { status: 500 })
   }
 
   let failed = 0
@@ -65,7 +66,7 @@ export async function DELETE(request: Request) {
   const { error: tenantErr } = await admin.from('tenants').delete().eq('id', tenantId)
   if (tenantErr) {
     console.error('[delete-tenant] tenant delete:', tenantErr)
-    return NextResponse.json({ error: 'فشل حذف المؤسسة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('tenantDeleteFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, usersDeleted: (members?.length ?? 0) - failed, failed })

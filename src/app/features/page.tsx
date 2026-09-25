@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { FeaturesPage } from '@/components/public/features-page'
 
-export const metadata: Metadata = {
-  title: 'المميزات — EduQuest',
-  description: 'مميزات منصة EduQuest: توليد الدروس والاختبارات بالذكاء الاصطناعي، مراقبة ذكية، عزل كامل لكل مؤسسة، وعلامات فورية. EduQuest platform features.',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('public.meta.features')
+  return { title: t('title'), description: t('description') }
 }
 
 export default function Features() {

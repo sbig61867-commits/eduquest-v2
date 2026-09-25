@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic'
 
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BarChart2 } from 'lucide-react'
@@ -19,6 +21,8 @@ interface RawSubmission {
 interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[] }
 
 export default async function GradesPage() {
+  const t = await getTranslations('student.grades')
+  const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
@@ -76,22 +80,22 @@ export default async function GradesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">درجاتي</h2>
-        <p className="text-slate-400 mt-1">{submissions.length} graded exams</p>
+        <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+        <p className="text-slate-400 mt-1">{t('gradedCount', { count: submissions.length })}</p>
       </div>
 
       {avg !== null && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-slate-400 text-sm mb-1">متوسط الدرجات</p>
+            <p className="text-slate-400 text-sm mb-1">{t('average')}</p>
             <p className={`text-3xl font-bold ${avg >= 70 ? 'text-emerald-400' : avg >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{avg}%</p>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-slate-400 text-sm mb-1">الاختبارات المؤدّاة</p>
+            <p className="text-slate-400 text-sm mb-1">{t('taken')}</p>
             <p className="text-3xl font-bold text-white">{submissions.length}</p>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-slate-400 text-sm mb-1">ناجح</p>
+            <p className="text-slate-400 text-sm mb-1">{t('passed')}</p>
             <p className="text-3xl font-bold text-emerald-400">
               {submissions.filter(s => s.pct >= 60).length}
             </p>
@@ -102,18 +106,18 @@ export default async function GradesPage() {
       {!submissions.length ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <BarChart2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد درجات بعد. أدِّ اختباراً لترى نتائجك.</p>
+          <p className="text-slate-400">{t('empty')}</p>
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">اختبار</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الدرجة</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">التاريخ</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">النتيجة</th>
-                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">مراقبة</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('colExam')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('colScore')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">{t('colDate')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('colResult')}</th>
+                <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('colProctoring')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -122,7 +126,7 @@ export default async function GradesPage() {
                 return (
                   <tr key={sub.id} className="hover:bg-slate-800/50 transition-colors">
                     <td className="px-5 py-4 text-white text-sm font-medium">
-                      <Badge variant={sub.homework ? 'blue' : 'gray'}>{sub.homework ? 'واجب' : 'اختبار'}</Badge>
+                      <Badge variant={sub.homework ? 'blue' : 'gray'}>{sub.homework ? t('typeHomework') : t('typeExam')}</Badge>
                       <span className="ms-2">{sub.title}</span>
                     </td>
                     <td className="px-5 py-4">
@@ -130,8 +134,8 @@ export default async function GradesPage() {
                         {sub.score}/{sub.max} ({sub.pct}%)
                       </span>
                     </td>
-                    <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(sub.submitted_at)}</td>
-                    <td className="px-5 py-4"><Badge variant={passed ? 'green' : 'red'}>{passed ? 'ناجح' : 'راسب'}</Badge></td>
+                    <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">{formatDate(sub.submitted_at, locale)}</td>
+                    <td className="px-5 py-4"><Badge variant={passed ? 'green' : 'red'}>{passed ? t('resultPass') : t('resultFail')}</Badge></td>
                     <td className="px-5 py-4">
                       {sub.flagged && (
                         <AppealButton submissionId={sub.id} existing={appealMap.get(sub.id) ?? null} />

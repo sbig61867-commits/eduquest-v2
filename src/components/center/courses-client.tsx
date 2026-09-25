@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
   teachers: Option[]
   students: Option[]
 }) {
+  const t = useTranslations('staff.courses')
   const router = useRouter()
   const [courses, setCourses] = useState(initialCourses)
   const [creating, setCreating] = useState(false)
@@ -41,14 +43,14 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
     })
     const data = await res.json().catch(() => ({}))
     setBusy('')
-    if (!res.ok) { toast.error(data.error ?? 'تعذّر التحديث'); return false }
+    if (!res.ok) { toast.error(data.error ?? t('updateFailed')); return false }
     router.refresh()
     return true
   }
 
   async function create() {
-    if (!form.title.trim()) return toast.error('عنوان الكورس مطلوب')
-    if (!form.teacher_id) return toast.error('اختر المدرب المسؤول')
+    if (!form.title.trim()) return toast.error(t('titleRequired'))
+    if (!form.teacher_id) return toast.error(t('teacherRequired'))
     setBusy('create')
     const res = await fetch('/api/courses', {
       method: 'POST',
@@ -57,14 +59,14 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
     })
     const data = await res.json().catch(() => ({}))
     setBusy('')
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر إنشاء الكورس')
+    if (!res.ok) return toast.error(data.error ?? t('createFailed'))
     setCourses(prev => [{
       id: data.id, title: data.title, description: data.description, is_published: !!data.is_published,
       teacher_id: data.teacher_id, units: 0, enrollments: 0,
     }, ...prev])
     setCreating(false)
     setForm({ title: '', description: '', language: '', has_levels: false, teacher_id: '' })
-    toast.success('تم إنشاء الكورس — يبني المدرب محتواه من لوحته')
+    toast.success(t('created'))
     router.refresh()
   }
 
@@ -81,49 +83,49 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
   }
 
   async function remove(c: CenterCourseRow) {
-    if (!(await confirmDialog(`حذف الكورس "${c.title}" نهائياً مع محتواه وتسجيلاته؟`))) return
+    if (!(await confirmDialog(t('deleteConfirm', { title: c.title })))) return
     if (await send('DELETE', c.id)) {
       setCourses(prev => prev.filter(x => x.id !== c.id))
-      toast.success('تم الحذف')
+      toast.success(t('deleted'))
     }
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-white">الكورسات</h2>
-          <p className="text-slate-400 mt-1">{courses.length} كورس · {courses.filter(c => c.is_published).length} منشور</p>
+          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+          <p className="text-slate-400 mt-1">{t('summary', { count: courses.length, published: courses.filter(c => c.is_published).length })}</p>
         </div>
         <Button onClick={() => setCreating(true)} disabled={teachers.length === 0}>
-          <Plus className="w-4 h-4" /> كورس جديد
+          <Plus className="w-4 h-4" /> {t('newCourse')}
         </Button>
       </div>
       {teachers.length === 0 && (
-        <p className="text-amber-400 text-sm">أضف مدرباً نشطاً أولاً — الكورس يُسند لمدرب يبني محتواه.</p>
+        <p className="text-amber-400 text-sm">{t('needTeacher')}</p>
       )}
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full min-w-[680px]">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">الكورس</th>
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">المدرب</th>
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">الوحدات</th>
-              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">المسجّلون</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">{t('thCourse')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">{t('thTeacher')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">{t('thUnits')}</th>
+              <th className="text-start text-xs font-medium text-slate-400 px-5 py-3">{t('thEnrollments')}</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {courses.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-slate-500 py-10">لا توجد كورسات بعد</td></tr>
+              <tr><td colSpan={5} className="text-center text-slate-500 py-10">{t('empty')}</td></tr>
             )}
             {courses.map(c => (
               <tr key={c.id} className="hover:bg-slate-800/50">
                 <td className="px-5 py-4">
                   <p className="text-white text-sm font-medium">{c.title}</p>
                   <p className={`text-xs mt-0.5 ${c.is_published ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    {c.is_published ? 'منشور' : 'مسودة'}
+                    {c.is_published ? t('published') : t('draft')}
                   </p>
                 </td>
                 <td className="px-5 py-4">
@@ -142,10 +144,10 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
                 <td className="px-5 py-4">
                   <div className="flex gap-1 justify-end flex-wrap">
                     <Button variant="ghost" size="sm" onClick={() => setRoster(c)}>
-                      <GraduationCap className="w-3.5 h-3.5" /> التسجيل
+                      <GraduationCap className="w-3.5 h-3.5" /> {t('enrollments')}
                     </Button>
                     <Button variant="ghost" size="sm" loading={busy === c.id} onClick={() => togglePublish(c)}>
-                      {c.is_published ? <><EyeOff className="w-3.5 h-3.5" /> إخفاء</> : <><Eye className="w-3.5 h-3.5" /> نشر</>}
+                      {c.is_published ? <><EyeOff className="w-3.5 h-3.5" /> {t('unpublish')}</> : <><Eye className="w-3.5 h-3.5" /> {t('publish')}</>}
                     </Button>
                     <Button variant="ghost" size="sm" loading={busy === c.id} onClick={() => remove(c)}>
                       <Trash2 className="w-3.5 h-3.5" />
@@ -158,30 +160,30 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
         </table>
       </div>
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="كورس جديد">
-        <div className="space-y-4" dir="rtl">
-          <Input label="عنوان الكورس" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-          <Input label="الوصف (اختياري)" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-          <Input label="اللغة (اختياري)" value={form.language} onChange={e => setForm(f => ({ ...f, language: e.target.value }))} />
+      <Modal open={creating} onClose={() => setCreating(false)} title={t('createTitle')}>
+        <div className="space-y-4">
+          <Input label={t('courseTitle')} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+          <Input label={t('description')} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          <Input label={t('language')} value={form.language} onChange={e => setForm(f => ({ ...f, language: e.target.value }))} />
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-300">المدرب المسؤول</span>
+            <span className="text-sm font-medium text-slate-300">{t('teacher')}</span>
             <select
               value={form.teacher_id}
               onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm"
             >
-              <option value="">اختر مدرباً</option>
+              <option value="">{t('pickTeacher')}</option>
               {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" checked={form.has_levels}
               onChange={e => setForm(f => ({ ...f, has_levels: e.target.checked }))} />
-            الكورس مقسّم إلى مستويات
+            {t('hasLevels')}
           </label>
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" onClick={() => setCreating(false)}>إلغاء</Button>
-            <Button loading={busy === 'create'} onClick={create}>إنشاء</Button>
+            <Button variant="ghost" onClick={() => setCreating(false)}>{t('cancel')}</Button>
+            <Button loading={busy === 'create'} onClick={create}>{t('create')}</Button>
           </div>
         </div>
       </Modal>
@@ -190,7 +192,7 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
         key={roster?.id ?? 'none'}
         open={!!roster}
         onClose={() => setRoster(null)}
-        title={`التسجيل في ${roster?.title ?? ''}`}
+        title={t('rosterTitle', { title: roster?.title ?? '' })}
         endpoint="/api/course-enrollments"
         idKey="course_id"
         targetId={roster?.id ?? null}

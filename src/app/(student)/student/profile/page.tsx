@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { StudentProfileClient, type Affiliation } from './profile-client'
 import { getTenantSettings } from '@/lib/structure-mode'
@@ -37,7 +39,7 @@ export default async function StudentProfilePage() {
   // faculty › department, but only when the tenant uses the academic structure.
   const settings = user.tenant_id ? await getTenantSettings(supabase, user.tenant_id) : null
   const track = getStudentTrack((profile as { is_university_student?: boolean } | null)?.is_university_student, settings?.has_center)
-  const terms = getTerms(settings?.institution_type)
+  const terms = getTerms(settings?.institution_type, (await getLocale()) as Locale)
   let affiliation: Affiliation = { track, unitL1Label: terms.unitL1, unitL2Label: terms.unitL2, units: [] }
 
   if (track === 'institution' && settings?.structure_mode === 'academic' && myGroups.length > 0) {

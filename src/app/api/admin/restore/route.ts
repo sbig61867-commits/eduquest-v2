@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -16,20 +17,20 @@ const KINDS = new Set(['group', 'lesson', 'exam', 'course'])
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['university_admin', 'super_admin'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   let body: { kind?: string; id?: string; tenant_id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   if (!body.id || !body.kind || !KINDS.has(body.kind)) {
-    return NextResponse.json({ error: 'النوع أو المعرّف مفقود أو غير صالح' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('invalidTypeOrId')) }, { status: 400 })
   }
 
   // super_admin has no tenant_id of their own (legitimately NULL — they are
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     : profile.tenant_id
 
   if (!tenant_id) {
-    return NextResponse.json({ error: 'معرّف المؤسسة مطلوب' }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('tenantIdRequired')) }, { status: 400 })
   }
 
   const { error } = await adminClient().rpc('restore_entity', {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
   })
   if (error) {
     console.error('[api/admin/restore]', error)
-    return NextResponse.json({ error: 'فشلت الاستعادة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('restoreFailed')) }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serviceClient, staffCan, isTenantTeacher } from '@/lib/staff-auth'
@@ -26,19 +27,19 @@ function isCourseStaff(profile: Profile) {
 // POST /api/courses — create course
 export async function POST(request: Request) {
   const { user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const staff = isCourseStaff(profile)
   const teacherSelf = profile.role === 'teacher' && profile.can_create_courses === true
-  if (!staff && !teacherSelf) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!staff && !teacherSelf) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { title?: string; description?: string; language?: string; has_levels?: boolean; teacher_id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { title, description, language, has_levels } = body
-  if (!title?.trim()) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
+  if (!title?.trim()) return NextResponse.json({ ...(await apiErr('titleRequired')) }, { status: 400 })
 
   const admin = serviceClient()
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   let teacherId = user.id
   if (staff) {
     if (!(await isTenantTeacher(admin, profile.tenant_id, body.teacher_id))) {
-      return NextResponse.json({ error: 'اختر مدرباً من مؤسستك لإسناد الكورس إليه' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('chooseCourseTeacher')) }, { status: 400 })
     }
     teacherId = body.teacher_id!
   }
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('[api/courses POST]', error)
-    return NextResponse.json({ error: 'فشل إنشاء المساق' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('courseCreateFailed')) }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 201 })
@@ -76,15 +77,15 @@ export async function POST(request: Request) {
 /** Owner teacher, or course staff in the same tenant. */
 async function authorizeCourse(courseId: string) {
   const { user, profile } = await loadCaller()
-  if (!user) return { error: NextResponse.json({ error: 'غير مصرّح' }, { status: 401 }) }
-  if (!profile?.tenant_id) return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+  if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  if (!profile?.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
 
   const admin = serviceClient()
   const { data: course } = await admin
     .from('courses').select('teacher_id, tenant_id').eq('id', courseId).single()
   const allowed = !!course && course.tenant_id === profile.tenant_id &&
     (course.teacher_id === user.id || isCourseStaff(profile))
-  if (!allowed) return { error: NextResponse.json({ error: 'ممنوع' }, { status: 403 }) }
+  if (!allowed) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   return { admin, profile: profile as Profile & { tenant_id: string } }
 }
 
@@ -92,10 +93,10 @@ async function authorizeCourse(courseId: string) {
 export async function PATCH(request: Request) {
   let body: { id?: string; is_published?: boolean; title?: string; teacher_id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { id, ...rest } = body
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const auth = await authorizeCourse(id)
   if ('error' in auth) return auth.error
@@ -104,17 +105,17 @@ export async function PATCH(request: Request) {
   const update: Record<string, unknown> = {}
   if (rest.is_published !== undefined) update.is_published = rest.is_published === true
   if (rest.title !== undefined) {
-    if (!String(rest.title).trim()) return NextResponse.json({ error: 'العنوان مطلوب' }, { status: 400 })
+    if (!String(rest.title).trim()) return NextResponse.json({ ...(await apiErr('titleRequired')) }, { status: 400 })
     update.title = String(rest.title).trim()
   }
   if (rest.teacher_id !== undefined) {
-    if (!isCourseStaff(profile)) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    if (!isCourseStaff(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     if (!(await isTenantTeacher(admin, profile.tenant_id, rest.teacher_id))) {
-      return NextResponse.json({ error: 'المدرب المحدد غير موجود في مؤسستك' }, { status: 400 })
+      return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
     }
     update.teacher_id = rest.teacher_id
   }
-  if (Object.keys(update).length === 0) return NextResponse.json({ error: 'لا يوجد ما يُحدَّث' }, { status: 400 })
+  if (Object.keys(update).length === 0) return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
 
   const { data, error } = await admin
     .from('courses').update(update).eq('id', id)
@@ -122,7 +123,7 @@ export async function PATCH(request: Request) {
 
   if (error) {
     console.error('[api/courses PATCH]', error)
-    return NextResponse.json({ error: 'فشل تحديث المساق' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('courseUpdateFailed')) }, { status: 500 })
   }
 
   return NextResponse.json(data)
@@ -132,10 +133,10 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   let body: { id?: string }
   try { body = await request.json() }
-  catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { id } = body
-  if (!id) return NextResponse.json({ error: 'المعرّف مفقود' }, { status: 400 })
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const auth = await authorizeCourse(id)
   if ('error' in auth) return auth.error
@@ -143,7 +144,7 @@ export async function DELETE(request: Request) {
   const { error } = await auth.admin.from('courses').delete().eq('id', id)
   if (error) {
     console.error('[api/courses DELETE]', error)
-    return NextResponse.json({ error: 'فشل حذف المساق' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('courseDeleteFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

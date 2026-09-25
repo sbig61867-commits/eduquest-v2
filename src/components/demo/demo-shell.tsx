@@ -6,7 +6,10 @@ import {
   LayoutDashboard, GraduationCap, Users, BookOpen, ClipboardList,
   CalendarDays, Bell, Inbox, LogOut, ArrowLeftRight,
 } from 'lucide-react'
-import { demoTenant } from '@/lib/demo/data'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
+import { getDemoData } from '@/lib/demo/data'
+import { LocaleSwitcher } from '@/components/shared/locale-switcher'
 
 const ICONS = { LayoutDashboard, GraduationCap, Users, BookOpen, ClipboardList, CalendarDays, Bell, Inbox } as const
 export type DemoIcon = keyof typeof ICONS
@@ -17,26 +20,21 @@ export interface DemoNavItem {
   icon: DemoIcon
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'مدير المؤسسة',
-  teacher: 'المعلم',
-  student: 'الطالب',
-  center: 'مدير المركز',
-}
-
 export function DemoShell({ role, items, children }: { role: string; items: DemoNavItem[]; children: React.ReactNode }) {
   const pathname = usePathname()
+  const t = useTranslations('public.demo')
+  const tenant = getDemoData(useLocale() as Locale).tenant
 
   return (
-    <div className="min-h-screen bg-slate-950 lg:flex" dir="rtl">
+    <div className="min-h-screen bg-slate-950 lg:flex">
       <aside className="lg:w-64 bg-slate-900 border-s border-slate-800 flex flex-col">
         <div className="flex items-center gap-2 p-4 border-b border-slate-800 h-16">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">E</span>
           </div>
           <div className="min-w-0">
-            <p className="text-white text-sm font-semibold truncate">{demoTenant.name}</p>
-            <p className="text-slate-400 text-xs truncate">{ROLE_LABELS[role]} · وضع تجريبي</p>
+            <p className="text-white text-sm font-semibold truncate">{tenant.name}</p>
+            <p className="text-slate-400 text-xs truncate">{t(`roles.${role}.label`)} · {t('shell.demoMode')}</p>
           </div>
         </div>
 
@@ -62,11 +60,11 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
         <div className="p-3 border-t border-slate-800 space-y-1">
           <Link href="/demo" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors w-full">
             <ArrowLeftRight className="w-5 h-5 shrink-0" />
-            <span className="text-sm font-medium">جرّب دور آخر</span>
+            <span className="text-sm font-medium">{t('shell.tryAnother')}</span>
           </Link>
           <Link href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full">
             <LogOut className="w-5 h-5 shrink-0" />
-            <span className="text-sm font-medium">الخروج من التجربة</span>
+            <span className="text-sm font-medium">{t('shell.exit')}</span>
           </Link>
         </div>
       </aside>
@@ -74,8 +72,9 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
       <div className="flex-1 min-w-0">
         <header className="h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur flex items-center justify-between px-4 lg:px-6">
           <p className="text-slate-400 text-sm">
-            هذه بيانات تجريبية وهمية لغرض العرض — <Link href="/contact" className="text-blue-400 hover:underline">تواصل معنا</Link> لتجربة حقيقية بمؤسستك
+            {t('shell.banner')} <Link href="/contact" className="text-blue-400 hover:underline">{t('shell.bannerContact')}</Link> {t('shell.bannerEnd')}
           </p>
+          <LocaleSwitcher className="shrink-0" />
         </header>
         <main className="p-4 lg:p-6">{children}</main>
       </div>

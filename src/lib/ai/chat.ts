@@ -170,23 +170,49 @@ export async function aiChat(prompt: string, systemPrompt?: string, options?: Ai
 
 export function buildLessonPrompt(topic: string, level: string, customInstructions?: string): string {
   const structureBlock = customInstructions?.trim()
-    ? `The teacher has provided specific instructions for how to structure this content, follow them exactly:
+    ? `The teacher has provided specific instructions for how to structure this content, follow them exactly (they OVERRIDE the default section list below; if the teacher names specific sections, use exactly those, in their order):
 """
 ${customInstructions.trim()}
 """
 Do not add sections that are not requested. Do not ignore sections that are requested.`
-    : `Structure the lesson with:
+    : `Use these sections, in this order:
 1. Learning Objectives (3-5 bullet points)
 2. Introduction
-3. Main Content (broken into clear sections)
-4. Key Concepts Summary
-5. Practice Questions (5 questions)`
+3. Main Content (split into as many sections as the topic needs)
+4. Key Concepts Summary`
 
-  return `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
+  // The lesson viewer (components/shared/lesson-tabs.tsx) turns every H2 into
+  // a tab and parses "### question / options / answer" blocks into an
+  // interactive quiz. A prompt that doesn't ask for that shape produces one
+  // flat wall of Markdown with dead, un-answerable practice questions — which
+  // is what the topic-based generator used to return. Keep these rules in
+  // sync with generate-lesson-from-file/route.ts, which teaches the same
+  // format from an uploaded source.
+  return `Create a comprehensive educational lesson about "${topic}", aimed at ${level} level students.
+
+LANGUAGE
+- Write the ENTIRE lesson in the SAME language as the topic above. If the topic is in Arabic, every heading, sentence, question and option must be in Arabic. Never answer in English for an Arabic topic.
+- Translate the section names into that language too.
+
+FORMAT
+- Every section MUST start with a Markdown H2 heading (\`## Section Name\`). Each H2 becomes a separate tab in the platform, so use \`##\` ONLY for section boundaries.
+- Inside a section use \`###\` for sub-headings, \`-\` for bullets and \`**bold**\` for key terms.
 
 ${structureBlock}
 
-Format the response in Markdown.`
+QUIZ (mandatory, always last, even if the teacher's instructions don't mention it)
+End with a section whose H2 heading is the source language's equivalent of "Quick Quiz" (Arabic: "اختبر نفسك"), containing at least 5 questions in EXACTLY this shape:
+
+### <the question text>
+- A) <option>
+- B) <option>
+- C) <option>
+- D) <option>
+Answer: B
+
+Rules for that block: one \`###\` per question, exactly 4 options labelled A) to D), and a final \`Answer:\` line naming the correct letter. The platform parses this into an interactive quiz, so any other shape renders as dead text.
+
+Return only the lesson in Markdown, with no preamble or closing commentary.`
 }
 
 export function generateLessonContentAI(

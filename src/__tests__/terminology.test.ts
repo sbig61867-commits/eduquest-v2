@@ -76,8 +76,8 @@ describe('tenant settings', () => {
   })
 
   it('Arabic labels follow the institution type', () => {
-    expect(getTerms('school').institutionAdminAr).toBe('مدير المدرسة')
-    expect(getTerms('university').institutionStudentsAr).toBe('طلاب الجامعة')
+    expect(getTerms('school').institutionAdmin).toBe('مدير المدرسة')
+    expect(getTerms('university').institutionStudents).toBe('طلاب الجامعة')
   })
 })
 

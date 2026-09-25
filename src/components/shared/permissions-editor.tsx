@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
-import { CAPABILITIES, CAPABILITY_LABELS, CAPABILITY_HINTS, type Capability } from '@/lib/permissions'
+import { CAPABILITIES, type Capability } from '@/lib/permissions'
+import { useTranslations } from 'next-intl'
 import { ShieldCheck, UserCog } from 'lucide-react'
 
 export interface StaffMember {
@@ -27,6 +28,7 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
   grantable: Record<Capability, boolean>
   emptyHint: string
 }) {
+  const t = useTranslations('staff')
   const router = useRouter()
   const [draft, setDraft] = useState<Record<string, Record<Capability, boolean>>>(
     () => Object.fromEntries(staff.map(s => [s.id, { ...s.effective }])),
@@ -42,14 +44,14 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
     })
     const data = await res.json()
     setSavingId('')
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر حفظ الصلاحيات')
-    toast.success('تم حفظ الصلاحيات')
+    if (!res.ok) return toast.error(data.error ?? t('permissions.saveFailed'))
+    toast.success(t('permissions.saved'))
     router.refresh()
   }
 
   if (staff.length === 0) {
     return (
-      <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl" dir="rtl">
+      <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
         <UserCog className="w-12 h-12 text-slate-600 mx-auto mb-3" />
         <p className="text-slate-400">{emptyHint}</p>
       </div>
@@ -57,7 +59,7 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4">
       {staff.map(member => {
         const current = draft[member.id] ?? member.effective
         const dirty = CAPABILITIES.some(c => current[c] !== member.effective[c])
@@ -70,10 +72,10 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!member.is_active && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">معطّل</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">{t('permissions.disabled')}</span>
                 )}
                 <Button size="sm" loading={savingId === member.id} disabled={!dirty} onClick={() => save(member)}>
-                  <ShieldCheck className="w-3.5 h-3.5" /> حفظ
+                  <ShieldCheck className="w-3.5 h-3.5" /> {t('permissions.save')}
                 </Button>
               </div>
             </div>
@@ -88,7 +90,7 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors ${
                       allowed ? 'border-slate-800 hover:bg-slate-800/40 cursor-pointer' : 'border-slate-800/50 opacity-45'
                     }`}
-                    title={allowed ? CAPABILITY_HINTS[cap] : 'لا تملك هذه الصلاحية فلا يمكنك منحها'}
+                    title={allowed ? t(`capabilities.${cap}.hint`) : t('permissions.cannotGrant')}
                   >
                     <input
                       type="checkbox"
@@ -101,8 +103,8 @@ export function PermissionsEditor({ staff, grantable, emptyHint }: {
                       }))}
                     />
                     <span className="min-w-0">
-                      <span className="block text-sm text-slate-200">{CAPABILITY_LABELS[cap]}</span>
-                      <span className="block text-xs text-slate-500">{CAPABILITY_HINTS[cap]}</span>
+                      <span className="block text-sm text-slate-200">{t(`capabilities.${cap}.label`)}</span>
+                      <span className="block text-xs text-slate-500">{t(`capabilities.${cap}.hint`)}</span>
                     </span>
                   </label>
                 )

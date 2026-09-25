@@ -1,23 +1,25 @@
 import { Clock, MapPin, User } from 'lucide-react'
-import { DAY_LABELS, formatTime, slotsForDay, type ScheduleSlot } from './types'
+import { DAY_INDEXES, formatTime, slotsForDay, type ScheduleSlot } from './types'
+import { getTranslations } from 'next-intl/server'
 
 // Read-only 7-day timetable. Shared by the student view, the teacher view
 // and the staff editor's preview. Server-rendered (no client state), and
 // scrolls horizontally on narrow screens rather than squashing the columns.
-export function ScheduleGrid({
+export async function ScheduleGrid({
   slots,
   showGroup = false,
-  emptyText = 'لا توجد مواعيد في هذا الجدول بعد.',
+  emptyText,
 }: {
   slots: ScheduleSlot[]
   showGroup?: boolean
   emptyText?: string
 }) {
+  const t = await getTranslations('common')
   if (slots.length === 0) {
     return (
       <div className="text-center py-16 bg-slate-900 border border-slate-800 rounded-xl">
         <Clock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-        <p className="text-slate-400">{emptyText}</p>
+        <p className="text-slate-400">{emptyText ?? t('schedule.gridEmpty')}</p>
       </div>
     )
   }
@@ -25,14 +27,14 @@ export function ScheduleGrid({
   return (
     <div className="overflow-x-auto">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 min-w-full lg:min-w-[900px]">
-        {DAY_LABELS.map((label, day) => {
+        {DAY_INDEXES.map(day => {
           const daySlots = slotsForDay(slots, day)
           return (
             <div key={day} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               <div className="px-3 py-2 border-b border-slate-800 bg-slate-800/50">
-                <p className="text-white text-sm font-semibold">{label}</p>
+                <p className="text-white text-sm font-semibold">{t(`days.${day}`)}</p>
                 <p className="text-slate-500 text-[11px]">
-                  {daySlots.length === 0 ? 'لا مواعيد' : `${daySlots.length} موعد`}
+                  {daySlots.length === 0 ? t('schedule.noSlots') : t('schedule.slotCount', { count: daySlots.length })}
                 </p>
               </div>
 

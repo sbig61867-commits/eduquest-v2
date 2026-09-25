@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -14,27 +15,27 @@ function adminClient() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'غير مصرّح' }, { status: 401 })
+  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { request_id?: string; body?: string }
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'بيانات غير صالحة' }, { status: 400 }) }
+  try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { request_id, body: text } = body
-  if (!request_id) return NextResponse.json({ error: 'معرّف الطلب مفقود' }, { status: 400 })
-  if (!text?.trim()) return NextResponse.json({ error: 'الرسالة فارغة' }, { status: 400 })
+  if (!request_id) return NextResponse.json({ ...(await apiErr('missingRequestId')) }, { status: 400 })
+  if (!text?.trim()) return NextResponse.json({ ...(await apiErr('messageEmpty')) }, { status: 400 })
 
   const admin = adminClient()
   const { data: req } = await admin
     .from('staff_requests').select('id, tenant_id, from_user_id, to_user_id').eq('id', request_id).single()
   if (!req || req.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ error: 'الطلب غير موجود' }, { status: 404 })
+    return NextResponse.json({ ...(await apiErr('requestNotFound')) }, { status: 404 })
   }
   const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
   if (!isParticipant && profile.role !== 'university_admin' && profile.role !== 'super_admin') {
-    return NextResponse.json({ error: 'ممنوع' }, { status: 403 })
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { data: created, error } = await admin
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
   if (error || !created) {
     console.error('[api/requests/messages POST]', error)
-    return NextResponse.json({ error: 'تعذّر إرسال الرسالة' }, { status: 500 })
+    return NextResponse.json({ ...(await apiErr('messageSendFailed')) }, { status: 500 })
   }
 
   // Bump the parent request so the inbox re-sorts by latest activity.

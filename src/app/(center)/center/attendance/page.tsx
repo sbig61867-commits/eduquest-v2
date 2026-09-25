@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
-import { NoPermission } from '@/components/center/no-permission'
+import { NoPermission } from '@/components/shared/no-permission'
 import { AttendanceClient } from '@/components/center/attendance-client'
 
 export default async function CenterAttendancePage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
-  if (!has('manage_attendance')) return <NoPermission label="تسجيل الحضور" />
+  if (!has('manage_attendance')) return <NoPermission capability="manage_attendance" />
 
   const { data: groups } = await supabase
     .from('groups')

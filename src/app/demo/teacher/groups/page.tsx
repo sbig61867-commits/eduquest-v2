@@ -1,26 +1,24 @@
 import { DemoCard } from '@/components/demo/demo-shell'
-import { demoStudents } from '@/lib/demo/data'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
+import { getDemoData } from '@/lib/demo/data'
 
-const groups = [
-  { name: 'برمجة - A', count: 24 },
-  { name: 'برمجة - B', count: 22 },
-  { name: 'ذكاء اصطناعي - A', count: 28 },
-]
-
-export default function DemoTeacherGroups() {
+export default async function DemoTeacherGroups() {
+  const t = await getTranslations('public.demo')
+  const d = getDemoData((await getLocale()) as Locale)
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">المجموعات</h2>
+      <h2 className="text-2xl font-bold text-white">{t('nav.groups')}</h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {groups.map((g) => (
+        {d.teacherGroups.map((g) => (
           <DemoCard key={g.name} title={g.name}>
-            <p className="text-slate-400 text-sm">{g.count} طالب</p>
+            <p className="text-slate-400 text-sm">{t('common.students', { count: g.count })}</p>
           </DemoCard>
         ))}
       </div>
-      <DemoCard title="عيّنة من الطلاب">
+      <DemoCard title={t('common.sample')}>
         <ul className="space-y-3">
-          {demoStudents.map((s) => (
+          {d.students.map((s) => (
             <li key={s.id} className="flex items-center justify-between">
               <span className="text-white text-sm">{s.name}</span>
               <span className="text-slate-400 text-sm">{s.group}</span>

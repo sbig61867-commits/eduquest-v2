@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { ClipboardList, ShieldCheck, Eye, EyeOff, Users, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -25,18 +27,20 @@ interface ExamRow {
 const isHomework = (e: ExamRow) =>
   e.type === 'homework' || e.duration_minutes <= 0 || e.duration_minutes >= 43200
 
-function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
+type T = Awaited<ReturnType<typeof getTranslations<'admin.content'>>>
+
+function Table({ rows, homework, t, locale }: { rows: ExamRow[]; homework: boolean; t: T; locale: Locale }) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-800">
-            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? 'واجب' : 'اختبار'}</th>
-            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">معلم</th>
-            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">مجموعة</th>
-            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">التسليمات</th>
-            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">الحالة</th>
-            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">تاريخ الإنشاء</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{homework ? t('exams.thHomework') : t('exams.thExam')}</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden md:table-cell">{t('common.teacher')}</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">{t('common.group')}</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('exams.thSubmissions')}</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3">{t('common.status')}</th>
+            <th className="text-start text-xs font-medium text-slate-400 uppercase tracking-wider px-5 py-3 hidden xl:table-cell">{t('common.createdAt')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -52,10 +56,10 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
                   <div>
                     <p className="text-white text-sm font-medium">{exam.title}</p>
                     <p className="text-slate-500 text-xs mt-0.5">
-                      {isHomework(exam) ? 'بدون مؤقت' : `${exam.duration_minutes} min`}
+                      {isHomework(exam) ? t('exams.untimed') : t('exams.minutes', { count: exam.duration_minutes })}
                       {exam.proctoring_enabled && (
                         <span className="text-blue-400 inline-flex items-center gap-1 ms-2">
-                          <ShieldCheck className="w-3 h-3" />مراقَب
+                          <ShieldCheck className="w-3 h-3" />{t('exams.proctored')}
                         </span>
                       )}
                     </p>
@@ -72,15 +76,15 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
               <td className="px-5 py-4">
                 {exam.is_published ? (
                   <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
-                    <Eye className="w-3.5 h-3.5" />منشور
+                    <Eye className="w-3.5 h-3.5" />{t('common.published')}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-slate-500 text-xs font-medium">
-                    <EyeOff className="w-3.5 h-3.5" />مسودة
+                    <EyeOff className="w-3.5 h-3.5" />{t('common.draft')}
                   </span>
                 )}
               </td>
-              <td className="px-5 py-4 hidden xl:table-cell text-slate-500 text-sm">{formatDate(exam.created_at)}</td>
+              <td className="px-5 py-4 hidden xl:table-cell text-slate-500 text-sm">{formatDate(exam.created_at, locale)}</td>
             </tr>
           ))}
         </tbody>
@@ -90,6 +94,8 @@ function Table({ rows, homework }: { rows: ExamRow[]; homework: boolean }) {
 }
 
 export default async function AdminExamsPage() {
+  const t = await getTranslations('admin.content')
+  const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
@@ -104,30 +110,30 @@ export default async function AdminExamsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">الاختبارات والواجبات</h2>
+        <h2 className="text-2xl font-bold text-white">{t('exams.title')}</h2>
         <p className="text-slate-400 mt-1">
-          {exams.length} exam{exams.length === 1 ? '' : 's'} · {homework.length} homework · {submissions} submission{submissions === 1 ? '' : 's'}
+          {t('exams.summary', { exams: exams.length, homework: homework.length, submissions })}
         </p>
       </div>
 
       {all.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد اختبارات أو واجبات بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">ينشئها المعلمون من لوحاتهم.</p>
+          <p className="text-slate-400">{t('exams.empty')}</p>
+          <p className="text-slate-500 text-sm mt-1">{t('exams.emptyHint')}</p>
         </div>
       ) : (
         <div className="space-y-6">
           {exams.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">🕒 الاختبارات</h3>
-              <Table rows={exams} homework={false} />
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">🕒 {t('exams.sectionExams')}</h3>
+              <Table rows={exams} homework={false} t={t} locale={locale} />
             </div>
           )}
           {homework.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">📋 الواجبات والأنشطة</h3>
-              <Table rows={homework} homework />
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">📋 {t('exams.sectionHomework')}</h3>
+              <Table rows={homework} homework t={t} locale={locale} />
             </div>
           )}
         </div>

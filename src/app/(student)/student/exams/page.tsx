@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation'
 import { StudentExamsClient } from './exams-client'
 import { getExamPolicies } from '@/lib/settings'
 
-export default async function StudentExamsPage() {
+export default async function StudentExamsPage({ searchParams }: { searchParams: Promise<{ open?: string }> }) {
+  const { open: openExamId } = await searchParams
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
@@ -48,6 +49,7 @@ export default async function StudentExamsPage() {
       submissions={submissions ?? []}
       userId={user.id}
       violationWarningThreshold={policies.violation_warning_threshold}
+      openExamId={openExamId}
     />
   )
 }

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Plus, Users, Pencil, Trash2, UserPlus, X, Search, Archive, ArchiveRestore, ClipboardList } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
+import { useTranslations } from 'next-intl'
 
 interface Group {
   id: string
@@ -33,6 +34,7 @@ interface Props {
 
 export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   const router = useRouter()
+  const t = useTranslations('teacher')
   const [groups, setGroups] = useState(initialGroups)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Group | null>(null)
@@ -40,13 +42,11 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Manage students modal
   const [managingGroup, setManagingGroup] = useState<Group | null>(null)
   const [groupStudents, setGroupStudents] = useState<Student[]>([])
   const [studentSearch, setStudentSearch] = useState('')
   const [loadingStudents, setLoadingStudents] = useState(false)
 
-  // Survey modal
   const [surveyGroup, setSurveyGroup] = useState<Group | null>(null)
   const [surveyData, setSurveyData] = useState<{ id: string; title: string; is_open: boolean; created_at: string } | null>(null)
   const [surveyStats, setSurveyStats] = useState({ responseCount: 0, memberCount: 0 })
@@ -73,7 +73,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       body: JSON.stringify({ group_id: surveyGroup.id }),
     })
     const json = await res.json()
-    if (!res.ok) { toast.error(json.error ?? 'فشل إنشاء الاستبيان'); setSurveyLoading(false); return }
+    if (!res.ok) { toast.error(json.error ?? t('groups.surveyModal.noSurvey')); setSurveyLoading(false); return }
     setSurveyData(json.survey)
     setSurveyLoading(false)
   }
@@ -87,7 +87,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
       body: JSON.stringify({ group_id: surveyGroup.id, is_open: nextOpen }),
     })
     const json = await res.json()
-    if (!res.ok) { toast.error(json.error ?? 'فشل تحديث الاستبيان'); return }
+    if (!res.ok) { toast.error(json.error); return }
     setSurveyData(json.survey)
   }
 
@@ -115,11 +115,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
         body: JSON.stringify({ id: editing.id, name: form.name, description: form.description }),
       })
       const json = await res.json()
-      if (!res.ok) {
-        setFormError(json.error ?? 'فشل تحديث المجموعة')
-        setLoading(false)
-        return
-      }
+      if (!res.ok) { setFormError(json.error); setLoading(false); return }
       setGroups(prev => prev.map(g => g.id === editing.id ? { ...g, ...json } : g))
     } else {
       const res = await fetch('/api/groups', {
@@ -128,11 +124,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
         body: JSON.stringify({ name: form.name, description: form.description }),
       })
       const json = await res.json()
-      if (!res.ok) {
-        setFormError(json.error ?? 'فشل إنشاء المجموعة')
-        setLoading(false)
-        return
-      }
+      if (!res.ok) { setFormError(json.error); setLoading(false); return }
       setGroups(prev => [json, ...prev])
     }
     setShowAdd(false)
@@ -142,27 +134,27 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
 
   async function toggleArchive(group: Group) {
     const archiving = group.is_active
-    if (archiving && !(await confirmDialog(`أرشفة مجموعة "${group.name}"؟ ستختفي دروسها وواجباتها واختباراتها عن الطلاب، وتبقى كل السجلات والعلامات محفوظة. يمكنك استرجاعها متى شئت.`))) return
+    if (archiving && !(await confirmDialog(t('groups.archiveConfirm', { name: group.name })))) return
     const res = await fetch('/api/groups', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: group.id, is_active: !group.is_active }),
     })
     const data = await res.json()
-    if (!res.ok) { toast.error(data.error ?? 'فشل تغيير حالة المجموعة'); return }
+    if (!res.ok) { toast.error(data.error); return }
     setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_active: data.is_active } : g))
     router.refresh()
   }
 
   async function deleteGroup(id: string) {
-    if (!(await confirmDialog('حذف هذه المجموعة؟\n\nإن كان "الحذف النهائي" مفعّلاً من إعدادات المالك فستُمحى هي ودروسها واختباراتها وكل تسليمات وعلامات الطلاب نهائياً (لا رجعة). وإلا فستُنقل إلى الأرشيف مع حفظ كل السجلات.'))) return
+    if (!(await confirmDialog(t('groups.deleteConfirm')))) return
     const res = await fetch('/api/groups', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     })
     if (!res.ok) {
-      toast.error((await res.json().catch(() => ({}))).error ?? 'فشل حذف المجموعة')
+      toast.error((await res.json().catch(() => ({}))).error)
       return
     }
     setGroups(prev => prev.filter(g => g.id !== id))
@@ -217,16 +209,16 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">مجموعاتي</h2>
-          <p className="text-slate-400 mt-1">{groups.length} groups</p>
+          <h2 className="text-2xl font-bold text-white">{t('groups.title')}</h2>
+          <p className="text-slate-400 mt-1">{groups.length}</p>
         </div>
-        <Button onClick={openAdd}><Plus className="w-4 h-4" /> مجموعة جديدة</Button>
+        <Button onClick={openAdd}><Plus className="w-4 h-4" /> {t('groups.newGroup')}</Button>
       </div>
 
       {groups.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد مجموعات بعد. أنشئ مجموعتك الأولى.</p>
+          <p className="text-slate-400">{t('groups.noGroups')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -239,7 +231,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" onClick={() => openEdit(group)}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => toggleArchive(group)}
-                    title={group.is_active ? 'أرشفة — إخفاء عن الطلاب مع حفظ السجلات' : 'استرجاع المجموعة'}
+                    title={group.is_active ? t('groups.archiveTitle') : t('groups.restoreTitle')}
                     className={group.is_active ? 'hover:text-amber-400 hover:bg-amber-500/10' : 'text-amber-400 hover:text-emerald-400 hover:bg-emerald-500/10'}>
                     {group.is_active ? <Archive className="w-3.5 h-3.5" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
                   </Button>
@@ -248,17 +240,17 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
               </div>
               <h3 className="text-white font-semibold mb-1">
                 {group.name}
-                {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 align-middle">مؤرشفة</span>}
+                {!group.is_active && <span className="ms-2 text-xs px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 align-middle">{t('groups.archived')}</span>}
               </h3>
-              <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || 'بلا وصف'}</p>
+              <p className="text-slate-400 text-sm mb-4 line-clamp-2">{group.description || t('groups.noDescription')}</p>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-500 shrink-0">{group.group_students?.[0]?.count ?? 0} students</span>
+                <span className="text-xs text-slate-500 shrink-0">{group.group_students?.[0]?.count ?? 0}</span>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => openSurvey(group)} title="استبيان تقييم التجربة">
+                  <Button variant="ghost" size="sm" onClick={() => openSurvey(group)} title={t('groups.surveyTooltip')}>
                     <ClipboardList className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => openManage(group)}>
-                    <UserPlus className="w-3.5 h-3.5" /> إدارة الطلاب
+                    <UserPlus className="w-3.5 h-3.5" /> {t('groups.manageStudents')}
                   </Button>
                 </div>
               </div>
@@ -267,33 +259,31 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
         </div>
       )}
 
-      {/* Create / Edit Group Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={editing ? 'تعديل المجموعة' : 'مجموعة جديدة'}>
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={editing ? t('groups.modal.editTitle') : t('groups.modal.createTitle')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formError && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
               {formError}
             </div>
           )}
-          <Input label="اسم المجموعة" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="مثال: علوم الحاسوب — دفعة 2024" />
+          <Input label={t('groups.modal.nameLabel')} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder={t('groups.modal.namePlaceholder')} />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">الوصف (اختياري)</label>
+            <label className="block text-sm font-medium text-slate-300">{t('groups.modal.descLabel')}</label>
             <textarea
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               rows={3}
               className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
-              placeholder="وصف موجز…"
+              placeholder={t('groups.modal.descPlaceholder')}
             />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">إلغاء</Button>
-            <Button type="submit" loading={loading} className="flex-1">{editing ? 'حفظ التغييرات' : 'إنشاء المجموعة'}</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">{t('groups.modal.cancel')}</Button>
+            <Button type="submit" loading={loading} className="flex-1">{editing ? t('groups.modal.save') : t('groups.modal.create')}</Button>
           </div>
         </form>
       </Modal>
 
-      {/* Manage Students Modal */}
       <Modal open={!!managingGroup} onClose={() => setManagingGroup(null)} title={`Manage Students — ${managingGroup?.name ?? ''}`}>
         <div className="space-y-4">
           <div className="relative">
@@ -301,20 +291,19 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
             <input
               value={studentSearch}
               onChange={e => setStudentSearch(e.target.value)}
-              placeholder="ابحث عن طالب…"
+              placeholder={t('groups.studentsModal.searchPlaceholder')}
               className="w-full ps-10 pe-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
 
-          {/* Enrolled */}
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Enrolled ({groupStudents.length})
+              {t('groups.studentsModal.enrolled', { count: groupStudents.length })}
             </p>
             {loadingStudents ? (
-              <p className="text-slate-500 text-sm py-2">جارٍ التحميل…</p>
+              <p className="text-slate-500 text-sm py-2">{t('groups.studentsModal.loading')}</p>
             ) : filteredEnrolled.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">لا يوجد طلاب مسجّلون</p>
+              <p className="text-slate-500 text-sm py-2">{t('groups.studentsModal.noEnrolled')}</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {filteredEnrolled.map(s => (
@@ -335,13 +324,12 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
             )}
           </div>
 
-          {/* Available to add */}
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Add Students ({availableStudents.length} available)
+              {t('groups.studentsModal.available', { count: availableStudents.length })}
             </p>
             {availableStudents.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">كل الطلاب مسجّلون أو لم يُعثر على أحد</p>
+              <p className="text-slate-500 text-sm py-2">{t('groups.studentsModal.noneAvailable')}</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {availableStudents.map(s => (
@@ -362,20 +350,19 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
             )}
           </div>
 
-          <Button variant="secondary" onClick={() => setManagingGroup(null)} className="w-full">تم</Button>
+          <Button variant="secondary" onClick={() => setManagingGroup(null)} className="w-full">{t('groups.studentsModal.done')}</Button>
         </div>
       </Modal>
 
-      {/* Survey Modal */}
-      <Modal open={!!surveyGroup} onClose={() => setSurveyGroup(null)} title={`استبيان التجربة — ${surveyGroup?.name ?? ''}`}>
+      <Modal open={!!surveyGroup} onClose={() => setSurveyGroup(null)} title={`${t('groups.surveyTooltip')} — ${surveyGroup?.name ?? ''}`}>
         <div className="space-y-4">
           {surveyLoading ? (
-            <p className="text-slate-400 text-sm py-4 text-center">جارٍ التحميل...</p>
+            <p className="text-slate-400 text-sm py-4 text-center">{t('groups.surveyModal.loading')}</p>
           ) : !surveyData ? (
             <div className="text-center py-4 space-y-3">
-              <p className="text-slate-400 text-sm">لا يوجد استبيان لهذه المجموعة بعد. أنشئه ليتمكن الطلاب من تقييم تجربتهم مع المنصة.</p>
+              <p className="text-slate-400 text-sm">{t('groups.surveyModal.noSurvey')}</p>
               <Button onClick={createSurvey} loading={surveyLoading}>
-                <ClipboardList className="w-4 h-4" /> إنشاء استبيان
+                <ClipboardList className="w-4 h-4" /> {t('groups.surveyModal.createSurvey')}
               </Button>
             </div>
           ) : (
@@ -384,15 +371,15 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
                 <div>
                   <p className="text-white font-medium">{surveyData.title}</p>
                   <p className="text-xs text-slate-400 mt-1">
-                    أجاب {surveyStats.responseCount} من {surveyStats.memberCount} طالب
+                    {t('groups.surveyModal.responses', { count: surveyStats.responseCount, total: surveyStats.memberCount })}
                   </p>
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${surveyData.is_open ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
-                  {surveyData.is_open ? 'مفتوح' : 'مغلق'}
+                  {surveyData.is_open ? t('groups.surveyModal.open') : t('groups.surveyModal.closed')}
                 </span>
               </div>
               <Button variant="secondary" onClick={toggleSurveyOpen} className="w-full">
-                {surveyData.is_open ? 'إغلاق استقبال الإجابات' : 'إعادة فتح الاستبيان'}
+                {surveyData.is_open ? t('groups.surveyModal.close') : t('groups.surveyModal.reopen')}
               </Button>
             </div>
           )}

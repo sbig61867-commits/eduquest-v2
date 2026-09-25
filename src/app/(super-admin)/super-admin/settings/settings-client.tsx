@@ -132,10 +132,10 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
     e.preventDefault()
     setAiError(''); setAiSaved(false)
     if (!Number.isFinite(ai.lesson_per_hour) || ai.lesson_per_hour < 1 || ai.lesson_per_hour > 1000) {
-      setAiError('Lesson limit must be between 1 and 1000.'); return
+      setAiError('حدّ الدروس يجب أن يكون بين 1 و1000.'); return
     }
     if (!Number.isFinite(ai.exam_per_hour) || ai.exam_per_hour < 1 || ai.exam_per_hour > 1000) {
-      setAiError('Exam limit must be between 1 and 1000.'); return
+      setAiError('حدّ الاختبارات يجب أن يكون بين 1 و1000.'); return
     }
     setSavingAi(true)
     const { error } = await supabase

@@ -1,3 +1,4 @@
+import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { resolveAppUrl } from '@/lib/auth-urls'
 import { getMailCaller } from '@/lib/mail/access'
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   const auth = await getMailCaller()
   if ('error' in auth) return auth.error
   if (!googleMailConfigured()) {
-    return NextResponse.json({ error: 'ربط Gmail غير مُعدّ على الخادم بعد' }, { status: 503 })
+    return NextResponse.json({ ...(await apiErr('gmailNotConfigured')) }, { status: 503 })
   }
   const origin = resolveAppUrl(request.url, process.env.NEXT_PUBLIC_APP_URL)
   return NextResponse.redirect(googleAuthUrl(origin, signState(auth.caller.id)))

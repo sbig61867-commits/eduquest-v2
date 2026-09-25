@@ -14,11 +14,19 @@
  * FeaturesClient tests cover the direct-Supabase pattern.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render as rtlRender, screen, waitFor } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import ar from '@/messages/ar'
 import userEvent from '@testing-library/user-event'
 import { StudentsClient } from '@/app/(admin)/admin/students/students-client'
 import { FeaturesClient } from '@/app/(super-admin)/super-admin/features/features-client'
 import type { User, FeatureFlag } from '@/types'
+
+// Real Arabic messages rather than a key-echo mock: the assertions below look
+// for 'نشط' / 'معطّل', so they now also prove the message keys resolve.
+function render(ui: React.ReactElement) {
+  return rtlRender(<NextIntlClientProvider locale="ar" messages={ar as never}>{ui}</NextIntlClientProvider>)
+}
 
 // ── Shared mocks ──────────────────────────────────────────────────────────────
 

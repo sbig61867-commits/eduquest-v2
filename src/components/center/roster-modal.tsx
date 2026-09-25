@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -27,6 +28,7 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
   /** Group rosters only: move this member to another group. */
   onTransfer?: (member: Member) => void
 }) {
+  const t = useTranslations('staff.roster')
   const [members, setMembers] = useState<Member[]>([])
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [busy, setBusy] = useState('')
@@ -41,7 +43,7 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
       .then(async res => {
         const data = await res.json().catch(() => ({}))
         if (cancelled) return
-        if (!res.ok) toast.error(data.error ?? 'تعذّر تحميل القائمة')
+        if (!res.ok) toast.error(data.error ?? t('loadFailed'))
         setMembers(res.ok ? data.students ?? [] : [])
         setLoadedFor(targetId)
       })
@@ -58,7 +60,7 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
     })
     const data = await res.json().catch(() => ({}))
     setBusy('')
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر التحديث')
+    if (!res.ok) return toast.error(data.error ?? t('updateFailed'))
     const next = method === 'POST'
       ? [...members.filter(m => m.id !== studentId), data.student as Member].filter(Boolean)
       : members.filter(m => m.id !== studentId)
@@ -73,12 +75,12 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
 
   return (
     <Modal open={open} onClose={onClose} title={title} size="lg">
-      <div className="space-y-4" dir="rtl">
+      <div className="space-y-4">
         <div className="flex gap-2 flex-wrap">
           <input
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            placeholder="ابحث عن طالب…"
+            placeholder={t('search')}
             className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
           />
           <select
@@ -86,17 +88,17 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
             onChange={e => setPick(e.target.value)}
             className="flex-1 min-w-[180px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
           >
-            <option value="">اختر طالباً ({candidates.length})</option>
+            <option value="">{t('pick', { count: candidates.length })}</option>
             {candidates.slice(0, 200).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <Button disabled={!pick} loading={busy === pick && !!pick} onClick={() => change('POST', pick)}>
-            <UserPlus className="w-4 h-4" /> إضافة
+            <UserPlus className="w-4 h-4" /> {t('add')}
           </Button>
         </div>
 
         <div className="max-h-80 overflow-y-auto border border-slate-800 rounded-lg divide-y divide-slate-800">
-          {loading && <p className="text-slate-500 text-sm p-4">جارٍ التحميل…</p>}
-          {!loading && members.length === 0 && <p className="text-slate-500 text-sm p-4">لا يوجد طلاب بعد.</p>}
+          {loading && <p className="text-slate-500 text-sm p-4">{t('loading')}</p>}
+          {!loading && members.length === 0 && <p className="text-slate-500 text-sm p-4">{t('empty')}</p>}
           {members.map(m => (
             <div key={m.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
               <div className="min-w-0">
@@ -106,17 +108,17 @@ export function RosterModal({ open, onClose, title, endpoint, idKey, targetId, s
               <div className="flex gap-1">
                 {onTransfer && (
                   <Button variant="ghost" size="sm" onClick={() => onTransfer(m)}>
-                    <ArrowLeftRight className="w-3.5 h-3.5" /> نقل
+                    <ArrowLeftRight className="w-3.5 h-3.5" /> {t('transfer')}
                   </Button>
                 )}
                 <Button variant="ghost" size="sm" loading={busy === m.id} onClick={() => change('DELETE', m.id)}>
-                  <UserMinus className="w-3.5 h-3.5" /> إزالة
+                  <UserMinus className="w-3.5 h-3.5" /> {t('remove')}
                 </Button>
               </div>
             </div>
           ))}
         </div>
-        <p className="text-slate-500 text-xs">{members.length} طالب</p>
+        <p className="text-slate-500 text-xs">{t('count', { count: members.length })}</p>
       </div>
     </Modal>
   )

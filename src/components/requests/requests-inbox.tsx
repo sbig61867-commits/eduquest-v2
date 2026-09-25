@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -39,16 +41,10 @@ interface Props {
   requests: RequestRow[]
   recipients: RecipientOption[]
   groups: GroupOption[]
-  /** Arabic label for the counterpart, e.g. "المدير" or "المعلم". */
+  /** Already-localized label for the counterpart, supplied by the page. */
   recipientLabel: string
 }
 
-const TYPE_LABEL: Record<RequestRow['type'], string> = {
-  general: 'عام', grade_sheet: 'كشف علامات', report: 'تقرير',
-}
-const STATUS_LABEL: Record<RequestRow['status'], string> = {
-  pending: 'قيد الانتظار', accepted: 'مقبول', rejected: 'مرفوض', completed: 'مكتمل', cancelled: 'ملغى',
-}
 const STATUS_CLASS: Record<RequestRow['status'], string> = {
   pending: 'text-amber-400 bg-amber-500/10',
   accepted: 'text-blue-400 bg-blue-500/10',
@@ -58,6 +54,8 @@ const STATUS_CLASS: Record<RequestRow['status'], string> = {
 }
 
 export function RequestsInbox({ me, requests, recipients, groups, recipientLabel }: Props) {
+  const t = useTranslations('staff.requests')
+  const locale = useLocale() as Locale
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(requests[0]?.id ?? null)
   const [composing, setComposing] = useState(false)
@@ -79,8 +77,8 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
   }, [groups, form.to_user_id, me.role])
 
   async function createRequest() {
-    if (!form.to_user_id) return toast.error(`اختر ${recipientLabel}`)
-    if (!form.subject.trim()) return toast.error('اكتب موضوع الطلب')
+    if (!form.to_user_id) return toast.error(t('pickRecipient', { recipient: recipientLabel }))
+    if (!form.subject.trim()) return toast.error(t('subjectRequired'))
     setBusy(true)
     const res = await fetch('/api/requests', {
       method: 'POST',
@@ -95,8 +93,8 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
     })
     const data = await res.json()
     setBusy(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر إنشاء الطلب')
-    toast.success('تم إرسال الطلب')
+    if (!res.ok) return toast.error(data.error ?? t('createFailed'))
+    toast.success(t('created'))
     setComposing(false)
     setForm({ to_user_id: '', type: 'general', subject: '', group_id: '', message: '' })
     setSelectedId(data.id)
@@ -113,7 +111,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
     })
     const data = await res.json()
     setBusy(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر إرسال الرسالة')
+    if (!res.ok) return toast.error(data.error ?? t('replyFailed'))
     setReply('')
     router.refresh()
   }
@@ -128,25 +126,25 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
     })
     const data = await res.json()
     setBusy(false)
-    if (!res.ok) return toast.error(data.error ?? 'تعذّر تحديث الحالة')
+    if (!res.ok) return toast.error(data.error ?? t('statusFailed'))
     router.refresh()
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">الطلبات والتواصل</h2>
-          <p className="text-slate-400 mt-1">{requests.length} طلب · تواصل مع {recipientLabel}</p>
+          <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+          <p className="text-slate-400 mt-1">{t('summary', { count: requests.length, recipient: recipientLabel })}</p>
         </div>
         <Button onClick={() => setComposing(v => !v)}>
-          <Plus className="w-4 h-4" /> طلب جديد
+          <Plus className="w-4 h-4" /> {t('newRequest')}
         </Button>
       </div>
 
       {composing && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-white font-semibold">إنشاء طلب إلى {recipientLabel}</h3>
+          <h3 className="text-white font-semibold">{t('composeTitle', { recipient: recipientLabel })}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="text-sm text-slate-300 space-y-1.5 block">
               <span>{recipientLabel}</span>
@@ -155,57 +153,57 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 value={form.to_user_id}
                 onChange={e => setForm(f => ({ ...f, to_user_id: e.target.value, group_id: '' }))}
               >
-                <option value="">— اختر —</option>
+                <option value="">{t('choose')}</option>
                 {recipients.map(r => <option key={r.id} value={r.id}>{r.full_name ?? '—'}</option>)}
               </select>
             </label>
             <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>نوع الطلب</span>
+              <span>{t('typeLabel')}</span>
               <select
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 value={form.type}
                 onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
               >
-                <option value="general">عام</option>
-                <option value="grade_sheet">كشف علامات</option>
-                <option value="report">تقرير</option>
+                <option value="general">{t('type.general')}</option>
+                <option value="grade_sheet">{t('type.grade_sheet')}</option>
+                <option value="report">{t('type.report')}</option>
               </select>
             </label>
           </div>
           <label className="text-sm text-slate-300 space-y-1.5 block">
-            <span>الموضوع</span>
+            <span>{t('subject')}</span>
             <input
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
               value={form.subject}
               onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-              placeholder="مثال: كشف علامات مجموعة الرياضيات — الفصل الأول"
+              placeholder={t('subjectPlaceholder')}
             />
           </label>
           {formGroups.length > 0 && (
             <label className="text-sm text-slate-300 space-y-1.5 block">
-              <span>المجموعة (اختياري)</span>
+              <span>{t('groupLabel')}</span>
               <select
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 value={form.group_id}
                 onChange={e => setForm(f => ({ ...f, group_id: e.target.value }))}
               >
-                <option value="">— بدون —</option>
+                <option value="">{t('none')}</option>
                 {formGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </label>
           )}
           <label className="text-sm text-slate-300 space-y-1.5 block">
-            <span>رسالة (اختياري)</span>
+            <span>{t('bodyLabel')}</span>
             <textarea
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm min-h-[80px]"
               value={form.message}
               onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-              placeholder="تفاصيل إضافية…"
+              placeholder={t('bodyPlaceholder')}
             />
           </label>
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" onClick={() => setComposing(false)}>إلغاء</Button>
-            <Button loading={busy} onClick={createRequest}><Send className="w-4 h-4" /> إرسال</Button>
+            <Button variant="ghost" onClick={() => setComposing(false)}>{t('cancel')}</Button>
+            <Button loading={busy} onClick={createRequest}><Send className="w-4 h-4" /> {t('send')}</Button>
           </div>
         </div>
       )}
@@ -213,8 +211,8 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
       {requests.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Inbox className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">لا توجد طلبات بعد.</p>
-          <p className="text-slate-500 text-sm mt-1">أنشئ طلباً جديداً للتواصل مع {recipientLabel}.</p>
+          <p className="text-slate-400">{t('empty')}</p>
+          <p className="text-slate-500 text-sm mt-1">{t('emptyHint', { recipient: recipientLabel })}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -233,12 +231,12 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-white text-sm font-medium truncate">{r.subject}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${STATUS_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${STATUS_CLASS[r.status]}`}>{t(`status.${r.status}`)}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                    <span>{TYPE_LABEL[r.type]}</span>
+                    <span>{t(`type.${r.type}`)}</span>
                     <span>·</span>
-                    <span>{outgoing ? 'إلى' : 'من'} {counterpart ?? '—'}</span>
+                    <span>{outgoing ? t('to') : t('from')} {counterpart ?? '—'}</span>
                     {r.messages.length > 0 && (
                       <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{r.messages.length}</span>
                     )}
@@ -255,19 +253,19 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 <div className="p-4 border-b border-slate-800">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-white font-semibold">{selected.subject}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_CLASS[selected.status]}`}>{STATUS_LABEL[selected.status]}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_CLASS[selected.status]}`}>{t(`status.${selected.status}`)}</span>
                   </div>
                   <p className="text-slate-500 text-xs mt-1">
-                    {TYPE_LABEL[selected.type]}
-                    {selected.group_name && <> · المجموعة: {selected.group_name}</>}
-                    {' · '}{formatDate(selected.created_at)}
+                    {t(`type.${selected.type}`)}
+                    {selected.group_name && <> · {t('group', { name: selected.group_name })}</>}
+                    {' · '}{formatDate(selected.created_at, locale)}
                   </p>
                   <StatusActions me={me} req={selected} busy={busy} onSet={setStatus} />
                 </div>
 
                 <div className="p-4 space-y-3 max-h-[420px] overflow-y-auto">
                   {selected.messages.length === 0 ? (
-                    <p className="text-slate-500 text-sm text-center py-6">لا توجد رسائل — ابدأ المحادثة.</p>
+                    <p className="text-slate-500 text-sm text-center py-6">{t('noMessages')}</p>
                   ) : (
                     [...selected.messages]
                       .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -277,7 +275,7 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                           <div key={m.id} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
                             <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-200'}`}>
                               <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                              <p className={`text-[10px] mt-1 ${mine ? 'text-blue-100' : 'text-slate-500'}`}>{formatDate(m.created_at)}</p>
+                              <p className={`text-[10px] mt-1 ${mine ? 'text-blue-100' : 'text-slate-500'}`}>{formatDate(m.created_at, locale)}</p>
                             </div>
                           </div>
                         )
@@ -288,17 +286,17 @@ export function RequestsInbox({ me, requests, recipients, groups, recipientLabel
                 <div className="p-3 border-t border-slate-800 flex gap-2">
                   <input
                     className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
-                    placeholder="اكتب رسالة…"
+                    placeholder={t('replyPlaceholder')}
                     value={reply}
                     onChange={e => setReply(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'دخول' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
                   />
                   <Button loading={busy} onClick={sendReply} disabled={!reply.trim()}><Send className="w-4 h-4" /></Button>
                 </div>
               </div>
             ) : (
               <div className="bg-slate-900 border border-slate-800 rounded-xl h-full flex items-center justify-center text-slate-500 text-sm py-20">
-                اختر طلباً لعرض المحادثة
+                {t('pickRequestHint')}
               </div>
             )}
           </div>
@@ -314,6 +312,7 @@ function StatusActions({ me, req, busy, onSet }: {
   busy: boolean
   onSet: (s: RequestRow['status']) => void
 }) {
+  const t = useTranslations('staff.requests')
   const isRecipient = req.to_user_id === me.id
   const isSender = req.from_user_id === me.id
   const isAdmin = me.role === 'university_admin' || me.role === 'super_admin'
@@ -323,18 +322,18 @@ function StatusActions({ me, req, busy, onSet }: {
   const buttons: React.ReactNode[] = []
   if (req.status === 'pending' && canDecide) {
     buttons.push(
-      <Button key="acc" size="sm" loading={busy} onClick={() => onSet('accepted')}><Check className="w-3.5 h-3.5" /> قبول</Button>,
-      <Button key="rej" size="sm" variant="ghost" loading={busy} onClick={() => onSet('rejected')}><X className="w-3.5 h-3.5" /> رفض</Button>,
+      <Button key="acc" size="sm" loading={busy} onClick={() => onSet('accepted')}><Check className="w-3.5 h-3.5" /> {t('accept')}</Button>,
+      <Button key="rej" size="sm" variant="ghost" loading={busy} onClick={() => onSet('rejected')}><X className="w-3.5 h-3.5" /> {t('reject')}</Button>,
     )
   }
   if (req.status === 'accepted' && canDecide) {
     buttons.push(
-      <Button key="done" size="sm" loading={busy} onClick={() => onSet('completed')}><CheckCircle2 className="w-3.5 h-3.5" /> تم الإنجاز</Button>,
+      <Button key="done" size="sm" loading={busy} onClick={() => onSet('completed')}><CheckCircle2 className="w-3.5 h-3.5" /> {t('complete')}</Button>,
     )
   }
   if ((req.status === 'pending' || req.status === 'accepted') && canCancel && !isRecipient) {
     buttons.push(
-      <Button key="cancel" size="sm" variant="ghost" loading={busy} onClick={() => onSet('cancelled')}><Ban className="w-3.5 h-3.5" /> إلغاء</Button>,
+      <Button key="cancel" size="sm" variant="ghost" loading={busy} onClick={() => onSet('cancelled')}><Ban className="w-3.5 h-3.5" /> {t('cancelRequest')}</Button>,
     )
   }
   if (buttons.length === 0) return null
