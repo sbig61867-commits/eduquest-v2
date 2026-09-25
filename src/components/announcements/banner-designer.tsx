@@ -5,11 +5,11 @@ import { useLocale, useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { dirFor, type Locale } from '@/i18n/config'
-import { Download, ImagePlus, Shuffle, Upload, X } from 'lucide-react'
+import { Download, ImagePlus, Move, RotateCcw, Shuffle, Upload, X } from 'lucide-react'
 import {
   H, ICONS, LAYOUTS, PALETTES, PATTERNS, PRESETS, W,
-  paletteById, renderBanner,
-  type Design, type HeadlineSize, type Preset, type TextDir, type TextField,
+  inkOn, paletteById, renderBanner,
+  type Design, type ElementId, type ElementStyle, type HeadlineSize, type Hit, type Preset, type TextDir, type TextField,
 } from './banner-render'
 
 // In-browser banner designer. Everything renders on a <canvas> on the
@@ -76,6 +76,9 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
   const [fontsReady, setFontsReady] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [presetId, setPresetId] = useState(PRESETS[0].id)
+  const [hits, setHits] = useState<Hit[]>([])
+  const [selected, setSelected] = useState<ElementId | null>(null)
+  const drag = useRef<{ id: ElementId; px: number; py: number; dx: number; dy: number } | null>(null)
 
   const sample = (p: Preset, f: TextField) => sampleText(t, p, f)
 
@@ -112,7 +115,7 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d')
     if (!ctx) return
-    renderBanner(ctx, design, photo, fontFamily(), t('fallbackHeadline'), uiDir)
+    setHits(renderBanner(ctx, design, photo, fontFamily(), t('fallbackHeadline'), uiDir))
   }, [design, photo, fontsReady, t, uiDir])
 
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.src) }, [photo])
@@ -120,16 +123,83 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
   // Each gallery card previews the author's own wording in that template.
   const presetDesigns = useMemo(() => PRESETS.map(p => {
     const texts = Object.fromEntries(TEXT_FIELDS.map(f => [f, edited.has(f) ? design[f] : sampleText(t, p, f)])) as Record<TextField, string>
-    return { preset: p, design: { ...design, ...styleOf(p), ...texts } as Design }
+    return { preset: p, design: { ...design, ...styleOf(p), ...texts, elements: {} } as Design }
   }), [design, edited, t])
 
   function applyPreset(p: Preset) {
     setPresetId(p.id)
     setDesign(d => {
       const texts = Object.fromEntries(TEXT_FIELDS.map(f => [f, edited.has(f) ? d[f] : sample(p, f)])) as Record<TextField, string>
-      return { ...d, ...styleOf(p), ...texts }
+      // Positions tuned for one layout make no sense in another.
+      return { ...d, ...styleOf(p), ...texts, elements: {} }
+    })
+    setSelected(null)
+  }
+
+  // ── Direct manipulation on the canvas ──────────────────────────────────
+  // The canvas is 1200×400 but displayed smaller; convert pointer positions
+  // to canvas units, hit-test the element boxes the renderer reported
+  // (last drawn = on top), and drag by updating that element's offset.
+  function toCanvas(e: React.PointerEvent<HTMLCanvasElement>) {
+    const r = e.currentTarget.getBoundingClientRect()
+    return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }
+  }
+
+  function styleFor(id: ElementId): ElementStyle {
+    return design.elements?.[id] ?? { dx: 0, dy: 0, scale: 1 }
+  }
+
+  function patchElement(id: ElementId, patch: Partial<ElementStyle>) {
+    setDesign(d => {
+      const cur = d.elements?.[id] ?? { dx: 0, dy: 0, scale: 1 }
+      return { ...d, elements: { ...d.elements, [id]: { ...cur, ...patch } } }
     })
   }
+
+  function resetElement(id: ElementId) {
+    setDesign(d => {
+      const next = { ...d.elements }
+      delete next[id]
+      return { ...d, elements: next }
+    })
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    const p = toCanvas(e)
+    const hit = [...hits].reverse().find(h => p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h)
+    setSelected(hit?.id ?? null)
+    if (!hit) return
+    const st = styleFor(hit.id)
+    drag.current = { id: hit.id, px: p.x, py: p.y, dx: st.dx, dy: st.dy }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    const g = drag.current
+    if (!g) return
+    const p = toCanvas(e)
+    const clamp = (v: number, m: number) => Math.max(-m, Math.min(m, Math.round(v)))
+    patchElement(g.id, { dx: clamp(g.dx + p.x - g.px, W), dy: clamp(g.dy + p.y - g.py, H) })
+  }
+
+  function onPointerUp() {
+    drag.current = null
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLCanvasElement>) {
+    if (!selected) return
+    const step = e.shiftKey ? 20 : 4
+    const move: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }
+    const m = move[e.key]
+    if (!m) return
+    e.preventDefault()
+    const st = styleFor(selected)
+    patchElement(selected, { dx: st.dx + m[0], dy: st.dy + m[1] })
+  }
+
+  const selectedHit = selected ? hits.find(h => h.id === selected) : undefined
+  const selectedStyle = selected ? styleFor(selected) : null
+  const defaultColor = (id: ElementId) => (id === 'badge' ? design.accent : id === 'highlight' ? inkOn(design.accent) : design.text)
 
   function setText(f: TextField, value: string) {
     setEdited(s => (s.has(f) ? s : new Set(s).add(f)))
@@ -147,6 +217,7 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
     setDesign(d => ({
       ...d,
       layout: pick(LAYOUTS),
+      elements: {},
       pattern: pick(PATTERNS),
       paletteId: pal.id, bg1: pal.bg[0], bg2: pal.bg[1], text: pal.text, accent: pal.accent,
     }))
@@ -207,9 +278,59 @@ export function BannerDesigner({ initialHeadline, initialSubline, onUploaded, on
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
-        <canvas ref={canvasRef} width={W} height={H} className="w-full h-auto block" aria-label={t('canvasAria')} />
+      <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
+        <canvas
+          ref={canvasRef} width={W} height={H} tabIndex={0}
+          className="w-full h-auto block cursor-move touch-none outline-none"
+          aria-label={t('canvasAria')}
+          onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onKeyDown={onKeyDown}
+        />
+        {selectedHit && (
+          // Selection outline is a DOM overlay, so it never ends up in the exported image.
+          <div
+            className="pointer-events-none absolute border-2 border-dashed border-sky-400 rounded-md"
+            style={{
+              left: `${(selectedHit.x / W) * 100}%`, top: `${(selectedHit.y / H) * 100}%`,
+              width: `${(selectedHit.w / W) * 100}%`, height: `${(selectedHit.h / H) * 100}%`,
+            }}
+          />
+        )}
       </div>
+
+      {selected && selectedStyle ? (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/5 p-3 flex items-center gap-4 flex-wrap text-sm text-slate-300">
+          <span className="flex items-center gap-1.5 text-white font-medium"><Move className="w-4 h-4 text-sky-400" /> {t(`elements.${selected}`)}</span>
+          <label className="flex items-center gap-2">
+            {t('elementSize')}
+            <input type="range" min={0.4} max={2.5} step={0.05} value={selectedStyle.scale}
+              onChange={e => patchElement(selected, { scale: Number(e.target.value) })} />
+            <span className="text-xs text-slate-500 w-10">{Math.round(selectedStyle.scale * 100)}%</span>
+          </label>
+          {selected !== 'icon' && (
+            <label className="flex items-center gap-2">
+              {t('elementColor')}
+              <input type="color" value={selectedStyle.color ?? defaultColor(selected)}
+                onChange={e => patchElement(selected, { color: e.target.value })}
+                className="w-8 h-8 rounded bg-transparent border border-slate-700" />
+            </label>
+          )}
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={!!selectedStyle.shadow}
+              onChange={e => patchElement(selected, { shadow: e.target.checked })} />
+            {t('elementShadow')}
+          </label>
+          <Button variant="ghost" size="sm" onClick={() => resetElement(selected)}><RotateCcw className="w-3.5 h-3.5" /> {t('elementReset')}</Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(null)}><X className="w-3.5 h-3.5" /></Button>
+        </div>
+      ) : (
+        <p className="text-slate-500 text-xs flex items-center gap-2 flex-wrap">
+          <Move className="w-3.5 h-3.5" /> {t('dragHint')}
+          {design.elements && Object.keys(design.elements).length > 0 && (
+            <button className="text-sky-400 hover:text-sky-300" onClick={() => setDesign(d => ({ ...d, elements: {} }))}>{t('resetAll')}</button>
+          )}
+        </p>
+      )}
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex gap-1 bg-slate-800/60 rounded-lg p-1" role="tablist">

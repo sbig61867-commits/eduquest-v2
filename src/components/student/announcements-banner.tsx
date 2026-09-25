@@ -64,7 +64,7 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
       <div className="pointer-events-none absolute inset-0 opacity-[0.07] eq-sheen" aria-hidden />
 
       <div key={a.id} className="eq-fade-in">
-        {a.image_url && <AnnouncementImage src={a.image_url} />}
+        {a.image_url && <AnnouncementImage src={a.image_url} zoomable />}
 
         <div className="p-5 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
@@ -171,15 +171,23 @@ export function AnnouncementsBanner({ announcements }: { announcements: StudentA
  * card width at its own aspect ratio; a blurred copy fills the letterbox when
  * a photo is taller than the height cap.
  */
-export function AnnouncementImage({ src, className = 'max-h-[22rem]' }: { src: string; className?: string }) {
-  return (
-    <div className="relative w-full overflow-hidden bg-slate-950">
+export function AnnouncementImage({ src, className = 'max-h-[22rem]', zoomable = false }: {
+  src: string
+  className?: string
+  /** Tapping opens the original at full size — useful for tall posters shown scaled down. */
+  zoomable?: boolean
+}) {
+  const inner = (
+    <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="" className={`relative block w-full h-auto object-contain mx-auto ${className}`} />
-    </div>
+    </>
   )
+  return zoomable
+    ? <a href={src} target="_blank" rel="noopener noreferrer" className="relative block w-full overflow-hidden bg-slate-950 cursor-zoom-in">{inner}</a>
+    : <div className="relative w-full overflow-hidden bg-slate-950">{inner}</div>
 }
 
 function CtaButton({ url, label, t }: { url: string; label: string; t: (key: string) => string }) {

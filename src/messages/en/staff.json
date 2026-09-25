@@ -408,7 +408,7 @@
     "removeImage": "Remove image",
     "designBanner": "Design a banner",
     "uploadImage": "Upload an image",
-    "imageHint": "Design a banner in the browser for free, or upload a JPG / PNG / WebP / GIF up to 4 MB",
+    "imageHint": "Any size or shape — large images are compressed on your device without cropping or stretching. Tip: a wide 3:1 image (e.g. 1200×400) fills the card best.",
     "linkLabel": "Link (optional)",
     "ctaLabel": "Button text (optional)",
     "ctaPlaceholder": "Register now",
@@ -465,7 +465,9 @@
         "email": "Enter a valid email address",
         "link": "The link must start with https:// or http://"
       }
-    }
+    },
+    "imageTooBig": "This image could not be made small enough to upload (an animated GIF must be under 4 MB).",
+    "imageUnreadable": "This image format can't be read in your browser — save it as JPG or PNG and try again."
   },
   "invitations": {
     "createFailed": "Failed to create the invitation",
@@ -689,6 +691,20 @@
     "bgPhoto": "Background image",
     "privacyNote": "The design is rendered on your device and saved as a compressed 1200×400 image. The original photo is never uploaded — only the final banner.",
     "cancel": "Cancel",
-    "use": "Use this banner"
+    "use": "Use this banner",
+    "elements": {
+      "icon": "Icon",
+      "badge": "Badge",
+      "headline": "Headline",
+      "subline": "Subline",
+      "footer": "Footer",
+      "highlight": "Highlight"
+    },
+    "elementSize": "Size",
+    "elementColor": "Colour",
+    "elementShadow": "Shadow",
+    "elementReset": "Reset",
+    "dragHint": "Click any element on the banner to select it, then drag it — or use the arrow keys (Shift for bigger steps).",
+    "resetAll": "Reset all positions"
   }
 }

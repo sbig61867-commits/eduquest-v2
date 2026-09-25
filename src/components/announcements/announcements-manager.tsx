@@ -14,6 +14,7 @@ import { AnnouncementsBanner, AnnouncementImage } from '@/components/student/ann
 import { Modal } from '@/components/ui/modal'
 import { BannerDesigner } from '@/components/announcements/banner-designer'
 import { type AnnouncementAudience } from '@/lib/announcement-audience'
+import { prepareImageForUpload, ImagePrepError } from '@/lib/prepare-image'
 import { buildContactUrl, parseContactUrl, CONTACT_TYPES, type ContactType } from '@/lib/announcement-contact'
 import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock, MessageCircle, Phone, Mail, Link2 } from 'lucide-react'
 
@@ -164,8 +165,13 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
   async function uploadImage(file: File) {
     setUploading(true)
     try {
+      // Any size or shape: shrunk on this device (same aspect ratio) to fit the 4 MB cap.
+      let ready: File
+      try { ready = await prepareImageForUpload(file) } catch (e) {
+        return toast.error(e instanceof ImagePrepError && e.code === 'tooLarge' ? t('imageTooBig') : t('imageUnreadable'))
+      }
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', ready)
       const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
       // A proxy-level rejection (e.g. body too large) is not JSON; the old
       // bare res.json() threw and left the button spinning forever.
@@ -339,7 +345,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             ) : (
               <div>
                 <input
-                  ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                  ref={fileRef} type="file" accept="image/*"
                   className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = '' }}
                 />

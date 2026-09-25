@@ -70,6 +70,20 @@ export const PRESETS: Preset[] = [
   { id: 'welcome',      layout: 'centered', palette: 'rose',     pattern: 'rings',     icon: '🎓', size: 'lg', samples: ['headline', 'subline', 'footer'] },
 ]
 
+/** Elements the author can pick on the canvas and move / recolour / resize / shadow. */
+export type ElementId = 'icon' | 'badge' | 'headline' | 'subline' | 'footer' | 'highlight'
+
+export interface ElementStyle {
+  dx: number
+  dy: number
+  scale: number
+  color?: string
+  shadow?: boolean
+}
+
+/** Where an element ended up on the 1200×400 canvas — for hit-testing and the selection outline. */
+export interface Hit { id: ElementId; x: number; y: number; w: number; h: number }
+
 export interface Design {
   layout: Layout
   pattern: Pattern
@@ -88,6 +102,8 @@ export interface Design {
   highlight: string
   caption: string
   overlay: number
+  /** Per-element overrides on top of the layout; absent = where the layout puts it. */
+  elements?: Partial<Record<ElementId, ElementStyle>>
 }
 
 export function paletteById(id: string): Palette {
@@ -282,6 +298,39 @@ interface Ctx {
   dir: 'rtl' | 'ltr'
   font: string
   fallbackHeadline: string
+  hits: Hit[]
+}
+
+/**
+ * Draws one element with the author's overrides: moved by (dx, dy), scaled
+ * about its own centre, optional drop shadow, optional colour. `r` is the
+ * element's natural box; the transformed box is recorded for hit-testing.
+ */
+function el(c: Ctx, id: ElementId, r: Rect, draw: (color?: string) => void) {
+  const { ctx } = c
+  const o = c.d.elements?.[id]
+  const dx = o?.dx ?? 0
+  const dy = o?.dy ?? 0
+  const s = o?.scale ?? 1
+  const cx = r.x + r.w / 2
+  const cy = r.y + r.h / 2
+  ctx.save()
+  ctx.translate(cx + dx, cy + dy)
+  ctx.scale(s, s)
+  ctx.translate(-cx, -cy)
+  if (o?.shadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'
+    ctx.shadowBlur = 18
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 6
+  }
+  draw(o?.color)
+  ctx.restore()
+  c.hits.push({ id, x: cx + dx - (r.w * s) / 2, y: cy + dy - (r.h * s) / 2, w: r.w * s, h: r.h * s })
+}
+
+function spanX(c: Ctx, x: number, w: number, align: 'start' | 'center'): number {
+  return align === 'center' ? x - w / 2 : c.dir === 'rtl' ? x - w : x
 }
 
 function canvasAlign(c: Ctx, align: 'start' | 'center'): CanvasTextAlign {
@@ -293,14 +342,19 @@ function drawBadge(c: Ctx, text: string, x: number, y: number, align: 'start' | 
   const { ctx, d } = c
   ctx.font = `600 26px ${c.font}`
   const bw = ctx.measureText(text).width + 40
-  const left = align === 'center' ? x - bw / 2 : c.dir === 'rtl' ? x - bw : x
-  ctx.fillStyle = d.accent
-  ctx.beginPath()
-  ctx.roundRect(left, y, bw, 48, 24)
-  ctx.fill()
-  ctx.fillStyle = inkOn(d.accent)
-  ctx.textAlign = 'center'
-  ctx.fillText(text, left + bw / 2, y + 33)
+  const left = spanX(c, x, bw, align)
+  el(c, 'badge', { x: left, y, w: bw, h: 48 }, color => {
+    const fill = color ?? d.accent
+    ctx.fillStyle = fill
+    ctx.beginPath()
+    ctx.roundRect(left, y, bw, 48, 24)
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+    ctx.fillStyle = inkOn(fill)
+    ctx.font = `600 26px ${c.font}`
+    ctx.textAlign = 'center'
+    ctx.fillText(text, left + bw / 2, y + 33)
+  })
 }
 
 /**
@@ -351,9 +405,12 @@ function drawTextBlock(c: Ctx, box: TextBox, opts: { badge?: boolean; icon?: boo
   ctx.textBaseline = 'alphabetic'
 
   if (showIcon) {
-    ctx.font = emojiFont(60, c.font)
-    ctx.textAlign = canvasAlign(c, box.align)
-    ctx.fillText(icon, box.x, y + 60)
+    const iy = y
+    el(c, 'icon', { x: spanX(c, box.x, 68, box.align), y: iy, w: 68, h: 70 }, () => {
+      ctx.font = emojiFont(60, c.font)
+      ctx.textAlign = canvasAlign(c, box.align)
+      ctx.fillText(icon, box.x, iy + 60)
+    })
     y += 76
   }
   if (badge) {
@@ -361,13 +418,16 @@ function drawTextBlock(c: Ctx, box: TextBox, opts: { badge?: boolean; icon?: boo
     y += 66
   }
 
-  ctx.textAlign = canvasAlign(c, box.align)
-  ctx.fillStyle = d.text
   ctx.font = `700 ${size}px ${c.font}`
-  for (const line of head.lines) {
-    ctx.fillText(line, box.x, y + size)
-    y += lineH
-  }
+  const headW = Math.max(...head.lines.map(l => ctx.measureText(l).width), 1)
+  const headY = y
+  el(c, 'headline', { x: spanX(c, box.x, headW, box.align), y: headY, w: headW, h: head.lines.length * lineH }, color => {
+    ctx.textAlign = canvasAlign(c, box.align)
+    ctx.fillStyle = color ?? d.text
+    ctx.font = `700 ${size}px ${c.font}`
+    head.lines.forEach((line, i) => ctx.fillText(line, box.x, headY + i * lineH + size))
+  })
+  y += head.lines.length * lineH
 
   if (opts.underline) {
     ctx.fillStyle = d.accent
@@ -379,31 +439,45 @@ function drawTextBlock(c: Ctx, box: TextBox, opts: { badge?: boolean; icon?: boo
 
   if (sub.length) {
     y += 10
-    ctx.fillStyle = d.text
-    ctx.globalAlpha = 0.88
     ctx.font = `400 ${subSize}px ${c.font}`
-    for (const line of sub) {
-      ctx.fillText(line, box.x, y + subSize)
-      y += subLineH
-    }
-    ctx.globalAlpha = 1
+    const subW = Math.max(...sub.map(l => ctx.measureText(l).width), 1)
+    const subY = y
+    el(c, 'subline', { x: spanX(c, box.x, subW, box.align), y: subY, w: subW, h: sub.length * subLineH }, color => {
+      ctx.textAlign = canvasAlign(c, box.align)
+      ctx.fillStyle = color ?? d.text
+      ctx.globalAlpha = color ? 1 : 0.88
+      ctx.font = `400 ${subSize}px ${c.font}`
+      sub.forEach((line, i) => ctx.fillText(line, box.x, subY + i * subLineH + subSize))
+    })
+    y += sub.length * subLineH
   }
 
   if (footer) {
     const fy = box.bottom - 14
     ctx.font = `600 26px ${c.font}`
-    ctx.fillStyle = d.text
-    ctx.textAlign = canvasAlign(c, box.align)
     const fw = Math.min(ctx.measureText(footer).width, box.maxW)
-    ctx.fillText(footer, box.x, fy, box.maxW)
-    // short accent rule before the footer text
-    ctx.fillStyle = d.accent
-    if (box.align === 'center') ctx.fillRect(box.x - 32, fy - 38, 64, 5)
-    else {
-      const rx = c.dir === 'rtl' ? box.x - Math.min(64, fw) : box.x
-      ctx.fillRect(rx, fy - 38, Math.min(64, fw), 5)
-    }
+    el(c, 'footer', { x: spanX(c, box.x, fw, box.align), y: fy - 40, w: fw, h: 48 }, color => {
+      ctx.font = `600 26px ${c.font}`
+      ctx.fillStyle = color ?? d.text
+      ctx.textAlign = canvasAlign(c, box.align)
+      ctx.fillText(footer, box.x, fy, box.maxW)
+      // short accent rule before the footer text
+      ctx.fillStyle = d.accent
+      const rw = box.align === 'center' ? 64 : Math.min(64, fw)
+      ctx.fillRect(spanX(c, box.x, rw, box.align), fy - 38, rw, 5)
+    })
   }
+}
+
+/** A large emoji centred on (cx, cy), as the movable `icon` element. */
+function bigIcon(c: Ctx, cx: number, cy: number, px: number) {
+  const { ctx } = c
+  el(c, 'icon', { x: cx - px * 0.65, y: cy - px * 0.6, w: px * 1.3, h: px * 1.2 }, () => {
+    ctx.font = emojiFont(px, c.font)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(c.d.icon, cx, cy + 6)
+  })
 }
 
 /** Big centred highlight (e.g. "15" / "Oct", "30%" / "off") or the icon when there is none. */
@@ -415,27 +489,30 @@ function drawHighlight(c: Ctx, cx: number, cy: number, ink: string, maxW: number
   ctx.direction = c.dir
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = ink
   if (hl) {
-    let size = 112
-    ctx.font = `700 ${size}px ${c.font}`
-    while (size > 40 && ctx.measureText(hl).width > maxW) { size -= 6; ctx.font = `700 ${size}px ${c.font}` }
-    const capSize = 32
-    const total = size * 0.8 + (cap ? capSize + 18 : 0)
-    const top = cy - total / 2
-    ctx.fillText(hl, cx, top + size * 0.8)
-    if (cap) {
-      ctx.font = `600 ${capSize}px ${c.font}`
-      ctx.globalAlpha = 0.9
-      ctx.fillText(cap, cx, top + size * 0.8 + 18 + capSize, maxW)
-    }
+    el(c, 'highlight', { x: cx - maxW / 2, y: cy - 90, w: maxW, h: 180 }, color => {
+      ctx.fillStyle = color ?? ink
+      let size = 112
+      ctx.font = `700 ${size}px ${c.font}`
+      while (size > 40 && ctx.measureText(hl).width > maxW) { size -= 6; ctx.font = `700 ${size}px ${c.font}` }
+      const capSize = 32
+      const total = size * 0.8 + (cap ? capSize + 18 : 0)
+      const top = cy - total / 2
+      ctx.fillText(hl, cx, top + size * 0.8)
+      if (cap) {
+        ctx.font = `600 ${capSize}px ${c.font}`
+        ctx.globalAlpha = 0.9
+        ctx.fillText(cap, cx, top + size * 0.8 + 18 + capSize, maxW)
+      }
+    })
   } else if (d.icon) {
-    ctx.font = emojiFont(120, c.font)
-    ctx.textBaseline = 'middle'
-    ctx.fillText(d.icon, cx, cy + 6)
+    bigIcon(c, cx, cy, 120)
   } else if (d.badge.trim()) {
-    ctx.font = `700 44px ${c.font}`
-    ctx.fillText(d.badge.trim(), cx, cy + 16, maxW)
+    el(c, 'highlight', { x: cx - maxW / 2, y: cy - 30, w: maxW, h: 60 }, color => {
+      ctx.fillStyle = color ?? ink
+      ctx.font = `700 44px ${c.font}`
+      ctx.fillText(d.badge.trim(), cx, cy + 16, maxW)
+    })
   }
   ctx.restore()
 }
@@ -447,9 +524,9 @@ export function renderBanner(
   fontFamily: string,
   fallbackHeadline: string,
   fallbackDir: 'rtl' | 'ltr',
-) {
+): Hit[] {
   const dir = resolveDir(d, fallbackDir)
-  const c: Ctx = { ctx, d, dir, font: fontFamily, fallbackHeadline }
+  const c: Ctx = { ctx, d, dir, font: fontFamily, fallbackHeadline, hits: [] }
   const lightBg = isLightColor(d.bg1)
   const patternAlpha = lightBg ? 0.12 : 0.18
   const M = 72
@@ -480,12 +557,7 @@ export function renderBanner(
       drawPattern(ctx, pattern, d.accent, endSide(460), patternAlpha)
       if (d.icon && !photo) {
         const r = endSide(460)
-        ctx.save()
-        ctx.font = emojiFont(130, fontFamily)
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(d.icon, r.x + r.w / 2, H / 2 + 6)
-        ctx.restore()
+        bigIcon(c, r.x + r.w / 2, H / 2, 130)
       }
       drawTextBlock(c, { x: startX, top: 44, bottom: H - 30, maxW: photo ? W - 2 * M : W - 460 - M - 40, align: 'start' })
       break
@@ -544,14 +616,7 @@ export function renderBanner(
       ctx.beginPath(); ctx.roundRect(barX, inset.y + 40, 10, inset.h - 80, 5); ctx.fill()
       ctx.restore()
       const iconW = d.icon ? 170 : 0
-      if (d.icon) {
-        ctx.save()
-        ctx.font = emojiFont(100, fontFamily)
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(d.icon, dir === 'rtl' ? inset.x + 100 : inset.x + inset.w - 100, H / 2 + 6)
-        ctx.restore()
-      }
+      if (d.icon) bigIcon(c, dir === 'rtl' ? inset.x + 100 : inset.x + inset.w - 100, H / 2, 100)
       const x = dir === 'rtl' ? inset.x + inset.w - 50 : inset.x + 50
       drawTextBlock(c, { x, top: inset.y + 18, bottom: inset.y + inset.h - 10, maxW: inset.w - 100 - iconW, align: 'start' })
       break
@@ -582,12 +647,7 @@ export function renderBanner(
       }
       if (d.icon && !photo) {
         const r = endSide(420)
-        ctx.save()
-        ctx.font = emojiFont(110, fontFamily)
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(d.icon, r.x + r.w / 2 + (dir === 'rtl' ? 40 : -40), H / 2 + 30)
-        ctx.restore()
+        bigIcon(c, r.x + r.w / 2 + (dir === 'rtl' ? 40 : -40), H / 2 + 24, 110)
       }
       drawTextBlock(c, { x: startX, top: 40, bottom: H - 36, maxW: W - 420 - M - 20, align: 'start' }, { badge: false })
       break
@@ -620,4 +680,5 @@ export function renderBanner(
     }
   }
   ctx.restore()
+  return c.hits
 }
