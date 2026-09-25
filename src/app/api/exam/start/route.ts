@@ -91,6 +91,7 @@ export async function POST(request: Request) {
     console.error('[exam/start] unexpected RPC result shape', result)
     return NextResponse.json({ ...(await apiErr('examStartFailed')) }, { status: 500 })
   }
-  const out = result as { started_at: string; resumed: boolean }
-  return NextResponse.json({ startedAt: out.started_at, resumed: out.resumed })
+  const out = result as { started_at: string; resumed: boolean; answers_draft?: Record<string, string> }
+  // The exam screen restores these answers on resume (refresh / second device).
+  return NextResponse.json({ startedAt: out.started_at, resumed: out.resumed, answers_draft: out.answers_draft ?? {} })
 }

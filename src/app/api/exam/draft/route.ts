@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     .update({ answers_draft: answers })
     .eq('exam_id', examId)
     .eq('student_id', user.id)
-    .eq('grading_status', 'in_progress')
+    .eq('status', 'in_progress')   // grading_status is pending|reviewing|published — never in_progress
 
   if (error) {
     console.error('[exam/draft] error', error)

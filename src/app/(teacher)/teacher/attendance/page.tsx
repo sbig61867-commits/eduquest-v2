@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AttendanceClient } from '@/components/center/attendance-client'
+import { ScopedIntlProvider } from '@/i18n/provider'
 
 // The teacher marks attendance for their OWN groups only. /api/attendance
 // already authorizes the group's teacher (owner) exactly like staff holding
@@ -21,5 +22,9 @@ export default async function TeacherAttendancePage() {
     .eq('is_active', true)
     .order('name')
 
-  return <AttendanceClient groups={(groups ?? []).map(g => ({ id: g.id as string, name: g.name as string }))} />
+  return (
+    <ScopedIntlProvider namespaces={['common', 'teacher', 'terms', 'staff']}>
+      <AttendanceClient groups={(groups ?? []).map(g => ({ id: g.id as string, name: g.name as string }))} />
+    </ScopedIntlProvider>
+  )
 }

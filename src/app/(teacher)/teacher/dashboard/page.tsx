@@ -9,6 +9,7 @@ import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/stud
 import { isAnnouncementLive } from '@/lib/announcement-window'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
+import { ScopedIntlProvider } from '@/i18n/provider'
 
 interface RecentLesson { id: string; title: string; is_published: boolean; created_at: string; groups: { name: string } | null }
 interface UpcomingExam  { id: string; title: string; ends_at: string | null; groups: { name: string } | null }
@@ -63,7 +64,9 @@ export default async function TeacherDashboard() {
         <p className="text-slate-400 mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
-      <AnnouncementsBanner announcements={liveAnnouncements} />
+      <ScopedIntlProvider namespaces={['common', 'teacher', 'terms', 'student']}>
+        <AnnouncementsBanner announcements={liveAnnouncements} />
+      </ScopedIntlProvider>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => {

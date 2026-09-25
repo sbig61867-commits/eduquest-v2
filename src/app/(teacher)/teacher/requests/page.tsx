@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { RequestsInbox } from '@/components/requests/requests-inbox'
 import { loadRequestsData } from '@/lib/requests-data'
 import { getTranslations } from 'next-intl/server'
+import { ScopedIntlProvider } from '@/i18n/provider'
 
 export default async function TeacherRequestsPage() {
   const supabase = await createClient()
@@ -17,12 +18,14 @@ export default async function TeacherRequestsPage() {
   )
 
   return (
-    <RequestsInbox
-      me={{ id: user.id, role: user.role }}
-      requests={requests}
-      recipients={recipients}
-      groups={groups}
-      recipientLabel={t('requests.recipientLabel')}
-    />
+    <ScopedIntlProvider namespaces={['common', 'teacher', 'terms', 'staff']}>
+      <RequestsInbox
+        me={{ id: user.id, role: user.role }}
+        requests={requests}
+        recipients={recipients}
+        groups={groups}
+        recipientLabel={t('requests.recipientLabel')}
+      />
+    </ScopedIntlProvider>
   )
 }
