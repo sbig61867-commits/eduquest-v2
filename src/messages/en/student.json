@@ -211,13 +211,6 @@
       "titleOne": "New announcement",
       "dismiss": "Done"
     },
-    "banner": {
-      "badge": "Announcement",
-      "learnMore": "Learn more",
-      "slide": "Announcement {n}",
-      "prev": "Previous",
-      "next": "Next"
-    },
     "quick": {
       "courses": "My Courses",
       "coursesEmpty": "No courses yet",

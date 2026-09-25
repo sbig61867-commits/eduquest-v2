@@ -10,7 +10,7 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
-import { AnnouncementsBanner } from '@/components/student/announcements-banner'
+import { AnnouncementsBanner, AnnouncementImage } from '@/components/student/announcements-banner'
 import { Modal } from '@/components/ui/modal'
 import { BannerDesigner } from '@/components/announcements/banner-designer'
 import { type AnnouncementAudience } from '@/lib/announcement-audience'
@@ -159,14 +159,21 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
 
   async function uploadImage(file: File) {
     setUploading(true)
-    const fd = new FormData()
-    fd.append('file', file)
-    const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
-    const data = await res.json()
-    setUploading(false)
-    if (!res.ok) return toast.error(data.error ?? t('uploadFailed'))
-    setForm(f => ({ ...f, image_url: data.url }))
-    toast.success(t('uploaded'))
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/announcements/upload', { method: 'POST', body: fd })
+      // A proxy-level rejection (e.g. body too large) is not JSON; the old
+      // bare res.json() threw and left the button spinning forever.
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(data.error ?? t('uploadFailed'))
+      setForm(f => ({ ...f, image_url: data.url }))
+      toast.success(t('uploaded'))
+    } catch {
+      toast.error(t('uploadFailed'))
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function save() {
@@ -194,7 +201,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, ...(editing ? { id: editing } : {}), starts_at, ends_at }),
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     setBusy(false)
     if (!res.ok) return toast.error(data.error ?? (editing ? t('updateFailed') : t('createFailed')))
     toast.success(editing ? t('savedEdits') : (form.is_published ? t('publishedOk') : t('savedDraft')))
@@ -215,7 +222,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: JSON.stringify({ id: a.id, is_published: !a.is_published }),
     })
     setBusy(false)
-    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? t('toggleFailed')) }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); return toast.error(d.error ?? t('toggleFailed')) }
     router.refresh()
   }
 
@@ -228,7 +235,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       body: JSON.stringify({ id: a.id }),
     })
     setBusy(false)
-    if (!res.ok) { const d = await res.json(); return toast.error(d.error ?? t('deleteFailed')) }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); return toast.error(d.error ?? t('deleteFailed')) }
     toast.success(t('deleted'))
     router.refresh()
   }
@@ -307,9 +314,9 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
           <div className="space-y-2">
             <span className="text-sm text-slate-300">{t('imageLabel')}</span>
             {form.image_url ? (
-              <div className="relative w-full max-w-sm">
+              <div className="relative w-full max-w-md">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.image_url} alt={t('imageAlt')} className="rounded-lg border border-slate-700 w-full object-cover max-h-48" />
+                <img src={form.image_url} alt={t('imageAlt')} className="rounded-lg border border-slate-700 w-full h-auto object-contain max-h-48 bg-slate-950" />
                 <button
                   onClick={() => setForm(f => ({ ...f, image_url: '' }))}
                   className="absolute top-2 start-2 bg-slate-900/80 rounded-full p-1.5 text-slate-300 hover:text-white"
@@ -321,7 +328,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 <input
                   ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
                   className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f) }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = '' }}
                 />
                 <div className="flex gap-2 flex-wrap">
                   <Button variant="ghost" onClick={() => setDesigning(true)}>
@@ -477,10 +484,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             const status = announcementStatus(a)
             return (
             <div key={a.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-              {a.image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.image_url} alt="" className="h-36 w-full object-cover bg-slate-800" />
-              )}
+              {a.image_url && <AnnouncementImage src={a.image_url} className="max-h-48" />}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-white font-semibold">{a.title}</h3>

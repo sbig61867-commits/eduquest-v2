@@ -123,5 +123,14 @@
     "body": "An unexpected error occurred. Please try again."
   },
   "unknown": "Unknown",
-  "centreTrainee": "Centre trainee"
+  "centreTrainee": "Centre trainee",
+  "announcementBanner": {
+    "badge": "Announcement",
+    "learnMore": "Learn more",
+    "slide": "Announcement {n}",
+    "prev": "Previous",
+    "next": "Next",
+    "more": "Show more",
+    "less": "Show less"
+  }
 }
