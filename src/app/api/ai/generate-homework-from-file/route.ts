@@ -1,4 +1,5 @@
 import { apiErr } from '@/lib/api-error'
+import { STOPWORDS, QUESTION_PUNCTUATION } from '@/content/ai/stopwords'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
@@ -39,7 +40,7 @@ const TYPE_LABEL: Record<string, string> = {
 // Near-duplicate detection: same question asked twice is rejected even if
 // wording differs slightly (case/punctuation/whitespace normalized).
 function normalizeQ(text: string): string {
-  return text.toLowerCase().replace(/[.,!؟?،:'"()\-ــ_]/g, '').replace(/\s+/g, ' ').trim()
+  return text.toLowerCase().replace(QUESTION_PUNCTUATION, '').replace(/\s+/g, ' ').trim()
 }
 
 // ── Grounding safety net ──────────────────────────────────────────
@@ -53,13 +54,7 @@ function normalizeQ(text: string): string {
 // safety net: a question genuinely written from the source material must
 // share at least a couple of its distinctive words with it — one that
 // shares none almost certainly wasn't.
-const STOPWORDS = new Set([
-  'this', 'that', 'these', 'those', 'with', 'from', 'what', 'which', 'when',
-  'where', 'true', 'false', 'about', 'have', 'their', 'there', 'would',
-  'could', 'should', 'into', 'your', 'they', 'them', 'then', 'than',
-  'هذا', 'هذه', 'ذلك', 'التي', 'الذي', 'الذين', 'كان', 'كانت', 'وهو',
-  'وهي', 'على', 'الى', 'إلى', 'من', 'في', 'عن', 'مع', 'بين', 'كل',
-])
+// Stop words (per language) live in src/content/ai/stopwords.ts.
 
 function significantWords(text: string): Set<string> {
   const words = text.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? []

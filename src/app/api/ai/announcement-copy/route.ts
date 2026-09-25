@@ -1,4 +1,5 @@
 import { getLocale } from 'next-intl/server'
+import { aiPrompts } from '@/content/ai'
 import { toLocale } from '@/i18n/config'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -57,19 +58,11 @@ export async function POST(request: Request) {
   if (brief.length > MAX_BRIEF) return NextResponse.json({ ...(await apiErr('descriptionTooLong')) }, { status: 400 })
 
   // Written in the viewer's language so the suggested copy comes back in it.
-  // The Arabic wording is unchanged from before; English mirrors it.
-  const ar = toLocale(await getLocale()) === 'ar'
-  const system = ar
-    ? 'أنت كاتب إعلانات لمؤسسة تعليمية. اكتب بالعربية الفصحى المبسطة، بنبرة مهنية ودودة، ' +
-      'بلا مبالغة ولا وعود غير موجودة في الوصف، ولا تخترع أسعاراً أو تواريخ أو أرقاماً. ' +
-      'أعد JSON فقط: مصفوفة من 3 عناصر، كل عنصر {"title": عنوان ≤ 60 حرفاً, "body": نص ≤ 250 حرفاً, "cta_label": نص زر ≤ 20 حرفاً}.'
-    : 'You write announcements for an educational institution. Write in clear, simple English with a professional, friendly tone, ' +
-      'with no exaggeration and no promises that are not in the description, and do not invent prices, dates or numbers. ' +
-      'Return JSON only: an array of 3 items, each {"title": title ≤ 60 characters, "body": text ≤ 250 characters, "cta_label": button text ≤ 20 characters}.'
+  // Prompt text: src/content/ai/{ar,en}.ts.
+  const text = aiPrompts(toLocale(await getLocale())).announcementCopy
 
   try {
-    const prompt = ar ? `وصف الإعلان من الموظف:\n"""\n${brief}\n"""` : `The staff member's description of the announcement:\n"""\n${brief}\n"""`
-    const raw = await groqChat(prompt, system, 0.8)
+    const raw = await groqChat(text.brief(brief), text.system, 0.8)
     const suggestions = parseSuggestions(raw)
     if (suggestions.length === 0) {
       return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })

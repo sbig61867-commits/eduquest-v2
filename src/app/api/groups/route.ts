@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
   // Optional: course link, image, seat cap, instructions.
   const parsed = parseGroupFields(body)
-  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  if ('error' in parsed) return NextResponse.json({ ...(await apiErr(parsed.error)) }, { status: 400 })
   if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
     return NextResponse.json({ ...(await apiErr('courseNotInTenant')) }, { status: 400 })
   }
@@ -101,7 +101,7 @@ export async function PATCH(request: Request) {
   if (name !== undefined && !name.trim()) return NextResponse.json({ ...(await apiErr('nameEmpty')) }, { status: 400 })
   const classifying = academic_unit_id !== undefined || term_id !== undefined
   const parsed = parseGroupFields(body)
-  if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  if ('error' in parsed) return NextResponse.json({ ...(await apiErr(parsed.error)) }, { status: 400 })
   const hasGroupFields = Object.keys(parsed.update).length > 0
   if (name === undefined && is_active === undefined && teacher_id === undefined && !classifying && !hasGroupFields) {
     return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })

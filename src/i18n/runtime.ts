@@ -10,11 +10,12 @@
  */
 
 import { IntlErrorCode } from 'next-intl'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from './config'
 import { allMessages, type Messages } from './messages'
 import { localeFromCookie } from './resolve'
+import { LOCALE_HEADER } from './public-routes'
 
 /**
  * C3 — missing-key policy.
@@ -67,12 +68,23 @@ export function getMessageFallback({
  * RECIPIENT's language, not the signed-in sender's — so the bug would have
  * shipped as "the student got an Arabic email" long after this was written.
  *
+ * Next comes a locale taken from the URL: a marketing page requested as
+ * `/en/pricing` is rewritten by src/proxy.ts to `/pricing` with the locale on
+ * LOCALE_HEADER. The URL must beat the cookie, or a shared English link would
+ * open in Arabic for anyone whose cookie says `ar`.
+ *
  * Steady state (no explicit locale) resolves from the `eq_locale` cookie
  * alone: no database round-trip. The cookie is established once, in
  * src/proxy.ts, from the user → tenant → platform chain.
  */
 export async function resolveRequestLocale(requested?: string): Promise<Locale> {
   if (isLocale(requested)) return requested
+  try {
+    const fromUrl = (await headers()).get(LOCALE_HEADER)
+    if (isLocale(fromUrl)) return fromUrl
+  } catch {
+    // Outside a request scope — fall through to the cookie.
+  }
   try {
     const store = await cookies()
     return localeFromCookie(store.get(LOCALE_COOKIE)?.value)

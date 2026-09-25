@@ -1,5 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { buildXlsx, type Cell } from '@/lib/xlsx'
@@ -73,11 +74,16 @@ export async function GET(request: Request) {
     [key: string]: string | number | null
   }
 
+  // Column names are the sheet's headers, so they are written in the
+  // downloader's language (same request locale the page rendered with).
+  const t = await getTranslations('reports.exports.grades')
+  const tr = await getTranslations('reports.exports')
+
   type MemberRow = { student_id: string; users: { full_name: string | null; email: string | null } | null }
   const rows: StudentRow[] = (members as unknown as MemberRow[]).map((m) => {
     const row: StudentRow = {
       student_id: m.student_id,
-      full_name: m.users?.full_name ?? 'Unknown',
+      full_name: m.users?.full_name ?? t('unknownStudent'),
       email: m.users?.email ?? '',
     }
     let totalScore = 0
@@ -89,18 +95,18 @@ export async function GET(request: Request) {
         .reduce((s, q) => s + (q.points ?? 0), 0)
       const score = sub?.score ?? null
 
-      const colName = `${exam.type === 'homework' ? '[واجب]' : '[اختبار]'} ${exam.title} (من ${maxScore})`
+      const colName = t('column', { kind: exam.type === 'homework' ? t('homework') : t('exam'), title: exam.title, max: maxScore })
       row[colName] = score !== null ? `${score}/${maxScore}` : '·'
 
       if (score !== null) { totalScore += Number(score); totalMax += maxScore }
     }
 
-    row['المجموع'] = totalMax > 0 ? totalScore : '·'
-    row['من أصل'] = exams.reduce((s, e) => {
+    row[t('total')] = totalMax > 0 ? totalScore : '·'
+    row[t('outOf')] = exams.reduce((s, e) => {
       const max = (e.questions as Array<{ points?: number }>).reduce((a, q) => a + (q.points ?? 0), 0)
       return s + max
     }, 0)
-    row['النسبة %'] = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : '·'
+    row[t('percent')] = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : '·'
 
     return row
   })
@@ -113,7 +119,7 @@ export async function GET(request: Request) {
 
   // Real XLSX (not CSV): native UTF-8 keeps Arabic names intact, columns
   // always split correctly, numbers stay numeric, and no Excel warning.
-  const HEADER_LABEL: Record<string, string> = { full_name: 'اسم الطالب', email: 'البريد الإلكتروني' }
+  const HEADER_LABEL: Record<string, string> = { full_name: t('studentName'), email: t('email') }
   const headers = Object.keys(rows[0]).filter(k => k !== 'student_id')
   const today = new Date().toISOString().slice(0, 10)
 
@@ -124,8 +130,8 @@ export async function GET(request: Request) {
   }
 
   const sheet: Cell[][] = [
-    [`كشف علامات، المجموعة: ${group.name}`],
-    [`تاريخ التصدير: ${today}`],
+    [t('title', { group: group.name })],
+    [tr('exportedOn', { date: today })],
     [],
     headers.map(h => HEADER_LABEL[h] ?? h),
     ...rows.map(row => headers.map(h =>
@@ -133,7 +139,7 @@ export async function GET(request: Request) {
     )),
   ]
 
-  const buf = await buildXlsx(sheet, 'العلامات')
+  const buf = await buildXlsx(sheet, t('sheet'))
   const filename = `grades_${group.name.replace(/\s+/g, '_')}_${today}.xlsx`
 
   return new Response(new Uint8Array(buf), {

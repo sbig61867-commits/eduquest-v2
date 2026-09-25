@@ -1,150 +1,17 @@
 'use client'
 
 import { useLang, PublicNav, PublicFooter } from './shell'
+import { useTranslations } from 'next-intl'
 
 type Section = { h: string; body: string[] }
 type PolicyDict = { title: string; updated: string; sections: Section[] }
 
-const privacy: Record<'ar' | 'en', PolicyDict> = {
-  ar: {
-    title: 'سياسة الخصوصية',
-    updated: 'آخر تحديث: يوليو 2026',
-    sections: [
-      { h: 'البيانات التي نجمعها', body: [
-        'بيانات الحساب: الاسم الكامل والبريد الإلكتروني والدور (مدير مؤسسة / معلم / طالب) والمؤسسة التعليمية التابع لها.',
-        'المحتوى التعليمي: الدروس والاختبارات والإجابات والعلامات التي تُنشأ داخل المنصة.',
-        'بيانات المراقبة أثناء الاختبارات المراقبة فقط: أحداث مثل تبديل النوافذ أو رصد أكثر من وجه. تُحلَّل لقطات الكاميرا لحظياً لاستخراج هذه الأحداث ولا نخزّن تسجيلات فيديو.',
-      ]},
-      { h: 'كيف نستخدم البيانات', body: [
-        'تشغيل المنصة: عرض الدروس، تصحيح الاختبارات، نشر العلامات، وإرسال الدعوات.',
-        'حماية نزاهة الاختبارات عبر أحداث المراقبة التي يراجعها معلم المادة فقط.',
-        'لا نبيع بياناتك ولا نشاركها مع أي طرف ثالث لأغراض تسويقية.',
-      ]},
-      { h: 'عزل البيانات', body: [
-        'كل مؤسسة تعليمية معزولة تماماً عن غيرها على مستوى قاعدة البيانات (Row Level Security)، فلا يمكن لأي مستخدم الاطلاع على بيانات مؤسسة أخرى.',
-        'الطالب يرى محتوى مجموعته فقط، والمعلم يرى مجموعاته فقط.',
-      ]},
-      { h: 'التخزين والأمان', body: [
-        'تُستضاف البيانات لدى مزودين سحابيين موثوقين (Supabase على AWS في فرانكفورت، وVercel) مع تشفير أثناء النقل والتخزين.',
-        'الوصول للأنظمة الإدارية محصور بمالك المنصة، وكل العمليات الحساسة تتم عبر الخادم لا المتصفح.',
-      ]},
-      { h: 'حقوقك', body: [
-        'يمكنك طلب تصحيح بياناتك أو حذف حسابك بالتواصل مع إدارة مؤسستك أو مراسلتنا مباشرة.',
-        'عند حذف مؤسسة من المنصة تُحذف بيانات مستخدميها المرتبطة بها.',
-      ]},
-      { h: 'التواصل', body: [
-        'لأي استفسار حول الخصوصية استخدم نموذج «تواصل معنا» في الصفحة الرئيسية.',
-      ]},
-    ],
-  },
-  en: {
-    title: 'سياسة الخصوصية',
-    updated: 'Last updated: July 2026',
-    sections: [
-      { h: 'Data we collect', body: [
-        'Account data: full name, email, role (institution admin / teacher / student) and your institution.',
-        'Educational content: lessons, exams, answers and grades created inside the platform.',
-        'Proctoring data during proctored exams only: events such as tab switching or multiple faces detected. Camera frames are analyzed in real time to extract these events; we do not store video recordings.',
-      ]},
-      { h: 'How we use data', body: [
-        'Operating the platform: showing lessons, grading exams, publishing grades, and sending invitations.',
-        'Protecting exam integrity through proctoring events reviewed only by the course teacher.',
-        'We never sell your data or share it with third parties for marketing.',
-      ]},
-      { h: 'Data isolation', body: [
-        'Every institution is fully isolated at the database level (Row Level Security) — no user can access another institution’s data.',
-        'Students see only their own group’s content; teachers see only their own groups.',
-      ]},
-      { h: 'Storage & security', body: [
-        'Data is hosted with trusted cloud providers (Supabase on AWS Frankfurt, and Vercel) with encryption in transit and at rest.',
-        'Administrative access is restricted to the platform owner, and all sensitive operations run on the server, never in the browser.',
-      ]},
-      { h: 'Your rights', body: [
-        'You may request correction of your data or deletion of your account through your institution admin or by contacting us directly.',
-        'When an institution is removed from the platform, its users’ associated data is deleted.',
-      ]},
-      { h: 'Contact', body: [
-        'For any privacy questions, use the “Contact Us” form on the home page.',
-      ]},
-    ],
-  },
-}
-
-const terms: Record<'ar' | 'en', PolicyDict> = {
-  ar: {
-    title: 'شروط الاستخدام',
-    updated: 'آخر تحديث: يوليو 2026',
-    sections: [
-      { h: 'القبول بالشروط', body: [
-        'باستخدامك منصة EduQuest فأنت توافق على هذه الشروط. إن لم توافق عليها فلا تستخدم المنصة.',
-      ]},
-      { h: 'الحسابات والدعوات', body: [
-        'الدخول للمنصة بالدعوة فقط. أنت مسؤول عن سرية بيانات دخولك وعن كل نشاط يتم عبر حسابك.',
-        'يُمنع مشاركة الحساب أو رابط الدعوة مع أي شخص غير المعني به.',
-      ]},
-      { h: 'الاستخدام المقبول', body: [
-        'تُستخدم المنصة للأغراض التعليمية فقط.',
-        'يُمنع محاولة الغش في الاختبارات أو الالتفاف على أنظمة المراقبة، ويُمنع رفع محتوى مخالف للقانون أو مسيء.',
-        'يُمنع أي محاولة لاختراق المنصة أو الوصول لبيانات مؤسسات أو مستخدمين آخرين.',
-      ]},
-      { h: 'المحتوى والملكية', body: [
-        'المحتوى التعليمي الذي ينشئه المعلمون ملك لمؤسساتهم.',
-        'المحتوى المولّد بالذكاء الاصطناعي أداة مساعدة — مسؤولية مراجعته واعتماده تقع على المعلم قبل نشره.',
-      ]},
-      { h: 'الاشتراك والإيقاف', body: [
-        'اشتراك المؤسسات التعليمية بالاتفاق المباشر مع إدارة المنصة.',
-        'يحق لإدارة المنصة تعليق أي حساب يخالف هذه الشروط، ويحق لإدارة المؤسسة تعطيل حسابات مستخدميها.',
-      ]},
-      { h: 'حدود المسؤولية', body: [
-        'نبذل جهدنا لإبقاء المنصة متاحة وآمنة، لكنها تُقدَّم "كما هي" دون ضمانات مطلقة ضد الانقطاع.',
-        'قد تُحدَّث هذه الشروط، وسيُعلن عن أي تغيير جوهري داخل المنصة.',
-      ]},
-      { h: 'التواصل', body: [
-        'لأي استفسار حول هذه الشروط استخدم نموذج «تواصل معنا» في الصفحة الرئيسية.',
-      ]},
-    ],
-  },
-  en: {
-    title: 'شروط الاستخدام',
-    updated: 'Last updated: July 2026',
-    sections: [
-      { h: 'Acceptance of terms', body: [
-        'By using EduQuest you agree to these terms. If you do not agree, do not use the platform.',
-      ]},
-      { h: 'Accounts & invitations', body: [
-        'Access is invitation-only. You are responsible for keeping your credentials confidential and for all activity under your account.',
-        'Sharing your account or an invitation link with anyone other than its intended recipient is prohibited.',
-      ]},
-      { h: 'Acceptable use', body: [
-        'The platform is for educational purposes only.',
-        'Attempting to cheat in exams or bypass proctoring, and uploading unlawful or abusive content, are prohibited.',
-        'Any attempt to breach the platform or access other institutions’ or users’ data is prohibited.',
-      ]},
-      { h: 'Content & ownership', body: [
-        'Educational content created by teachers belongs to their institutions.',
-        'AI-generated content is an assistive tool — the teacher is responsible for reviewing and approving it before publishing.',
-      ]},
-      { h: 'Subscription & suspension', body: [
-        'Institution subscriptions are arranged directly with the platform’s management.',
-        'The platform may suspend any account violating these terms, and institution admins may disable their own users’ accounts.',
-      ]},
-      { h: 'Limitation of liability', body: [
-        'We work to keep the platform available and secure, but it is provided “as is” without absolute guarantees against interruption.',
-        'These terms may be updated; any material change will be announced inside the platform.',
-      ]},
-      { h: 'Contact', body: [
-        'For any questions about these terms, use the “Contact Us” form on the home page.',
-      ]},
-    ],
-  },
-}
-
 export function PolicyPage({ kind }: { kind: 'privacy' | 'terms' }) {
   const [lang, setLang] = useLang()
-  const t = (kind === 'privacy' ? privacy : terms)[lang]
+  const t = useTranslations('public.policy').raw(kind) as PolicyDict
 
   return (
-    <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-950">
       <PublicNav lang={lang} setLang={setLang} />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-14">
         <h1 className="text-3xl sm:text-4xl font-bold text-white">{t.title}</h1>

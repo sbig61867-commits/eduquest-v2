@@ -13,7 +13,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
     { label: t('nav.lessons'),     href: '/teacher/lessons',     icon: 'BookOpen' as const },
     { label: t('nav.courses'),     href: '/teacher/courses',     icon: 'GraduationCap' as const },
     { label: t('nav.exams'),       href: '/teacher/exams',       icon: 'ClipboardList' as const },
-    { label: t('nav.grades'),      href: '/teacher/grades',      icon: 'BarChart2' as const },
+    { label: t('nav.records'),     href: '/teacher/records',     icon: 'BarChart2' as const },
     { label: t('nav.attendance'),  href: '/teacher/attendance',  icon: 'ClipboardCheck' as const },
     { label: t('nav.engagement'),  href: '/teacher/engagement',  icon: 'Activity' as const },
     { label: t('nav.proctoring'),  href: '/teacher/proctoring',  icon: 'ShieldCheck' as const },

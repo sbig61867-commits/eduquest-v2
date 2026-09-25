@@ -45,6 +45,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('teacher')
+  const tAi = useTranslations('common.ai')
   const [tab, setTab] = useState<Tab>('content')
 
   const [content, setContent] = useState(lesson.content ?? '')
@@ -167,7 +168,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     if (hwFiles.length === 0 || hwTypes.size === 0) return
     setHwFileLoading(true); setHwFileError('')
     try {
-      const extracted = await extractFilesText(hwFiles)
+      const extracted = await extractFilesText(hwFiles, tAi)
       if ('error' in extracted) { setHwFileError(extracted.error); setHwFileLoading(false); return }
       const fd = new FormData()
       fd.append('sourceText', extracted.combined)

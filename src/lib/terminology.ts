@@ -1,5 +1,7 @@
 import type { InstitutionType } from '@/types'
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/config'
+import { institutionTerms as arTerms } from '@/content/terminology/ar'
+import { institutionTerms as enTerms } from '@/content/terminology/en'
 
 // UI vocabulary per institution type. The database keeps its original names
 // (university_admin, groups, …) because they are baked into RLS policies and
@@ -43,7 +45,7 @@ export const INSTITUTION_TYPES: InstitutionType[] = [
 
 export interface Terms {
   institutionTypeLabel: string
-  institution: string        // "University" / "الجامعة"
+  institution: string        // e.g. "University" (see src/content/terminology)
   institutionAdmin: string   // role label for university_admin
   group: string
   groups: string
@@ -57,93 +59,8 @@ export interface Terms {
   institutionStudents: string // plural
 }
 
-const AR: Record<InstitutionType, Terms> = {
-  university: {
-    institutionTypeLabel: 'جامعة',
-    institution: 'الجامعة', institutionAdmin: 'مدير الجامعة',
-    group: 'مجموعة', groups: 'المجموعات',
-    unitL1: 'كلية', unitsL1: 'الكليات', unitL2: 'قسم', unitsL2: 'الأقسام',
-    term: 'فصل دراسي', terms: 'الفصول الدراسية',
-    institutionStudent: 'طالب جامعة', institutionStudents: 'طلاب الجامعة',
-  },
-  school: {
-    institutionTypeLabel: 'مدرسة',
-    institution: 'المدرسة', institutionAdmin: 'مدير المدرسة',
-    group: 'فصل', groups: 'الفصول',
-    unitL1: 'مرحلة', unitsL1: 'المراحل', unitL2: 'صف', unitsL2: 'الصفوف',
-    term: 'فصل', terms: 'الفصول',
-    institutionStudent: 'طالب مدرسة', institutionStudents: 'طلاب المدرسة',
-  },
-  institute: {
-    institutionTypeLabel: 'معهد',
-    institution: 'المعهد', institutionAdmin: 'مدير المعهد',
-    group: 'شعبة', groups: 'الشعب',
-    unitL1: 'شعبة رئيسية', unitsL1: 'الشعب الرئيسية', unitL2: 'برنامج', unitsL2: 'البرامج',
-    term: 'فصل', terms: 'الفصول',
-    institutionStudent: 'طالب معهد', institutionStudents: 'طلاب المعهد',
-  },
-  training_center: {
-    institutionTypeLabel: 'مركز تدريب',
-    institution: 'المركز', institutionAdmin: 'مدير المركز',
-    group: 'دفعة', groups: 'الدفعات',
-    unitL1: 'مسار', unitsL1: 'المسارات', unitL2: 'برنامج', unitsL2: 'البرامج',
-    term: 'دورة', terms: 'الدورات',
-    institutionStudent: 'متدرب', institutionStudents: 'متدربو المركز',
-  },
-  company: {
-    institutionTypeLabel: 'شركة',
-    institution: 'المؤسسة', institutionAdmin: 'مدير التدريب',
-    group: 'فريق', groups: 'الفرق',
-    unitL1: 'إدارة', unitsL1: 'الإدارات', unitL2: 'وحدة', unitsL2: 'الوحدات',
-    term: 'فترة', terms: 'الفترات',
-    institutionStudent: 'موظف متدرب', institutionStudents: 'موظفو المؤسسة',
-  },
-}
-
-const EN: Record<InstitutionType, Terms> = {
-  university: {
-    institutionTypeLabel: 'University',
-    institution: 'University', institutionAdmin: 'University Admin',
-    group: 'Group', groups: 'Groups',
-    unitL1: 'Faculty', unitsL1: 'Faculties', unitL2: 'Department', unitsL2: 'Departments',
-    term: 'Semester', terms: 'Semesters',
-    institutionStudent: 'University Student', institutionStudents: 'University Students',
-  },
-  school: {
-    institutionTypeLabel: 'School',
-    institution: 'School', institutionAdmin: 'School Admin',
-    group: 'Class', groups: 'Classes',
-    unitL1: 'Stage', unitsL1: 'Stages', unitL2: 'Grade', unitsL2: 'Grades',
-    term: 'Term', terms: 'Terms',
-    institutionStudent: 'School Student', institutionStudents: 'School Students',
-  },
-  institute: {
-    institutionTypeLabel: 'Institute',
-    institution: 'Institute', institutionAdmin: 'Institute Admin',
-    group: 'Section', groups: 'Sections',
-    unitL1: 'Division', unitsL1: 'Divisions', unitL2: 'Program', unitsL2: 'Programs',
-    term: 'Term', terms: 'Terms',
-    institutionStudent: 'Institute Student', institutionStudents: 'Institute Students',
-  },
-  training_center: {
-    institutionTypeLabel: 'Training Center',
-    institution: 'Center', institutionAdmin: 'Center Manager',
-    group: 'Cohort', groups: 'Cohorts',
-    unitL1: 'Track', unitsL1: 'Tracks', unitL2: 'Program', unitsL2: 'Programs',
-    term: 'Course Run', terms: 'Course Runs',
-    institutionStudent: 'Trainee', institutionStudents: 'Trainees',
-  },
-  company: {
-    institutionTypeLabel: 'Company',
-    institution: 'Organization', institutionAdmin: 'Training Manager',
-    group: 'Team', groups: 'Teams',
-    unitL1: 'Division', unitsL1: 'Divisions', unitL2: 'Unit', unitsL2: 'Units',
-    term: 'Period', terms: 'Periods',
-    institutionStudent: 'Employee Trainee', institutionStudents: 'Employee Trainees',
-  },
-}
-
-const TERMS: Record<Locale, Record<InstitutionType, Terms>> = { ar: AR, en: EN }
+// The per-language tables live in src/content/terminology/{ar,en}.ts.
+const TERMS: Record<Locale, Record<InstitutionType, Terms>> = { ar: arTerms, en: enTerms }
 
 export function isInstitutionType(value: unknown): value is InstitutionType {
   return typeof value === 'string' && (INSTITUTION_TYPES as string[]).includes(value)

@@ -45,7 +45,7 @@
   },
   "appeals": {
     "title": "طعونات المراقبة",
-    "summary": "{total} طعناً إجمالاً · {pending} قيد المراجعة",
+    "summary": "{total, plural, one {طعن واحد} two {طعنان} few {{total} طعون} many {{total} طعناً} other {{total} طعن}} إجمالاً · {pending} قيد المراجعة",
     "empty": "لا توجد طعونات مسجَّلة بعد.",
     "status": {
       "pending": "قيد المراجعة",
@@ -69,21 +69,21 @@
     },
     "lessons": {
       "title": "الدروس",
-      "summary": "{count, plural, zero{لا دروس} one{درس واحد} two{درسان} few{# دروس} many{# درساً} other{# درس}} في مؤسستك · {published} منشور",
+      "summary": "{count, plural, zero{لا دروس} one{درس واحد} two{درسان} few{{count} دروس} many{{count} درساً} other{{count} درس}} في مؤسستك · {published} منشور",
       "empty": "لا توجد دروس بعد.",
       "emptyHint": "ينشئ المعلمون الدروس من لوحاتهم.",
       "thLesson": "الدرس"
     },
     "exams": {
       "title": "الاختبارات والواجبات",
-      "summary": "{exams, plural, zero{لا اختبارات} one{اختبار واحد} two{اختباران} few{# اختبارات} many{# اختباراً} other{# اختبار}} · {homework} واجب · {submissions, plural, zero{لا تسليمات} one{تسليم واحد} two{تسليمان} few{# تسليمات} many{# تسليماً} other{# تسليم}}",
+      "summary": "{exams, plural, zero{لا اختبارات} one{اختبار واحد} two{اختباران} few{{exams} اختبارات} many{{exams} اختباراً} other{{exams} اختبار}} · {homework} واجب · {submissions, plural, zero{لا تسليمات} one{تسليم واحد} two{تسليمان} few{{submissions} تسليمات} many{{submissions} تسليماً} other{{submissions} تسليم}}",
       "empty": "لا توجد اختبارات أو واجبات بعد.",
       "emptyHint": "ينشئها المعلمون من لوحاتهم.",
       "thExam": "الاختبار",
       "thHomework": "الواجب",
       "thSubmissions": "التسليمات",
       "untimed": "بدون مؤقت",
-      "minutes": "{count} دقيقة",
+      "minutes": "{count, plural, one {دقيقة واحدة} two {دقيقتان} few {{count} دقائق} many {{count} دقيقةً} other {{count} دقيقة}}",
       "proctored": "مراقَب",
       "sectionExams": "الاختبارات",
       "sectionHomework": "الواجبات والأنشطة"
@@ -102,8 +102,8 @@
       "thCourse": "المساق",
       "thStructure": "الهيكل",
       "thStudents": "الطلاب",
-      "levels": "{count} مستوى · ",
-      "units": "{count} وحدة"
+      "levels": "{count, plural, one {مستوى واحد} two {مستويان} few {{count} مستويات} many {{count} مستوىً} other {{count} مستوى}} · ",
+      "units": "{count, plural, one {وحدة واحدة} two {وحدتان} few {{count} وحدات} many {{count} وحدةً} other {{count} وحدة}}"
     }
   },
   "people": {
@@ -117,7 +117,7 @@
     },
     "teachers": {
       "title": "المعلمون",
-      "summary": "{count, plural, zero{لا معلمين} one{معلم واحد} two{معلمان} few{# معلمين} many{# معلماً} other{# معلم}}",
+      "summary": "{count, plural, zero{لا معلمين} one{معلم واحد} two{معلمان} few{{count} معلمين} many{{count} معلماً} other{{count} معلم}}",
       "invite": "دعوة معلم",
       "search": "ابحث عن معلم…",
       "thCourses": "المساقات",
@@ -130,7 +130,7 @@
     },
     "students": {
       "title": "الطلاب",
-      "summary": "{count, plural, zero{لا طلاب} one{طالب واحد} two{طالبان} few{# طلاب} many{# طالباً} other{# طالب}}",
+      "summary": "{count, plural, zero{لا طلاب} one{طالب واحد} two{طالبان} few{{count} طلاب} many{{count} طالباً} other{{count} طالب}}",
       "invite": "دعوة طالب",
       "search": "ابحث عن طالب…",
       "empty": "لم يُعثر على طلاب",
@@ -144,7 +144,7 @@
     "saveFailed": "فشل الحفظ",
     "statusFailed": "فشل تغيير حالة المجموعة",
     "archiveConfirm": "أرشفة مجموعة \"{name}\"؟ ستختفي عن الطلاب وتبقى كل السجلات والعلامات محفوظة.",
-    "summary": "{count} مجموعة · {archived} مؤرشفة",
+    "summary": "{count, plural, one {مجموعة واحدة} two {مجموعتان} few {{count} مجموعات} many {{count} مجموعةً} other {{count} مجموعة}} · {archived} مؤرشفة",
     "empty": "لا توجد مجموعات بعد — ينشئها المعلمون من لوحاتهم.",
     "thGroup": "المجموعة",
     "thTeacher": "المعلم",
@@ -158,7 +158,7 @@
   },
   "archive": {
     "title": "أرشيف {institution}",
-    "subtitle": "السجل التاريخي الكامل — {count} صف ومساق ({archived} مؤرشف). كل التسليمات والعلامات محفوظة للرجوع إليها.",
+    "subtitle": "السجل التاريخي الكامل — {count, plural, one {صف أو مساق واحد} two {صفّان أو مساقان} few {{count} صفوف ومساقات} many {{count} صفاً ومساقاً} other {{count} صف ومساق}} ({archived} مؤرشف). كل التسليمات والعلامات محفوظة للرجوع إليها.",
     "restoreConfirm": "استعادة \"{title}\" من الأرشيف؟ سيعود ظاهراً في المنصة.",
     "restoreFailed": "تعذّرت الاستعادة",
     "search": "ابحث بالاسم أو المعلم…",
@@ -175,10 +175,10 @@
     "archivedAt": "أُرشف {date}",
     "restore": "استعادة",
     "unknownTeacher": "غير معروف",
-    "students": "{count} طالب",
-    "lessons": "{count} درس",
-    "exams": "{count} اختبار/واجب",
-    "submissions": "{count} تسليم"
+    "students": "{count, plural, one {طالب واحد} two {طالبان} few {{count} طلاب} many {{count} طالباً} other {{count} طالب}}",
+    "lessons": "{count, plural, one {درس واحد} two {درسان} few {{count} دروس} many {{count} درساً} other {{count} درس}}",
+    "exams": "{count, plural, one {اختبار/واجب واحد} two {اختباران/واجبان} few {{count} اختبارات/واجبات} many {{count} اختباراً/واجباً} other {{count} اختبار/واجب}}",
+    "submissions": "{count, plural, one {تسليم واحد} two {تسليمان} few {{count} تسليمات} many {{count} تسليماً} other {{count} تسليم}}"
   },
   "settings": {
     "saveFailed": "تعذّر حفظ الإعدادات",

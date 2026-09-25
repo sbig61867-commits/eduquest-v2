@@ -1,11 +1,12 @@
 -- ============================================================
 -- EduQuest — locale preferences (i18n Phase 0b)
 -- ============================================================
--- STATUS: NOT APPLIED. Written for review, per the project's manual
--- SQL-Editor workflow. The application code shipped alongside it tolerates
--- both columns being absent (src/proxy.ts ensureLocaleCookie swallows the
--- PostgREST error and falls back to the platform default), so the app works
--- before AND after this runs. Re-runnable / idempotent.
+-- STATUS: APPLIED to the live DB 2026-09-25 (via Supabase MCP), after a
+-- dry run in a forced-rollback transaction. supabase/tests/locale_rls_check.sql
+-- run before and after: L-01/L-02 work, A-L01..A-L09 all blocked.
+-- The application code tolerates both columns being absent (src/proxy.ts
+-- ensureLocaleCookie swallows the PostgREST error and falls back to the
+-- platform default). Re-runnable / idempotent.
 --
 -- Adds the two DB levels of the locale chain:
 --
@@ -25,7 +26,8 @@ BEGIN;
 -- ── 1. tenants.default_locale ───────────────────────────────
 -- NOT NULL with a default, so every existing tenant gets the platform default
 -- and nothing changes behaviourally on the day this is applied.
--- Keep the default in step with DEFAULT_LOCALE in src/i18n/config.ts.
+-- Independent of DEFAULT_LOCALE in src/i18n/config.ts (the no-tenant fallback,
+-- 'en' since 2026-09-25): institutions stay Arabic unless changed per tenant.
 ALTER TABLE public.tenants
   ADD COLUMN IF NOT EXISTS default_locale TEXT NOT NULL DEFAULT 'ar';
 

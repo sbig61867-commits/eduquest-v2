@@ -5,7 +5,11 @@
 // generation routes expect, so multi-file uploads carry only extracted text
 // — never the raw files — in the final generation request.
 
-export async function extractFilesText(files: File[]): Promise<{ combined: string } | { error: string }> {
+// `t` is the caller's `useTranslations('common.ai')` — this is a plain
+// function, not a hook, so the translator is passed in rather than imported.
+type Translate = (key: 'extractNetworkError' | 'extractFailed', values: { name: string }) => string
+
+export async function extractFilesText(files: File[], t: Translate): Promise<{ combined: string } | { error: string }> {
   const parts: string[] = []
   for (const f of files) {
     const fd = new FormData()
@@ -15,10 +19,10 @@ export async function extractFilesText(files: File[]): Promise<{ combined: strin
       const res = await fetch('/api/ai/extract-file', { method: 'POST', body: fd })
       data = await res.json()
     } catch {
-      return { error: `خطأ في الاتصال أثناء معالجة ${f.name}. حاول مجدداً.` }
+      return { error: t('extractNetworkError', { name: f.name }) }
     }
     if (typeof data.text !== 'string') {
-      return { error: data.error ?? `فشل استخراج النص من ${f.name}` }
+      return { error: data.error ?? t('extractFailed', { name: f.name }) }
     }
     parts.push(files.length > 1 ? `=== FILE: ${f.name} ===\n${data.text}` : data.text)
   }

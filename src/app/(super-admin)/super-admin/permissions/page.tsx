@@ -2,6 +2,10 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getTranslations, getLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/config'
+import type { Role } from '@/types'
+import { getRoleLabel } from '@/lib/utils'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
 import { resolvePermissions, CAPABILITIES } from '@/lib/permissions'
 import type { Capability } from '@/lib/permissions'
@@ -16,7 +20,7 @@ interface StaffRow {
   is_active: boolean
   permissions: Record<string, boolean> | null
   tenant_id: string | null
-  tenants: { name: string } | null
+  tenants: { name: string; institution_type: string | null } | null
 }
 
 export default async function SuperAdminPermissionsPage() {
@@ -26,16 +30,17 @@ export default async function SuperAdminPermissionsPage() {
 
   const { data: rows } = await supabase
     .from('users')
-    .select('id, full_name, email, role, is_active, permissions, tenant_id, tenants(name)')
+    .select('id, full_name, email, role, is_active, permissions, tenant_id, tenants(name, institution_type)')
     .in('role', ['university_admin', 'center_manager'])
     .order('role')
 
   const staffRows = (rows ?? []) as unknown as StaffRow[]
+  const [t, locale] = await Promise.all([getTranslations('superAdmin.permissions'), getLocale() as Promise<Locale>])
 
   const staff: StaffMember[] = staffRows.map(r => ({
     id: r.id,
-    full_name: `${r.full_name ?? '—'} · ${r.tenants?.name ?? 'بلا مؤسسة'}`,
-    email: `${r.email} — ${r.role === 'university_admin' ? 'مدير مؤسسة' : 'مدير مركز'}`,
+    full_name: `${r.full_name ?? '—'} · ${r.tenants?.name ?? t('noTenant')}`,
+    email: `${r.email} — ${getRoleLabel(r.role as Role, r.tenants?.institution_type, locale)}`,
     role: r.role,
     is_active: r.is_active,
     effective: resolvePermissions(r.role, r.permissions),
@@ -47,15 +52,13 @@ export default async function SuperAdminPermissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">الصلاحيات</h2>
-        <p className="text-slate-400 mt-1">
-          حدّد ما يستطيع كل مدير مؤسسة ومدير مركز فعله. المدير بدوره لا يستطيع منح صلاحية لا يملكها.
-        </p>
+        <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+        <p className="text-slate-400 mt-1">{t('subtitle')}</p>
       </div>
       <PermissionsEditor
         staff={staff}
         grantable={grantable}
-        emptyHint="لا يوجد مديرو مؤسسات أو مراكز بعد."
+        emptyHint={t('emptyHint')}
       />
     </div>
   )

@@ -2,7 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import {
-  canAccessReport, reportsAdminClient, reportToCsv,
+  canAccessReport, reportsAdminClient, reportToCsv, reportChrome,
   buildUniversityReport, buildTeacherReport, buildGroupReport, buildStudentReport, buildPilotReport,
   type ReportScope, type ReportLang,
 } from '@/lib/reports'
@@ -51,5 +51,7 @@ export async function GET(request: Request) {
     })
   }
 
-  return NextResponse.json(report)
+  // The print view's letterhead must match the report's language, which may
+  // differ from the viewer's UI language — so it travels with the report.
+  return NextResponse.json({ ...report, chrome: reportChrome(lang) })
 }

@@ -5,13 +5,13 @@
     "lessons": "الدروس",
     "courses": "المساقات",
     "exams": "الاختبارات",
-    "grades": "الدرجات",
     "attendance": "الحضور",
     "engagement": "التفاعل",
     "proctoring": "المراقبة",
     "schedule": "الجدول",
     "requests": "الطلبات",
-    "invitations": "الدعوات"
+    "invitations": "الدعوات",
+    "records": "سجل الطلاب"
   },
   "sidebarTitle": "معلم",
   "headerTitle": "لوحة المعلم",
@@ -68,7 +68,7 @@
       "loading": "جارٍ التحميل...",
       "noSurvey": "لا يوجد استبيان لهذه المجموعة بعد. أنشئه ليتمكن الطلاب من تقييم تجربتهم مع المنصة.",
       "createSurvey": "إنشاء استبيان",
-      "responses": "أجاب {count} من {total} طالب",
+      "responses": "أجاب {count} من {total, plural, one {طالب واحد} two {طالبَين} few {{total} طلاب} many {{total} طالباً} other {{total} طالب}}",
       "open": "مفتوح",
       "closed": "مغلق",
       "close": "إغلاق استقبال الإجابات",
@@ -162,7 +162,7 @@
       "groupLabel": "مجموعة",
       "durationLabel": "المدة (بالدقائق)",
       "proctoringLabel": "تفعيل المراقبة (كاميرا + كشف التبويبات)",
-      "questionsGenerated": "{count} سؤال مولَّد",
+      "questionsGenerated": "{count, plural, one {سؤال واحد مولَّد} two {سؤالان مولَّدان} few {{count} أسئلة مولَّدة} many {{count} سؤالاً مولَّداً} other {{count} سؤال مولَّد}}",
       "selectAll": "تحديد الكل",
       "deselectAll": "إلغاء تحديد الكل",
       "selected": "{count} محدد",
@@ -170,13 +170,13 @@
       "bulkGrade": "— ضع درجة موحّدة:",
       "applyToSelected": "تطبيق على المحدد",
       "applyToAll": "تطبيق على الكل",
-      "questionsSummary": "{count} سؤالاً · العلامة الكاملة:",
+      "questionsSummary": "{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالاً} other {{count} سؤال}} · العلامة الكاملة:",
       "editHint": "— عدّل فردياً أو حدّد أسئلة وضع درجة موحّدة",
       "markUnit": "د",
       "cancel": "إلغاء",
       "questionGrade": "علامة هذا السؤال",
       "addAtLeastOne": "أضف سؤالاً واحداً على الأقل",
-      "partialGeneration": "تم توليد {delivered} من {requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.",
+      "partialGeneration": "تم توليد {delivered} من {requested, plural, one {سؤال واحد فريد} two {سؤالين فريدين} few {{requested} أسئلة فريدة} many {{requested} سؤالاً فريداً} other {{requested} سؤال فريد}} — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.",
       "generateFailed": "فشل التوليد",
       "connectionError": "خطأ في الاتصال. حاول مجدداً.",
       "deleteFailed": "فشل حذف الاختبار",
@@ -191,7 +191,7 @@
       "submittedHeader": "تم التسليم",
       "status": "الحالة",
       "submittedOf": "{submitted}/{total} سلّموا",
-      "outOfMarks": "من {marks} علامة",
+      "outOfMarks": "من {marks, plural, one {علامة واحدة} two {علامتين} few {{marks} علامات} many {{marks} علامةً} other {{marks} علامة}}",
       "pending": "بانتظار التصحيح",
       "notSubmitted": "لم يُؤدَّ",
       "submittedBadge": "تم التسليم",
@@ -211,23 +211,9 @@
     },
     "questionsViewer": {
       "titlePrefix": "أسئلة: {title}",
-      "summary": "{count} سؤالاً · العلامة الكاملة:"
+      "summary": "{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالاً} other {{count} سؤال}} · العلامة الكاملة:"
     },
-    "metaLine": "{minutes} د · {questions} سؤال · {date}"
-  },
-  "grades": {
-    "title": "درجات الطلاب",
-    "noGrades": "لا توجد تسليمات مُقيَّمة بعد.",
-    "noGradesHint": "تظهر الدرجات بعد أن يُكمل الطلاب اختباراتك.",
-    "avg": "المعدّل العام",
-    "passing": "ناجحون",
-    "failing": "راسبون",
-    "outOf": "{score} من {max}",
-    "gradeExcellent": "ممتاز",
-    "gradeVeryGood": "جيد جداً",
-    "gradeGood": "جيد",
-    "gradePass": "مقبول",
-    "gradeFail": "راسب"
+    "metaLine": "{minutes} د · {questions, plural, one {سؤال واحد} two {سؤالان} few {{questions} أسئلة} many {{questions} سؤالاً} other {{questions} سؤال}} · {date}"
   },
   "engagement": {
     "title": "التفاعل على المنصة",
@@ -236,9 +222,9 @@
     "migrationHint": "تعذّر حساب التفاعل. تأكد من تطبيق engagement_metrics_migration.sql في محرر SQL.",
     "stats": {
       "avgEngagement": "متوسط التفاعل",
-      "students": "{count} طالب",
+      "students": "{count, plural, one {طالب واحد} two {طالبان} few {{count} طلاب} many {{count} طالباً} other {{count} طالب}}",
       "taskSubmission": "تسليم المهام",
-      "assigned": "{count} مهمة منشورة",
+      "assigned": "{count, plural, one {مهمة واحدة منشورة} two {مهمتان منشورتان} few {{count} مهام منشورة} many {{count} مهمةً منشورة} other {{count} مهمة منشورة}}",
       "inactive": "لم يتفاعل إطلاقاً",
       "atRisk": "{count} تحت 50%",
       "thriving": "متميّزون",
@@ -253,8 +239,8 @@
       "lastActive": "آخر نشاط",
       "noStudents": "لا يوجد طلاب في هذه المجموعة."
     },
-    "formula": "التفاعل = ٦٠٪ نسبة تسليم المهام المنشورة خلال {days} يوماً + ٤٠٪ نسبة إنجاز محتوى الكورسات المسجَّل بها. يظهر «—» عندما لا توجد مهام ولا كورس بعد — وهذا ليس صفراً.",
-    "days": "{d} يوم"
+    "formula": "التفاعل = 60% نسبة تسليم المهام المنشورة خلال {days, plural, one {يوم} two {يومين} few {{days} أيام} many {{days} يوماً} other {{days} يوم}} + 40% نسبة إنجاز محتوى الكورسات المسجَّل بها. يظهر «—» عندما لا توجد مهام ولا كورس بعد — وهذا ليس صفراً.",
+    "days": "{d, plural, one {يوم واحد} two {يومان} few {{d} أيام} many {{d} يوماً} other {{d} يوم}}"
   },
   "schedule": {
     "title": "جداول المواعيد",
@@ -278,7 +264,7 @@
     "noSubmissions": "لا توجد تسليمات لاختبارات مراقَبة بعد.",
     "noSubmissionsHint": "فعّل المراقبة عند إنشاء اختبار لترى التقارير هنا.",
     "incompleteMonitoring": "المراقبة غير مكتملة على جهاز هذا الطالب",
-    "violations": "{count, plural, one{مخالفة واحدة} two{مخالفتان} few{# مخالفات} many{# مخالفة} other{# مخالفة}}",
+    "violations": "{count, plural, one{مخالفة واحدة} two{مخالفتان} few{{count} مخالفات} many{{count} مخالفة} other{{count} مخالفة}}",
     "scoreLine": "العلامة: {score}/{max} ({pct}%) · {at}"
   },
   "courses": {
@@ -296,8 +282,8 @@
     "noLanguage": "لم تُحدَّد لغة",
     "leveledCourse": "مساق بمستويات",
     "flatCourse": "مساق مسطّح",
-    "itemsCount": "{count} عناصر",
-    "unitsCount": "{count} وحدات",
+    "itemsCount": "{count, plural, one {عنصر واحد} two {عنصران} few {{count} عناصر} many {{count} عنصراً} other {{count} عنصر}}",
+    "unitsCount": "{count, plural, one {وحدة واحدة} two {وحدتان} few {{count} وحدات} many {{count} وحدةً} other {{count} وحدة}}",
     "noUnitsFlat": "لا توجد وحدات بعد.",
     "noUnitsHint": "أضف وحدتك الأولى لتبدأ بناء هذا المساق.",
     "noUnitsInLevel": "لا توجد وحدات بعد — أضف وحدة أعلاه",
@@ -365,12 +351,12 @@
       "namePlaceholder": "عنوان المساق",
       "descLabel": "الوصف",
       "unitsLabel": "الوحدات والدروس",
-      "lessonsCount": "{count} دروس",
+      "lessonsCount": "{count, plural, one {درس واحد} two {درسان} few {{count} دروس} many {{count} درساً} other {{count} درس}}",
       "unitNamePlaceholder": "اسم الوحدة",
       "lessonPlaceholder": "درس {n}",
       "willCreate": "سيتم إنشاء الكورس مع جميع الوحدات والدروس. يمكنك إضافة المحتوى لاحقاً.",
-      "unitsCount": "{count} وحدة",
-      "lessonsTotal": "{count} درس",
+      "unitsCount": "{count, plural, one {وحدة واحدة} two {وحدتان} few {{count} وحدات} many {{count} وحدةً} other {{count} وحدة}}",
+      "lessonsTotal": "{count, plural, one {درس واحد} two {درسان} few {{count} دروس} many {{count} درساً} other {{count} درس}}",
       "creating": "جاري الإنشاء...",
       "back": "رجوع",
       "cancel": "إلغاء",
@@ -405,13 +391,13 @@
       "prev": "السابق",
       "page": "صفحة {current} / {total}",
       "units_label": "الوحدات",
-      "lessons_label": "{count} دروس",
+      "lessons_label": "{count, plural, one {درس واحد} two {درسان} few {{count} دروس} many {{count} درساً} other {{count} درس}}",
       "fileGenLabel": "توليد محتوى الدرس من ملف الكورس",
       "filePickPrompt": "اضغط لاختيار ملف — PDF / PPTX / DOCX / JPG / PNG (حتى 20 MB)",
       "generating": "جارٍ التحميل...",
       "generatingFile": "جارٍ التحميل…",
       "dueDate": "موعد التسليم (اختياري)",
-      "homeworkSubtitle": "{submissions} تسليم · {questions} سؤال{hasEssay}",
+      "homeworkSubtitle": "{submissions, plural, one {تسليم واحد} two {تسليمان} few {{submissions} تسليمات} many {{submissions} تسليماً} other {{submissions} تسليم}} · {questions, plural, one {سؤال واحد} two {سؤالان} few {{questions} أسئلة} many {{questions} سؤالاً} other {{questions} سؤال}}{hasEssay}",
       "homeworkHasEssay": " · يتضمن أسئلة مقالية",
       "hwDeadline": "موعد التسليم: {date}",
       "essayNote": "الأسئلة المقالية تُصحَّح يدوياً من قبل المعلم.",
@@ -540,7 +526,7 @@
     "zoomHint": "اضغط للتكبير بجودة أعلى",
     "speaking": "يتكلم",
     "title": "المراقبة الحية — {exam}",
-    "connected": "{count, plural, zero{لا طلاب متصلون} one{طالب واحد متصل} two{طالبان متصلان} few{# طلاب متصلون} many{# طالباً متصلاً} other{# طالب متصل}}"
+    "connected": "{count, plural, zero{لا طلاب متصلون} one{طالب واحد متصل} two{طالبان متصلان} few{{count} طلاب متصلون} many{{count} طالباً متصلاً} other{{count} طالب متصل}}"
   },
   "submissions": {
     "title": "التسليمات والدرجات",
@@ -571,5 +557,167 @@
     "publishToStudent": "نشر النتيجة للطالب",
     "hideFromStudent": "إخفاء النتيجة عن الطالب",
     "saveFailed": "فشل الحفظ"
+  },
+  "records": {
+    "title": "سجل الطلاب",
+    "subtitle": "مجموعاتك وطلابها وكل ما أنجزوه من اختبارات ومهام وحضور",
+    "index": {
+      "empty": "لم تنشئ أي مجموعة بعد.",
+      "emptyHint": "أنشئ مجموعة من صفحة مجموعاتي ثم ادعُ طلابك إليها.",
+      "search": "ابحث عن مجموعة",
+      "sort": "الترتيب",
+      "sortNewest": "الأحدث",
+      "sortName": "الاسم",
+      "sortAvg": "الأعلى متوسطاً",
+      "students": "{count, plural, one {طالب واحد} two {طالبان} few {{count} طلاب} many {{count} طالباً} other {{count} طالب}}",
+      "exams": "{count, plural, one {اختبار واحد} two {اختباران} few {{count} اختبارات} many {{count} اختباراً} other {{count} اختبار}}",
+      "homework": "{count, plural, one {مهمة واحدة} two {مهمتان} few {{count} مهام} many {{count} مهمةً} other {{count} مهمة}}",
+      "atRisk": "{count, plural, one {طالب واحد معرض للخطر} two {طالبان معرضان للخطر} few {{count} طلاب معرضون للخطر} many {{count} طالباً معرضاً للخطر} other {{count} طالب معرض للخطر}}",
+      "avg": "متوسط العلامات",
+      "attendance": "الحضور",
+      "course": "المقرر",
+      "inactive": "غير نشطة",
+      "open": "فتح السجل",
+      "noMatches": "لا توجد مجموعة بهذا الاسم."
+    },
+    "group": {
+      "back": "كل المجموعات",
+      "stats": {
+        "students": "الطلاب",
+        "avg": "متوسط العلامات",
+        "completion": "نسبة التسليم",
+        "attendance": "نسبة الحضور",
+        "atRisk": "معرضون للخطر",
+        "atRiskHint": "متوسطهم أقل من 50%"
+      },
+      "chart": {
+        "title": "الأداء في كل تقييم",
+        "subtitle": "متوسط علامات الطلاب في آخر 12 تقييماً منشوراً",
+        "exam": "اختبار",
+        "homework": "مهمة يومية",
+        "tooltip": "متوسط {pct}% من {count, plural, one {تسليم واحد} two {تسليمين} few {{count} تسليمات} many {{count} تسليماً} other {{count} تسليم}}",
+        "noGrades": "لا توجد علامات بعد",
+        "empty": "لا توجد علامات في هذه المجموعة بعد."
+      },
+      "filters": {
+        "search": "ابحث عن طالب",
+        "status": "الحالة",
+        "statusAll": "كل الطلاب",
+        "statusAtRisk": "المعرضون للخطر",
+        "statusMissing": "لديهم مهام أو اختبارات ناقصة",
+        "statusTop": "المتفوقون بمتوسط 85% فأكثر",
+        "statusInactive": "الحسابات الموقوفة",
+        "sort": "الترتيب",
+        "sortName": "الاسم",
+        "sortAvgDesc": "الأعلى متوسطاً",
+        "sortAvgAsc": "الأقل متوسطاً",
+        "sortAttendance": "الأقل حضوراً",
+        "sortCompletion": "الأقل تسليماً"
+      },
+      "table": {
+        "title": "طلاب المجموعة",
+        "student": "الطالب",
+        "exams": "الاختبارات",
+        "homework": "المهام اليومية",
+        "attendance": "الحضور",
+        "progress": "إنجاز المقرر",
+        "average": "المتوسط",
+        "trend": "الاتجاه",
+        "open": "السجل الكامل",
+        "submittedOf": "سلّم {submitted} من {assigned}",
+        "noStudents": "لا يوجد طلاب في هذه المجموعة بعد.",
+        "noMatches": "لا يوجد طلاب يطابقون التصفية.",
+        "inactive": "موقوف",
+        "trendUp": "في تحسن",
+        "trendDown": "في تراجع",
+        "trendFlat": "ثابت",
+        "trendNone": "لا يكفي لتحديد اتجاه",
+        "count": "{count, plural, one {طالب واحد} two {طالبان} few {{count} طلاب} many {{count} طالباً} other {{count} طالب}}"
+      }
+    },
+    "student": {
+      "back": "العودة إلى {group}",
+      "joined": "انضم في {date}",
+      "inactive": "حساب موقوف",
+      "notMember": "هذا الطالب ليس في المجموعة.",
+      "summary": {
+        "overall": "المتوسط العام",
+        "exams": "الاختبارات",
+        "homework": "المهام اليومية",
+        "completion": "نسبة التسليم",
+        "attendance": "نسبة الحضور",
+        "progress": "إنجاز المقرر",
+        "lastActivity": "آخر تسليم",
+        "submittedOf": "سلّم {submitted} من {assigned}",
+        "atRisk": "معرض للخطر"
+      },
+      "items": {
+        "title": "الاختبارات والمهام اليومية",
+        "kind": "النوع",
+        "kindAll": "الكل",
+        "kindExam": "الاختبارات",
+        "kindHomework": "المهام اليومية",
+        "status": "الحالة",
+        "statusAll": "كل الحالات",
+        "statusGraded": "مصححة",
+        "statusAwaiting": "بانتظار التصحيح",
+        "statusNotSubmitted": "لم تُسلَّم",
+        "colItem": "التقييم",
+        "colDate": "التاريخ",
+        "colStatus": "الحالة",
+        "colScore": "العلامة",
+        "colDetails": "التوضيح",
+        "exam": "اختبار",
+        "homework": "مهمة يومية",
+        "lesson": "درس {title}",
+        "fromCourse": "من المقرر",
+        "state": {
+          "graded": "مصحح",
+          "awaiting": "بانتظار التصحيح",
+          "inProgress": "بدأ ولم يسلّم",
+          "missed": "انتهى الموعد",
+          "open": "لم يسلّم بعد"
+        },
+        "grading": {
+          "published": "العلامة منشورة للطالب.",
+          "reviewing": "العلامة مراجَعة ولم تُنشر بعد.",
+          "pending": "العلامة لم تُنشر بعد."
+        },
+        "explain": {
+          "graded": "سلّم في {date} وحصل على {score} من {max}.",
+          "awaiting": "سلّم في {date} وما زال ينتظر التصحيح.",
+          "inProgress": "بدأ الحل ولم يسلّم.",
+          "missed": "انتهى الموعد في {date} دون تسليم.",
+          "openDue": "مفتوح حتى {date}.",
+          "openNoDue": "مفتوح دون موعد نهائي."
+        },
+        "flagged": "رصدت المراقبة مخالفات في هذا الاختبار.",
+        "openLesson": "فتح الدرس",
+        "empty": "لا توجد اختبارات أو مهام منشورة في هذه المجموعة بعد.",
+        "noMatches": "لا يوجد ما يطابق التصفية."
+      },
+      "attendance": {
+        "title": "الحضور",
+        "colDate": "التاريخ",
+        "colSession": "الجلسة",
+        "colStatus": "الحالة",
+        "colNote": "ملاحظة",
+        "state": {
+          "present": "حاضر",
+          "late": "متأخر",
+          "absent": "غائب",
+          "excused": "غائب بعذر",
+          "unmarked": "لم يُسجَّل"
+        },
+        "counts": "حاضر {present} · متأخر {late} · غائب {absent} · بعذر {excused}",
+        "empty": "لم تُسجَّل جلسات حضور لهذه المجموعة بعد.",
+        "untitled": "جلسة"
+      },
+      "progress": {
+        "title": "إنجاز المقرر",
+        "of": "أنجز {done} من {total} عنصر منشور في {course}.",
+        "none": "هذه المجموعة غير مرتبطة بمقرر من مقرراتك."
+      }
+    }
   }
 }

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { formatDateTime } from '@/lib/utils'
 import { Gavel, CheckCircle2, XCircle } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/config'
 
 export interface AppealRow {
   id: string
@@ -21,6 +22,7 @@ export interface AppealRow {
 export function AppealReviewList({ appeals }: { appeals: AppealRow[] }) {
   const router = useRouter()
   const t = useTranslations('teacher')
+  const locale = useLocale() as Locale
   const [busyId, setBusyId] = useState<string | null>(null)
   const [responses, setResponses] = useState<Record<string, string>>({})
 
@@ -62,7 +64,7 @@ export function AppealReviewList({ appeals }: { appeals: AppealRow[] }) {
           <div key={a.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 space-y-3">
             <div>
               <p className="text-white text-sm font-medium">{a.student_name} · {a.exam_title}</p>
-              <p className="text-slate-500 text-xs">{a.group_name} · {a.violation_type ?? t('appeals.generalAppeal')} · {formatDateTime(a.created_at)}</p>
+              <p className="text-slate-500 text-xs">{a.group_name} · {a.violation_type ?? t('appeals.generalAppeal')} · {formatDateTime(a.created_at, locale)}</p>
             </div>
             <p className="text-slate-300 text-sm bg-slate-900/60 rounded-lg p-3">{a.student_message}</p>
             <textarea

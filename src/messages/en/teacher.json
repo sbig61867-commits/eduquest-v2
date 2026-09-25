@@ -5,13 +5,13 @@
     "lessons": "Lessons",
     "courses": "Courses",
     "exams": "Exams",
-    "grades": "Grades",
     "attendance": "Attendance",
     "engagement": "Engagement",
     "proctoring": "Proctoring",
     "schedule": "Schedule",
     "requests": "Requests",
-    "invitations": "Invitations"
+    "invitations": "Invitations",
+    "records": "Student records"
   },
   "sidebarTitle": "Teacher",
   "headerTitle": "Teacher Dashboard",
@@ -68,7 +68,7 @@
       "loading": "Loading...",
       "noSurvey": "No survey for this group yet. Create one so students can rate their experience.",
       "createSurvey": "Create Survey",
-      "responses": "{count} of {total} students responded",
+      "responses": "{count} of {total, plural, one {# student} other {# students}} responded",
       "open": "Open",
       "closed": "Closed",
       "close": "Close responses",
@@ -162,7 +162,7 @@
       "groupLabel": "Group",
       "durationLabel": "Duration (minutes)",
       "proctoringLabel": "Enable proctoring (camera + tab detection)",
-      "questionsGenerated": "{count} questions generated",
+      "questionsGenerated": "{count, plural, one {# question generated} other {# questions generated}}",
       "selectAll": "Select all",
       "deselectAll": "Deselect all",
       "selected": "{count} selected",
@@ -170,7 +170,7 @@
       "bulkGrade": "— set uniform mark:",
       "applyToSelected": "Apply to selected",
       "applyToAll": "Apply to all",
-      "questionsSummary": "{count} questions · Full marks:",
+      "questionsSummary": "{count, plural, one {# question} other {# questions}} · Full marks:",
       "editHint": "— edit individually or select questions and set a uniform mark",
       "markUnit": "pts",
       "cancel": "Cancel",
@@ -191,7 +191,7 @@
       "submittedHeader": "Submitted",
       "status": "Status",
       "submittedOf": "{submitted}/{total} submitted",
-      "outOfMarks": "out of {marks} marks",
+      "outOfMarks": "out of {marks, plural, one {# mark} other {# marks}}",
       "pending": "Awaiting grading",
       "notSubmitted": "Not attempted",
       "submittedBadge": "Submitted",
@@ -211,23 +211,9 @@
     },
     "questionsViewer": {
       "titlePrefix": "Questions: {title}",
-      "summary": "{count} questions · Full marks:"
+      "summary": "{count, plural, one {# question} other {# questions}} · Full marks:"
     },
-    "metaLine": "{minutes} min · {questions} questions · {date}"
-  },
-  "grades": {
-    "title": "Student Grades",
-    "noGrades": "No graded submissions yet.",
-    "noGradesHint": "Grades appear after students complete your exams.",
-    "avg": "Overall average",
-    "passing": "Passing",
-    "failing": "Failing",
-    "outOf": "{score} of {max}",
-    "gradeExcellent": "Excellent",
-    "gradeVeryGood": "Very Good",
-    "gradeGood": "Good",
-    "gradePass": "Pass",
-    "gradeFail": "Fail"
+    "metaLine": "{minutes} min · {questions, plural, one {# question} other {# questions}} · {date}"
   },
   "engagement": {
     "title": "Platform Engagement",
@@ -236,9 +222,9 @@
     "migrationHint": "Could not compute engagement. Make sure engagement_metrics_migration.sql has been applied in the SQL editor.",
     "stats": {
       "avgEngagement": "Avg engagement",
-      "students": "{count} students",
+      "students": "{count, plural, one {# student} other {# students}}",
       "taskSubmission": "Task submission",
-      "assigned": "{count} published tasks",
+      "assigned": "{count, plural, one {# published task} other {# published tasks}}",
       "inactive": "Never engaged",
       "atRisk": "{count} below 50%",
       "thriving": "Thriving",
@@ -254,7 +240,7 @@
       "noStudents": "No students in this group."
     },
     "formula": "Engagement = 60% task submission rate over {days} days + 40% course content completion rate. '—' appears when there are no tasks or course yet — this is not zero.",
-    "days": "{d} days"
+    "days": "{d, plural, one {# day} other {# days}}"
   },
   "schedule": {
     "title": "Timetables",
@@ -296,8 +282,8 @@
     "noLanguage": "No language set",
     "leveledCourse": "Leveled course",
     "flatCourse": "Flat course",
-    "itemsCount": "{count} items",
-    "unitsCount": "{count} units",
+    "itemsCount": "{count, plural, one {# item} other {# items}}",
+    "unitsCount": "{count, plural, one {# unit} other {# units}}",
     "noUnitsFlat": "No units yet.",
     "noUnitsHint": "Add your first unit to start building this course.",
     "noUnitsInLevel": "No units yet — add a unit above",
@@ -365,12 +351,12 @@
       "namePlaceholder": "Course title",
       "descLabel": "Description",
       "unitsLabel": "Units & Lessons",
-      "lessonsCount": "{count} lessons",
+      "lessonsCount": "{count, plural, one {# lesson} other {# lessons}}",
       "unitNamePlaceholder": "Unit name",
       "lessonPlaceholder": "Lesson {n}",
       "willCreate": "The course will be created with all units and lessons. You can add content later.",
-      "unitsCount": "{count} units",
-      "lessonsTotal": "{count} lessons",
+      "unitsCount": "{count, plural, one {# unit} other {# units}}",
+      "lessonsTotal": "{count, plural, one {# lesson} other {# lessons}}",
       "creating": "Creating…",
       "back": "Back",
       "cancel": "Cancel",
@@ -405,13 +391,13 @@
       "prev": "Previous",
       "page": "Page {current} / {total}",
       "units_label": "Units",
-      "lessons_label": "{count} lessons",
+      "lessons_label": "{count, plural, one {# lesson} other {# lessons}}",
       "fileGenLabel": "Generate lesson content from course file",
       "filePickPrompt": "Click to choose a file — PDF / PPTX / DOCX / JPG / PNG (up to 20 MB)",
       "generating": "Loading...",
       "generatingFile": "Loading…",
       "dueDate": "Due date (optional)",
-      "homeworkSubtitle": "{submissions} submissions · {questions} questions{hasEssay}",
+      "homeworkSubtitle": "{submissions, plural, one {# submission} other {# submissions}} · {questions, plural, one {# question} other {# questions}}{hasEssay}",
       "homeworkHasEssay": " · includes essay questions",
       "hwDeadline": "Due: {date}",
       "essayNote": "Essay questions are manually graded by the teacher.",
@@ -571,5 +557,167 @@
     "publishToStudent": "Publish to student",
     "hideFromStudent": "Hide from student",
     "saveFailed": "Failed to save"
+  },
+  "records": {
+    "title": "Student records",
+    "subtitle": "Your groups, their students and everything they have done in exams, homework and attendance",
+    "index": {
+      "empty": "You have not created any group yet.",
+      "emptyHint": "Create a group from My Groups and invite your students to it.",
+      "search": "Search groups",
+      "sort": "Sort",
+      "sortNewest": "Newest",
+      "sortName": "Name",
+      "sortAvg": "Highest average",
+      "students": "{count, plural, one {# student} other {# students}}",
+      "exams": "{count, plural, one {# exam} other {# exams}}",
+      "homework": "{count, plural, one {# homework} other {# homework}}",
+      "atRisk": "{count, plural, one {# student at risk} other {# students at risk}}",
+      "avg": "Average grade",
+      "attendance": "Attendance",
+      "course": "Course",
+      "inactive": "Inactive",
+      "open": "Open record",
+      "noMatches": "No group matches that name."
+    },
+    "group": {
+      "back": "All groups",
+      "stats": {
+        "students": "Students",
+        "avg": "Average grade",
+        "completion": "Submission rate",
+        "attendance": "Attendance rate",
+        "atRisk": "At risk",
+        "atRiskHint": "Average below 50%"
+      },
+      "chart": {
+        "title": "Performance per assessment",
+        "subtitle": "Average student grade in the last 12 published assessments",
+        "exam": "Exam",
+        "homework": "Homework",
+        "tooltip": "Average {pct}% from {count, plural, one {# submission} other {# submissions}}",
+        "noGrades": "No grades yet",
+        "empty": "There are no grades in this group yet."
+      },
+      "filters": {
+        "search": "Search students",
+        "status": "Status",
+        "statusAll": "All students",
+        "statusAtRisk": "At risk",
+        "statusMissing": "Missing exams or homework",
+        "statusTop": "Top students with 85% or more",
+        "statusInactive": "Suspended accounts",
+        "sort": "Sort",
+        "sortName": "Name",
+        "sortAvgDesc": "Highest average",
+        "sortAvgAsc": "Lowest average",
+        "sortAttendance": "Lowest attendance",
+        "sortCompletion": "Lowest submission rate"
+      },
+      "table": {
+        "title": "Students in this group",
+        "student": "Student",
+        "exams": "Exams",
+        "homework": "Homework",
+        "attendance": "Attendance",
+        "progress": "Course progress",
+        "average": "Average",
+        "trend": "Trend",
+        "open": "Full record",
+        "submittedOf": "{submitted} of {assigned} submitted",
+        "noStudents": "There are no students in this group yet.",
+        "noMatches": "No student matches the filters.",
+        "inactive": "Suspended",
+        "trendUp": "Improving",
+        "trendDown": "Declining",
+        "trendFlat": "Steady",
+        "trendNone": "Not enough to show a trend",
+        "count": "{count, plural, one {# student} other {# students}}"
+      }
+    },
+    "student": {
+      "back": "Back to {group}",
+      "joined": "Joined {date}",
+      "inactive": "Suspended account",
+      "notMember": "This student is not in the group.",
+      "summary": {
+        "overall": "Overall average",
+        "exams": "Exams",
+        "homework": "Homework",
+        "completion": "Submission rate",
+        "attendance": "Attendance rate",
+        "progress": "Course progress",
+        "lastActivity": "Last submission",
+        "submittedOf": "{submitted} of {assigned} submitted",
+        "atRisk": "At risk"
+      },
+      "items": {
+        "title": "Exams and homework",
+        "kind": "Type",
+        "kindAll": "All",
+        "kindExam": "Exams",
+        "kindHomework": "Homework",
+        "status": "Status",
+        "statusAll": "All statuses",
+        "statusGraded": "Graded",
+        "statusAwaiting": "Awaiting grading",
+        "statusNotSubmitted": "Not submitted",
+        "colItem": "Assessment",
+        "colDate": "Date",
+        "colStatus": "Status",
+        "colScore": "Grade",
+        "colDetails": "Details",
+        "exam": "Exam",
+        "homework": "Homework",
+        "lesson": "Lesson {title}",
+        "fromCourse": "From the course",
+        "state": {
+          "graded": "Graded",
+          "awaiting": "Awaiting grading",
+          "inProgress": "Started",
+          "missed": "Missed",
+          "open": "Not submitted yet"
+        },
+        "grading": {
+          "published": "The grade is published to the student.",
+          "reviewing": "The grade is reviewed but not published yet.",
+          "pending": "The grade is not published yet."
+        },
+        "explain": {
+          "graded": "Submitted on {date} and scored {score} of {max}.",
+          "awaiting": "Submitted on {date} and still awaiting grading.",
+          "inProgress": "Started but never submitted.",
+          "missed": "Closed on {date} without a submission.",
+          "openDue": "Open until {date}.",
+          "openNoDue": "Open with no deadline."
+        },
+        "flagged": "Proctoring recorded violations in this exam.",
+        "openLesson": "Open lesson",
+        "empty": "There are no published exams or homework in this group yet.",
+        "noMatches": "Nothing matches the filters."
+      },
+      "attendance": {
+        "title": "Attendance",
+        "colDate": "Date",
+        "colSession": "Session",
+        "colStatus": "Status",
+        "colNote": "Note",
+        "state": {
+          "present": "Present",
+          "late": "Late",
+          "absent": "Absent",
+          "excused": "Excused",
+          "unmarked": "Not marked"
+        },
+        "counts": "Present {present} · Late {late} · Absent {absent} · Excused {excused}",
+        "empty": "No attendance sessions have been recorded for this group yet.",
+        "untitled": "Session"
+      },
+      "progress": {
+        "title": "Course progress",
+        "of": "Completed {done} of {total} published items in {course}.",
+        "none": "This group is not linked to one of your courses."
+      }
+    }
   }
 }

@@ -2,46 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Mail, Plus, Sparkles } from 'lucide-react'
 import { useLang, PublicNav, PublicFooter } from './shell'
-import { pricing, type BillingPeriod, type PricingPlan } from '@/lib/pricing/plans'
+import { pricing, pricingText, type BillingPeriod, type PricingPlan } from '@/lib/pricing/plans'
+import { useTranslations } from 'next-intl'
+import type enPublic from '@/messages/en/public.json'
+import { localizedPath } from '@/i18n/public-routes'
 
-const dict = {
-  ar: {
-    title: 'أسعار واضحة، بلا مفاجآت',
-    desc: 'ابدأ بتجربة مجانية، وادفع فقط عندما تقرر مؤسستك الاستمرار.',
-    monthly: 'شهري',
-    yearly: 'سنوي',
-    save: 'وفّر شهرين',
-    perMonth: '/ شهرياً',
-    perYear: '/ سنوياً',
-    free: 'مجاناً',
-    onRequest: 'حسب الاتفاق',
-    includedTitle: 'في كل الباقات',
-    faqTitle: 'أسئلة عن الأسعار',
-    ctaTitle: 'غير متأكد أي باقة تناسبك؟',
-    ctaDesc: 'راسلنا بعدد طلابك وسنقترح عليك الأنسب — أو جرّب المنصة أولاً ببيانات وهمية.',
-    ctaButton: 'راسلنا الآن',
-    ctaDemo: 'جرّب المنصة',
-  },
-  en: {
-    title: 'أسعار واضحة بلا مفاجآت',
-    desc: 'Start with a free pilot and pay only once your institution decides to continue.',
-    monthly: 'Monthly',
-    yearly: 'Yearly',
-    save: 'Two months free',
-    perMonth: '/ month',
-    perYear: '/ year',
-    free: 'Free',
-    onRequest: 'On request',
-    includedTitle: 'In every plan',
-    faqTitle: 'Pricing questions',
-    ctaTitle: 'Not sure which plan fits?',
-    ctaDesc: 'Send us your student count and we’ll suggest the right one — or try the platform first with demo data.',
-    ctaButton: 'Message us now',
-    ctaDemo: 'Try the demo',
-  },
-}
+// Page chrome lives in src/messages/<locale>/public.json; the plans, prices
+// and plan copy stay in src/lib/pricing/plans.ts, the one file edited to change prices.
+type PricingCopy = typeof enPublic.pricingPage
 
 function priceOf(plan: PricingPlan, period: BillingPeriod) {
   return period === 'yearly' ? plan.priceYearly : plan.priceMonthly
@@ -50,20 +19,21 @@ function priceOf(plan: PricingPlan, period: BillingPeriod) {
 export function PricingPage() {
   const [lang, setLang] = useLang()
   const [period, setPeriod] = useState<BillingPeriod>('monthly')
-  const t = dict[lang]
-  const currency = pricing.currency[lang]
+  const t = useTranslations('public').raw('pricingPage') as PricingCopy
+  const copy = pricingText(lang)
+  const currency = copy.currency
 
   // Only worth showing the switch when a plan actually charges a price.
   const showToggle = pricing.showBillingToggle && pricing.plans.some(p => p.priceMonthly && p.priceYearly)
 
   return (
-    <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-950">
       <PublicNav lang={lang} setLang={setLang} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
         <h1 className="text-3xl sm:text-4xl font-bold text-white text-center">{t.title}</h1>
         <p className="text-slate-400 text-center max-w-2xl mx-auto mt-3">{t.desc}</p>
-        <p className="text-slate-500 text-xs text-center mt-2">{pricing.lastUpdated[lang]}</p>
+        <p className="text-slate-500 text-xs text-center mt-2">{copy.lastUpdated}</p>
 
         {showToggle && (
           <div className="flex items-center justify-center mt-8">
@@ -88,7 +58,7 @@ export function PricingPage() {
         {/* Plans */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-10 items-start">
           {pricing.plans.map(plan => {
-            const p = plan[lang]
+            const p = copy.plans[plan.id]
             const amount = priceOf(plan, period)
             return (
               <div
@@ -101,7 +71,7 @@ export function PricingPage() {
                   <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-4 ${
                     plan.highlight ? 'bg-blue-600 text-white' : 'bg-emerald-500/10 text-emerald-400'
                   }`}>
-                    {plan.highlight && <Sparkles className="w-3 h-3" />} {p.badge}
+                    {p.badge}
                   </span>
                 )}
 
@@ -122,7 +92,7 @@ export function PricingPage() {
                 </div>
 
                 <Link
-                  href="/contact"
+                  href={localizedPath(lang, '/contact')}
                   className={`block text-center px-5 py-3 rounded-xl font-semibold text-sm transition-colors ${
                     plan.highlight
                       ? 'bg-blue-600 hover:bg-blue-500 text-white'
@@ -135,7 +105,7 @@ export function PricingPage() {
                 <ul className="space-y-2.5 mt-6">
                   {p.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-slate-300 text-sm leading-relaxed">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /> {f}
+                      {f}
                     </li>
                   ))}
                 </ul>
@@ -148,9 +118,9 @@ export function PricingPage() {
         <section className="mt-14">
           <h2 className="text-xl font-bold text-white text-center mb-6">{t.includedTitle}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pricing.includedInAll[lang].map((item, i) => (
+            {copy.includedInAll.map((item, i) => (
               <div key={i} className="flex items-start gap-2.5 bg-slate-900 border border-slate-800 rounded-xl p-4 text-slate-300 text-sm leading-relaxed">
-                <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" /> {item}
+                {item}
               </div>
             ))}
           </div>
@@ -160,11 +130,10 @@ export function PricingPage() {
         <section className="max-w-3xl mx-auto mt-16">
           <h2 className="text-2xl font-bold text-white text-center mb-8">{t.faqTitle}</h2>
           <div className="space-y-3">
-            {pricing.faqs[lang].map((f, i) => (
+            {copy.faqs.map((f, i) => (
               <details key={i} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                <summary className="flex items-center justify-between gap-3 p-5 cursor-pointer list-none text-white font-medium">
+                <summary className="p-5 cursor-pointer list-none text-white font-medium hover:bg-slate-800/50 transition-colors [&::-webkit-details-marker]:hidden">
                   {f.q}
-                  <Plus className="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-45" />
                 </summary>
                 <p className="px-5 pb-5 -mt-1 text-slate-400 text-sm leading-relaxed">{f.a}</p>
               </details>
@@ -178,9 +147,9 @@ export function PricingPage() {
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t.ctaTitle}</h2>
             <p className="text-slate-300 mb-8 max-w-xl mx-auto">{t.ctaDesc}</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/contact"
+              <Link href={localizedPath(lang, '/contact')}
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
-                <Mail className="w-4 h-4" /> {t.ctaButton}
+                {t.ctaButton}
               </Link>
               <Link href="/demo"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold transition-colors">

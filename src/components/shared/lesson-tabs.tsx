@@ -154,7 +154,7 @@ function parseQuiz(body: string): { intro: string; questions: QuizQuestion[] } {
     const text = textLines.join('\n').trim()
     if (text && answer) questions.push({ text, options, answer })
   }
-  if (questions.length > 0) return { intro, questions }
+  if (questions.length) return { intro, questions }
   // Providers sometimes deviate from the ### Qn format — fall back to the
   // legacy layout: numbered questions with a)/b) options and a trailing
   // "Answers:" list, so those quizzes stay interactive too.

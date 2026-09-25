@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { sendInvitationEmail } from '@/lib/email'
+import { getLocale } from 'next-intl/server'
+import { isLocale, toLocale } from '@/i18n/config'
 import { rateLimit } from '@/lib/rate-limit'
 import { getInvitationDefaults } from '@/lib/settings'
 import { canManageAccountRole } from '@/lib/staff-auth'
@@ -270,16 +272,24 @@ export async function POST(request: Request) {
     const { data: inviterProfile } = await supabase
       .from('users').select('full_name').eq('id', user.id).single()
 
+    // `*` so this keeps working before locale_preferences_migration.sql adds
+    // tenants.default_locale (a named missing column would 400 the query).
     const { data: tenant } = await supabase
-      .from('tenants').select('name').eq('id', tenant_id).single()
+      .from('tenants').select('*').eq('id', tenant_id).single()
+
+    // The invitee has no account, so no users.locale yet: write in the
+    // institution's language, else the inviter's current one.
+    const emailLocale = isLocale(tenant?.default_locale) ? tenant.default_locale : toLocale(await getLocale())
 
     sendInvitationEmail({
-      to:          invitation.email,
+      to:              invitation.email,
       role,
-      tenantName:  tenant?.name ?? 'your institution',
+      tenantName:      tenant?.name ?? null,
+      institutionType: tenant?.institution_type ?? null,
       joinUrl,
-      expiresAt:   invitation.expires_at,
-      inviterName: inviterProfile?.full_name ?? undefined,
+      expiresAt:       invitation.expires_at,
+      inviterName:     inviterProfile?.full_name ?? undefined,
+      locale:          emailLocale,
     }).catch(err => console.error('[email] Failed to send invitation email:', err))
   }
 

@@ -1,8 +1,18 @@
 {
   "invitation": {
-    "subject": "لقد تمت دعوتك إلى {institution}",
-    "heading": "انضم إلى {institution} على إديوكويست",
+    "subject": "دعوة للانضمام إلى {institution} على {app}",
+    "title": "تمت دعوتك!",
+    "subtitle": "دعوة إلى {app}",
+    "invitedBy": "دعاك <b>{inviter}</b> للانضمام إلى <b>{institution}</b> بصفة <role>{role}</role>.",
+    "invited": "تمت دعوتك للانضمام إلى <b>{institution}</b> بصفة <role>{role}</role>.",
+    "platform": "المنصة",
+    "institution": "المؤسسة",
+    "role": "الدور",
+    "expires": "تنتهي في",
     "cta": "قبول الدعوة",
-    "expiry": "ينتهي هذا الرابط في {date}."
+    "copyLink": "أو انسخ هذا الرابط:",
+    "rights": "جميع الحقوق محفوظة.",
+    "ignore": "إن لم تكن تتوقع هذه الدعوة، يمكنك تجاهل هذه الرسالة بأمان.",
+    "fallbackInstitution": "مؤسستك"
   }
 }

@@ -95,8 +95,10 @@ export async function POST(request: Request) {
       violation_type: violationType ?? null,
       violation_at: violationAt ?? null,
       student_name: profile.full_name,
-      teacher_name: teacher?.full_name ?? 'غير معروف',
-      group_name: exam.groups?.name ?? 'غير معروف',
+      // Stored snapshots are read in either language, so a missing name is
+      // recorded as a neutral dash rather than a word in one language.
+      teacher_name: teacher?.full_name ?? '—',
+      group_name: exam.groups?.name ?? '—',
       exam_title: exam.title,
       student_message: message,
     })

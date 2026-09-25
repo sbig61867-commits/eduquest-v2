@@ -30,10 +30,16 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: mockRefresh, push: mockPush }),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'ar',
-}))
+// Key-echo translator. `rich`/`markup` echo too, so components using
+// formatted messages render without a real dictionary.
+vi.mock('next-intl', () => {
+  const t = Object.assign((key: string) => key, {
+    rich: (key: string) => key,
+    markup: (key: string) => key,
+    has: () => true,
+  })
+  return { useTranslations: () => t, useLocale: () => 'ar' }
+})
 
 vi.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, className, disabled, loading }: {
@@ -341,8 +347,8 @@ describe('MessagesClient — remove', () => {
   it('success → message removed + router.refresh called', async () => {
     mockFrom.mockReturnValue(supaChain({ error: null }))
     render(<MessagesClient initialMessages={[MESSAGE]} />)
-    // No aria-label on this button — it has visible text "حذف" instead.
-    const del = screen.getByRole('button', { name: /حذف/ })
+    // The key-echo mock renders the translation key as the button text.
+    const del = screen.getByRole('button', { name: 'delete' })
     expect(del).toBeTruthy()
     await userEvent.click(del!)
     await waitFor(() => {

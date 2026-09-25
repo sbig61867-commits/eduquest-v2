@@ -5,6 +5,7 @@ import { AuthProvider } from '@/components/shared/auth-provider'
 import { Toaster } from '@/components/ui/toast'
 import { dirFor, toLocale } from '@/i18n/config'
 import { ScopedIntlProvider } from '@/i18n/provider'
+import { siteUrl } from '@/i18n/public-routes'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -27,15 +28,17 @@ const plexArabic = IBM_Plex_Sans_Arabic({
 // would pin the browser tab title to one language for every visitor.
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('common.meta')
-  return { title: t('title'), description: t('description') }
+  // metadataBase turns the marketing pages' relative canonical/hreflang URLs
+  // (src/i18n/public-routes.ts) into absolute ones.
+  return { metadataBase: new URL(siteUrl()), title: t('title'), description: t('description') }
 }
 
 // `lang` and `dir` are derived from the resolved locale — neither is hardcoded
 // any more. The locale comes from the eq_locale cookie (set once in
-// src/proxy.ts from the user → tenant → platform chain); absent a cookie it is
-// the platform default, which on this branch is `ar`, so the rendered output
-// is byte-identical to the previous hardcoded version until a locale is
-// actually chosen. One shared tree — there is no second layout per language.
+// src/proxy.ts from the user → tenant → platform chain) or, on a
+// /<locale>/ marketing URL, from the URL itself; absent both it is the
+// platform default (DEFAULT_LOCALE). One shared tree — there is no second
+// layout per language.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = toLocale(await getLocale())
 

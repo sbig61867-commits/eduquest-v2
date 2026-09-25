@@ -10,10 +10,15 @@ import { clientMessages } from '@/i18n/messages'
 // cookie path and the explicit-locale path can be exercised independently —
 // which is the whole point of C2.
 const cookie: { value: string | undefined } = { value: undefined }
+// The x-eq-locale request header src/proxy.ts sets for /<locale>/… marketing URLs.
+const urlLocale: { value: string | null } = { value: null }
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) => (cookie.value ? { name, value: cookie.value } : undefined),
+  }),
+  headers: async () => ({
+    get: (name: string) => (name === 'x-eq-locale' ? urlLocale.value : null),
   }),
 }))
 
@@ -32,6 +37,26 @@ function config(requested?: string) {
 
 beforeEach(() => {
   cookie.value = undefined
+  urlLocale.value = null
+})
+
+describe('request config — locale from a /<locale>/ marketing URL', () => {
+  it('beats the cookie, so a shared /en/ link opens in English', async () => {
+    cookie.value = 'ar'
+    urlLocale.value = 'en'
+    expect((await config()).locale).toBe('en')
+  })
+
+  it('still loses to an explicitly requested locale (emails, reports)', async () => {
+    urlLocale.value = 'en'
+    expect((await config('ar')).locale).toBe('ar')
+  })
+
+  it('ignores an unsupported header value and falls back to the cookie', async () => {
+    cookie.value = 'en'
+    urlLocale.value = 'fr'
+    expect((await config()).locale).toBe('en')
+  })
 })
 
 describe('request config — cookie locale', () => {

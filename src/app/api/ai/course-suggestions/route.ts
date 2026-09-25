@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server'
+import { aiPrompts } from '@/content/ai'
 import { toLocale, type Locale } from '@/i18n/config'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -25,53 +26,41 @@ const PERIODS = [7, 30, 90, 180]
 const MAX_SUGGESTIONS = 5
 
 // The prompt is written in the viewer's language so the model answers in it.
-// The Arabic wording is unchanged from before; English mirrors it.
+// Prompt text: src/content/ai/{ar,en}.ts.
 function factSheet(c: CourseAnalyticsRow, days: number, locale: Locale, insights: string[]): string {
-  const ar = locale === 'ar'
-  const none = ar ? 'غير محدد' : 'not set'
+  const text = aiPrompts(locale).courseSuggestions
   const groups = c.groups.length === 0
-    ? (ar ? 'لا توجد مجموعات مرتبطة بالكورس.' : 'No groups are linked to the course.')
-    : c.groups.map(g => ar
-        ? `- ${g.name} (المعلّم: ${g.teacher ?? none}): ${g.students} طالب، ` +
-          `إنجاز المحتوى ${g.avg_progress ?? '—'}%، نشطون ${g.active_pct ?? '—'}%، ` +
-          `حضور صفّي ${g.attendance_rate ?? '—'}% عبر ${g.sessions} جلسة`
-        : `- ${g.name} (teacher: ${g.teacher ?? none}): ${g.students} students, ` +
-          `content progress ${g.avg_progress ?? '—'}%, active ${g.active_pct ?? '—'}%, ` +
-          `class attendance ${g.attendance_rate ?? '—'}% over ${g.sessions} sessions`).join('\n')
+    ? text.noGroups
+    : c.groups.map(g => text.groupLine({
+        name: g.name,
+        teacher: g.teacher ?? text.none,
+        students: g.students,
+        progress: String(g.avg_progress ?? '—'),
+        active: String(g.active_pct ?? '—'),
+        attendance: String(g.attendance_rate ?? '—'),
+        sessions: g.sessions,
+      })).join('\n')
 
-  return (ar ? [
-    `الكورس: ${c.title}`,
-    `المعلّم المسؤول: ${c.teacher ?? none}`,
-    `الفترة: آخر ${days} يوماً`,
-    `عناصر منشورة: ${c.items_total} · مسجّلون: ${c.enrollments}`,
-    `متوسط الإنجاز: ${c.avg_progress ?? '—'}% · نشطون خلال الفترة: ${c.active_students} · أنهوا الكورس: ${c.completed_students}`,
-    'المجموعات:',
+  return [
+    ...text.header({
+      title: c.title,
+      teacher: c.teacher ?? text.none,
+      days,
+      items: c.items_total,
+      enrollments: c.enrollments,
+      progress: String(c.avg_progress ?? '—'),
+      active: c.active_students,
+      completed: c.completed_students,
+    }),
+    text.groupsHeading,
     groups,
-    'ملاحظات محسوبة آلياً:',
-  ] : [
-    `Course: ${c.title}`,
-    `Responsible teacher: ${c.teacher ?? none}`,
-    `Period: last ${days} days`,
-    `Published items: ${c.items_total} · enrolled: ${c.enrollments}`,
-    `Average progress: ${c.avg_progress ?? '—'}% · active in period: ${c.active_students} · completed the course: ${c.completed_students}`,
-    'Groups:',
-    groups,
-    'Automatically computed notes:',
-  ]).concat(insights).join('\n')
+    text.notesHeading,
+    ...insights,
+  ].join('\n')
 }
 
 function systemPrompt(locale: Locale): string {
-  return locale === 'ar'
-    ? 'أنت مستشار تشغيلي لمركز تعليمي. تتلقى أرقاماً حقيقية عن كورس ومجموعاته وتقترح خطوات تحسين. ' +
-      'اكتب بالعربية الفصحى المبسطة. لا تخترع أي رقم أو اسم غير موجود في المعطيات، ولا تقترح أدوات أو ميزات خارج المنصة. ' +
-      'كل اقتراح عملي ومحدد وقابل للتنفيذ خلال أسبوعين، ويذكر المجموعة أو الفئة المستهدفة عند وجودها. ' +
-      'إن كانت الأرقام جيدة فاقترح كيف يُحافَظ عليها بدل اختلاق مشكلات. ' +
-      `أعد JSON فقط: مصفوفة من ٣ إلى ${MAX_SUGGESTIONS} نصوص، كل نص ≤ ٢٤٠ حرفاً، بلا ترقيم ولا عناوين.`
-    : 'You are an operations advisor for a learning centre. You receive real figures about a course and its groups and suggest improvement steps. ' +
-      'Write in clear, simple English. Do not invent any number or name that is not in the data, and do not suggest tools or features outside the platform. ' +
-      'Every suggestion must be practical, specific and doable within two weeks, and name the target group or cohort where there is one. ' +
-      'If the figures are good, suggest how to keep them there instead of inventing problems. ' +
-      `Return JSON only: an array of 3 to ${MAX_SUGGESTIONS} strings, each ≤ 240 characters, with no numbering or headings.`
+  return aiPrompts(locale).courseSuggestions.system(MAX_SUGGESTIONS)
 }
 
 function parseSuggestions(raw: string): string[] {

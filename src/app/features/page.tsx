@@ -1,12 +1,11 @@
 import type { Metadata } from 'next'
-import { getTranslations } from 'next-intl/server'
+import { MarketingPage, marketingMetadata } from '@/components/public/marketing-page'
 import { FeaturesPage } from '@/components/public/features-page'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('public.meta.features')
-  return { title: t('title'), description: t('description') }
+export function generateMetadata(): Promise<Metadata> {
+  return marketingMetadata('features', '/features')
 }
 
 export default function Features() {
-  return <FeaturesPage />
+  return <MarketingPage><FeaturesPage /></MarketingPage>
 }

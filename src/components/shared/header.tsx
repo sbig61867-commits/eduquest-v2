@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getRoleLabel } from '@/lib/utils'
-import { getStudentTrack, CENTRE_TRAINEE_LABEL } from '@/lib/student-track'
+import { getStudentTrack } from '@/lib/student-track'
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
@@ -53,7 +53,7 @@ export function Header({ title }: HeaderProps) {
             <p className="text-white text-sm font-medium leading-none">{user?.full_name ?? 'User'}</p>
             <p className="text-slate-400 text-xs mt-0.5">
               {user?.role === 'student' && getStudentTrack(user.is_university_student, tenant?.has_center) === 'centre'
-                ? CENTRE_TRAINEE_LABEL
+                ? t('centreTrainee')
                 : user?.role ? getRoleLabel(user.role, tenant?.institution_type, locale) : ''}
               {tenant?.name && (
                 <span className="text-slate-500"> · {tenant.name}</span>

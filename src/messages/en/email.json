@@ -1,8 +1,18 @@
 {
   "invitation": {
-    "subject": "You have been invited to {institution}",
-    "heading": "Join {institution} on EduQuest",
+    "subject": "Invitation to join {institution} on {app}",
+    "title": "You're invited!",
+    "subtitle": "An invitation to {app}",
+    "invitedBy": "<b>{inviter}</b> has invited you to join <b>{institution}</b> as <role>{role}</role>.",
+    "invited": "You have been invited to join <b>{institution}</b> as <role>{role}</role>.",
+    "platform": "Platform",
+    "institution": "Institution",
+    "role": "Role",
+    "expires": "Expires on",
     "cta": "Accept the invitation",
-    "expiry": "This link expires on {date}."
+    "copyLink": "Or copy this link:",
+    "rights": "All rights reserved.",
+    "ignore": "If you did not expect this invitation, you can safely ignore this email.",
+    "fallbackInstitution": "your institution"
   }
 }

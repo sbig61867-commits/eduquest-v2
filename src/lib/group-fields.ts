@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { ApiErrorCode } from '@/lib/api-error'
 
 // Optional group settings added by group_course_transfer_migration.sql:
 // the course this group is a section of, a picture, a seat cap and the
@@ -11,7 +12,9 @@ export interface GroupFieldUpdate {
   instructions?: string | null
 }
 
-type Parsed = { update: GroupFieldUpdate } | { error: string }
+// `error` is an errors-namespace code; the route turns it into a message in
+// the caller's language with apiErr().
+type Parsed = { update: GroupFieldUpdate } | { error: ApiErrorCode }
 
 /** Validate the optional fields present in a request body; absent keys are left untouched. */
 export function parseGroupFields(body: Record<string, unknown>): Parsed {
@@ -19,14 +22,14 @@ export function parseGroupFields(body: Record<string, unknown>): Parsed {
 
   if ('course_id' in body) {
     const v = body.course_id
-    if (v !== null && v !== '' && typeof v !== 'string') return { error: 'كورس غير صالح' }
+    if (v !== null && v !== '' && typeof v !== 'string') return { error: 'groupCourseInvalid' }
     update.course_id = v ? (v as string) : null
   }
 
   if ('image_url' in body) {
     const v = typeof body.image_url === 'string' ? body.image_url.trim() : ''
     if (v && (!/^https:\/\/\S+$/i.test(v) || v.length > 2000)) {
-      return { error: 'رابط الصورة يجب أن يبدأ بـ https://' }
+      return { error: 'groupImageUrlHttps' }
     }
     update.image_url = v || null
   }
@@ -36,14 +39,14 @@ export function parseGroupFields(body: Record<string, unknown>): Parsed {
     if (v === null || v === '' || v === undefined) update.max_students = null
     else {
       const n = Number(v)
-      if (!Number.isInteger(n) || n < 1 || n > 100000) return { error: 'الحد الأقصى للطلاب يجب أن يكون رقماً صحيحاً أكبر من صفر' }
+      if (!Number.isInteger(n) || n < 1 || n > 100000) return { error: 'groupMaxStudentsInvalid' }
       update.max_students = n
     }
   }
 
   if ('instructions' in body) {
     const v = typeof body.instructions === 'string' ? body.instructions.trim() : ''
-    if (v.length > 2000) return { error: 'التعليمات طويلة جداً (2000 حرف كحد أقصى)' }
+    if (v.length > 2000) return { error: 'groupInstructionsTooLong' }
     update.instructions = v || null
   }
 

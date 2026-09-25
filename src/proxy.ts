@@ -2,10 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS } from '@/i18n/config'
 import { resolveLocale } from '@/i18n/resolve'
+import { LOCALE_HEADER, splitLocalizedPath } from '@/i18n/public-routes'
+import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
@@ -109,9 +111,30 @@ async function ensureLocaleCookie(
   response.cookies.set(LOCALE_COOKIE, resolveLocale({ user, tenant }), LOCALE_COOKIE_OPTIONS)
 }
 
+/**
+ * Serve `/<locale><path>` (a marketing page in a named language) from the
+ * existing `<path>` route: rewrite, hand the locale to the renderer on
+ * LOCALE_HEADER, and carry over any session cookies updateSession() refreshed.
+ *
+ * The visitor's `eq_locale` cookie is set to match, so the language they
+ * picked by URL follows them to /login and into the app.
+ */
+function rewriteLocalized(request: NextRequest, sessionResponse: NextResponse, locale: Locale, path: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = path
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set(LOCALE_HEADER, locale)
+  const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+  for (const cookie of sessionResponse.cookies.getAll()) response.cookies.set(cookie)
+  response.cookies.set(LOCALE_COOKIE, locale, LOCALE_COOKIE_OPTIONS)
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const { supabaseResponse, claims: user, supabase } = await updateSession(request)
-  const pathname = request.nextUrl.pathname
+  // `/en/pricing` is handled as `/pricing` in English; see src/i18n/public-routes.ts.
+  const localized = splitLocalizedPath(request.nextUrl.pathname)
+  const pathname = localized?.path ?? request.nextUrl.pathname
 
   // ── Public routes ──
   if (isPublicRoute(pathname)) {
@@ -128,11 +151,14 @@ export async function proxy(request: NextRequest) {
         isActive = profile?.is_active ?? isActive
       }
       // Don't redirect disabled users — they stay on /login to see the error message
-      if (isActive === false) return supabaseResponse
+      if (isActive === false) {
+        return localized ? rewriteLocalized(request, supabaseResponse, localized.locale, localized.path) : supabaseResponse
+      }
       if (role && ROLE_DASHBOARDS[role]) {
         return NextResponse.redirect(new URL(ROLE_DASHBOARDS[role], request.url))
       }
     }
+    if (localized) return rewriteLocalized(request, supabaseResponse, localized.locale, localized.path)
     return supabaseResponse
   }
 

@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 
 // ── Unified file-content extraction ──────────────────────────────
 // Single entry point for every "teacher uploads a file" feature
@@ -11,24 +12,39 @@ export const EXTRACT_MAX_BYTES = 20 * 1024 * 1024
 export type ExtractionErrorCode = 'unsupported' | 'too_large' | 'vision_quota' | 'unreadable' | 'empty'
 
 export class ExtractionError extends Error {
-  constructor(public code: ExtractionErrorCode, message: string) {
+  /**
+   * `message` is a developer-facing log line. What the USER reads comes from
+   * the `errors` message namespace via extractionErrorResponse(), keyed by
+   * `userCode` (defaults per `code`) so it follows the caller's language.
+   */
+  constructor(
+    public code: ExtractionErrorCode,
+    message: string,
+    public userCode?: ApiErrorCode,
+    public params?: Record<string, string>,
+  ) {
     super(message)
     this.name = 'ExtractionError'
   }
 }
 
-/** Maps an ExtractionError to an HTTP status + user-facing message (English, matches existing route copy). */
-export function extractionErrorResponse(e: unknown): { status: number; error: string } {
+const USER_CODE: Record<ExtractionErrorCode, ApiErrorCode> = {
+  unsupported: 'fileTypeUnsupported',
+  too_large: 'fileTooLarge',
+  vision_quota: 'fileVisionQuota',
+  empty: 'fileEmpty',
+  unreadable: 'fileUnreadable',
+}
+const STATUS: Record<ExtractionErrorCode, number> = {
+  unsupported: 400, too_large: 400, vision_quota: 422, empty: 422, unreadable: 422,
+}
+
+/** Maps an ExtractionError to an HTTP status + a message in the caller's language. */
+export async function extractionErrorResponse(e: unknown): Promise<{ status: number; error: string; code: ApiErrorCode }> {
   if (e instanceof ExtractionError) {
-    switch (e.code) {
-      case 'unsupported': return { status: 400, error: e.message }
-      case 'too_large':   return { status: 400, error: 'الملف كبير جداً (الحد الأقصى 20 ميغابايت)' }
-      case 'vision_quota':return { status: 422, error: 'This file has no readable text layer (scanned?) and the vision AI quota is temporarily exhausted. Try a text-based PDF/DOCX/PPTX, or try again later.' }
-      case 'empty':       return { status: 422, error: 'تعذّر استخراج نص من هذا الملف. قد يكون صوراً فقط أو فارغاً.' }
-      case 'unreadable':  return { status: 422, error: 'تعذّرت قراءة محتوى الملف. تأكد أنه ملف صالح وغير تالف.' }
-    }
+    return { status: STATUS[e.code], ...(await apiErr(e.userCode ?? USER_CODE[e.code], e.params)) }
   }
-  return { status: 422, error: 'تعذّرت قراءة محتوى الملف.' }
+  return { status: 422, ...(await apiErr('fileUnreadable')) }
 }
 
 const IMAGE_MIME: Record<string, string> = {
@@ -83,7 +99,7 @@ async function extractFromPptx(buffer: ArrayBuffer): Promise<string> {
     for (const m of xml.matchAll(/<a:t[^>]*>([^<]+)<\/a:t>/g)) {
       const t = m[1].trim(); if (t) texts.push(t)
     }
-    if (texts.length) parts.push(`[الشريحة ${i + 1}]: ${texts.join(' ')}`)
+    if (texts.length) parts.push(`[Slide ${i + 1}]: ${texts.join(' ')}`)
   }
   return parts.join('\n')
 }
@@ -138,13 +154,14 @@ export async function extractTextFromFile(file: File, opts: ExtractOptions = {})
   const ext = file.name.toLowerCase().split('.').pop() ?? ''
 
   if (!(EXTRACT_SUPPORTED_EXTS as readonly string[]).includes(ext)) {
-    throw new ExtractionError('unsupported', `Unsupported file type: .${ext}. Please upload ${EXTRACT_SUPPORTED_EXTS.map(e => '.' + e).join(', ')}`)
+    const allowed = EXTRACT_SUPPORTED_EXTS.map(e => '.' + e).join(', ')
+    throw new ExtractionError('unsupported', `Unsupported file type: .${ext}`, 'fileTypeUnsupported', { ext, allowed })
   }
   if (IMAGE_MIME[ext] && !vision) {
-    throw new ExtractionError('unsupported', 'Image files are not supported for this feature')
+    throw new ExtractionError('unsupported', 'Image files are not supported for this feature', 'fileImagesUnsupported')
   }
   if (file.size > EXTRACT_MAX_BYTES) {
-    throw new ExtractionError('too_large', 'الملف كبير جداً (الحد الأقصى 20 ميغابايت)')
+    throw new ExtractionError('too_large', `File too large: ${file.size} bytes`)
   }
 
   const buffer = await file.arrayBuffer()

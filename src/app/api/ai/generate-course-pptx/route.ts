@@ -60,8 +60,8 @@ export async function POST(request: Request) {
     slideText = await extractTextFromFile(file)
   } catch (e) {
     console.error('[generate-course-file] extraction error:', e)
-    const { status, error } = extractionErrorResponse(e)
-    return NextResponse.json({ error }, { status })
+    const { status, error, code } = await extractionErrorResponse(e)
+    return NextResponse.json({ error, code }, { status })
   }
 
   const truncatedText = slideText.slice(0, 6000)

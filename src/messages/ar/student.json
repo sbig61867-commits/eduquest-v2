@@ -16,9 +16,9 @@
   "centreTraineeTitle": "متدرب المركز",
   "lessons": {
     "title": "دروسي",
-    "count": "{count, plural, zero {لا دروس متاحة} one {درس واحد متاح} two {درسان متاحان} few {# دروس متاحة} many {# درساً متاحاً} other {# درس متاح}}",
-    "subjectCount": "{count, plural, zero {لا مواد} one {مادة واحدة} two {مادتان} few {# مواد} many {# مادة} other {# مادة}}",
-    "lessonCount": "{count, plural, zero {لا دروس} one {درس واحد} two {درسان} few {# دروس} many {# درساً} other {# درس}}",
+    "count": "{count, plural, zero {لا دروس متاحة} one {درس واحد متاح} two {درسان متاحان} few {{count} دروس متاحة} many {{count} درساً متاحاً} other {{count} درس متاح}}",
+    "subjectCount": "{count, plural, zero {لا مواد} one {مادة واحدة} two {مادتان} few {{count} مواد} many {{count} مادةً} other {{count} مادة}}",
+    "lessonCount": "{count, plural, zero {لا دروس} one {درس واحد} two {درسان} few {{count} دروس} many {{count} درساً} other {{count} درس}}",
     "emptyTitle": "لا توجد دروس متاحة بعد.",
     "emptyHint": "سينشر معلمك الدروس مع تقدّم المساق.",
     "otherSubject": "أخرى",
@@ -51,7 +51,7 @@
       "absent": "غائب",
       "excused": "بعذر"
     },
-    "countedSessions": "{count, plural, zero {لا جلسات محتسبة} one {جلسة واحدة محتسبة} two {جلستان محتسبتان} few {# جلسات محتسبة} many {# جلسة محتسبة} other {# جلسة محتسبة}}"
+    "countedSessions": "{count, plural, zero {لا جلسات محتسبة} one {جلسة واحدة محتسبة} two {جلستان محتسبتان} few {{count} جلسات محتسبة} many {{count} جلسةً محتسبة} other {{count} جلسة محتسبة}}"
   },
   "dashboard": {
     "title": "لوحتي",
@@ -80,7 +80,7 @@
     "typeExam": "اختبار",
     "resultPass": "ناجح",
     "resultFail": "راسب",
-    "gradedCount": "{count, plural, zero{لا اختبارات مصحّحة} one{اختبار مصحّح واحد} two{اختباران مصحّحان} few{# اختبارات مصحّحة} many{# اختباراً مصحّحاً} other{# اختبار مصحّح}}"
+    "gradedCount": "{count, plural, zero{لا اختبارات مصحّحة} one{اختبار مصحّح واحد} two{اختباران مصحّحان} few{{count} اختبارات مصحّحة} many{{count} اختباراً مصحّحاً} other{{count} اختبار مصحّح}}"
   },
   "profile": {
     "notFound": "لم يُعثر على الملف الشخصي.",
@@ -115,7 +115,7 @@
     "pastCoursesHint": "التقدّم مجمّد كما كان عند انتقالك — للاطلاع فقط؛ لا يُحتسب هنا شيء جديد.",
     "itemsCompleted": "{done} / {total} عنصر مكتمل",
     "pastGroup": "المجموعة: {name}",
-    "enrolledSummary": "{count} مساق مسجّل · مركز التعليم المستمر",
+    "enrolledSummary": "{count, plural, one {مساق واحد مسجّل} two {مساقان مسجّلان} few {{count} مساقات مسجّلة} many {{count} مساقاً مسجّلاً} other {{count} مساق مسجّل}} · مركز التعليم المستمر",
     "courseFallback": "مساق",
     "movedOn": "نُقلت في {date}",
     "movedTo": "نُقلت في {date} ← {course}"
@@ -158,18 +158,18 @@
     "submitted": "تم التسليم",
     "resultsPending": "النتائج قيد الإعداد",
     "title": "اختباراتي",
-    "subjectCount": "{count, plural, zero {لا مواد} one {مادة واحدة} two {مادتان} few {# مواد} many {# مادة} other {# مادة}}",
+    "subjectCount": "{count, plural, zero {لا مواد} one {مادة واحدة} two {مادتان} few {{count} مواد} many {{count} مادةً} other {{count} مادة}}",
     "empty": "لا توجد اختبارات متاحة بعد.",
-    "pending": "{count, plural, zero {لا شيء بانتظارك} one {واحد بانتظارك} two {اثنان بانتظارك} few {# بانتظارك} many {# بانتظارك} other {# بانتظارك}}",
+    "pending": "{count, plural, zero {لا شيء بانتظارك} one {واحد بانتظارك} two {اثنان بانتظارك} few {{count} بانتظارك} many {{count} بانتظارك} other {{count} بانتظارك}}",
     "allDone": "مكتملة",
-    "submittedCount": "{count, plural, zero {لا شيء مُسلَّم} one {واحد مُسلَّم} two {اثنان مُسلَّمان} few {# مُسلَّمة} many {# مُسلَّمة} other {# مُسلَّم}}",
+    "submittedCount": "{count, plural, zero {لا شيء مُسلَّم} one {واحد مُسلَّم} two {اثنان مُسلَّمان} few {{count} مُسلَّمة} many {{count} مُسلَّمة} other {{count} مُسلَّم}}",
     "sectionHomework": "الواجبات",
     "sectionExams": "الاختبارات",
     "sectionDone": "مكتملة",
     "summary": "متاح: {available} · مُسلَّم: {completed}",
     "score": "العلامة",
     "minutesShort": "{count} د",
-    "questionCount": "{count, plural, zero{لا أسئلة} one{سؤال واحد} two{سؤالان} few{# أسئلة} many{# سؤالاً} other{# سؤال}}"
+    "questionCount": "{count, plural, zero{لا أسئلة} one{سؤال واحد} two{سؤالان} few{{count} أسئلة} many{{count} سؤالاً} other{{count} سؤال}}"
   },
   "taker": {
     "true": "صح",
@@ -195,15 +195,15 @@
     "start": "بدء الاختبار",
     "prev": "السابق",
     "submit": "إرسال",
-    "questionCount": "{count, plural, zero{لا أسئلة} one{سؤال واحد} two{سؤالان} few{# أسئلة} many{# سؤالاً} other{# سؤال}}",
-    "minutes": "{count, plural, one{دقيقة واحدة} two{دقيقتان} few{# دقائق} many{# دقيقة} other{# دقيقة}}",
+    "questionCount": "{count, plural, zero{لا أسئلة} one{سؤال واحد} two{سؤالان} few{{count} أسئلة} many{{count} سؤالاً} other{{count} سؤال}}",
+    "minutes": "{count, plural, one{دقيقة واحدة} two{دقيقتان} few{{count} دقائق} many{{count} دقيقة} other{{count} دقيقة}}",
     "ruleTime": "لديك {minutes} لإكمال هذا الاختبار.",
     "ruleNoPause": "بعد البدء لا يمكن إيقاف المؤقت مؤقتاً.",
     "ruleCamera": "يلزم الوصول إلى الكاميرا والميكروفون (اختبار مراقَب).",
     "ruleTabs": "يُسجَّل الانتقال بين التبويبات والخروج من ملء الشاشة.",
     "ruleInternet": "تأكّد من أن اتصالك بالإنترنت مستقر.",
     "answered": "{count} مُجاب",
-    "violationsRecorded": "{count, plural, one{سُجّلت مخالفة مراقبة واحدة} two{سُجّلت مخالفتا مراقبة} few{سُجّلت # مخالفات مراقبة} many{سُجّلت # مخالفة مراقبة} other{سُجّلت # مخالفة مراقبة}}"
+    "violationsRecorded": "{count, plural, one{سُجّلت مخالفة مراقبة واحدة} two{سُجّلت مخالفتا مراقبة} few{سُجّلت {count} مخالفات مراقبة} many{سُجّلت {count} مخالفة مراقبة} other{سُجّلت {count} مخالفة مراقبة}}"
   },
   "widgets": {
     "popup": {

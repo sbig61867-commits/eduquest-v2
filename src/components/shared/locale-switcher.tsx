@@ -6,6 +6,8 @@ import { useTransition } from 'react'
 import { Languages } from 'lucide-react'
 
 import { LOCALES, LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS, type Locale } from '@/i18n/config'
+import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/auth-store'
 
 /**
  * Switches the UI language for this browser.
@@ -18,9 +20,11 @@ import { LOCALES, LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS, type Locale } from '@/i1
  * `lang`/`dir` on <html> come from the same cookie in the root layout, so the
  * direction flips with the language from one source of truth.
  *
- * NOTE: this only persists in this browser. Persisting per user needs
- * `users.locale`, which is what supabase/locale_preferences_migration.sql
- * adds; the resolution chain already prefers it over the cookie once present.
+ * For a signed-in user the choice is also saved to `users.locale` (a plain
+ * self-update that RLS allows — supabase/tests/locale_rls_check.sql), so it
+ * follows them to another browser or device: src/proxy.ts reads it into the
+ * cookie on the first request that arrives without one. Saving is
+ * best-effort — the switch itself never waits on it or fails because of it.
  */
 // Module scope on purpose: the react-hooks lint rule reads an assignment to
 // `document.cookie` inside a component as mutating an outer binding.
@@ -34,11 +38,16 @@ export function LocaleSwitcher({ className = '' }: { className?: string }) {
   const t = useTranslations('common.locale')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const userId = useAuthStore(s => s.user?.id)
 
   function pick(next: Locale) {
     if (next === active) return
     writeLocaleCookie(next)
     startTransition(() => router.refresh())
+    if (userId) {
+      void createClient().from('users').update({ locale: next }).eq('id', userId)
+        .then(({ error }) => { if (error) console.warn('[locale] preference not saved:', error.message) })
+    }
   }
 
   return (

@@ -10,11 +10,13 @@ import common from './common.json'
 import email from './email.json'
 import errors from './errors.json'
 import publicMessages from './public.json'
+import reports from './reports.json'
 import staff from './staff.json'
 import student from './student.json'
+import superAdmin from './superAdmin.json'
 import teacher from './teacher.json'
 import terms from './terms.json'
 
-const messages = { common, terms, admin, teacher, student, email, auth, center, staff, public: publicMessages, errors }
+const messages = { common, terms, admin, superAdmin, teacher, student, email, auth, center, staff, public: publicMessages, errors, reports }
 
 export default messages

@@ -1,6 +1,9 @@
 'use client'
 
 import { createRoot } from 'react-dom/client'
+import arCommon from '@/messages/ar/common.json'
+import enCommon from '@/messages/en/common.json'
+import { dirFor, toLocale } from '@/i18n/config'
 
 // Imperative, promise-based replacement for window.confirm() with platform
 // styling. No provider needed — call `await confirmDialog(msg)` anywhere in
@@ -16,7 +19,12 @@ export function confirmDialog(message: string, opts: ConfirmOptions = {}): Promi
   // Unit tests stub window.confirm and expect synchronous behaviour.
   if (process.env.NODE_ENV === 'test') return Promise.resolve(window.confirm(message))
 
-  const { confirmText = 'تأكيد', cancelText = 'إلغاء', danger = true } = opts
+  // Imperative and mounted outside any React tree, so there is no intl
+  // context here: the language is read from <html lang>, which the root
+  // layout sets from the same resolved locale the page rendered with.
+  const locale = toLocale(document.documentElement.lang)
+  const actions = (locale === 'ar' ? arCommon : enCommon).actions
+  const { confirmText = actions.confirm, cancelText = actions.cancel, danger = true } = opts
 
   return new Promise<boolean>(resolve => {
     const host = document.createElement('div')
@@ -34,7 +42,7 @@ export function confirmDialog(message: string, opts: ConfirmOptions = {}): Promi
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         onClick={e => { if (e.target === e.currentTarget) close(false) }}
       >
-        <div dir={/[؀-ۿ]/.test(message) ? 'rtl' : 'ltr'} className="w-full max-w-md bg-canvas border border-border rounded-2xl shadow-2xl p-6 space-y-5">
+        <div dir={dirFor(locale)} className="w-full max-w-md bg-canvas border border-border rounded-2xl shadow-2xl p-6 space-y-5">
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${danger ? 'bg-error-subtle' : 'bg-accent/20'}`}>
               <span className={`text-xl font-bold ${danger ? 'text-error' : 'text-info'}`}>!</span>

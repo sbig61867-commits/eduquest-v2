@@ -8,7 +8,8 @@
     "close": "إغلاق",
     "retry": "إعادة المحاولة",
     "signOut": "تسجيل الخروج",
-    "signingOut": "جارٍ الخروج…"
+    "signingOut": "جارٍ الخروج…",
+    "confirm": "تأكيد"
   },
   "state": {
     "loading": "جارٍ التحميل…",
@@ -21,8 +22,8 @@
     "ar": "العربية"
   },
   "counts": {
-    "exams": "{count, plural, zero {لا اختبارات} one {اختبار واحد} two {اختباران} few {# اختبارات} many {# اختباراً} other {# اختبار}}",
-    "students": "{count, plural, zero {لا طلاب} one {طالب واحد} two {طالبان} few {# طلاب} many {# طالباً} other {# طالب}}"
+    "exams": "{count, plural, zero {لا اختبارات} one {اختبار واحد} two {اختباران} few {{count} اختبارات} many {{count} اختباراً} other {{count} اختبار}}",
+    "students": "{count, plural, zero {لا طلاب} one {طالب واحد} two {طالبان} few {{count} طلاب} many {{count} طالباً} other {{count} طالب}}"
   },
   "greeting": "أهلاً بعودتك يا {name}",
   "nav": {
@@ -54,7 +55,9 @@
     "stageExtract": "استخراج النص من الملف…",
     "stageProcess": "الذكاء الاصطناعي يعالج المحتوى…",
     "stagePrepare": "جاري تجهيز النتيجة…",
-    "stageDone": "اكتملت المعالجة بنجاح"
+    "stageDone": "اكتملت المعالجة بنجاح",
+    "extractNetworkError": "خطأ في الاتصال أثناء معالجة {name}. حاول مجدداً.",
+    "extractFailed": "فشل استخراج النص من {name}"
   },
   "quota": {
     "title": "حدود الذكاء الاصطناعي لهذه الساعة",
@@ -87,7 +90,7 @@
     "modelAnswer": "الإجابة النموذجية للمقارنة: {answer}",
     "checkAnswers": "تحقق من إجاباتي",
     "score": "نتيجتك: {score} / {total}",
-    "selfCheckExtra": "(+{count} سؤال تقييم ذاتي)",
+    "selfCheckExtra": "(+{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالاً} other {{count} سؤال}} تقييم ذاتي)",
     "retry": "إعادة المحاولة",
     "answerAllFirst": "أجب على كل الأسئلة أولاً"
   },
@@ -102,7 +105,7 @@
   },
   "schedule": {
     "noSlots": "لا مواعيد",
-    "slotCount": "{count} موعد",
+    "slotCount": "{count, plural, one {موعد واحد} two {موعدان} few {{count} مواعيد} many {{count} موعداً} other {{count} موعد}}",
     "gridEmpty": "لا توجد مواعيد في هذا الجدول بعد."
   },
   "meta": {
@@ -119,5 +122,6 @@
   "globalError": {
     "body": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى."
   },
-  "unknown": "غير معروف"
+  "unknown": "غير معروف",
+  "centreTrainee": "متدرب المركز"
 }

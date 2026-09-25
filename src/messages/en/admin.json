@@ -45,7 +45,7 @@
   },
   "appeals": {
     "title": "Proctoring Appeals",
-    "summary": "{total} appeals in total · {pending} under review",
+    "summary": "{total, plural, one {# appeal in total} other {# appeals in total}} · {pending} under review",
     "empty": "No appeals recorded yet.",
     "status": {
       "pending": "Under review",
@@ -83,7 +83,7 @@
       "thHomework": "Homework",
       "thSubmissions": "Submissions",
       "untimed": "Untimed",
-      "minutes": "{count} min",
+      "minutes": "{count, plural, one {# min} other {# min}}",
       "proctored": "Proctored",
       "sectionExams": "Exams",
       "sectionHomework": "Homework & activities"
@@ -102,8 +102,8 @@
       "thCourse": "Course",
       "thStructure": "Structure",
       "thStudents": "Students",
-      "levels": "{count} levels · ",
-      "units": "{count} units"
+      "levels": "{count, plural, one {# level} other {# levels}} · ",
+      "units": "{count, plural, one {# unit} other {# units}}"
     }
   },
   "people": {
@@ -144,7 +144,7 @@
     "saveFailed": "Save failed",
     "statusFailed": "Could not change the group status",
     "archiveConfirm": "Archive the group “{name}”? It will disappear from students while all records and grades are kept.",
-    "summary": "{count} groups · {archived} archived",
+    "summary": "{count, plural, one {# group} other {# groups}} · {archived} archived",
     "empty": "No groups yet — teachers create them from their dashboards.",
     "thGroup": "Group",
     "thTeacher": "Teacher",
@@ -158,7 +158,7 @@
   },
   "archive": {
     "title": "{institution} Archive",
-    "subtitle": "Full historical record — {count} classes & courses ({archived} archived). All submissions and grades are preserved for future reference.",
+    "subtitle": "Full historical record — {count, plural, one {# class or course} other {# classes & courses}} ({archived} archived). All submissions and grades are preserved for future reference.",
     "restoreConfirm": "Restore “{title}” from the archive? It will be visible on the platform again.",
     "restoreFailed": "Failed to restore",
     "search": "Search by name or teacher…",
@@ -175,10 +175,10 @@
     "archivedAt": "Archived {date}",
     "restore": "Restore",
     "unknownTeacher": "Unknown",
-    "students": "{count} students",
-    "lessons": "{count} lessons",
-    "exams": "{count} exams/homework",
-    "submissions": "{count} submissions"
+    "students": "{count, plural, one {# student} other {# students}}",
+    "lessons": "{count, plural, one {# lesson} other {# lessons}}",
+    "exams": "{count, plural, one {# exam/homework} other {# exams/homework}}",
+    "submissions": "{count, plural, one {# submission} other {# submissions}}"
   },
   "settings": {
     "saveFailed": "Could not save settings",

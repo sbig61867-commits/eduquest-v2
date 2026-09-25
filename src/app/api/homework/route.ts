@@ -103,10 +103,11 @@ export async function POST(request: Request) {
 
   // Students see homework in lists detached from the lesson (exams page,
   // grades) — bake the lesson name into the title so it's always clear
-  // which class session the homework belongs to.
+  // which class session the homework belongs to. The title is stored once and
+  // read in both languages, so the join is a neutral dash, not an Arabic word.
   const cleanTitle = title.trim()
   const fullTitle = lesson.title && !cleanTitle.includes(lesson.title)
-    ? `${cleanTitle}، درس: ${lesson.title}`
+    ? `${cleanTitle} — ${lesson.title}`
     : cleanTitle
 
   const row: Record<string, unknown> = {

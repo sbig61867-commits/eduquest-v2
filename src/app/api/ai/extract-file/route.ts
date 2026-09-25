@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ text })
   } catch (e) {
     console.error('[extract-file]', e)
-    const { status, error } = extractionErrorResponse(e)
-    return NextResponse.json({ error }, { status })
+    const { status, error, code } = await extractionErrorResponse(e)
+    return NextResponse.json({ error, code }, { status })
   }
 }

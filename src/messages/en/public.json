@@ -1,28 +1,28 @@
 {
   "meta": {
     "home": {
-      "title": "EduQuest — Cloud Learning Platform for Educational Institutions",
-      "description": "One platform for lessons, exams, grades and smart proctoring, with an isolated environment for every institution."
+      "title": "EduQuest | Learning platform for institutions",
+      "description": "One platform for lessons and exams with grades and exam monitoring built in. Every institution gets its own separate environment."
     },
     "contact": {
-      "title": "Contact — EduQuest",
-      "description": "Contact the EduQuest team — request a subscription for your institution or send us a question."
+      "title": "Contact | EduQuest",
+      "description": "Request a subscription for your institution or send your question to the EduQuest team."
     },
     "features": {
-      "title": "Features — EduQuest",
-      "description": "EduQuest features: AI-generated lessons and exams, smart proctoring, full per-institution isolation, and instant grading."
+      "title": "Features | EduQuest",
+      "description": "Lessons and exams prepared with AI and monitored exams. Every institution gets a separate environment and instant grades."
     },
     "pricing": {
-      "title": "Pricing — EduQuest",
-      "description": "EduQuest plans for universities, schools, institutes and training centres — a free trial, then a subscription sized to your institution."
+      "title": "Pricing | EduQuest",
+      "description": "EduQuest plans for universities and schools and training centres. Start with a free trial and then subscribe at a price that fits your size."
     },
     "privacy": {
-      "title": "Privacy Policy — EduQuest",
-      "description": "The EduQuest learning platform's privacy policy."
+      "title": "Privacy Policy | EduQuest",
+      "description": "The privacy policy of the EduQuest learning platform."
     },
     "terms": {
-      "title": "Terms of Use — EduQuest",
-      "description": "The EduQuest learning platform's terms of use."
+      "title": "Terms of Use | EduQuest",
+      "description": "The terms of use of the EduQuest learning platform."
     }
   },
   "demo": {
@@ -84,15 +84,15 @@
       "groups": "Groups"
     },
     "common": {
-      "units": "{count} units",
+      "units": "{count, plural, one {# unit} other {# units}}",
       "published": "Published",
       "draft": "Draft",
       "minutes": "{count} min",
       "date": "Date: {date}",
       "duration": "Duration: {count} min",
-      "submissionsCount": "{count} submissions",
+      "submissionsCount": "{count, plural, one {# submission} other {# submissions}}",
       "submissionsLabel": "Submissions: {count}",
-      "students": "{count} students",
+      "students": "{count, plural, one {# student} other {# students}}",
       "sample": "Sample students",
       "name": "Name",
       "group": "Group",
@@ -109,7 +109,7 @@
       "avg": "Average",
       "subject": "Subject",
       "groups": "Groups",
-      "teachersCount": "{count} teachers"
+      "teachersCount": "{count, plural, one {# teacher} other {# teachers}}"
     },
     "center": {
       "title": "Continuing Education Centre Dashboard",
@@ -145,6 +145,485 @@
       "myExams": "My exams",
       "upcomingExams": "Upcoming exams",
       "examMeta": "{date} · {count} min"
+    }
+  },
+  "shell": {
+    "login": "Sign in",
+    "features": "Features",
+    "pricing": "Pricing",
+    "contact": "Contact",
+    "switchLanguage": "Change language",
+    "rights": "All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use",
+    "contactUs": "Contact us",
+    "menu": {
+      "open": "Menu",
+      "close": "Close",
+      "navLabel": "Main navigation",
+      "platform": {
+        "label": "Platform",
+        "heading": "Everything your institution needs in one platform",
+        "overview": "Platform overview",
+        "group": "Features",
+        "items": {
+          "ai": {
+            "title": "Lessons prepared with AI",
+            "desc": "A full lesson or exam within seconds."
+          },
+          "proctoring": {
+            "title": "Exam monitoring",
+            "desc": "The camera detects violations during the exam."
+          },
+          "isolation": {
+            "title": "A separate environment",
+            "desc": "Your data is fully separated from others."
+          },
+          "invitations": {
+            "title": "Invitation only",
+            "desc": "Nobody enters without your invitation."
+          },
+          "grades": {
+            "title": "Instant grades and reports",
+            "desc": "Instant grading and one click publishing."
+          },
+          "groups": {
+            "title": "Organized lessons and groups",
+            "desc": "Each student sees only their own group."
+          }
+        }
+      },
+      "audience": {
+        "label": "Who it is for",
+        "heading": "A dashboard for every role in your institution",
+        "overview": "All roles",
+        "group": "Roles",
+        "items": {
+          "admin": {
+            "title": "Institution admin",
+            "desc": "Teachers and students and reports in one place."
+          },
+          "teacher": {
+            "title": "Teacher",
+            "desc": "Groups and lessons and exams and grading."
+          },
+          "student": {
+            "title": "Student",
+            "desc": "Lessons and exams and grades on any device."
+          }
+        }
+      },
+      "resources": {
+        "label": "Resources",
+        "heading": "Get to know the platform before you start",
+        "overview": "Try the demo",
+        "group": "Resources",
+        "items": {
+          "demo": {
+            "title": "Demo",
+            "desc": "Browse the platform with sample data and no account."
+          },
+          "faq": {
+            "title": "Common questions",
+            "desc": "Quick answers to what people ask most."
+          },
+          "privacy": {
+            "title": "Privacy Policy",
+            "desc": "The data we collect and how we protect it."
+          },
+          "terms": {
+            "title": "Terms of Use",
+            "desc": "The rules for using the platform."
+          }
+        }
+      },
+      "contact": {
+        "label": "Contact",
+        "heading": "We help your institution from day one",
+        "overview": "Contact page",
+        "group": "Get started",
+        "items": {
+          "subscribe": {
+            "title": "Request a subscription",
+            "desc": "Tell us about your institution and we set it up."
+          },
+          "question": {
+            "title": "Ask a question",
+            "desc": "We reply to your email as soon as we can."
+          },
+          "login": {
+            "title": "Sign in",
+            "desc": "For anyone who already has an account."
+          }
+        }
+      }
+    }
+  },
+  "landing": {
+    "heroBadge": "A learning platform for institutions",
+    "heroTitle": "Run your institution from one place",
+    "heroDesc": "EduQuest keeps lessons and exams in one platform together with grades and exam monitoring. Every institution gets its own separate environment. Every teacher and student gets a simple dashboard.",
+    "heroCta": "Request a subscription",
+    "heroLogin": "Sign in",
+    "problemTitle": "What we fix",
+    "problems": [
+      "Lessons and exams and grades live in separate tools and spreadsheets.",
+      "Remote exams have no way to be monitored.",
+      "Teachers spend hours preparing lessons and exams.",
+      "Data from different institutions ends up in one place."
+    ],
+    "statsTitle": "The platform in numbers",
+    "stats": [
+      {
+        "value": "4",
+        "label": "Roles",
+        "sub": "From the platform owner down to the student."
+      },
+      {
+        "value": "Seconds",
+        "label": "To prepare a lesson or exam",
+        "sub": "It can still be edited before publishing."
+      },
+      {
+        "value": "100%",
+        "label": "Separation between institutions",
+        "sub": "At the database level."
+      },
+      {
+        "value": "Live",
+        "label": "Exam monitoring",
+        "sub": "Audio and video of every student at once."
+      }
+    ],
+    "trustTitle": "Why EduQuest",
+    "trust": [
+      {
+        "title": "Grading happens on the server",
+        "desc": "Correct answers stay on the server. Students cannot see them or change them."
+      },
+      {
+        "title": "The server keeps exam time",
+        "desc": "Start and end times are recorded on our servers. Refreshing the page or changing the device clock has no effect."
+      },
+      {
+        "title": "Deleted items go to an archive",
+        "desc": "Nothing is lost to an accidental delete. The admin can restore any deleted item at any time."
+      },
+      {
+        "title": "We help you get started",
+        "desc": "We set up your institution ourselves. We stay with your team until they are comfortable with the platform."
+      }
+    ],
+    "teaserTitle": "The main features",
+    "teaser": [
+      {
+        "title": "Lessons prepared with AI",
+        "desc": "The teacher writes a topic and gets a full lesson or exam within seconds. It can be edited before publishing."
+      },
+      {
+        "title": "Exam monitoring",
+        "desc": "The camera watches the student during the exam. Grading happens on the server."
+      },
+      {
+        "title": "A separate environment for each institution",
+        "desc": "The data of each institution is fully separated from the others in the database."
+      }
+    ],
+    "allFeatures": "All features",
+    "liveTitle": "Live exam monitoring",
+    "liveDesc": "During an exam the teacher opens a screen that shows every student and plays their audio at the same time. When a student speaks a mark appears on their video. The teacher knows where the sound came from and nobody is blamed for noise around them.",
+    "livePoints": [
+      "Live video of every student on one screen.",
+      "A mark shows who is speaking at that moment.",
+      "Click any student to see them larger.",
+      "Monitoring keeps working on a weak connection."
+    ],
+    "stepsTitle": "Getting started in four steps",
+    "steps": [
+      {
+        "title": "Request a subscription",
+        "desc": "Send us your request from the contact page and tell us about your institution."
+      },
+      {
+        "title": "We set you up",
+        "desc": "We create a separate environment for your institution and give you the owner dashboard."
+      },
+      {
+        "title": "Invite your team",
+        "desc": "Send invitation links to your teachers. Each teacher then invites students to their groups."
+      },
+      {
+        "title": "Start teaching",
+        "desc": "Prepare lessons and exams. Then monitor and grade them from one place."
+      }
+    ],
+    "faqTitle": "Common questions",
+    "faqs": [
+      {
+        "q": "Keeping institution data separate",
+        "a": "The data of each institution is separated from the others at the database level. Nobody outside your institution can see it."
+      },
+      {
+        "q": "Preventing cheating in remote exams",
+        "a": "The system detects and records violations during the exam. The teacher can also see and hear students live."
+      },
+      {
+        "q": "Technical skills needed",
+        "a": "You do not need any technical skills. The interface is simple for every role and we set up your environment and help you at the start."
+      },
+      {
+        "q": "Preparing lessons and exams automatically",
+        "a": "They can be prepared with AI from your files or from a lesson title. The teacher then reviews and edits them before publishing."
+      }
+    ],
+    "mock": {
+      "title": "Teacher usage limits",
+      "stats": [
+        {
+          "label": "AI lessons",
+          "value": "10 per hour"
+        },
+        {
+          "label": "AI exams",
+          "value": "20 per hour"
+        },
+        {
+          "label": "Student invitations",
+          "value": "50 per hour"
+        },
+        {
+          "label": "Group size",
+          "value": "Unlimited"
+        }
+      ],
+      "chartLabel": "A group’s activity over one week"
+    },
+    "ctaTitle": "Get started with your institution",
+    "ctaDesc": "Message us and we will set up your institution and help you step by step.",
+    "ctaButton": "Message us",
+    "demoCta": "Try the demo",
+    "liveBadge": "LIVE",
+    "speaking": "speaking",
+    "studentN": "Student {n}"
+  },
+  "featuresPage": {
+    "title": "Platform features",
+    "desc": "One platform for the whole teaching cycle from the first lesson to published grades.",
+    "features": [
+      {
+        "title": "Lessons prepared with AI",
+        "desc": "The teacher writes a topic and the platform prepares a full lesson or an exam with its questions and answers within seconds. The teacher can edit it before publishing."
+      },
+      {
+        "title": "Exam monitoring",
+        "desc": "The camera detects a second person in view. It also notices when the student looks away or switches windows. Grading happens on the server so correct answers never reach the student."
+      },
+      {
+        "title": "A separate environment for each institution",
+        "desc": "The data of each institution is fully separated from the others at the database level. This covers its teachers and students too."
+      },
+      {
+        "title": "Invitation only",
+        "desc": "Nobody enters the platform without an invitation. The institution invites its teachers and each teacher invites students to a group. Invitation links expire on their own."
+      },
+      {
+        "title": "Instant grades and reports",
+        "desc": "Exams are graded as soon as they are submitted and grades are published with one click. Institution managers get full reports."
+      },
+      {
+        "title": "Organized lessons and groups",
+        "desc": "Teachers place students in groups and publish lessons to each group. A student sees only the content of their own group."
+      }
+    ],
+    "rolesTitle": "A dashboard for each role",
+    "rolesDesc": "Every user sees only what belongs to them in an interface built for their work.",
+    "roles": [
+      {
+        "title": "Institution admin",
+        "points": [
+          "Invite teachers and manage their accounts.",
+          "Follow students and activate or suspend their accounts.",
+          "Institution statistics in one place.",
+          "Full reports and a log of recent activity."
+        ]
+      },
+      {
+        "title": "Teacher",
+        "points": [
+          "Create groups and invite students to them.",
+          "Prepare lessons and exams with AI and then edit them.",
+          "Review what the monitoring recorded for each student after the exam.",
+          "Grade and publish results with one click."
+        ]
+      },
+      {
+        "title": "Student",
+        "points": [
+          "The lessons of their group in a clear order.",
+          "Take exams from any device including a phone.",
+          "See grades as soon as they are published.",
+          "A simple interface without distractions."
+        ]
+      }
+    ],
+    "howTitle": "How your institution gets started",
+    "steps": [
+      {
+        "n": "1",
+        "title": "Contact us",
+        "desc": "We prepare your institution’s environment and invite its admin."
+      },
+      {
+        "n": "2",
+        "title": "Invite your teachers",
+        "desc": "The admin invites the teachers. The teachers then invite their students."
+      },
+      {
+        "n": "3",
+        "title": "Start teaching",
+        "desc": "Lessons and exams and grades work from the first day."
+      }
+    ],
+    "cta": "Request a subscription for your institution"
+  },
+  "pricingPage": {
+    "title": "Clear pricing",
+    "desc": "Start with a free trial. Pay only if your institution decides to continue.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "save": "Two months free",
+    "perMonth": "per month",
+    "perYear": "per year",
+    "free": "Free",
+    "onRequest": "On request",
+    "includedTitle": "Included in every plan",
+    "faqTitle": "About pricing",
+    "ctaTitle": "Not sure which plan fits",
+    "ctaDesc": "Send us your number of students and we will suggest the right plan. You can also try the platform first with sample data.",
+    "ctaButton": "Message us",
+    "ctaDemo": "Try the platform"
+  },
+  "contact": {
+    "title": "Contact us",
+    "desc": "Leave a message and we will reply to your email soon. You can request a subscription for your institution or ask us anything.",
+    "form": {
+      "name": "Name",
+      "email": "Your email",
+      "message": "Your message",
+      "messagePh": "Tell us about your institution and what you need",
+      "send": "Send",
+      "sending": "Sending",
+      "success": "We received your message. We will reply to your email soon.",
+      "error": "The message could not be sent. Check the fields and try again.",
+      "rateLimit": "You have reached the message limit. Please try again later."
+    }
+  },
+  "policy": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "updated": "Last updated September 2026",
+      "sections": [
+        {
+          "h": "Data we collect",
+          "body": [
+            "Account data such as your name and email address. We also keep your role and the institution you belong to.",
+            "Educational content created on the platform. This means lessons and exams together with answers and grades.",
+            "Monitoring data from monitored exams only. These are events such as switching windows or more than one face in front of the camera.",
+            "The camera image is analyzed on the student’s own device. We do not record or keep video.",
+            "After a serious violation we keep one still image for the course teacher to review. We keep no more than ten such images per student in each exam.",
+            "During live monitoring the video reaches the teacher only while the exam is running. This stream is not recorded."
+          ]
+        },
+        {
+          "h": "How we use data",
+          "body": [
+            "We use it to run the platform. That means showing lessons and grading exams. It also means publishing grades and sending invitations.",
+            "We use monitoring events to protect the integrity of exams. They are reviewed by the course teacher.",
+            "We never sell your data or share it with anyone for marketing."
+          ]
+        },
+        {
+          "h": "Keeping data separate",
+          "body": [
+            "The data of each institution is separated from the others at the database level. No user can see the data of another institution.",
+            "Students see only the content of their own group. Teachers see only their own groups."
+          ]
+        },
+        {
+          "h": "Storage and security",
+          "body": [
+            "Data is hosted with Supabase on AWS servers in Frankfurt and with Vercel. It is encrypted in transit and at rest.",
+            "Administrative access is limited to the platform owner. Sensitive operations run on the server and never in the browser."
+          ]
+        },
+        {
+          "h": "Your rights",
+          "body": [
+            "You can ask for your data to be corrected or your account to be deleted. Contact your institution admin or write to us directly.",
+            "When an institution is removed from the platform the data of its users is deleted."
+          ]
+        },
+        {
+          "h": "Contact",
+          "body": [
+            "For any privacy question use the Contact page."
+          ]
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "updated": "Last updated July 2026",
+      "sections": [
+        {
+          "h": "Accepting these terms",
+          "body": [
+            "Using EduQuest means you agree to these terms. If you do not agree do not use the platform."
+          ]
+        },
+        {
+          "h": "Accounts and invitations",
+          "body": [
+            "Access is by invitation only. You are responsible for keeping your login details private and for everything done with your account.",
+            "Do not share your account or an invitation link with anyone other than the intended person."
+          ]
+        },
+        {
+          "h": "Acceptable use",
+          "body": [
+            "The platform is for educational use only.",
+            "Cheating in exams or trying to get around monitoring is not allowed. Uploading illegal or abusive content is not allowed either.",
+            "Any attempt to break into the platform or reach the data of other institutions or users is not allowed."
+          ]
+        },
+        {
+          "h": "Content and ownership",
+          "body": [
+            "Educational content created by teachers belongs to their institutions.",
+            "Content prepared with AI is a helping tool. The teacher is responsible for reviewing and approving it before publishing."
+          ]
+        },
+        {
+          "h": "Subscription and suspension",
+          "body": [
+            "Institutions subscribe through a direct agreement with the platform management.",
+            "The platform may suspend any account that breaks these terms. Institution admins may suspend the accounts of their own users."
+          ]
+        },
+        {
+          "h": "Limits of liability",
+          "body": [
+            "We work to keep the platform available and secure. We provide it as it is without a full guarantee that it will never be interrupted.",
+            "We may update these terms. We will announce any important change inside the platform."
+          ]
+        },
+        {
+          "h": "Contact",
+          "body": [
+            "For any question about these terms use the Contact page."
+          ]
+        }
+      ]
     }
   }
 }

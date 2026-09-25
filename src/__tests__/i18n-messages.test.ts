@@ -106,3 +106,56 @@ describe('client payload scoping (C1)', () => {
     expect(Object.keys(clientMessages('en', CLIENT_NAMESPACES)).length).toBeLessThan(full.length)
   })
 })
+
+/**
+ * Counted nouns. Arabic has five forms for a counted noun (1, 2, 3–10, 11–99,
+ * 100+), so a message like "{count} طالب" reads wrong for most numbers — these
+ * are ICU plurals instead. Guards: every plural message formats for each
+ * category in every locale, and Arabic prints the number as `{var}` (plain
+ * Latin digits) rather than `#`, whose digits depend on the runtime's number
+ * formatter for `ar`.
+ */
+describe('plural messages', () => {
+  const PLURAL = /\{(\w+), plural,/g
+  const SAMPLES = [0, 1, 2, 3, 11, 100]
+
+  function pluralMessages(locale: string) {
+    const out: { path: string; message: string; vars: string[] }[] = []
+    const walk = (node: unknown, path: string) => {
+      if (typeof node === 'string') {
+        const vars = [...node.matchAll(PLURAL)].map(m => m[1])
+        if (vars.length) out.push({ path, message: node, vars })
+      } else if (node && typeof node === 'object') {
+        for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k)
+      }
+    }
+    walk(allMessages(locale as never), '')
+    return out
+  }
+
+  it('finds the plural messages (guards against a broken matcher)', () => {
+    expect(pluralMessages('ar').length).toBeGreaterThan(80)
+  })
+
+  it('formats every plural message for every Arabic and English category', async () => {
+    const { createTranslator } = await import('next-intl')
+    for (const locale of LOCALES) {
+      for (const { path, message, vars } of pluralMessages(locale)) {
+        const t = createTranslator({ locale, messages: { m: message } })
+        for (const n of SAMPLES) {
+          const values: Record<string, string | number> = Object.fromEntries(vars.map(v => [v, n]))
+          // Other placeholders in the same message get a neutral stand-in.
+          for (const m of message.matchAll(/\{(\w+)\}/g)) if (!(m[1] in values)) values[m[1]] = 'x'
+          let text = ''
+          expect(() => { text = t('m', values) }, `${locale}:${path} with ${n}`).not.toThrow()
+          expect(text, `${locale}:${path} with ${n}`).not.toMatch(/[٠-٩]/)
+        }
+      }
+    }
+ }, 30_000) // hundreds of translators; slow when the machine is busy
+
+  it('Arabic plural branches print the number as {var}, not #', () => {
+    const offenders = pluralMessages('ar').filter(p => p.message.includes('#')).map(p => p.path)
+    expect(offenders).toEqual([])
+  })
+})

@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
 import { resetPasswordRedirectTo } from '@/lib/auth-urls'
+import { getLocale } from 'next-intl/server'
+import { isLocale, toLocale } from '@/i18n/config'
 
 // Generic message — identical whether email exists or not (prevents enumeration)
 const SENT_MSG = 'If that email is registered, you will receive a reset link shortly.'
@@ -49,9 +51,32 @@ export async function POST(request: Request) {
   // otherwise Supabase silently falls back to the Site URL.
   const redirectTo = resetPasswordRedirectTo(request.url, process.env.NEXT_PUBLIC_APP_URL)
 
+  const admin = adminClient()
+
+  // The reset email is rendered by Supabase from supabase/templates/recovery.html,
+  // which picks Arabic or English from the user's auth user_metadata.locale. Set
+  // it first: the user's own choice → their institution's default → the
+  // language of the page the reset was requested from. user_metadata is a
+  // display preference only (no authorization reads it), and the update merges
+  // keys, so nothing else in the metadata is touched. A failure here must never
+  // block the reset itself — the template falls back to Arabic.
+  try {
+    const { data: row } = await admin
+      .from('users').select('id, locale, tenants(default_locale)').eq('email', email).maybeSingle()
+    if (row) {
+      const tenant = (row as { tenants?: { default_locale?: unknown } | null }).tenants
+      const locale = isLocale(row.locale) ? row.locale
+        : isLocale(tenant?.default_locale) ? tenant.default_locale
+        : toLocale(await getLocale())
+      await admin.auth.admin.updateUserById(row.id, { user_metadata: { locale } })
+    }
+  } catch (e) {
+    console.error('[forgot-password] could not set the email language:', e)
+  }
+
   // We don't check whether the email exists — always attempt and always return the
   // same message. Supabase itself is a no-op for unknown emails so this is safe.
-  await adminClient().auth.resetPasswordForEmail(email, { redirectTo })
+  await admin.auth.resetPasswordForEmail(email, { redirectTo })
 
   return NextResponse.json({ message: SENT_MSG }, { status: 200 })
 }

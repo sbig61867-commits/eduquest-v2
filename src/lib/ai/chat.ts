@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
+import { QUIZ_SECTION_NAMES } from '@/content/ai'
 import { groqChat } from './groq'
 
 // ── Unified AI chat with provider fallback ────────────────────────
@@ -201,7 +202,7 @@ FORMAT
 ${structureBlock}
 
 QUIZ (mandatory, always last, even if the teacher's instructions don't mention it)
-End with a section whose H2 heading is the source language's equivalent of "Quick Quiz" (Arabic: "اختبر نفسك"), containing at least 5 questions in EXACTLY this shape:
+End with a section whose H2 heading is the source language's equivalent of "Quick Quiz" (Arabic: "${QUIZ_SECTION_NAMES.ar.quiz}"), containing at least 5 questions in EXACTLY this shape:
 
 ### <the question text>
 - A) <option>

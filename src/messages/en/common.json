@@ -8,7 +8,8 @@
     "close": "Close",
     "retry": "Retry",
     "signOut": "Sign out",
-    "signingOut": "Signing out…"
+    "signingOut": "Signing out…",
+    "confirm": "Confirm"
   },
   "state": {
     "loading": "Loading…",
@@ -54,7 +55,9 @@
     "stageExtract": "Extracting text from the file…",
     "stageProcess": "AI is processing the content…",
     "stagePrepare": "Preparing the result…",
-    "stageDone": "Processing completed successfully"
+    "stageDone": "Processing completed successfully",
+    "extractNetworkError": "Connection error while processing {name}. Please try again.",
+    "extractFailed": "Could not extract the text from {name}"
   },
   "quota": {
     "title": "AI limits for this hour",
@@ -102,7 +105,7 @@
   },
   "schedule": {
     "noSlots": "No slots",
-    "slotCount": "{count} slots",
+    "slotCount": "{count, plural, one {# slot} other {# slots}}",
     "gridEmpty": "No slots in this timetable yet."
   },
   "meta": {
@@ -119,5 +122,6 @@
   "globalError": {
     "body": "An unexpected error occurred. Please try again."
   },
-  "unknown": "Unknown"
+  "unknown": "Unknown",
+  "centreTrainee": "Centre trainee"
 }

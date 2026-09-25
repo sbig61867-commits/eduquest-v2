@@ -3,48 +3,31 @@
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { BarChart2, Download, Printer, FileText } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { LOCALE_LABEL } from '@/i18n/config'
+import type { ReportChrome } from '@/lib/reports'
 
 interface Tenant { id: string; name: string }
 interface Person { id: string; full_name: string; email: string; tenant_id: string | null }
 interface Group { id: string; name: string; tenant_id: string | null }
 
 interface ReportTable { heading: string; columns: string[]; rows: (string | number)[][] }
-interface Report { title: string; subtitle: string; university?: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[] }
+interface Report { title: string; subtitle: string; university?: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[]; chrome: ReportChrome }
 
 type Scope = 'university' | 'teacher' | 'group' | 'student' | 'pilot'
 type Lang = 'ar' | 'en'
 
-// UI chrome strings (letterhead / signature / footer) per report language
-const UI = {
-  ar: {
-    tagline: 'منصة التعليم الرقمية متعددة المؤسسات',
-    refLabel: 'الرقم المرجعي', dateLabel: 'التاريخ', timeLabel: 'وقت الإصدار',
-    uniLabel: 'المؤسسة',
-    sigTitle: 'الاعتماد', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
-    footerAuto: 'وثيقة صادرة آلياً من منصة EduQuest', footerConf: 'سري — للاستخدام الإداري فقط',
-    locale: 'ar',
-  },
-  en: {
-    tagline: 'Multi-Institution Digital Learning Platform',
-    refLabel: 'Reference No.', dateLabel: 'التاريخ', timeLabel: 'صدر في',
-    uniLabel: 'Institution',
-    sigTitle: 'Approval', sigName: 'الاسم', sigSignature: 'التوقيع', sigDate: 'التاريخ',
-    footerAuto: 'Document generated automatically by EduQuest', footerConf: 'Confidential — for administrative use only',
-    locale: 'en-GB',
-  },
-} as const
+// The report prints in the language it was generated in, which can differ
+// from the viewer's UI language — so its letterhead labels arrive with the
+// report (`report.chrome`) and only the date-formatting locale lives here.
+const DATE_LOCALE: Record<Lang, string> = { ar: 'ar-u-ca-gregory-nu-latn', en: 'en-GB' }
 
 interface Props { tenants: Tenant[]; teachers: Person[]; groups: Group[]; students: Person[] }
 
-const SCOPE_LABEL: Record<Scope, string> = {
-  university: 'مؤسسة كاملة',
-  teacher: 'معلم',
-  group: 'مجموعة',
-  student: 'طالب',
-  pilot: 'تجربة (مجموعة)',
-}
+const SCOPES: Scope[] = ['university', 'teacher', 'group', 'student', 'pilot']
 
 export function ReportsClient({ tenants, teachers, groups, students }: Props) {
+  const t = useTranslations('superAdmin.reports')
   const [scope, setScope] = useState<Scope>('university')
   const [lang, setLang] = useState<Lang>('ar')
   const [entityId, setEntityId] = useState('')
@@ -53,19 +36,19 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
   const [error, setError] = useState('')
 
   const entities = useMemo(() => {
-    if (scope === 'university') return tenants.map(t => ({ id: t.id, label: t.name }))
-    if (scope === 'teacher') return teachers.map(t => ({ id: t.id, label: `${t.full_name} — ${t.email}` }))
+    if (scope === 'university') return tenants.map(x => ({ id: x.id, label: x.name }))
+    if (scope === 'teacher') return teachers.map(x => ({ id: x.id, label: `${x.full_name} — ${x.email}` }))
     if (scope === 'student') return students.map(s => ({ id: s.id, label: `${s.full_name} — ${s.email}` }))
     // 'group' and 'pilot' both select from the same groups list.
     return groups.map(g => ({ id: g.id, label: g.name }))
   }, [scope, tenants, teachers, groups, students])
 
   async function generate() {
-    if (!entityId) { setError('اختر العنصر أولاً'); return }
+    if (!entityId) { setError(t('chooseFirst')); return }
     setLoading(true); setError(''); setReport(null)
     const res = await fetch(`/api/reports?scope=${scope}&id=${entityId}&format=json&lang=${lang}`)
     const data = await res.json()
-    if (!res.ok) { setError(data.error ?? 'فشل توليد التقرير'); setLoading(false); return }
+    if (!res.ok) { setError(data.error ?? t('generateFailed')); setLoading(false); return }
     setReport(data)
     setLoading(false)
   }
@@ -97,8 +80,8 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <BarChart2 className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">التقارير</h2>
-            <p className="text-slate-400 text-sm">استخرج تقريراً تفصيلياً لأي مؤسسة أو معلم أو مجموعة أو طالب</p>
+            <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
+            <p className="text-slate-400 text-sm">{t('subtitle')}</p>
           </div>
         </div>
       </div>
@@ -106,9 +89,9 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
       {/* Controls */}
       <div className="no-print bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">نوع التقرير</label>
-          <div className="flex gap-2">
-            {(Object.keys(SCOPE_LABEL) as Scope[]).map(s => (
+          <label className="block text-sm font-medium text-slate-300 mb-2">{t('type')}</label>
+          <div className="flex flex-wrap gap-2">
+            {SCOPES.map(s => (
               <button
                 key={s}
                 onClick={() => { setScope(s); setEntityId(''); setReport(null) }}
@@ -116,16 +99,16 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                   scope === s ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-600'
                 }`}
               >
-                {SCOPE_LABEL[s]}
+                {t(`scopes.${s}`)}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">لغة التقرير</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">{t('language')}</label>
           <div className="flex gap-2">
-            {([['ar', 'العربية'], ['en', 'English']] as [Lang, string][]).map(([l, label]) => (
+            {(Object.keys(DATE_LOCALE) as Lang[]).map(l => (
               <button
                 key={l}
                 onClick={() => { setLang(l); setReport(null) }}
@@ -133,20 +116,20 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                   lang === l ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-600'
                 }`}
               >
-                {label}
+                {LOCALE_LABEL[l]}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">اختر {SCOPE_LABEL[scope]}</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">{t('choose', { scope: t(`scopes.${scope}`) })}</label>
           <select
             value={entityId}
             onChange={e => setEntityId(e.target.value)}
             className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">— اختر —</option>
+            <option value="">{t('chooseOption')}</option>
             {entities.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
           </select>
         </div>
@@ -155,15 +138,15 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
 
         <div className="flex gap-2">
           <Button onClick={generate} loading={loading} disabled={!entityId}>
-            <FileText className="w-4 h-4" /> عرض التقرير
+            <FileText className="w-4 h-4" /> {t('view')}
           </Button>
           {report && (
             <>
               <Button variant="secondary" onClick={downloadCsv}>
-                <Download className="w-4 h-4" /> تحميل Excel
+                <Download className="w-4 h-4" /> {t('downloadExcel')}
               </Button>
               <Button variant="secondary" onClick={() => window.print()}>
-                <Printer className="w-4 h-4" /> طباعة / حفظ PDF
+                <Printer className="w-4 h-4" /> {t('print')}
               </Button>
             </>
           )}
@@ -173,7 +156,8 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
       {/* Report view (also the print area) */}
       {report && (() => {
         const rlang: Lang = report.lang ?? 'ar'
-        const ui = UI[rlang]
+        const ui = report.chrome
+        const dateLocale = DATE_LOCALE[rlang]
         const rtl = rlang === 'ar'
         const cellAlign = rtl ? 'text-end' : 'text-start'
         return (
@@ -202,11 +186,11 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
                 </p>
                 <p>
                   <span className="text-slate-400">{ui.dateLabel}:</span>{' '}
-                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleDateString(ui.locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </p>
                 <p>
                   <span className="text-slate-400">{ui.timeLabel}:</span>{' '}
-                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleTimeString(ui.locale, { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="font-semibold">{new Date(report.generatedAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</span>
                 </p>
               </div>
             </div>
@@ -224,23 +208,23 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <div className="print-color w-24 h-0.5 bg-blue-700 mx-auto mt-3" />
           </div>
 
-          {report.tables.map((t, i) => (
+          {report.tables.map((table, i) => (
             <div key={i} className="space-y-2">
-              <h3 className="font-semibold text-slate-800">{t.heading}</h3>
-              {t.rows.length === 0 ? (
-                <p className="text-slate-400 text-sm">{rtl ? 'لا توجد بيانات.' : 'لا توجد بيانات.'}</p>
+              <h3 className="font-semibold text-slate-800">{table.heading}</h3>
+              {table.rows.length === 0 ? (
+                <p className="text-slate-400 text-sm">{ui.noData}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr>
-                        {t.columns.map((c, j) => (
+                        {table.columns.map((c, j) => (
                           <th key={j} className={`border border-slate-300 bg-slate-100 px-3 py-2 ${cellAlign} font-semibold`}>{c}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {t.rows.map((row, r) => (
+                      {table.rows.map((row, r) => (
                         <tr key={r} className={r % 2 ? 'bg-slate-50' : ''}>
                           {row.map((cell, c) => (
                             <td key={c} className={`border border-slate-300 px-3 py-2 ${cellAlign}`}>{cell}</td>

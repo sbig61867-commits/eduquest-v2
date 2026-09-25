@@ -12,19 +12,20 @@ export const LOCALES = ['en', 'ar'] as const
 export type Locale = (typeof LOCALES)[number]
 
 /**
- * Platform default.
+ * Platform default — the LAST link of the chain (explicit → user → tenant →
+ * platform), used only when nothing more specific is known: a first-time
+ * visitor with no cookie, or an account with no institution (super_admin)
+ * and no saved choice.
  *
- * `ar` — NOT because Arabic is hardcoded anywhere (the root layout now derives
- * `lang`/`dir` from the resolved locale, see src/app/layout.tsx), but because
- * this branch's UI literals are Arabic. Resolving to `en` would render Arabic
- * text inside an LTR shell, which is a visible regression, not a neutral
- * default. This constant flips to `en` in one line once the string-extraction
- * phases land and both locales have real coverage.
+ * `en` since 2026-09-25, when string extraction finished and both locales
+ * reached full coverage. It does NOT change what institution members see:
+ * every tenant carries its own `tenants.default_locale` (DB default 'ar'),
+ * which outranks this constant.
  *
  * Separate axis: `en` is the *authoritative message baseline* — every key must
  * exist in src/messages/en and ar mirrors it (enforced by the parity test).
  */
-export const DEFAULT_LOCALE: Locale = 'ar'
+export const DEFAULT_LOCALE: Locale = 'en'
 
 /** Text direction per locale. A third locale adds one entry here. */
 export const LOCALE_DIR: Record<Locale, 'ltr' | 'rtl'> = {
@@ -88,9 +89,9 @@ export const SHARED_NAMESPACES = ['common', 'terms', 'auth'] as const
  * schedules, rosters), which belong to neither group alone — putting them in
  * `common` would ship them to every student page instead.
  */
-export const ROUTE_NAMESPACES = ['admin', 'center', 'staff', 'teacher', 'student', 'public'] as const
+export const ROUTE_NAMESPACES = ['admin', 'superAdmin', 'center', 'staff', 'teacher', 'student', 'public'] as const
 
-export const SERVER_NAMESPACES = ['email', 'errors'] as const
+export const SERVER_NAMESPACES = ['email', 'errors', 'reports'] as const
 
 export const NAMESPACES = [
   ...SHARED_NAMESPACES,

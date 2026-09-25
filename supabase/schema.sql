@@ -26,8 +26,9 @@ CREATE TABLE tenants (
     CHECK (institution_type IN ('university','school','institute','training_center','company')),
   -- Centre features (student affiliation split, center_manager) — institution_type_migration.sql
   has_center BOOLEAN NOT NULL DEFAULT TRUE,
-  -- UI language for members with no preference of their own; keep the default
-  -- in step with DEFAULT_LOCALE in src/i18n/config.ts (locale_preferences_migration.sql)
+  -- UI language for members with no preference of their own
+  -- (locale_preferences_migration.sql). Independent of the app's platform
+  -- DEFAULT_LOCALE ('en'), which only applies when no tenant is known.
   default_locale TEXT NOT NULL DEFAULT 'ar'
     CONSTRAINT tenants_default_locale_check CHECK (default_locale IN ('ar','en'))
 );

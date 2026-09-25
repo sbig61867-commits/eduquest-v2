@@ -3,6 +3,9 @@ import { twMerge } from 'tailwind-merge'
 import type { Role } from '@/types'
 import { getTerms } from '@/lib/terminology'
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/config'
+import { roleLabels as arRoles } from '@/content/terminology/ar'
+import { roleLabels as enRoles } from '@/content/terminology/en'
+import type { RoleLabels } from '@/content/terminology/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -23,21 +26,9 @@ export function getRoleDashboardPath(role: Role): string {
 // university_admin role (see src/lib/terminology.ts), `locale` picks the
 // language. Both default so unmigrated callers keep today's wording; inside
 // MIGRATED_DIRS the locale is mandatory, enforced by the ratchet in
-// src/__tests__/i18n-no-hardcoded-strings.test.ts.
-const ROLE_LABELS: Record<Locale, Record<Exclude<Role, 'university_admin'>, string>> = {
-  ar: {
-    super_admin: 'المدير العام',
-    center_manager: 'مدير المركز',
-    teacher: 'معلم',
-    student: 'طالب',
-  },
-  en: {
-    super_admin: 'Owner',
-    center_manager: 'Centre Manager',
-    teacher: 'Teacher',
-    student: 'Student',
-  },
-}
+// src/__tests__/i18n-no-hardcoded-strings.test.ts. The labels themselves live
+// per language in src/content/terminology/{ar,en}.ts.
+const ROLE_LABELS: Record<Locale, RoleLabels> = { ar: arRoles, en: enRoles }
 
 export function getRoleLabel(
   role: Role,

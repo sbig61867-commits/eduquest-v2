@@ -11,7 +11,6 @@ import { render as rtlRender, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import arMessages from '@/messages/ar'
-import { DEFAULT_LOCALE } from '@/i18n/config'
 import type { Tenant, User } from '@/types'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -46,7 +45,7 @@ const signIn = (u: User, t: Tenant) => useAuthStore.setState({ user: u, tenant: 
 // an Arabic-locale user sees, which is what they asserted before i18n.
 const render = (ui: React.ReactElement) =>
   rtlRender(
-    <NextIntlClientProvider locale={DEFAULT_LOCALE} messages={arMessages}>
+    <NextIntlClientProvider locale="ar" messages={arMessages}>
       {ui}
     </NextIntlClientProvider>
   )
@@ -145,6 +144,6 @@ describe('students', () => {
 describe('dates', () => {
   it('formatDate pins Gregorian + Latin digits under RTL (no "١٥ ٢٠٢٦" / hijri drift)', async () => {
     const { formatDate } = await import('@/lib/utils')
-    expect(formatDate('2026-09-15T12:00:00Z')).toBe('15 سبتمبر 2026')
+    expect(formatDate('2026-09-15T12:00:00Z', 'ar')).toBe('15 سبتمبر 2026')
   })
 })

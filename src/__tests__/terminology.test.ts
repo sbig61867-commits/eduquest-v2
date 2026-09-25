@@ -22,13 +22,13 @@ describe('terminology', () => {
   })
 
   it('getRoleLabel keeps its original output without a type', () => {
-    expect(getRoleLabel('university_admin')).toBe('مدير الجامعة')
-    expect(getRoleLabel('teacher')).toBe('معلم')
+    expect(getRoleLabel('university_admin', undefined, 'ar')).toBe('مدير الجامعة')
+    expect(getRoleLabel('teacher', undefined, 'ar')).toBe('معلم')
   })
 
   it('getRoleLabel follows the institution type for the admin role only', () => {
-    expect(getRoleLabel('university_admin', 'school')).toBe('مدير المدرسة')
-    expect(getRoleLabel('teacher', 'school')).toBe('معلم')
+    expect(getRoleLabel('university_admin', 'school', 'ar')).toBe('مدير المدرسة')
+    expect(getRoleLabel('teacher', 'school', 'ar')).toBe('معلم')
   })
 })
 
@@ -76,8 +76,8 @@ describe('tenant settings', () => {
   })
 
   it('Arabic labels follow the institution type', () => {
-    expect(getTerms('school').institutionAdmin).toBe('مدير المدرسة')
-    expect(getTerms('university').institutionStudents).toBe('طلاب الجامعة')
+    expect(getTerms('school', 'ar').institutionAdmin).toBe('مدير المدرسة')
+    expect(getTerms('university', 'ar').institutionStudents).toBe('طلاب الجامعة')
   })
 })
 

@@ -40,6 +40,7 @@ interface Props { initialExams: Exam[]; groups: Group[]; proctoringDefault?: boo
 export function ExamsClient({ initialExams, groups, proctoringDefault = false }: Props) {
   const router = useRouter()
   const t = useTranslations('teacher')
+  const tAi = useTranslations('common.ai')
   const locale = useLocale() as Locale
   const [exams, setExams] = useState(initialExams)
   const [showModal, setShowModal] = useState(false)
@@ -73,7 +74,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     if (examFiles.length === 0 || examQTypes.size === 0) return
     setExamFileLoading(true); setExamFileError('')
     try {
-      const extracted = await extractFilesText(examFiles)
+      const extracted = await extractFilesText(examFiles, tAi)
       if ('error' in extracted) { setExamFileError(extracted.error); setExamFileLoading(false); return }
       const fd = new FormData()
       fd.append('sourceText', extracted.combined)

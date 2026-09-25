@@ -1,4 +1,6 @@
 import { createClient as createAdminClient, SupabaseClient } from '@supabase/supabase-js'
+import arReports from '@/messages/ar/reports.json'
+import enReports from '@/messages/en/reports.json'
 
 // ── Generic report shape ──────────────────────────────────────────
 // Every report is a list of sections; each section is a titled table.
@@ -39,86 +41,19 @@ export function reportsAdminClient(): SupabaseClient {
 }
 
 // ── Bilingual strings ─────────────────────────────────────────────
-// Server-side dictionary: every heading/column/status the builders emit.
-const STR = {
-  ar: {
-    universityReport: 'تقرير جامعة', teacherReport: 'تقرير معلم', groupReport: 'تقرير مجموعة', studentReport: 'تقرير طالب',
-    uTeacher: 'معلم', uStudent: 'طالب', uGroup: 'مجموعة', uAssessment: 'تقييم', uAssessmentDue: 'تقييم مستحق',
-    execSummary: 'الملخص التنفيذي',
-    teachers: 'المعلمون', students: 'الطلاب', groups: 'المجموعات', assessments: 'التقييمات',
-    lessonsPublished: 'الدروس المنشورة', submissions: 'التسليمات', avgOverall: 'متوسط الأداء العام',
-    teacher: 'المعلم', email: 'البريد', avgTheirStudents: 'متوسط أداء طلابه',
-    group: 'المجموعة', avgPerf: 'متوسط الأداء',
-    distribution: 'توزيع الدرجات', bucket: 'الشريحة', subCount: 'عدد التسليمات', pctOfGraded: 'النسبة من المصحح',
-    bExcellent: 'ممتاز (90–100%)', bVGood: 'جيد جداً (80–89%)', bGood: 'جيد (70–79%)', bPass: 'مقبول (50–69%)', bWeak: 'ضعيف (أقل من 50%)',
-    activity30: 'النشاط (آخر 30 يوماً)', newExams: 'تقييمات جديدة', studentSubs: 'تسليمات الطلاب',
-    integrityUni: 'نزاهة الاختبارات (تسليمات عليها مخالفات)', exam: 'الاختبار', flaggedSubs: 'تسليمات مخالِفة',
-    summary: 'الملخص', submissionRate: 'نسبة التسليم',
-    assessmentsDetail: 'تفصيل التقييمات', assessment: 'التقييم', type: 'النوع', submittedOf: 'سلّم / المطلوب',
-    avg: 'المتوسط', highest: 'الأعلى', lowest: 'الأدنى', pendingGrading: 'بانتظار تصحيح',
-    struggling: 'طلاب متعثرون (أقل من 50%)', student: 'الطالب',
-    pendingTable: 'تسليمات بانتظار التصحيح', ungradedCount: 'عدد غير المصحح',
-    studentGrades: 'درجات الطلاب', total: 'المجموع', pctCol: 'النسبة %',
-    homeworkTag: '[واجب] ', homework: 'واجب', examType: 'اختبار',
-    card: 'بطاقة الطالب', name: 'الاسم', joinDate: 'تاريخ الانضمام',
-    gradeSheet: 'كشف الدرجات', grade: 'الدرجة', pct: 'النسبة', submitDate: 'تاريخ التسليم', status: 'الحالة',
-    notSubmitted: 'لم يسلّم', awaitingGrading: 'بانتظار التصحيح', graded: 'مصحح',
-    overallSummary: 'الملخص العام', totalScores: 'مجموع الدرجات', gpa: 'المعدل العام',
-    peersAvg: 'متوسط المجموعات', position: 'الموقع', above: 'فوق المتوسط', below: 'تحت المتوسط',
-    missing: 'تقييمات لم تُسلَّم', createdAt: 'تاريخ الإنشاء',
-    trend: 'الاتجاه الزمني', firstHalf: 'النصف الأول', secondHalf: 'النصف الأخير',
-    trendCol: 'التقييم', improved: 'تحسّن ↑', declined: 'تراجع ↓', stable: 'ثابت',
-    integrity: 'نزاهة الاختبارات', flaggedOf: 'تسليمات عليها مخالفات', outOf: 'من أصل',
-    teacherPrefix: 'المعلم',
-    pilotReport: 'تقرير تجربة', execSummaryPilot: 'ملخص التجربة',
-    weeklyActivity: 'النشاط الأسبوعي', week: 'الأسبوع', weekNewAssessments: 'تقييمات جديدة', weekSubmissions: 'تسليمات',
-    hoursSaved: 'ساعات التصحيح الموفَّرة (تقديرية)',
-    proctoredExams: 'اختبارات مراقَبة',
-    studentFeedback: 'رأي الطلاب', respondents: 'عدد المجيبين', avgEase: 'متوسط سهولة الاستخدام (من 5)',
-    prefersPlatform: 'يفضلون المنصة', wouldRecommend: 'ينصحون بها',
-    quotes: 'اقتباسات الطلاب', quoteFeature: 'أفضل ميزة', quoteProblem: 'مشكلة واجهها', quoteComment: 'تعليق',
-    noResponses: 'لا توجد إجابات بعد',
-  },
-  en: {
-    universityReport: 'University Report', teacherReport: 'Teacher Report', groupReport: 'Group Report', studentReport: 'Student Report',
-    uTeacher: 'teacher(s)', uStudent: 'student(s)', uGroup: 'group(s)', uAssessment: 'assessment(s)', uAssessmentDue: 'assessment(s) due',
-    execSummary: 'Executive Summary',
-    teachers: 'Teachers', students: 'Students', groups: 'Groups', assessments: 'Assessments',
-    lessonsPublished: 'Published Lessons', submissions: 'Submissions', avgOverall: 'Overall Average',
-    teacher: 'Teacher', email: 'Email', avgTheirStudents: 'Students\' Average',
-    group: 'Group', avgPerf: 'Average Performance',
-    distribution: 'Grade Distribution', bucket: 'Band', subCount: 'Submissions', pctOfGraded: '% of Graded',
-    bExcellent: 'Excellent (90–100%)', bVGood: 'Very Good (80–89%)', bGood: 'Good (70–79%)', bPass: 'Pass (50–69%)', bWeak: 'Weak (below 50%)',
-    activity30: 'Activity (Last 30 Days)', newExams: 'New Assessments', studentSubs: 'Student Submissions',
-    integrityUni: 'Exam Integrity (Flagged Submissions)', exam: 'Exam', flaggedSubs: 'Flagged Submissions',
-    summary: 'Summary', submissionRate: 'Submission Rate',
-    assessmentsDetail: 'Assessment Details', assessment: 'Assessment', type: 'Type', submittedOf: 'Submitted / Expected',
-    avg: 'Average', highest: 'Highest', lowest: 'Lowest', pendingGrading: 'Pending Grading',
-    struggling: 'Struggling Students (below 50%)', student: 'Student',
-    pendingTable: 'Submissions Awaiting Grading', ungradedCount: 'Ungraded Count',
-    studentGrades: 'Student Grades', total: 'Total', pctCol: 'Percentage %',
-    homeworkTag: '[HW] ', homework: 'Homework', examType: 'Exam',
-    card: 'Student Card', name: 'Name', joinDate: 'Joined',
-    gradeSheet: 'Grade Sheet', grade: 'Score', pct: 'Percentage', submitDate: 'Submitted On', status: 'Status',
-    notSubmitted: 'Not submitted', awaitingGrading: 'Awaiting grading', graded: 'Graded',
-    overallSummary: 'Overall Summary', totalScores: 'Total Score', gpa: 'Overall Average',
-    peersAvg: 'Peer Average', position: 'Standing', above: 'Above average', below: 'Below average',
-    missing: 'Assessments Not Submitted', createdAt: 'Created On',
-    trend: 'Performance Trend', firstHalf: 'First Half', secondHalf: 'Second Half',
-    trendCol: 'Assessment', improved: 'Improved ↑', declined: 'Declined ↓', stable: 'Stable',
-    integrity: 'Exam Integrity', flaggedOf: 'Flagged Submissions', outOf: 'Out Of',
-    teacherPrefix: 'Teacher',
-    pilotReport: 'Pilot Report', execSummaryPilot: 'Pilot Summary',
-    weeklyActivity: 'Weekly Activity', week: 'Week', weekNewAssessments: 'New Assessments', weekSubmissions: 'Submissions',
-    hoursSaved: 'Grading Hours Saved (estimated)',
-    proctoredExams: 'Proctored Exams',
-    studentFeedback: 'Student Feedback', respondents: 'Respondents', avgEase: 'Avg. Ease of Use (out of 5)',
-    prefersPlatform: 'Prefer the Platform', wouldRecommend: 'Would Recommend',
-    quotes: 'Student Quotes', quoteFeature: 'Best Feature', quoteProblem: 'Problem Faced', quoteComment: 'Comment',
-    noResponses: 'No responses yet',
-  },
-} as const
-type Dict = { [K in keyof typeof STR.ar]: string }
+// Every heading/column/status the builders emit, from the server-only
+// `reports` message namespace (src/messages/<locale>/reports.json). A report
+// renders in the language it was REQUESTED in, not the viewer's UI language,
+// so the dictionary is picked by `lang` rather than through next-intl's
+// request locale.
+const STR = { ar: arReports.labels, en: enReports.labels }
+type Dict = typeof enReports.labels
+
+/** Letterhead / signature / footer labels, in the report's own language. */
+export type ReportChrome = typeof enReports.chrome
+export function reportChrome(lang: ReportLang): ReportChrome {
+  return (lang === 'ar' ? arReports : enReports).chrome
+}
 
 // ── Shared row shapes (batched queries, computed in memory) ───────
 interface ExamRow {
@@ -137,7 +72,7 @@ function examMax(questions: unknown): number {
 }
 const pct = (score: number, max: number) => (max > 0 ? Math.round((score / max) * 100) : 0)
 const fmtDate = (iso: string | null, lang: ReportLang) =>
-  iso ? new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB') : '·'
+  iso ? new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-u-ca-gregory-nu-latn' : 'en-GB') : '·'
 const typeLabel = (t: string, d: Dict) => (t === 'homework' ? d.homework : d.examType)
 
 function sumScores(subs: SubRow[], maxByExam: Map<string, number>) {
@@ -609,7 +544,7 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
     heading: d.card,
     columns: [d.name, d.email, d.joinDate, d.groups],
     rows: [[student.full_name, student.email, fmtDate(student.created_at, lang),
-      activeGroups.map(m => `${m.groups.name} (${m.groups.users?.full_name ?? '·'})`).join(lang === 'ar' ? '، ' : ', ') || '·']],
+      activeGroups.map(m => `${m.groups.name} (${m.groups.users?.full_name ?? '·'})`).join(d.listSeparator) || '·']],
   }
 
   const gradeSheet: ReportTable = {
