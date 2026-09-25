@@ -31,6 +31,16 @@ export async function POST(request: Request) {
   if (!examId || !answers || typeof answers !== 'object') {
     return NextResponse.json({ ...(await apiErr('missingExamOrAnswers')) }, { status: 400 })
   }
+  // The draft is stored verbatim as JSONB, so bound it: string answers only,
+  // a sane number of questions and answer length. Without this any student
+  // could park megabytes of arbitrary JSON on their submission row.
+  const entries = Object.entries(answers)
+  if (
+    Array.isArray(answers) || entries.length > 500 ||
+    entries.some(([k, v]) => k.length > 100 || typeof v !== 'string' || v.length > 20000)
+  ) {
+    return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+  }
 
   // Only update if the attempt is still in_progress (never overwrite a submitted attempt)
   const { error } = await adminClient()

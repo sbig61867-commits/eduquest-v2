@@ -5,7 +5,6 @@ import { redirect } from 'next/navigation'
 import { AnnouncementsManager } from '@/components/announcements/announcements-manager'
 import { loadAnnouncementsPage } from '@/lib/announcements-data'
 import { NoPermission } from '@/components/shared/no-permission'
-import { ScopedIntlProvider } from '@/i18n/provider'
 
 export default async function CenterAnnouncementsPage() {
   const supabase = await createClient()
@@ -18,13 +17,11 @@ export default async function CenterAnnouncementsPage() {
   if (!allowed) return <NoPermission capability="manage_announcements" />
 
   return (
-    <ScopedIntlProvider namespaces={['common', 'terms', 'center', 'staff', 'student']}>
-      <AnnouncementsManager
-        announcements={announcements}
-        groups={groups}
-        canTargetUniversity={canTargetUniversity}
-        hasCenter={hasCenter}
-      />
-    </ScopedIntlProvider>
+    <AnnouncementsManager
+      announcements={announcements}
+      groups={groups}
+      canTargetUniversity={canTargetUniversity}
+      hasCenter={hasCenter}
+    />
   )
 }

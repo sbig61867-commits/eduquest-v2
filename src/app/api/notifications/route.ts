@@ -74,11 +74,11 @@ export async function GET() {
 
   } else if (role === 'super_admin') {
     const [{ data: msgs }, { data: tenants }] = await Promise.all([
-      supabase.from('contact_messages').select('id, name, subject, created_at, is_read').order('created_at', { ascending: false }).limit(10),
+      supabase.from('contact_messages').select('id, name, message, created_at, is_read').order('created_at', { ascending: false }).limit(10),
       supabase.from('tenants').select('id, name, created_at').order('created_at', { ascending: false }).limit(8),
     ])
-    for (const m of (msgs ?? []) as Array<{ id: string; name: string; subject: string | null; created_at: string; is_read: boolean }>) {
-      items.push({ id: `msg-${m.id}`, type: 'message', title: t('contactMessage', { name: m.name }), subtitle: m.subject ?? '', date: m.created_at, href: '/super-admin/messages' })
+    for (const m of (msgs ?? []) as Array<{ id: string; name: string; message: string | null; created_at: string; is_read: boolean }>) {
+      items.push({ id: `msg-${m.id}`, type: 'message', title: t('contactMessage', { name: m.name }), subtitle: (m.message ?? '').slice(0, 80), date: m.created_at, href: '/super-admin/messages' })
     }
     for (const tn of (tenants ?? []) as Array<{ id: string; name: string; created_at: string }>) {
       items.push({ id: `tenant-${tn.id}`, type: 'tenant', title: t('newTenant', { name: tn.name }), subtitle: '', date: tn.created_at, href: '/super-admin/tenants' })
