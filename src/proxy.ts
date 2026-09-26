@@ -119,18 +119,27 @@ async function ensureLocaleCookie(
  * existing `<path>` route: rewrite, hand the locale to the renderer on
  * LOCALE_HEADER, and carry over any session cookies updateSession() refreshed.
  *
- * The visitor's `eq_locale` cookie is set to match only when it differs, so
- * the language they picked by URL follows them to /login and into the app
- * (PublicNav also syncs it in the browser, for visitors served from the CDN).
+ * With `rememberLocale`, the visitor's `eq_locale` cookie is set to match
+ * (only when it differs), so the language they picked by URL follows them to
+ * /login and into the app. Signed-out marketing pages pass false: a response
+ * that sets a cookie is never edge-cached, and a first visit has no cookie yet,
+ * so setting it here would make every new visitor miss the cache. PublicNav
+ * writes the same cookie in the browser instead.
  */
-function rewriteLocalized(request: NextRequest, sessionResponse: NextResponse, locale: Locale, path: string) {
+function rewriteLocalized(
+  request: NextRequest,
+  sessionResponse: NextResponse,
+  locale: Locale,
+  path: string,
+  rememberLocale = true,
+) {
   const url = request.nextUrl.clone()
   url.pathname = path
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set(LOCALE_HEADER, locale)
   const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
   for (const cookie of sessionResponse.cookies.getAll()) response.cookies.set(cookie)
-  if (request.cookies.get(LOCALE_COOKIE)?.value !== locale) {
+  if (rememberLocale && request.cookies.get(LOCALE_COOKIE)?.value !== locale) {
     response.cookies.set(LOCALE_COOKIE, locale, LOCALE_COOKIE_OPTIONS)
   }
   return response
@@ -193,8 +202,9 @@ export async function proxy(request: NextRequest) {
       }
     }
     if (localized) {
-      const rewritten = rewriteLocalized(request, supabaseResponse, localized.locale, localized.path)
-      return isMarketingPath(localized.path) ? withEdgeCache(request, rewritten, !!user) : rewritten
+      const marketing = isMarketingPath(localized.path)
+      const rewritten = rewriteLocalized(request, supabaseResponse, localized.locale, localized.path, !!user || !marketing)
+      return marketing ? withEdgeCache(request, rewritten, !!user) : rewritten
     }
     return supabaseResponse
   }
