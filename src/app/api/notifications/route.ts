@@ -15,8 +15,14 @@ export async function GET() {
   const user = await getAuthUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
+  // Role and tenant are in the verified JWT claims (sync_user_claims trigger);
+  // the DB is only read for a legacy session whose claims were never backfilled.
+  let profile: { role?: string; tenant_id?: string | null } | null =
+    user.role ? { role: user.role, tenant_id: user.tenant_id } : null
+  if (!profile) {
+    const { data } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
+    profile = data
+  }
   const role = profile?.role
   const items: Notif[] = []
   // Titles are built here, so they are resolved in the caller's language here.

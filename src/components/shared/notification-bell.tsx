@@ -46,11 +46,13 @@ export function NotificationBell() {
   // Initial fetch (for the unread badge). seenAt is initialised via useState lazy
   // init above — no need to set it here.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() is a fetch helper; setState fires after await, not synchronously on mount
-    load()
+    // First badge load waits until the page itself has loaded, so it never
+    // competes with the page's own requests (on the student dashboard it runs
+    // many of the same queries).
+    const first = setTimeout(load, 2500)
     // Refresh the badge every minute, but not for a tab nobody is looking at.
     const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 60_000)
-    return () => clearInterval(t)
+    return () => { clearTimeout(first); clearInterval(t) }
   }, [])
 
   // Close on outside click.

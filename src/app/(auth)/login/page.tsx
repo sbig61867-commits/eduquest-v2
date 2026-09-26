@@ -54,15 +54,23 @@ function LoginForm() {
     }
 
     if (data.user) {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profile) {
-        router.push(getRoleDashboardPath(profile.role as Role))
+      // The role is already in the new session's JWT (app_metadata.user_role,
+      // kept in sync by the sync_user_claims trigger) — no extra query needed.
+      // The DB is only asked for accounts whose claims were never backfilled.
+      let role = data.user.app_metadata?.user_role as Role | undefined
+      if (!role) {
+        const { data: profile } = await supabase
+          .from('users').select('role').eq('id', data.user.id).single()
+        role = profile?.role as Role | undefined
       }
+      if (role) {
+        // Leave the button in its loading state until the dashboard replaces
+        // this page: re-enabling it here made the wait look like a freeze.
+        // replace, not push — Back should not return to the login form.
+        router.replace(getRoleDashboardPath(role))
+        return
+      }
+      setError(t('errors.default'))
     }
 
     setLoading(false)
