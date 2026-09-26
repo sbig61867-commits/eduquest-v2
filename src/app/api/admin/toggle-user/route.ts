@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { canManageAccountRole } from '@/lib/staff-auth'
+import { loadTeacherFootprint, studentBlock, teacherBlock } from '@/lib/account-scope'
 
 function adminClient() {
   return createAdminClient(
@@ -35,7 +36,7 @@ export async function PATCH(request: Request) {
 
   // Verify the target user belongs to the caller's tenant (super_admin can update anyone)
   const { data: target } = await supabase
-    .from('users').select('id, tenant_id, role').eq('id', userId).single()
+    .from('users').select('id, tenant_id, role, is_university_student').eq('id', userId).single()
 
   if (!target) return NextResponse.json({ ...(await apiErr('userNotFound')) }, { status: 404 })
 
@@ -50,6 +51,16 @@ export async function PATCH(request: Request) {
   // A centre manager may only (de)activate teachers/students, behind the matching flag.
   if (caller.role === 'center_manager' && !canManageAccountRole(caller, target.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  }
+  // …and only people who exist purely on the centre side. Teachers and
+  // students are shared with the university; switching one of those off
+  // would lock them out of the university too, so that stays with the
+  // institution admin (src/lib/account-scope.ts).
+  if (caller.role === 'center_manager') {
+    const block = target.role === 'student'
+      ? studentBlock(target.is_university_student)
+      : teacherBlock(await loadTeacherFootprint(adminClient(), caller.tenant_id, target.id))
+    if (block) return NextResponse.json({ ...(await apiErr(block)), scope: block }, { status: 403 })
   }
 
   const { error } = await adminClient()

@@ -12,7 +12,8 @@ import { toast } from '@/components/ui/toast'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
-import { Search, UserPlus, Mail, Power, GraduationCap } from 'lucide-react'
+import { Search, UserPlus, Mail, Power, GraduationCap, Lock } from 'lucide-react'
+import type { ScopeBlock } from '@/lib/account-scope'
 
 export interface PersonRow {
   id: string
@@ -22,6 +23,8 @@ export interface PersonRow {
   created_at: string
   /** Students only — university student vs centre-only trainee. */
   is_university_student?: boolean
+  /** Set when the account is shared with / owned by the institution: only its admin may (de)activate it. */
+  locked?: ScopeBlock | null
 }
 
 export function PeopleClient({ role, initialPeople, canSetAffiliation = false }: {
@@ -100,7 +103,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
     const data = await res.json().catch(() => ({}))
     setBusy('')
     if (!res.ok) return toast.error(data.error ?? t('affiliationFailed'))
-    setPeople(prev => prev.map(x => (x.id === p.id ? { ...x, is_university_student: next } : x)))
+    setPeople(prev => prev.map(x => (x.id === p.id ? { ...x, is_university_student: next, locked: next ? 'universityStudent' : null } : x)))
     toast.success(next ? t('nowInstitution', { label: terms.institutionStudent }) : t('nowCentreOnly'))
     router.refresh()
   }
@@ -181,9 +184,15 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
                         {p.is_university_student === false ? t('makeInstitution', { label: terms.institutionStudent }) : t('makeCentreOnly')}
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggle(p)}>
-                      <Power className="w-3.5 h-3.5" /> {p.is_active ? t('disable') : t('enable')}
-                    </Button>
+                    {p.locked ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 px-2" title={t(`locked.${p.locked}`, { admin: terms.institutionAdmin })}>
+                        <Lock className="w-3.5 h-3.5 shrink-0" /> {t(`locked.${p.locked}`, { admin: terms.institutionAdmin })}
+                      </span>
+                    ) : (
+                      <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggle(p)}>
+                        <Power className="w-3.5 h-3.5" /> {p.is_active ? t('disable') : t('enable')}
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>

@@ -15,7 +15,7 @@
 -- Run this once in the Supabase SQL Editor. Idempotent — safe to re-run.
 
 CREATE TABLE IF NOT EXISTS ai_usage_log (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
   user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
   feature     TEXT NOT NULL, -- 'lesson' | 'exam' | 'course-pptx' | 'homework-from-file' | 'lesson-from-file'
@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS ai_usage_log (
 CREATE INDEX IF NOT EXISTS idx_ai_usage_log_tenant_created ON ai_usage_log (tenant_id, created_at DESC);
 
 ALTER TABLE ai_usage_log ENABLE ROW LEVEL SECURITY;
+
+-- RLS with zero policies already denies every row, but table grants are the
+-- second layer (same as exam_submissions/grades after the forgery fix):
+-- nothing outside the service role may touch this table directly.
+REVOKE ALL ON TABLE ai_usage_log FROM anon, authenticated;
 
 -- No SELECT policy for regular sessions — reads only via get_tenant_ai_usage()
 -- below (SECURITY DEFINER, gated to super_admin). No INSERT/UPDATE/DELETE
@@ -62,8 +67,12 @@ AS $$
   GROUP BY t.id, t.name
   ORDER BY COUNT(l.id) DESC, t.name;
 $$;
+-- REVOKE ... FROM anon alone is ineffective: anon inherits EXECUTE through
+-- PUBLIC (the lesson from rpc_execute_lockdown_migration.sql). Revoke from
+-- PUBLIC, then grant back to authenticated only; the body's super_admin
+-- guard returns zero rows for every other role.
+REVOKE ALL ON FUNCTION get_tenant_ai_usage() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION get_tenant_ai_usage() TO authenticated;
-REVOKE EXECUTE ON FUNCTION get_tenant_ai_usage() FROM anon;
 
 -- Verify (run as an actual super_admin session):
 --   SELECT * FROM get_tenant_ai_usage();

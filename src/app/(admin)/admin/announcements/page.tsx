@@ -11,7 +11,7 @@ export default async function AdminAnnouncementsPage() {
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { allowed, canTargetUniversity, hasCenter, announcements, groups } =
+  const { allowed, canTargetUniversity, hasCenter, announcements, groups, engagementReady } =
     await loadAnnouncementsPage(supabase, user.id, user.tenant_id)
 
   if (!allowed) return <NoPermission capability="manage_announcements" />
@@ -22,6 +22,7 @@ export default async function AdminAnnouncementsPage() {
       groups={groups}
       canTargetUniversity={canTargetUniversity}
       hasCenter={hasCenter}
+      engagementReady={engagementReady}
     />
   )
 }

@@ -138,6 +138,11 @@ export async function POST(request: Request) {
       is_published: body.is_published === true,
       starts_at: body.starts_at ? String(body.starts_at) : null,
       ends_at: body.ends_at ? String(body.ends_at) : null,
+      // Columns from announcement_engagement_migration.sql. Only sent when
+      // switched on, so creating a plain announcement keeps working on a
+      // database where that migration is not applied yet.
+      ...(body.pinned === true ? { pinned: true } : {}),
+      ...(body.collect_interest === true ? { collect_interest: true } : {}),
     })
     .select('id')
     .single()
@@ -217,6 +222,9 @@ export async function PATCH(request: Request) {
     if (windowError) return NextResponse.json({ ...(await apiErr(windowError)) }, { status: 400 })
   }
   if (body.is_published !== undefined) update.is_published = body.is_published === true
+  // The manager only sends these once the engagement migration is applied.
+  if (typeof body.pinned === 'boolean') update.pinned = body.pinned
+  if (typeof body.collect_interest === 'boolean') update.collect_interest = body.collect_interest
 
   if (body.audience !== undefined) {
     const decided = resolveAudience(body.audience, caller.mayTargetUniversity)

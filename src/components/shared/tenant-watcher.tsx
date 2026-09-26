@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { signOutAndLeave } from '@/lib/sign-out'
 
 // Polls /api/session/check every 60s to detect: user disabled/deleted, tenant
 // suspended/deleted. When the check fails, signs out immediately instead of
@@ -14,12 +13,12 @@ import { createClient } from '@/lib/supabase/client'
 // change. Polling on a server endpoint (service-role) is simpler and honest.
 const POLL_INTERVAL_MS = 60_000
 const MIN_GAP_MS = 30_000
+// The first check waits until the page has finished loading, so it never
+// competes with the page's own requests.
+const FIRST_CHECK_DELAY_MS = 4_000
 
 export function TenantWatcher() {
-  const router = useRouter()
-
   useEffect(() => {
-    const supabase = createClient()
     let stopped = false
 
     // Focus and visibility events fire constantly (every alt-tab), so a check
@@ -41,15 +40,15 @@ export function TenantWatcher() {
         const data = await res.json() as { ok: boolean; reason?: string }
         if (!data.ok) {
           stopped = true
-          await supabase.auth.signOut()
-          router.replace(`/login?reason=${encodeURIComponent(data.reason ?? 'suspended')}`)
+          await signOutAndLeave(`/login?reason=${encodeURIComponent(data.reason ?? 'suspended')}`)
         }
       } catch {
         // network blip — swallow and try next tick
       }
     }
 
-    check() // fire once on mount so a page refresh kicks a suspended user immediately
+    // Once shortly after mount, so a page refresh still kicks a suspended user.
+    const first = window.setTimeout(check, FIRST_CHECK_DELAY_MS)
     const id = window.setInterval(check, POLL_INTERVAL_MS)
     const onFocus = () => check()
     window.addEventListener('focus', onFocus)
@@ -57,11 +56,12 @@ export function TenantWatcher() {
 
     return () => {
       stopped = true
+      window.clearTimeout(first)
       window.clearInterval(id)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
     }
-  }, [router])
+  }, [])
 
   return null
 }

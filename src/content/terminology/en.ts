@@ -1,5 +1,7 @@
 // English UI vocabulary per institution type, and English role names.
 // Read through getTerms()/getRoleLabel() — src/lib/terminology.ts, src/lib/utils.ts.
+// Naming rule: see ar.ts — the institution admin and the continuing education
+// manager must never share a label.
 import type { InstitutionType } from '@/types'
 import type { Terms } from '@/lib/terminology'
 import type { RoleLabels } from './types'
@@ -30,12 +32,12 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
     institutionStudent: 'Institute Student', institutionStudents: 'Institute Students',
   },
   training_center: {
-    institutionTypeLabel: 'Training Center',
-    institution: 'Center', institutionAdmin: 'Center Manager',
+    institutionTypeLabel: 'Training Centre',
+    institution: 'Training Centre', institutionAdmin: 'Training Centre Director',
     group: 'Cohort', groups: 'Cohorts',
     unitL1: 'Track', unitsL1: 'Tracks', unitL2: 'Program', unitsL2: 'Programs',
     term: 'Course Run', terms: 'Course Runs',
-    institutionStudent: 'Trainee', institutionStudents: 'Trainees',
+    institutionStudent: 'Trainee', institutionStudents: 'Training Centre Trainees',
   },
   company: {
     institutionTypeLabel: 'Company',

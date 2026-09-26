@@ -1,5 +1,10 @@
 // Arabic UI vocabulary per institution type, and Arabic role names.
 // Read through getTerms()/getRoleLabel() — src/lib/terminology.ts, src/lib/utils.ts.
+//
+// Naming rule: the institution admin is always named after the institution
+// («مدير الجامعة», «مدير مركز التدريب» …) and the centre_manager role is
+// «مدير المركز». A training-centre tenant used to name its institution
+// «المركز» too, so both roles read «مدير المركز»; it is now «مركز التدريب».
 import type { InstitutionType } from '@/types'
 import type { Terms } from '@/lib/terminology'
 import type { RoleLabels } from './types'
@@ -31,11 +36,11 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   training_center: {
     institutionTypeLabel: 'مركز تدريب',
-    institution: 'المركز', institutionAdmin: 'مدير المركز',
+    institution: 'مركز التدريب', institutionAdmin: 'مدير مركز التدريب',
     group: 'دفعة', groups: 'الدفعات',
     unitL1: 'مسار', unitsL1: 'المسارات', unitL2: 'برنامج', unitsL2: 'البرامج',
     term: 'دورة', terms: 'الدورات',
-    institutionStudent: 'متدرب', institutionStudents: 'متدربو المركز',
+    institutionStudent: 'متدرب', institutionStudents: 'متدربو مركز التدريب',
   },
   company: {
     institutionTypeLabel: 'شركة',
