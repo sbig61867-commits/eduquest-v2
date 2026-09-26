@@ -13,7 +13,8 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // /api/auth/accept-invitation MUST be public: the joining user has no session
 // yet (they're creating their account), so gating it would 307-redirect the
 // POST to /login and the client would see a non-JSON body as "Registration failed".
-const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/demo-', '/demo']
+// /auth/signout is public so an already-expired session can still clear its cookies.
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true

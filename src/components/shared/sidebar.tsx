@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { createClient } from '@/lib/supabase/client'
+import { signOutAndLeave } from '@/lib/sign-out'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { getTerms, type Terms } from '@/lib/terminology'
@@ -67,30 +67,20 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
   const locale = useLocale() as Locale
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useUIStore()
-  const { tenant, reset } = useAuthStore()
+  const { tenant } = useAuthStore()
   const isCentreTrainee = useAuthStore(s =>
     s.user?.role === 'student' && getStudentTrack(s.user.is_university_student, s.tenant?.has_center) === 'centre')
   const terms = getTerms(tenant?.institution_type, locale)
-  const router = useRouter()
-  const supabase = createClient()
   const [signingOut, setSigningOut] = useState(false)
 
   // Close the mobile drawer whenever the route changes
   useEffect(() => { setMobileNavOpen(false) }, [pathname, setMobileNavOpen])
 
   async function handleSignOut() {
+    if (signingOut) return
     setSigningOut(true)
-    try {
-      await supabase.auth.signOut()
-    } catch (e) {
-      console.error('[signOut]', e)
-    } finally {
-      // Always clear local state and leave, even if the network call itself
-      // failed — otherwise the button is left permanently disabled with no
-      // way to retry (setSigningOut(true) never gets undone).
-      reset()
-      router.push('/login')
-    }
+    // Server-side cookie removal + a full page load; see src/lib/sign-out.ts.
+    await signOutAndLeave('/login')
   }
 
   return (

@@ -34,12 +34,15 @@ export function AnnouncementPopup() {
 
   useEffect(() => {
     let cancelled = false
-    createClient().rpc('get_student_announcements').then(({ data, error }) => {
-      if (cancelled || error || !data) return
-      const seen = new Set(readSeen())
-      setUnseen((data as unknown as StudentAnnouncement[]).filter(a => !seen.has(a.id)))
-    })
-    return () => { cancelled = true }
+    // Asked for once the page has rendered, so the popup never delays it.
+    const timer = setTimeout(() => {
+      createClient().rpc('get_student_announcements').then(({ data, error }) => {
+        if (cancelled || error || !data) return
+        const seen = new Set(readSeen())
+        setUnseen((data as unknown as StudentAnnouncement[]).filter(a => !seen.has(a.id)))
+      })
+    }, 1200)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [])
 
   function dismiss() {

@@ -6,9 +6,12 @@ import { useAuthStore } from '@/stores/auth-store'
 import type { Tenant } from '@/types'
 import { toTenantSettings } from '@/lib/structure-mode'
 
-// Only the columns consumed by the app — avoids SELECT *
+// Named user columns; the embedded tenant is `*` so its optional settings
+// columns (institution_type, structure_mode, has_center) come through in the
+// same round-trip when they exist, and are simply absent when they don't —
+// this used to be a second, separate tenants query on every load.
 const PROFILE_SELECT =
-  'id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, is_university_student, created_at, tenants(id, name, slug, logo_url, is_active, created_at)'
+  'id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, is_university_student, created_at, tenants(*)'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setTenant, setLoading, reset } = useAuthStore()
@@ -27,18 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) console.error('[auth-provider] profile fetch failed', error.message)
       if (profile) {
         setUser(profile as Parameters<typeof setUser>[0])
-        const tenant = (profile.tenants as unknown as Tenant | null) ?? null
-        // Fetched separately (not in PROFILE_SELECT) so the profile load keeps
-        // working on a DB where institution_type_migration.sql isn't applied yet
-        // — an unknown column would fail the whole embedded select.
-        if (tenant) {
-          // `*`, not named columns: a column that doesn't exist yet is simply absent.
-          const { data: extra } = await supabase
-            .from('tenants').select('*').eq('id', tenant.id).maybeSingle()
-          if (loadId !== latestLoad) return
-          Object.assign(tenant, toTenantSettings(extra as Record<string, unknown> | null))
-        }
-        setTenant(tenant)
+        const row = (profile.tenants as unknown as Record<string, unknown> | null) ?? null
+        setTenant(row ? ({ ...row, ...toTenantSettings(row) } as unknown as Tenant) : null)
       }
       setLoading(false)
     }
@@ -64,8 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_OUT' || !session) { reset(); return }
-        // TOKEN_REFRESHED only rotates the JWT — profile data is unchanged
-        if (event === 'SIGNED_IN') {
+        // TOKEN_REFRESHED only rotates the JWT — profile data is unchanged.
+        // SIGNED_IN also fires when an existing session is re-confirmed (every
+        // tab refocus), so only fetch when it is a different account than the
+        // one already loaded — loadUser() above has the current one covered.
+        if (event === 'SIGNED_IN' && useAuthStore.getState().user?.id !== session.user.id) {
           await applyProfile(session.user.id, ++latestLoad)
         }
       }
