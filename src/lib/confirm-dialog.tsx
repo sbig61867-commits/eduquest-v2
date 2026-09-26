@@ -31,18 +31,26 @@ export function confirmDialog(message: string, opts: ConfirmOptions = {}): Promi
     document.body.appendChild(host)
     const root = createRoot(host)
 
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(false) }
     const close = (result: boolean) => {
+      window.removeEventListener('keydown', onKey)
       root.unmount()
       host.remove()
       resolve(result)
     }
+    window.addEventListener('keydown', onKey)
 
     root.render(
       <div
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         onClick={e => { if (e.target === e.currentTarget) close(false) }}
       >
-        <div dir={dirFor(locale)} className="w-full max-w-md bg-canvas border border-border rounded-2xl shadow-2xl p-6 space-y-5">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          dir={dirFor(locale)}
+          className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-6 space-y-5"
+        >
           <div className="flex items-start gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${danger ? 'bg-error-subtle' : 'bg-accent/20'}`}>
               <span className={`text-xl font-bold ${danger ? 'text-error' : 'text-info'}`}>!</span>
@@ -52,7 +60,7 @@ export function confirmDialog(message: string, opts: ConfirmOptions = {}): Promi
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => close(false)}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-surface hover:bg-elevated text-fg-secondary border border-border transition-colors"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-elevated hover:bg-slate-700 text-fg-secondary border border-slate-700 transition-colors"
             >
               {cancelText}
             </button>
