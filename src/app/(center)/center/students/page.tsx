@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { loadCenterAccess } from '@/lib/center-access'
 import { NoPermission } from '@/components/shared/no-permission'
 import { PeopleClient, type PersonRow } from '@/components/center/people-client'
+import { studentBlock } from '@/lib/account-scope'
 
 export default async function CenterStudentsPage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
@@ -18,7 +19,7 @@ export default async function CenterStudentsPage() {
   return (
     <PeopleClient
       role="student"
-      initialPeople={(data ?? []) as PersonRow[]}
+      initialPeople={((data ?? []) as PersonRow[]).map(p => ({ ...p, locked: studentBlock(p.is_university_student) }))}
       canSetAffiliation={has('announce_to_university')}
     />
   )

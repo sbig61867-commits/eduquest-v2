@@ -191,7 +191,12 @@
     "cancel": "Cancel",
     "sendInvite": "Send invitation",
     "createAccount": "Create account",
-    "empty": "No results"
+    "empty": "No results",
+    "locked": {
+      "universityStudent": "Managed by the {admin}",
+      "sharedTeacher": "Also teaches at the institution — managed by the {admin}",
+      "unassignedTeacher": "Not in any centre course — managed by the {admin}"
+    }
   },
   "groups": {
     "updateFailed": "Could not update",

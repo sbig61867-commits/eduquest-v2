@@ -191,7 +191,12 @@
     "cancel": "إلغاء",
     "sendInvite": "إرسال الدعوة",
     "createAccount": "إنشاء الحساب",
-    "empty": "لا توجد نتائج"
+    "empty": "لا توجد نتائج",
+    "locked": {
+      "universityStudent": "يديره {admin}",
+      "sharedTeacher": "يدرّس في المؤسسة أيضاً — يديره {admin}",
+      "unassignedTeacher": "غير مُسند لدورة في المركز — يديره {admin}"
+    }
   },
   "groups": {
     "updateFailed": "تعذّر التحديث",

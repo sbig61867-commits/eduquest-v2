@@ -308,5 +308,8 @@
   "userProfileCreateFailed": "Could not create the user profile. Please try again.",
   "userStatusFailed": "Could not update the user's status",
   "usersLoadFailed": "Could not load users",
-  "violationNotFound": "This violation was not found in your submission record"
+  "violationNotFound": "This violation was not found in your submission record",
+  "universityStudent": "This student also belongs to the institution — only the institution admin can activate or deactivate them.",
+  "sharedTeacher": "This teacher also teaches institution groups — only the institution admin can activate or deactivate them. To remove them from the centre, unassign them from your courses.",
+  "unassignedTeacher": "This teacher is not assigned to any centre course yet — only the institution admin can activate or deactivate them."
 }
