@@ -55,14 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (event === 'SIGNED_OUT' || !session) { reset(); return }
         // TOKEN_REFRESHED only rotates the JWT — profile data is unchanged.
         // SIGNED_IN also fires when an existing session is re-confirmed (every
         // tab refocus), so only fetch when it is a different account than the
         // one already loaded — loadUser() above has the current one covered.
+        //
+        // Never await inside this callback: supabase-js awaits every
+        // subscriber before signInWithPassword() resolves, so an awaited
+        // profile fetch here held the login button for two extra database
+        // round-trips (measured on production: ~1.7s of a 3.8s login).
+        // Deferred, it runs alongside the navigation to the dashboard.
         if (event === 'SIGNED_IN' && useAuthStore.getState().user?.id !== session.user.id) {
-          await applyProfile(session.user.id, ++latestLoad)
+          const loadId = ++latestLoad
+          setTimeout(() => { void applyProfile(session.user.id, loadId) }, 0)
         }
       }
     )
