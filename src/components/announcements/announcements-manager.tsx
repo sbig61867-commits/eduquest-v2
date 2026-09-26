@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
@@ -13,10 +13,11 @@ import { getTerms } from '@/lib/terminology'
 import { AnnouncementsBanner, AnnouncementImage } from '@/components/student/announcements-banner'
 import { Modal } from '@/components/ui/modal'
 import { BannerDesigner } from '@/components/announcements/banner-designer'
+import { InterestedList } from '@/components/announcements/interested-list'
 import { type AnnouncementAudience } from '@/lib/announcement-audience'
 import { prepareImageForUpload, ImagePrepError } from '@/lib/prepare-image'
 import { buildContactUrl, parseContactUrl, CONTACT_TYPES, type ContactType } from '@/lib/announcement-contact'
-import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock, MessageCircle, Phone, Mail, Link2 } from 'lucide-react'
+import { Megaphone, Plus, Trash2, Eye, EyeOff, ImagePlus, X, Users, Globe, Pencil, Palette, Sparkles, GraduationCap, Building2, Lock, MessageCircle, Phone, Mail, Link2, Search, Copy, CalendarPlus, Pin, PinOff, Hand, MousePointerClick } from 'lucide-react'
 
 interface CopySuggestion { title: string; body: string; cta_label: string }
 
@@ -37,7 +38,18 @@ function isoToLocalInput(value: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/** Local datetime-input value `days` after `from` (default: now), at the same clock time. */
+function plusDaysInput(days: number, from?: string): string {
+  const base = from ? new Date(from) : new Date()
+  const d = isNaN(base.getTime()) ? new Date() : base
+  d.setDate(d.getDate() + days)
+  return isoToLocalInput(d.toISOString())
+}
+const DURATIONS = [1, 3, 7, 14, 30] as const
+
 type Status = 'draft' | 'scheduled' | 'live' | 'ended'
+const FILTERS = ['all', 'live', 'scheduled', 'draft', 'ended'] as const
+type Filter = (typeof FILTERS)[number]
 function announcementStatus(a: Pick<AnnouncementRow, 'is_published' | 'starts_at' | 'ends_at'>): Status {
   if (!a.is_published) return 'draft'
   const now = Date.now()
@@ -66,6 +78,10 @@ export interface AnnouncementRow {
   ends_at: string | null
   created_at: string
   group_ids: string[]
+  /** From announcement_engagement_migration.sql (false / null before it is applied). */
+  pinned: boolean
+  collect_interest: boolean
+  stats: { views: number; clicks: number; interest: number } | null
 }
 export interface GroupOption { id: string; name: string }
 
@@ -89,15 +105,18 @@ const emptyForm = (canTargetUniversity: boolean) => ({
   audience: (canTargetUniversity ? 'all' : 'center') as AnnouncementAudience,
   group_ids: [] as string[],
   starts_at: '', ends_at: '', is_published: true,
+  pinned: false, collect_interest: false,
 })
 
-export function AnnouncementsManager({ announcements, groups, canTargetUniversity, hasCenter = true }: {
+export function AnnouncementsManager({ announcements, groups, canTargetUniversity, hasCenter = true, engagementReady = false }: {
   announcements: AnnouncementRow[]
   groups: GroupOption[]
   /** Holds `announce_to_university`; otherwise every announcement is pinned to centre students. */
   canTargetUniversity: boolean
   /** Institution has a continuing-education centre; without one the university/centre audiences don't exist. */
   hasCenter?: boolean
+  /** announcement_engagement_migration.sql is applied: pinning, "I'm interested" and stats. */
+  engagementReady?: boolean
 }) {
   const t = useTranslations('staff.announcements')
   const locale = useLocale() as Locale
@@ -116,6 +135,19 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
   const [brief, setBrief] = useState('')
   const [suggesting, setSuggesting] = useState(false)
   const [suggestions, setSuggestions] = useState<CopySuggestion[]>([])
+  const [filter, setFilter] = useState<Filter>('all')
+  const [query, setQuery] = useState('')
+  const [interestFor, setInterestFor] = useState<AnnouncementRow | null>(null)
+
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: announcements.length, live: 0, scheduled: 0, draft: 0, ended: 0 }
+    for (const a of announcements) c[announcementStatus(a)]++
+    return c
+  }, [announcements])
+  const q = query.trim().toLowerCase()
+  const visible = announcements.filter(a =>
+    (filter === 'all' || announcementStatus(a) === filter) &&
+    (!q || a.title.toLowerCase().includes(q) || (a.body ?? '').toLowerCase().includes(q)))
 
   async function suggestCopy() {
     if (brief.trim().length < 5) return toast.error(t('briefRequired'))
@@ -158,8 +190,48 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
       starts_at: isoToLocalInput(a.starts_at),
       ends_at: isoToLocalInput(a.ends_at),
       is_published: a.is_published,
+      pinned: a.pinned,
+      collect_interest: a.collect_interest,
     })
     setComposing(true)
+  }
+
+  /** A new draft pre-filled from an existing announcement (dates cleared). */
+  function duplicate(a: AnnouncementRow) {
+    startEdit(a)
+    setEditingId(null)
+    setForm(f => ({
+      ...f,
+      title: t('copyOf', { title: a.title }).slice(0, 200),
+      starts_at: '', ends_at: '', is_published: false,
+    }))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function patch(id: string, body: Record<string, unknown>, failKey: string, okKey?: string) {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/announcements', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...body }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(d.error ?? t(failKey))
+      if (okKey) toast.success(t(okKey))
+      router.refresh()
+    } catch {
+      toast.error(t(failKey))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Re-open an ended (or ending) announcement for another week. */
+  function extendWeek(a: AnnouncementRow) {
+    const from = a.ends_at && new Date(a.ends_at).getTime() > Date.now() ? a.ends_at : undefined
+    const ends = localInputToIso(plusDaysInput(7, from ?? undefined))
+    return patch(a.id, { ends_at: ends, is_published: true }, 'updateFailed', 'extended')
   }
 
   async function uploadImage(file: File) {
@@ -209,7 +281,7 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
 
     setBusy(true)
     const editing = editingId
-    const { contact_type: _type, contact_value: _value, ...payload } = form
+    const { contact_type: _type, contact_value: _value, pinned, collect_interest, ...payload } = form
     void _type; void _value
     const res = await fetch('/api/announcements', {
       method: editing ? 'PATCH' : 'POST',
@@ -218,6 +290,8 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
         // An unlabelled contact button is labelled by the viewer's own language
         // ("Contact on WhatsApp"), so the label is left empty rather than filled here.
         ...payload, ...(editing ? { id: editing } : {}), starts_at, ends_at, link_url,
+        // Only once the engagement migration is applied — the columns don't exist before it.
+        ...(engagementReady ? { pinned, collect_interest } : {}),
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -475,6 +549,44 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
             </label>
           </div>
 
+          <div className="flex items-center gap-2 flex-wrap -mt-1">
+            <span className="text-xs text-slate-500">{t('duration.label')}</span>
+            {DURATIONS.map(days => (
+              <button key={days} type="button"
+                onClick={() => setForm(f => ({ ...f, ends_at: plusDaysInput(days, f.starts_at || undefined) }))}
+                className="px-2.5 py-1 rounded-full text-xs border border-slate-700 bg-slate-800 text-slate-300 hover:border-blue-500 hover:text-white transition-colors">
+                {t('duration.days', { count: days })}
+              </button>
+            ))}
+            {form.ends_at && (
+              <button type="button" onClick={() => setForm(f => ({ ...f, ends_at: '' }))}
+                className="px-2.5 py-1 rounded-full text-xs text-slate-500 hover:text-slate-300">
+                {t('duration.none')}
+              </button>
+            )}
+          </div>
+
+          {engagementReady && (
+            <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-2.5">
+              <label className="flex items-start gap-2 text-sm text-slate-300">
+                <input type="checkbox" className="mt-1" checked={form.collect_interest}
+                  onChange={e => setForm(f => ({ ...f, collect_interest: e.target.checked }))} />
+                <span>
+                  <span className="inline-flex items-center gap-1.5"><Hand className="w-4 h-4 text-emerald-400" /> {t('interest.toggle')}</span>
+                  <span className="block text-slate-500 text-xs">{t('interest.toggleHint')}</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm text-slate-300">
+                <input type="checkbox" className="mt-1" checked={form.pinned}
+                  onChange={e => setForm(f => ({ ...f, pinned: e.target.checked }))} />
+                <span>
+                  <span className="inline-flex items-center gap-1.5"><Pin className="w-4 h-4 text-blue-400" /> {t('pin.toggle')}</span>
+                  <span className="block text-slate-500 text-xs">{t('pin.toggleHint')}</span>
+                </span>
+              </label>
+            </div>
+          )}
+
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" checked={form.is_published}
               onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))} />
@@ -491,7 +603,10 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                 image_url: form.image_url || null,
                 link_url: buildContactUrl(form.contact_type, form.contact_value, form.title) || null,
                 cta_label: form.cta_label || null,
-              }]} />
+                ends_at: localInputToIso(form.ends_at),
+                pinned: form.pinned,
+                collect_interest: form.collect_interest,
+              }]} preview />
             </div>
           )}
 
@@ -513,22 +628,51 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
         )}
       </Modal>
 
+      <Modal open={!!interestFor} onClose={() => setInterestFor(null)} title={interestFor ? t('interest.title', { title: interestFor.title }) : ''} size="lg">
+        {interestFor && <InterestedList announcementId={interestFor.id} title={interestFor.title} />}
+      </Modal>
+
+      {announcements.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 overflow-x-auto" role="tablist">
+            {FILTERS.map(f => (
+              <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${
+                  filter === f ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}>
+                {f === 'all' ? t('filterAll') : t(`status.${f}`)} <span className="text-xs text-slate-500">{counts[f]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="relative flex-1 min-w-[12rem]">
+            <Search className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('searchPlaceholder')}
+              className="w-full pe-9 ps-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      )}
+
       {announcements.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <Megaphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400">{t('empty')}</p>
           <p className="text-slate-500 text-sm mt-1">{t('emptyHint')}</p>
         </div>
+      ) : visible.length === 0 ? (
+        <p className="text-center text-slate-500 text-sm py-10 bg-slate-900 border border-slate-800 rounded-xl">{t('noMatches')}</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {announcements.map(a => {
+          {visible.map(a => {
             const status = announcementStatus(a)
             return (
             <div key={a.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               {a.image_url && <AnnouncementImage src={a.image_url} className="max-h-48" />}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-white font-semibold">{a.title}</h3>
+                  <h3 className="text-white font-semibold flex items-center gap-1.5 min-w-0">
+                    {a.pinned && <Pin className="w-3.5 h-3.5 text-blue-400 shrink-0" aria-label={t('pin.pinned')} />}
+                    <span className="break-words">{a.title}</span>
+                  </h3>
                   <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${STATUS_CLASS[status]}`}>
                     {t(`status.${status}`)}
                   </span>
@@ -541,6 +685,20 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                   {a.center_students_only && a.audience !== 'center' && t('centerOnlyNote')}
                   {' · '}{formatDate(a.created_at, locale)}
                 </p>
+                {a.stats && (
+                  <div className="flex items-center gap-3 flex-wrap mt-2 text-xs text-slate-400">
+                    <span className="inline-flex items-center gap-1" title={t('stats.viewsHint')}><Eye className="w-3.5 h-3.5" /> {t('stats.views', { count: a.stats.views })}</span>
+                    {a.link_url && (
+                      <span className="inline-flex items-center gap-1"><MousePointerClick className="w-3.5 h-3.5" /> {t('stats.clicks', { count: a.stats.clicks })}</span>
+                    )}
+                    {a.collect_interest && (
+                      <button onClick={() => setInterestFor(a)}
+                        className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-medium">
+                        <Hand className="w-3.5 h-3.5" /> {t('stats.interest', { count: a.stats.interest })}
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-2 mt-3 flex-wrap">
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => startEdit(a)}>
                     <Pencil className="w-3.5 h-3.5" /> {t('edit')}
@@ -548,6 +706,20 @@ export function AnnouncementsManager({ announcements, groups, canTargetUniversit
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => togglePublish(a)}>
                     {a.is_published ? <><EyeOff className="w-3.5 h-3.5" /> {t('hide')}</> : <><Eye className="w-3.5 h-3.5" /> {t('publish')}</>}
                   </Button>
+                  <Button size="sm" variant="ghost" loading={busy} onClick={() => duplicate(a)}>
+                    <Copy className="w-3.5 h-3.5" /> {t('duplicate')}
+                  </Button>
+                  {(status === 'ended' || status === 'live') && a.ends_at && (
+                    <Button size="sm" variant="ghost" loading={busy} onClick={() => extendWeek(a)}>
+                      <CalendarPlus className="w-3.5 h-3.5" /> {t('extendWeek')}
+                    </Button>
+                  )}
+                  {engagementReady && (
+                    <Button size="sm" variant="ghost" loading={busy}
+                      onClick={() => patch(a.id, { pinned: !a.pinned }, 'updateFailed', a.pinned ? 'unpinnedOk' : 'pinnedOk')}>
+                      {a.pinned ? <><PinOff className="w-3.5 h-3.5" /> {t('pin.unpin')}</> : <><Pin className="w-3.5 h-3.5" /> {t('pin.pin')}</>}
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" loading={busy} onClick={() => remove(a)}>
                     <Trash2 className="w-3.5 h-3.5" /> {t('delete')}
                   </Button>

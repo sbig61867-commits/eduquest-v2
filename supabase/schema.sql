@@ -677,7 +677,7 @@ CREATE TABLE survey_responses (
 -- separately on live DB)
 -- ============================================================
 CREATE TABLE ai_usage_log (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
   user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
   feature     TEXT NOT NULL,
@@ -1741,3 +1741,20 @@ CREATE POLICY mail_messages_select ON public.mail_messages FOR SELECT USING (
 REVOKE ALL ON public.mail_messages FROM anon;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.mail_messages FROM authenticated;
 GRANT SELECT ON public.mail_messages TO authenticated;
+
+-- ============================================================
+-- Announcement engagement (see supabase/announcement_engagement_migration.sql
+-- for the full migration: announcements.collect_interest / pinned, RLS, grant
+-- lockdown and the get_student_announcements() feed with the new columns).
+-- ============================================================
+-- ALTER TABLE announcements ADD COLUMN collect_interest BOOLEAN NOT NULL DEFAULT FALSE;
+-- ALTER TABLE announcements ADD COLUMN pinned           BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE TABLE announcement_events (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind            TEXT NOT NULL CHECK (kind IN ('view', 'click', 'interest')),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (announcement_id, student_id, kind)
+);

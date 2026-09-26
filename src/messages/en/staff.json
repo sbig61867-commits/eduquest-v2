@@ -191,7 +191,12 @@
     "cancel": "Cancel",
     "sendInvite": "Send invitation",
     "createAccount": "Create account",
-    "empty": "No results"
+    "empty": "No results",
+    "locked": {
+      "universityStudent": "Managed by the {admin}",
+      "sharedTeacher": "Also teaches at the institution — managed by the {admin}",
+      "unassignedTeacher": "Not in any centre course — managed by the {admin}"
+    }
   },
   "groups": {
     "updateFailed": "Could not update",
@@ -467,7 +472,50 @@
       }
     },
     "imageTooBig": "This image could not be made small enough to upload (an animated GIF must be under 4 MB).",
-    "imageUnreadable": "This image format can't be read in your browser — save it as JPG or PNG and try again."
+    "imageUnreadable": "This image format can't be read in your browser — save it as JPG or PNG and try again.",
+    "copyOf": "Copy of {title}",
+    "extended": "Extended for another week and published",
+    "pinnedOk": "Pinned to the top",
+    "unpinnedOk": "Unpinned",
+    "filterAll": "All",
+    "searchPlaceholder": "Search announcements…",
+    "noMatches": "No announcements match this filter.",
+    "duplicate": "Duplicate",
+    "extendWeek": "Extend a week",
+    "duration": {
+      "label": "Ends after:",
+      "days": "{count, plural, one {1 day} other {{count} days}}",
+      "none": "No end date"
+    },
+    "interest": {
+      "toggle": "Show an “I'm interested” button",
+      "toggleHint": "Students can register their interest in one tap; you get the list (names and emails) to follow up.",
+      "title": "Interested in “{title}”",
+      "loadFailed": "Could not load the list",
+      "loading": "Loading…",
+      "empty": "Nobody has registered interest yet.",
+      "count": "{count, plural, one {1 interested student} other {{count} interested students}}",
+      "colName": "Name",
+      "colEmail": "Email",
+      "colDate": "Date",
+      "copyEmails": "Copy emails",
+      "downloadCsv": "Download (Excel)",
+      "copied": "Emails copied",
+      "copyFailed": "Could not copy — your browser blocked the clipboard"
+    },
+    "pin": {
+      "toggle": "Pin to the top",
+      "toggleHint": "Shown first on students' home page, before newer announcements.",
+      "pinned": "Pinned",
+      "pin": "Pin",
+      "unpin": "Unpin"
+    },
+    "stats": {
+      "views": "{count, plural, one {1 view} other {{count} views}}",
+      "clicks": "{count, plural, one {1 click} other {{count} clicks}}",
+      "interest": "{count, plural, one {1 interested} other {{count} interested}}",
+      "viewsHint": "Students who saw this announcement at least once"
+    }
   },
   "invitations": {
     "createFailed": "Failed to create the invitation",

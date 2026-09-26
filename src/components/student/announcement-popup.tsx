@@ -55,7 +55,7 @@ export function AnnouncementPopup() {
       size="lg"
     >
       <div className="space-y-4" dir="auto">
-        <AnnouncementsBanner announcements={unseen} />
+        <AnnouncementsBanner announcements={unseen} track />
         <div className="flex justify-end">
           <Button onClick={dismiss}>{t('dismiss')}</Button>
         </div>
