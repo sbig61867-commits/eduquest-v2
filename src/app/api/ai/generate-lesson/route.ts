@@ -2,11 +2,11 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateLessonContentAI } from '@/lib/ai/chat'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('lesson', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -15,6 +15,10 @@ export async function POST(request: Request) {
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const aiLimits = await getAiRateLimits(supabase)
   const rl = await aiRateLimit(`lesson:${user.id}`, { limit: aiLimits.lesson_per_hour, windowSecs: 3600 })
@@ -47,7 +51,6 @@ export async function POST(request: Request) {
   // providers whose keys are not configured.
   try {
     const { content, provider } = await generateLessonContentAI(topic, level, customInstructions)
-    void logAiUsage(user.id, profile.tenant_id, 'lesson', provider)
     return NextResponse.json({ content, provider })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -57,4 +60,4 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
-}
+})

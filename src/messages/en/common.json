@@ -41,7 +41,9 @@
       "newSubmission": "{kind, select, homework{New homework submission} other{New exam submission}}: {title}",
       "newUser": "{role, select, teacher{New teacher} other{New student}}: {name}",
       "contactMessage": "Contact message from {name}",
-      "newTenant": "New institution: {name}"
+      "newTenant": "New institution: {name}",
+      "aiAllowanceWarning": "{name} passed {pct}% of its monthly AI allowance",
+      "aiAllowanceExceeded": "{name} reached its monthly AI allowance"
     }
   },
   "error": {
@@ -77,7 +79,8 @@
       "item-content": "Course item content",
       "course_suggestions": "Course improvement suggestions",
       "announcement_copy": "Announcement wording",
-      "extract-file": "Text extraction from a scanned file"
+      "extract-file": "Text extraction from a scanned file",
+      "individual_task_ai": "Individual task draft"
     }
   },
   "lessonTabs": {
@@ -145,5 +148,34 @@
     "pinned": "Pinned",
     "endsInHours": "{count, plural, one {Ends in 1 hour} other {Ends in {count} hours}}",
     "endsInDays": "{count, plural, one {Ends in 1 day} other {Ends in {count} days}}"
+  },
+  "aiFeatures": {
+    "lesson": "Lesson from a topic",
+    "lesson-from-file": "Lesson from a file",
+    "exam": "Exam generation",
+    "homework-from-file": "Homework from a file",
+    "course-pptx": "Course from a file",
+    "item-content": "Course item content",
+    "course_suggestions": "Course improvement suggestions",
+    "announcement_copy": "Announcement wording",
+    "individual_task": "Individual task draft",
+    "extract-file": "Reading scanned files"
+  },
+  "aiAllowance": {
+    "title": "AI usage this month",
+    "subtitle": "Your institution's share of the platform's AI features.",
+    "requests": "Requests",
+    "tokens": "Tokens",
+    "ofLimit": "{used} of {limit}",
+    "unlimited": "Unlimited",
+    "reached": "Your institution has reached this month's AI allowance.",
+    "reachedWarn": "Your institution is past this month's AI allowance. AI features still work; the platform owner has been alerted.",
+    "nearing": "Your institution has used {pct}% of this month's AI allowance.",
+    "aiOff": "AI features are switched off for your institution.",
+    "renews": "Renews on the 1st of each month (UTC).",
+    "byFeature": "Most used this month"
+  },
+  "theme": {
+    "toggle": "Switch between light and dark appearance"
   }
 }

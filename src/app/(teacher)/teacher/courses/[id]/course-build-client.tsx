@@ -2,6 +2,7 @@
 import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -11,9 +12,10 @@ import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import {
   ChevronLeft, Plus, Layers, BookOpen,
-  Trash2, ChevronDown, ChevronRight, Sparkles,
+  Trash2, ChevronDown, ChevronRight, Sparkles, Link2, AlertTriangle,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { parseVideoUrl } from '@/lib/video-embed'
 
 interface UnitItem {
   id: string
@@ -51,13 +53,30 @@ interface Course {
   tenant_id: string
 }
 
+/** A quiz (type exam) or task (type homework) created for this course. */
+interface CourseAssessment {
+  id: string
+  title: string
+  type: 'exam' | 'homework'
+  is_published: boolean
+}
+
 interface Props {
   course: Course
   initialLevels: CourseLevel[]
   initialFlatUnits: CourseUnit[]
+  assessments?: CourseAssessment[]
 }
 
-export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: Props) {
+// quiz and task items run on the exam engine: the item stores the id of an
+// exam row that belongs to this course (a timed exam for a quiz, an untimed
+// homework for a task). video items store a link, parsed by video-embed.
+const ASSESSMENT_KIND: Record<string, 'exam' | 'homework'> = { quiz: 'exam', task: 'homework' }
+const isAssessmentType = (type: string) => type in ASSESSMENT_KIND
+
+const EMPTY_ITEM = { title: '', type: 'text', body: '', aiTopic: '', exam_id: '', video_url: '' }
+
+export function CourseBuildClient({ course, initialLevels, initialFlatUnits, assessments = [] }: Props) {
   const t = useTranslations('teacher')
   const [levels,    setLevels]    = useState(initialLevels)
   const [flatUnits, setFlatUnits] = useState(initialFlatUnits)
@@ -67,7 +86,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   const [levelModal, setLevelModal]   = useState(false)
   const [unitModal,  setUnitModal]    = useState<{ open: boolean; levelId: string | null }>({ open: false, levelId: null })
   const [itemModal,  setItemModal]    = useState<{ open: boolean; unitId: string | null }>({ open: false, unitId: null })
-  const [itemForm,   setItemForm]     = useState({ title: '', type: 'text', body: '', aiTopic: '' })
+  const [itemForm,   setItemForm]     = useState(EMPTY_ITEM)
   const [levelForm,  setLevelForm]    = useState({ title: '' })
   const [unitForm,   setUnitForm]     = useState({ title: '' })
   const [saving,     setSaving]       = useState(false)
@@ -84,6 +103,9 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
     { value: 'quiz',    label: t('courses.itemTypes.quiz') },
     { value: 'video',   label: t('courses.itemTypes.video') },
   ]
+
+  const typeLabel = (type: string) => ITEM_TYPES.find(it => it.value === type)?.label ?? type
+  const assessmentById = new Map(assessments.map(a => [a.id, a]))
 
   function toggle(id: string) {
     setExpanded(p => ({ ...p, [id]: !p[id] }))
@@ -164,12 +186,22 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   }
 
   async function addItem(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
+    e.preventDefault()
+    const content: Record<string, unknown> = { body: itemForm.body }
+    if (isAssessmentType(itemForm.type)) {
+      if (!itemForm.exam_id) { toast.warning(t('courses.assessment.pickFirst')); return }
+      content.exam_id = itemForm.exam_id
+    }
+    if (itemForm.type === 'video') {
+      if (!parseVideoUrl(itemForm.video_url)) { toast.warning(t('courses.video.invalid')); return }
+      content.video_url = itemForm.video_url.trim()
+    }
+    setSaving(true)
     const unitId = itemModal.unitId!
     const { data } = await supabase.from('unit_items').insert({
       unit_id: unitId, course_id: course.id, tenant_id: course.tenant_id,
       title: itemForm.title, type: itemForm.type,
-      content: { body: itemForm.body },
+      content,
       order_index: 0,
     }).select().single()
     if (data) {
@@ -181,7 +213,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       setFlatUnits(updateUnit)
       router.refresh()
     }
-    setItemForm({ title: '', type: 'text', body: '', aiTopic: '' })
+    setItemForm(EMPTY_ITEM)
     setItemModal({ open: false, unitId: null }); setSaving(false)
   }
 
@@ -201,8 +233,18 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
   function renderItem(item: UnitItem, unitId: string) {
     return (
       <div key={item.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-800/60 border border-slate-700/50 group">
-        <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">{item.type}</span>
+        <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">{typeLabel(item.type)}</span>
         <span className="text-slate-300 text-sm flex-1 truncate">{item.title}</span>
+        {isAssessmentType(item.type) && (() => {
+          const linked = assessmentById.get(String(item.content?.exam_id ?? ''))
+          if (!linked) return <Badge variant="red">{t('courses.assessment.notLinked')}</Badge>
+          return (
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs text-slate-400 truncate max-w-[12rem]"><Link2 className="w-3 h-3 inline -mt-0.5 me-1" />{linked.title}</span>
+              {!linked.is_published && <Badge variant="yellow">{t('courses.assessment.unpublishedBadge')}</Badge>}
+            </span>
+          )
+        })()}
         <button onClick={() => deleteItem(item.id, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 p-1">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -354,6 +396,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
       {/* Add Content Item */}
       <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title={t('courses.addItemModal')} size="xl">
         <form onSubmit={addItem} className="space-y-4">
+          {!isAssessmentType(itemForm.type) && itemForm.type !== 'video' && (
           <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 space-y-2">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles className="w-4 h-4 text-violet-400" />
@@ -364,6 +407,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
               <Sparkles className="w-4 h-4" /> {t('courses.generateFromFile')}
             </Button>
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -377,7 +421,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
               <label className="block text-sm font-medium text-slate-300">{t('courses.itemTypeLabel')}</label>
               <select
                 value={itemForm.type}
-                onChange={e => setItemForm(p => ({ ...p, type: e.target.value }))}
+                onChange={e => setItemForm(p => ({ ...p, type: e.target.value, exam_id: '' }))}
                 className="w-full px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {ITEM_TYPES.map(it => <option key={it.value} value={it.value}>{it.label}</option>)}
@@ -385,13 +429,67 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits }: P
             </div>
           </div>
 
+          {isAssessmentType(itemForm.type) && (() => {
+            const kind = ASSESSMENT_KIND[itemForm.type]
+            const options = assessments.filter(a => a.type === kind)
+            const chosen = assessmentById.get(itemForm.exam_id)
+            return (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 space-y-2">
+                <label className="block text-sm font-medium text-slate-300">
+                  {kind === 'exam' ? t('courses.assessment.quizLabel') : t('courses.assessment.taskLabel')}
+                </label>
+                {options.length > 0 ? (
+                  <select
+                    value={itemForm.exam_id}
+                    onChange={e => setItemForm(p => ({ ...p, exam_id: e.target.value, title: p.title || (assessmentById.get(e.target.value)?.title ?? '') }))}
+                    className="w-full px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">{kind === 'exam' ? t('courses.assessment.chooseQuiz') : t('courses.assessment.chooseTask')}</option>
+                    {options.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
+                  </select>
+                ) : (
+                  <p className="text-slate-400 text-sm">{kind === 'exam' ? t('courses.assessment.noQuizzes') : t('courses.assessment.noTasks')}</p>
+                )}
+                {chosen && !chosen.is_published && (
+                  <p className="text-amber-400 text-xs flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" />{t('courses.assessment.unpublishedHint')}</p>
+                )}
+                <Link
+                  href={`/teacher/exams?course=${course.id}&kind=${kind}`}
+                  className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {kind === 'exam' ? t('courses.assessment.createQuiz') : t('courses.assessment.createTask')}
+                </Link>
+              </div>
+            )
+          })()}
+
+          {itemForm.type === 'video' && (
+            <div className="space-y-1.5">
+              <Input
+                label={t('courses.video.urlLabel')}
+                type="url"
+                dir="ltr"
+                value={itemForm.video_url}
+                onChange={e => setItemForm(p => ({ ...p, video_url: e.target.value }))}
+                required
+                placeholder="https://www.youtube.com/watch?v=…"
+              />
+              <p className={`text-xs ${itemForm.video_url && !parseVideoUrl(itemForm.video_url) ? 'text-red-400' : 'text-slate-500'}`}>
+                {itemForm.video_url && !parseVideoUrl(itemForm.video_url) ? t('courses.video.invalid') : t('courses.video.hint')}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">{t('courses.itemContentLabel')}</label>
+            <label className="block text-sm font-medium text-slate-300">
+              {isAssessmentType(itemForm.type) || itemForm.type === 'video' ? t('courses.optionalNotesLabel') : t('courses.itemContentLabel')}
+            </label>
             <textarea
               value={itemForm.body}
               onChange={e => setItemForm(p => ({ ...p, body: e.target.value }))}
-              rows={10}
-              required
+              rows={isAssessmentType(itemForm.type) || itemForm.type === 'video' ? 4 : 10}
+              required={!isAssessmentType(itemForm.type) && itemForm.type !== 'video'}
               className="w-full px-3 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono"
               placeholder={t('courses.itemContentPlaceholder')}
             />

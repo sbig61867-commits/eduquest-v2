@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toast'
 import { dirFor, toLocale } from '@/i18n/config'
 import { ScopedIntlProvider } from '@/i18n/provider'
 import { siteUrl } from '@/i18n/public-routes'
+import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -50,6 +51,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
       translate="no"
     >
+      <head>
+        {/* Light/dark choice for the public surface, applied before first paint
+            from the eq_theme cookie in the browser — never read on the server,
+            so public HTML stays cacheable (src/lib/theme.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="h-full bg-slate-950 antialiased">
         {/* C1: `common` and `auth` are shipped at root level. Every page sits
             under this provider; `auth` is shared across public auth routes

@@ -1,14 +1,116 @@
 'use client'
 
-import { Suspense } from 'react'
-import { useState } from 'react'
+import { Suspense, useEffect, useState, useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
-import { useTranslations } from 'next-intl'
+import type enAuth from '@/messages/en/auth.json'
+import { AuthTopBar } from '@/components/public/auth-top-bar'
+
+// Sign-in shares the public surface's look (`.eq-public`, light and dark —
+// src/app/globals.css): a form on one side and, on large screens, a showcase
+// panel with a rotating spotlight on the other.
 
 const KNOWN_ERRORS = ['account_disabled', 'university_removed', 'invitation_required', 'auth_callback_failed']
+type Showcase = typeof enAuth.login.showcase
+/** How long each spotlight slide stays up. */
+const SLIDE_MS = 6500
+
+// The visitor's local hour, read only on the client (the server cannot know
+// the time zone) so the greeting never causes a hydration mismatch.
+const noSubscribe = () => () => {}
+function useLocalHour(): number | null {
+  return useSyncExternalStore(noSubscribe, () => new Date().getHours(), () => null)
+}
+
+const INPUT =
+  'w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition'
+
+function ShowcasePanel({ copy }: { copy: Showcase }) {
+  const [slide, setSlide] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const n = copy.slides.length
+
+  useEffect(() => {
+    if (paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = window.setInterval(() => setSlide(s => (s + 1) % n), SLIDE_MS)
+    return () => window.clearInterval(id)
+  }, [paused, n])
+
+  const cards = [
+    { label: copy.cards.lesson, tone: 'bg-blue-500', offset: 'lg:-translate-x-6', delay: '0s' },
+    { label: copy.cards.exam, tone: 'bg-amber-400', offset: 'lg:translate-x-10', delay: '-2.3s' },
+    { label: copy.cards.attendance, tone: 'bg-emerald-400', offset: 'lg:-translate-x-2', delay: '-4.6s' },
+  ]
+
+  return (
+    <aside
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+      className="relative hidden lg:flex flex-col overflow-hidden rounded-[2rem] border border-slate-800 bg-gradient-to-br from-blue-600/25 via-slate-900 to-slate-950 p-10 xl:p-14"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(to_right,var(--color-white)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-white)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]"
+      />
+      <div aria-hidden="true" className="absolute -top-32 -end-24 w-[28rem] h-[28rem] rounded-full bg-blue-500/25 blur-3xl" />
+      <div aria-hidden="true" className="absolute -bottom-40 -start-24 w-[26rem] h-[26rem] rounded-full bg-sky-400/10 blur-3xl" />
+
+      <div className="relative">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/25 text-blue-300 text-sm font-medium">
+          <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-blue-400 motion-safe:animate-pulse" />
+          {copy.badge}
+        </span>
+        <p className="mt-6 text-3xl xl:text-4xl font-bold text-white leading-snug max-w-xl">{copy.title}</p>
+      </div>
+
+      {/* Floating cards: a glimpse of the platform at work. */}
+      <div aria-hidden="true" className="relative flex-1 flex flex-col justify-center gap-4 py-10 max-w-md mx-auto w-full">
+        {cards.map(c => (
+          <div key={c.label} className={c.offset}>
+            <div className="eq-float flex items-center gap-4 rounded-2xl border border-slate-700/60 bg-slate-900/80 backdrop-blur px-5 py-4 shadow-2xl shadow-black/20" style={{ animationDelay: c.delay }}>
+              <span className={`w-10 h-10 rounded-xl ${c.tone} opacity-90 shrink-0`} />
+              <span className="flex-1 min-w-0">
+                <span className="block text-white text-sm font-semibold truncate">{c.label}</span>
+                <span className="mt-2 block h-1.5 w-3/4 rounded bg-slate-700" />
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Spotlight carousel */}
+      <section aria-label={copy.slidesLabel} className="relative rounded-2xl border border-slate-700/60 bg-slate-950/60 backdrop-blur p-6">
+        <div key={slide} className="eq-menu-in min-h-[7.5rem]" aria-live="polite">
+          <p className="text-blue-300 text-xs font-semibold">{copy.slides[slide].tag}</p>
+          <p className="text-white text-lg font-semibold mt-2">{copy.slides[slide].title}</p>
+          <p className="text-slate-400 text-sm mt-2 leading-relaxed">{copy.slides[slide].desc}</p>
+        </div>
+        <div className="mt-5 flex gap-2">
+          {copy.slides.map((s, i) => (
+            <button
+              key={s.title}
+              type="button"
+              aria-label={s.title}
+              aria-pressed={i === slide}
+              onClick={() => setSlide(i)}
+              className="group h-6 flex-1 flex items-center"
+            >
+              <span className="block h-1 w-full rounded-full bg-slate-800 overflow-hidden">
+                <span className={`block h-full rounded-full transition-[width] duration-500 ${i === slide ? 'w-full bg-blue-500' : i < slide ? 'w-full bg-blue-500/40' : 'w-0'}`} />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </aside>
+  )
+}
 
 function LoginForm() {
   const t = useTranslations('auth.login')
@@ -18,13 +120,18 @@ function LoginForm() {
 
   const [email, setEmail] = useState(prefillEmail)
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [capsLock, setCapsLock] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const hour = useLocalHour()
 
   const errorMsg = searchParams.get('error')
+  const greeting =
+    hour === null ? null : hour < 12 ? t('greeting.morning') : hour < 17 ? t('greeting.afternoon') : t('greeting.evening')
 
   async function handleGoogleSignIn() {
     setError('')
@@ -76,91 +183,118 @@ function LoginForm() {
     setLoading(false)
   }
 
+  const showcase = t.raw('showcase') as Showcase
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-2">
-            <span className="text-white text-2xl font-bold">E</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">EduQuest</h1>
-          <p className="text-slate-400 text-sm">{t('subtitle')}</p>
-        </div>
+    <div className="eq-public min-h-screen bg-slate-950 p-3 sm:p-4 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4">
+      <main className="relative flex flex-col px-3 sm:px-8 lg:px-12 xl:px-16 py-4">
+        <div aria-hidden="true" className="lg:hidden absolute inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.2),transparent_70%)]" />
 
-        {registered && (
-          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-            {t('registered')}
-          </div>
-        )}
+        <AuthTopBar />
 
-        {searchParams.get('reset') === 'success' && (
-          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-            {t('resetSuccess')}
-          </div>
-        )}
+        {/* Form */}
+        <div className="relative flex-1 flex items-center py-10">
+          <div className="w-full max-w-md mx-auto">
+            <p className="text-blue-400 text-sm font-semibold h-5">{greeting}</p>
+            <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-white">{t('welcome')}</h1>
+            <p className="text-slate-400 mt-3 leading-relaxed">{t('subtitle')}</p>
 
-        {(error || errorMsg) && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-            {error || t(`errors.${KNOWN_ERRORS.includes(errorMsg ?? '') ? errorMsg : 'default'}`)}
-          </div>
-        )}
+            <div className="mt-8 space-y-3">
+              {registered && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-sm">{t('registered')}</div>
+              )}
+              {searchParams.get('reset') === 'success' && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-sm">{t('resetSuccess')}</div>
+              )}
+              {(error || errorMsg) && (
+                <div role="alert" className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-sm leading-relaxed">
+                  {error || t(`errors.${KNOWN_ERRORS.includes(errorMsg ?? '') ? errorMsg : 'default'}`)}
+                </div>
+              )}
+            </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('email')}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="you@school.edu"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('password')}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="flex justify-end">
-            <a
-              href="/forgot-password"
-              className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
+            <form onSubmit={handleLogin} className="mt-4 space-y-5">
+              <div>
+                <label htmlFor="login-email" className="block text-sm font-medium text-slate-300 mb-2">{t('email')}</label>
+                <input
+                  id="login-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  dir="ltr"
+                  className={INPUT}
+                  placeholder="you@school.edu"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="login-password" className="block text-sm font-medium text-slate-300">{t('password')}</label>
+                  <a href="/forgot-password" className="text-blue-400 hover:text-blue-300 text-xs transition-colors">{t('forgot')}</a>
+                </div>
+                {/* LTR box so the toggle sits at the far end of the typed text in both languages. */}
+                <div className="relative" dir="ltr">
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    onKeyUp={e => setCapsLock(e.getModifierState('CapsLock'))}
+                    onKeyDown={e => setCapsLock(e.getModifierState('CapsLock'))}
+                    onBlur={() => setCapsLock(false)}
+                    required
+                    className={`${INPUT} pe-20`}
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-pressed={showPassword}
+                    aria-controls="login-password"
+                    className="absolute inset-y-1.5 end-1.5 px-3 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
+                    {showPassword ? t('hidePassword') : t('showPassword')}
+                  </button>
+                </div>
+                {capsLock && <p className="mt-2 text-amber-300 text-xs">{t('capsLock')}</p>}
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-accent font-semibold rounded-xl transition-colors shadow-lg shadow-blue-600/25"
+              >
+                {loading ? t('submitLoading') : t('submit')}
+              </button>
+            </form>
+
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-slate-800" />
+              <span className="text-xs text-slate-500">{t('or')}</span>
+              <div className="flex-1 h-px bg-slate-800" />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              className="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-slate-900 border border-slate-700 hover:border-slate-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors"
             >
-              {t('forgot')}
-            </a>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-          >
-            {loading ? t('submitLoading') : t('submit')}
-          </button>
-        </form>
+              <GoogleIcon />
+              {googleLoading ? t('googleLoading') : t('google')}
+            </button>
 
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-slate-500">{t('or')}</span>
-          <div className="flex-1 h-px bg-white/10" />
+            <p className="mt-8 text-slate-500 text-sm leading-relaxed border-s-2 border-slate-700 ps-3">{t('invitationNote')}</p>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-medium rounded-lg transition-colors"
-        >
-          <GoogleIcon />
-          {googleLoading ? t('googleLoading') : t('google')}
-        </button>
-      </div>
+        <div className="relative">
+          <Link href="/" className="text-slate-400 hover:text-white text-sm transition-colors">{t('backHome')}</Link>
+        </div>
+      </main>
+
+      <ShowcasePanel copy={showcase} />
     </div>
   )
 }
@@ -179,7 +313,7 @@ function GoogleIcon() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="eq-public min-h-screen flex items-center justify-center bg-slate-950">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>

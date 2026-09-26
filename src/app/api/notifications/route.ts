@@ -5,6 +5,44 @@ import { getTranslations } from 'next-intl/server'
 
 interface Notif { id: string; type: string; title: string; subtitle: string; date: string; href: string }
 
+interface AiAlertRow {
+  id: string
+  level: 'warning' | 'exceeded'
+  metric: 'requests' | 'tokens'
+  created_at: string
+  tenants: { name: string; ai_alert_threshold_pct: number | null } | { name: string; ai_alert_threshold_pct: number | null }[] | null
+}
+
+// Monthly AI allowance alerts (supabase/ai_usage_metering_migration.sql). RLS
+// shows super_admin every institution's and a university_admin their own. A
+// missing table (migration not applied) just yields no items.
+async function aiAllowanceAlerts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  t: Awaited<ReturnType<typeof getTranslations>>,
+  href: string,
+): Promise<Notif[]> {
+  const { data, error } = await supabase
+    .from('ai_usage_alerts')
+    .select('id, level, metric, created_at, tenants(name, ai_alert_threshold_pct)')
+    .order('created_at', { ascending: false })
+    .limit(6)
+  if (error) return []
+  return ((data ?? []) as unknown as AiAlertRow[]).map(a => {
+    const tn = Array.isArray(a.tenants) ? a.tenants[0] : a.tenants
+    const name = tn?.name ?? ''
+    return {
+      id: `ai-alert-${a.id}`,
+      type: 'ai_alert',
+      title: a.level === 'exceeded'
+        ? t('aiAllowanceExceeded', { name })
+        : t('aiAllowanceWarning', { name, pct: tn?.ai_alert_threshold_pct ?? 80 }),
+      subtitle: '',
+      date: a.created_at,
+      href,
+    }
+  })
+}
+
 // GET /api/notifications — recent, role-aware activity for the header bell.
 // Reads through the user's session (RLS-scoped); no notifications table —
 // items are derived from recent domain activity, newest first.
@@ -77,6 +115,7 @@ export async function GET() {
     for (const u of (users ?? []) as Array<{ id: string; full_name: string; role: string; created_at: string }>) {
       items.push({ id: `user-${u.id}`, type: 'user', title: t('newUser', { role: u.role, name: u.full_name }), subtitle: '', date: u.created_at, href: u.role === 'teacher' ? '/admin/teachers' : '/admin/students' })
     }
+    items.push(...await aiAllowanceAlerts(supabase, t, '/admin/dashboard'))
 
   } else if (role === 'super_admin') {
     const [{ data: msgs }, { data: tenants }] = await Promise.all([
@@ -89,6 +128,7 @@ export async function GET() {
     for (const tn of (tenants ?? []) as Array<{ id: string; name: string; created_at: string }>) {
       items.push({ id: `tenant-${tn.id}`, type: 'tenant', title: t('newTenant', { name: tn.name }), subtitle: '', date: tn.created_at, href: '/super-admin/tenants' })
     }
+    items.push(...await aiAllowanceAlerts(supabase, t, '/super-admin/ai-usage'))
   }
 
   items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())

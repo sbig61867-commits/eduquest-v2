@@ -2,19 +2,21 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS } from '@/i18n/config'
 import { resolveLocale } from '@/i18n/resolve'
-import { LOCALE_HEADER, splitLocalizedPath } from '@/i18n/public-routes'
+import { LOCALE_HEADER, isMarketingPath, splitLocalizedPath } from '@/i18n/public-routes'
 import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/about', '/security', '/ai', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
 // yet (they're creating their account), so gating it would 307-redirect the
 // POST to /login and the client would see a non-JSON body as "Registration failed".
 // /auth/signout is public so an already-expired session can still clear its cookies.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/demo-', '/demo']
+// /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
+// and is gated by CRON_SECRET inside the route instead.
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
@@ -117,8 +119,9 @@ async function ensureLocaleCookie(
  * existing `<path>` route: rewrite, hand the locale to the renderer on
  * LOCALE_HEADER, and carry over any session cookies updateSession() refreshed.
  *
- * The visitor's `eq_locale` cookie is set to match, so the language they
- * picked by URL follows them to /login and into the app.
+ * The visitor's `eq_locale` cookie is set to match only when it differs, so
+ * the language they picked by URL follows them to /login and into the app
+ * (PublicNav also syncs it in the browser, for visitors served from the CDN).
  */
 function rewriteLocalized(request: NextRequest, sessionResponse: NextResponse, locale: Locale, path: string) {
   const url = request.nextUrl.clone()
@@ -127,7 +130,37 @@ function rewriteLocalized(request: NextRequest, sessionResponse: NextResponse, l
   requestHeaders.set(LOCALE_HEADER, locale)
   const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
   for (const cookie of sessionResponse.cookies.getAll()) response.cookies.set(cookie)
-  response.cookies.set(LOCALE_COOKIE, locale, LOCALE_COOKIE_OPTIONS)
+  if (request.cookies.get(LOCALE_COOKIE)?.value !== locale) {
+    response.cookies.set(LOCALE_COOKIE, locale, LOCALE_COOKIE_OPTIONS)
+  }
+  return response
+}
+
+/**
+ * Edge caching for public marketing pages. `/ar/…` and `/en/…` render the
+ * same HTML for every signed-out visitor (the language comes from the URL, the
+ * theme is applied in the browser — src/lib/theme.ts), so Vercel's CDN may
+ * keep a copy for a few minutes and answer from the edge nearest the visitor
+ * instead of rendering again. Only the CDN caches it (browsers still
+ * revalidate), a deploy purges it, and anything personal is excluded: signed-
+ * in users, responses that set cookies, and anything but a full page load.
+ */
+const EDGE_CACHE = 'public, max-age=300, stale-while-revalidate=86400'
+
+function withEdgeCache(request: NextRequest, response: NextResponse, signedIn: boolean): NextResponse {
+  const cacheable =
+    request.method === 'GET'
+    && !signedIn
+    // Full document loads only. Next.js strips the RSC/prefetch headers before
+    // the proxy sees them, so the Accept header is what tells a page load
+    // (text/html) from an RSC navigation or prefetch (never cached here).
+    && (request.headers.get('accept') ?? '').includes('text/html')
+    && !request.nextUrl.searchParams.has('_rsc')
+    && response.cookies.getAll().length === 0
+  if (cacheable) {
+    response.headers.set('Vercel-CDN-Cache-Control', EDGE_CACHE)
+    response.headers.set('CDN-Cache-Control', EDGE_CACHE)
+  }
   return response
 }
 
@@ -159,7 +192,10 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL(ROLE_DASHBOARDS[role], request.url))
       }
     }
-    if (localized) return rewriteLocalized(request, supabaseResponse, localized.locale, localized.path)
+    if (localized) {
+      const rewritten = rewriteLocalized(request, supabaseResponse, localized.locale, localized.path)
+      return isMarketingPath(localized.path) ? withEdgeCache(request, rewritten, !!user) : rewritten
+    }
     return supabaseResponse
   }
 

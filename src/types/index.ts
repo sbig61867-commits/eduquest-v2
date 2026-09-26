@@ -68,6 +68,19 @@ export interface Exam {
   starts_at: string | null
   ends_at: string | null
   created_at: string
+  course_id?: string | null
+  /** Individual follow-up task: the one student it is for (individual_tasks_migration.sql). */
+  assigned_student_id?: string | null
+  /** The exam an individual task follows up, when there is one. */
+  source_exam_id?: string | null
+  /** The teacher's note shown above the questions (weak points, what to do). */
+  instructions?: string | null
+  /** Private storage paths — never rendered directly; pages sign them into attachment_urls. */
+  attachments?: string[]
+  /** Short-lived signed URLs for `attachments`, added by the server page that serves the exam. */
+  attachment_urls?: string[]
+  /** false = feedback/practice only; never counted in averages. */
+  counts_toward_grade?: boolean
 }
 
 export interface Question {

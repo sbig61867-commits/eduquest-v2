@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { loadCourseAnalytics, courseInsights, formatInsight, type CourseAnalyticsRow } from '@/lib/engagement'
 
 // Improvement suggestions for ONE course, on demand only.
@@ -78,7 +78,7 @@ function parseSuggestions(raw: string): string[] {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('course_suggestions', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -88,6 +88,10 @@ export async function POST(request: Request) {
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'view_reports')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const limit = await rateLimit(`course_suggestions:${user.id}`, { limit: 10, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
@@ -118,10 +122,9 @@ export async function POST(request: Request) {
     if (suggestions.length === 0) {
       return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })
     }
-    void logAiUsage(user.id, profile.tenant_id, 'course_suggestions', 'groq')
     return NextResponse.json({ suggestions })
   } catch (err) {
     console.error('[api/ai/course-suggestions]', err instanceof Error ? err.message : err)
     return NextResponse.json({ ...(await apiErr('aiUnavailable')) }, { status: 503 })
   }
-}
+})

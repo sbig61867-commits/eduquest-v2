@@ -36,11 +36,22 @@ export default async function CourseBuildPage({ params }: { params: Promise<{ id
         .order('order_index')
     : { data: null }
 
+  // Quizzes and tasks created for this course on the exams page — a quiz or
+  // task item links to one of them (unit_items.content.exam_id).
+  const { data: assessments } = await supabase
+    .from('exams')
+    .select('id, title, type, is_published')
+    .eq('course_id', id)
+    .eq('teacher_id', user.id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
   return (
     <CourseBuildClient
       course={course}
       initialLevels={levels ?? []}
       initialFlatUnits={flatUnits ?? []}
+      assessments={assessments ?? []}
     />
   )
 }

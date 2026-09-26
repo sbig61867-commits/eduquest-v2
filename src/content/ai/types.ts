@@ -25,6 +25,18 @@ export interface CourseFacts {
   completed: number
 }
 
+/** What the teacher gives the model to draft one student's follow-up task. */
+export interface IndividualTaskFacts {
+  /** The exam or assignment the answer came from, when known. */
+  examTitle: string
+  /** The question the student was answering, when known. */
+  question: string
+  /** The student's answer: typed on the platform or read from a photo (OCR). */
+  answer: string
+  /** Anything the teacher already noticed or wants stressed. */
+  notes: string
+}
+
 export interface AiPromptText {
   announcementCopy: {
     system: string
@@ -40,5 +52,9 @@ export interface AiPromptText {
     header: (c: CourseFacts) => string[]
     groupsHeading: string
     notesHeading: string
+  }
+  individualTask: {
+    system: string
+    request: (f: IndividualTaskFacts) => string
   }
 }

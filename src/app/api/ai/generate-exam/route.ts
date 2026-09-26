@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
 import { aiChatDetailed } from '@/lib/ai/chat'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 
 interface Question {
   id: string
@@ -36,7 +36,7 @@ function validateQuestions(raw: unknown): Question[] {
   })
 }
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('exam', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -45,6 +45,10 @@ export async function POST(request: Request) {
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const aiLimits = await getAiRateLimits(supabase)
   const rl = await aiRateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
@@ -87,8 +91,7 @@ Return ONLY a valid JSON array, no markdown:
 Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] and 5 points. correct_answer must match an option exactly.`
 
   try {
-    const { content, provider } = await aiChatDetailed(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
-    void logAiUsage(user.id, profile.tenant_id, 'exam', provider)
+    const { content } = await aiChatDetailed(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
 
     const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
     const jsonMatch = text.match(/\[[\s\S]*\]/)
@@ -103,4 +106,4 @@ Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] 
     console.error('[generate-exam]', msg)
     return NextResponse.json({ ...(await apiErr('questionsFailed')), detail: msg }, { status: 500 })
   }
-}
+})

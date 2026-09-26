@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nextjs'
 import { QUIZ_SECTION_NAMES } from '@/content/ai'
 import { groqChat } from './groq'
+import { geminiUsage, meterCall } from './meter'
 
 // ── Unified AI chat with provider fallback ────────────────────────
 // Tries providers in order and moves to the next on any error (quota
@@ -17,7 +18,10 @@ function hasKey(name: string): boolean {
 }
 
 // Groq/Cerebras/OpenRouter all speak the OpenAI chat-completions dialect.
+// Every call is metered (tokens from the provider's `usage` block) — see meter.ts.
 async function openAiCompatChat(opts: {
+  /** Ledger name of the provider, e.g. 'cohere'. */
+  provider: string
   url: string
   apiKey: string
   model: string
@@ -28,29 +32,39 @@ async function openAiCompatChat(opts: {
   headers?: Record<string, string>
   temperature?: number
 }): Promise<string> {
-  const res = await fetch(opts.url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${opts.apiKey}`,
-      'Content-Type': 'application/json',
-      ...opts.headers,
-    },
-    body: JSON.stringify({
-      model: opts.model,
-      ...(opts.models ? { models: opts.models } : {}),
-      messages: [
-        ...(opts.systemPrompt ? [{ role: 'system', content: opts.systemPrompt }] : []),
-        { role: 'user', content: opts.prompt },
-      ],
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: 4096,
-    }),
+  const promptChars = opts.prompt.length + (opts.systemPrompt?.length ?? 0)
+  return meterCall(opts.provider, opts.model, promptChars, async () => {
+    const res = await fetch(opts.url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${opts.apiKey}`,
+        'Content-Type': 'application/json',
+        ...opts.headers,
+      },
+      body: JSON.stringify({
+        model: opts.model,
+        ...(opts.models ? { models: opts.models } : {}),
+        messages: [
+          ...(opts.systemPrompt ? [{ role: 'system', content: opts.systemPrompt }] : []),
+          { role: 'user', content: opts.prompt },
+        ],
+        temperature: opts.temperature ?? 0.7,
+        max_tokens: 4096,
+      }),
+    })
+    if (!res.ok) throw new Error(`${opts.url} ${res.status}: ${await res.text()}`)
+    const data = await res.json()
+    const content = data.choices?.[0]?.message?.content
+    if (!content) throw new Error('Provider returned no content')
+    return {
+      value: content as string,
+      // OpenRouter reports the model it actually routed to.
+      model: typeof data.model === 'string' ? data.model : undefined,
+      inputTokens: data.usage?.prompt_tokens,
+      outputTokens: data.usage?.completion_tokens,
+      outputChars: content.length,
+    }
   })
-  if (!res.ok) throw new Error(`${opts.url} ${res.status}: ${await res.text()}`)
-  const data = await res.json()
-  const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('Provider returned no content')
-  return content
 }
 
 // Cerebras dropped from the chain 2026-09-04 — free trial credit ran out and
@@ -59,6 +73,7 @@ async function openAiCompatChat(opts: {
 // [[ai-provider-chain]] memory. Replaced by Cohere below, in the same slot.
 function cohereChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   return openAiCompatChat({
+    provider: 'cohere',
     url: 'https://api.cohere.com/compatibility/v1/chat/completions',
     apiKey: process.env.COHERE_API_KEY!,
     // Cohere's flagship general-purpose model, OpenAI-compatible endpoint —
@@ -75,6 +90,7 @@ function cohereChat(prompt: string, systemPrompt?: string, temperature?: number)
 // promo-tagged ":free" model, so less likely to be pulled than the others.
 function xkiroChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   return openAiCompatChat({
+    provider: 'xkiro',
     url: 'https://api.xkiro.com/v1/chat/completions',
     apiKey: process.env.XKIRO_API_KEY!,
     model: 'deepseek/deepseek-v4-flash',
@@ -84,6 +100,7 @@ function xkiroChat(prompt: string, systemPrompt?: string, temperature?: number):
 
 function openRouterChat(prompt: string, systemPrompt?: string, temperature?: number): Promise<string> {
   return openAiCompatChat({
+    provider: 'openrouter',
     url: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: process.env.OPENROUTER_API_KEY!,
     // Free models get congested/retired individually, so let OpenRouter
@@ -107,15 +124,18 @@ async function geminiChat(prompt: string, systemPrompt?: string, temperature?: n
   const { AI_TIMEOUT_MS } = await import('./timeout')
   // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
   // current stable free-tier model, verified live.
+  const modelId = 'gemini-2.5-flash'
   const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!).getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: modelId,
     ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
     ...(temperature != null ? { generationConfig: { temperature } } : {}),
   }, { timeout: AI_TIMEOUT_MS })
-  const result = await model.generateContent(prompt)
-  const text = result.response.text()
-  if (!text) throw new Error('Gemini returned no content')
-  return text
+  return meterCall('gemini', modelId, prompt.length + (systemPrompt?.length ?? 0), async () => {
+    const result = await model.generateContent(prompt)
+    const text = result.response.text()
+    if (!text) throw new Error('Gemini returned no content')
+    return { value: text, ...geminiUsage(result.response), outputChars: text.length }
+  })
 }
 
 export interface AiChatOptions {

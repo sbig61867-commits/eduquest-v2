@@ -14,7 +14,7 @@ import { pricingText as enPricing } from '@/content/pricing/en'
  * allowed. The /demo copy is a product mock-up and is not covered.
  */
 const BANNED = /[—–\-,،()[\]"“”«»/:;!?؟…]|\.\.\./
-const SECTIONS = ['meta', 'shell', 'landing', 'featuresPage', 'pricingPage', 'contact', 'policy'] as const
+const SECTIONS = ['meta', 'shell', 'landing', 'featuresPage', 'pricingPage', 'aboutPage', 'securityPage', 'aiPage', 'contact', 'policy'] as const
 
 function offenders(node: unknown, path: string, out: string[] = []): string[] {
   if (typeof node === 'string') {

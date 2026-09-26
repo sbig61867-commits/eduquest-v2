@@ -14,7 +14,7 @@ import { getStudentTrack } from '@/lib/student-track'
 import {
   LogOut, ChevronLeft,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
-  GraduationCap, BookOpen, ClipboardList, ClipboardCheck, Activity, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel, Network,
+  GraduationCap, BookOpen, ClipboardList, ClipboardCheck, Activity, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel, Network, Sparkles,
 } from 'lucide-react'
 
 const ICONS = {
@@ -38,6 +38,7 @@ const ICONS = {
   CalendarDays,
   Gavel,
   Network,
+  Sparkles,
 } as const
 
 export type IconName = keyof typeof ICONS

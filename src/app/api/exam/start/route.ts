@@ -2,6 +2,8 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { isOnExamRoster } from '@/lib/exam-roster'
+import { signFileMap } from '@/lib/exam-files'
 
 // Students no longer have direct SELECT on exams (answer-leak fix). Reading exam
 // metadata here uses the service-role client; authorization is enforced
@@ -40,22 +42,15 @@ export async function POST(request: Request) {
   // Verify the exam exists and is published, and resolve its tenant + group
   const { data: exam } = await adminClient()
     .from('exams')
-    .select('id, tenant_id, group_id, starts_at, ends_at')
+    .select('*')   // incl. assigned_student_id when individual_tasks_migration is applied
     .eq('id', examId)
     .eq('is_published', true)
     .single()
 
   if (!exam) return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
 
-  // Verify enrollment in the exam's group
-  const { data: enrollment } = await supabase
-    .from('group_students')
-    .select('student_id')
-    .eq('group_id', exam.group_id)
-    .eq('student_id', user.id)
-    .single()
-
-  if (!enrollment) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
+  // Verify the student is on the exam's roster (its group, or its course)
+  if (!(await isOnExamRoster(supabase, exam, user.id))) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
 
   // Enforce the exam window at start time too (clear error before they begin)
   const now = Date.now()
@@ -92,6 +87,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('examStartFailed')) }, { status: 500 })
   }
   const out = result as { started_at: string; resumed: boolean; answers_draft?: Record<string, string> }
+
+  // An individual task can carry photos of the student's handwritten answers;
+  // hand back the ones already uploaded so a resumed attempt still shows them.
+  let answerFiles: Record<string, string> = {}
+  if (out.resumed && exam.assigned_student_id === user.id) {
+    const { data: sub } = await adminClient()
+      .from('exam_submissions').select('answer_files').eq('exam_id', examId).eq('student_id', user.id).maybeSingle()
+    answerFiles = await signFileMap(sub?.answer_files as Record<string, string> | null)
+  }
+
   // The exam screen restores these answers on resume (refresh / second device).
-  return NextResponse.json({ startedAt: out.started_at, resumed: out.resumed, answers_draft: out.answers_draft ?? {} })
+  return NextResponse.json({
+    startedAt: out.started_at, resumed: out.resumed, answers_draft: out.answers_draft ?? {}, answer_files: answerFiles,
+  })
 }

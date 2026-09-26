@@ -36,6 +36,9 @@ async function ownsExam(examId: string, teacherId: string, tenantId: string) {
 // through /api/homework with the service-role client.
 const MIN_EXAM_MINUTES = 1
 const MAX_EXAM_MINUTES = 600
+// Same untimed sentinel /api/homework uses: it only satisfies the finalize
+// RPC's deadline check; the real cutoff of a task is its due date (ends_at).
+const HOMEWORK_MINUTES = 43200
 
 function validDuration(v: unknown): number | null {
   const n = typeof v === 'number' ? v : Number(v)
@@ -55,46 +58,63 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
-  let body: { title?: string; group_id?: string; duration_minutes?: number; proctoring_enabled?: boolean; questions?: Question[] }
+  let body: {
+    title?: string; group_id?: string; course_id?: string; kind?: 'exam' | 'homework'
+    duration_minutes?: number; proctoring_enabled?: boolean; questions?: Question[]; due_date?: string | null
+  }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  const { title, group_id, duration_minutes, proctoring_enabled, questions } = body
-  if (!title?.trim() || !group_id) {
+  const { title, group_id, course_id, duration_minutes, proctoring_enabled, questions, due_date } = body
+  const kind = body.kind ?? 'exam'
+  // An exam belongs to exactly one group OR one course (DB CHECK
+  // exam_must_belong_to_group_or_course). Group homework is created from its
+  // lesson through /api/homework, so 'homework' here is a course task only.
+  if (!title?.trim() || (!group_id === !course_id) || (kind !== 'exam' && kind !== 'homework') || (kind === 'homework' && !course_id)) {
     return NextResponse.json({ ...(await apiErr('titleAndGroupRequired')) }, { status: 400 })
   }
 
-  const minutes = duration_minutes === undefined ? 60 : validDuration(duration_minutes)
+  const minutes = kind === 'homework' ? HOMEWORK_MINUTES : duration_minutes === undefined ? 60 : validDuration(duration_minutes)
   if (minutes === null) {
     return NextResponse.json(
       { ...(await apiErr('examDurationRange', { min: MIN_EXAM_MINUTES, max: MAX_EXAM_MINUTES })) },
       { status: 400 }
     )
   }
-
-  // Verify group belongs to this teacher in this tenant
-  const { data: group } = await adminClient()
-    .from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
-  if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
+  const dueAt = kind === 'homework' && due_date ? new Date(due_date) : null
+  if (dueAt && Number.isNaN(dueAt.getTime())) {
+    return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   }
-  if (profile.role === 'teacher' && group.teacher_id !== user.id) {
+
+  // The target is client-supplied and decides who the exam is served to:
+  // verify it belongs to this teacher (or, for an admin, to this tenant).
+  const target = group_id
+    ? await adminClient().from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
+    : await adminClient().from('courses').select('id, teacher_id, tenant_id, deleted_at').eq('id', course_id!).single()
+  const owner = target.data as { teacher_id: string | null; tenant_id: string; deleted_at?: string | null } | null
+  if (!owner || owner.tenant_id !== profile.tenant_id || owner.deleted_at) {
+    return NextResponse.json({ ...(await apiErr(group_id ? 'groupNotFound' : 'courseNotFound')) }, { status: 404 })
+  }
+  if (profile.role === 'teacher' && owner.teacher_id !== user.id) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { data, error } = await adminClient()
     .from('exams')
     .insert({
-      type: 'exam',
+      type: kind,
       title: title.trim(),
-      group_id,
+      group_id: group_id ?? null,
+      course_id: course_id ?? null,
       teacher_id: user.id,
       tenant_id: profile.tenant_id,
       duration_minutes: minutes,
-      proctoring_enabled: proctoring_enabled ?? false,
+      // A course task is untimed and unproctored, like lesson homework.
+      proctoring_enabled: kind === 'exam' ? (proctoring_enabled ?? false) : false,
+      ends_at: dueAt ? dueAt.toISOString() : null,
       questions: questions ?? [],
     })
-    .select('*, groups(name)')
+    .select('*, groups(name), courses(title)')
     .single()
 
   if (error) {

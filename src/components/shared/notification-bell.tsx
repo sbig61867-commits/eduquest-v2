@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, BookOpen, ClipboardList, BarChart2, Send, UserPlus, Mail, Building2 } from 'lucide-react'
+import { Bell, BookOpen, ClipboardList, BarChart2, Send, UserPlus, Mail, Building2, Sparkles } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
@@ -11,13 +11,13 @@ interface Notif { id: string; type: string; title: string; subtitle: string; dat
 
 const ICONS: Record<string, typeof Bell> = {
   lesson: BookOpen, exam: ClipboardList, grade: BarChart2,
-  submission: Send, user: UserPlus, message: Mail, tenant: Building2,
+  submission: Send, user: UserPlus, message: Mail, tenant: Building2, ai_alert: Sparkles,
 }
 const COLORS: Record<string, string> = {
   lesson: 'bg-violet-600/20 text-violet-400', exam: 'bg-amber-600/20 text-amber-400',
   grade: 'bg-emerald-600/20 text-emerald-400', submission: 'bg-blue-600/20 text-blue-400',
   user: 'bg-cyan-600/20 text-cyan-400', message: 'bg-pink-600/20 text-pink-400',
-  tenant: 'bg-indigo-600/20 text-indigo-400',
+  tenant: 'bg-indigo-600/20 text-indigo-400', ai_alert: 'bg-amber-600/20 text-amber-400',
 }
 const SEEN_KEY = 'eq_notif_seen_at'
 

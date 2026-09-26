@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { apiErr, type ApiErrorCode } from '@/lib/api-error'
+import { geminiUsage, meterCall } from './meter'
 
 // ── Unified file-content extraction ──────────────────────────────
 // Single entry point for every "teacher uploads a file" feature
@@ -74,8 +75,12 @@ Output only the transcribed text.`
 
   try {
     const data = Buffer.from(buffer).toString('base64')
-    const result = await model.generateContent([{ inlineData: { mimeType, data } }, prompt])
-    return result.response.text()
+    // Metered as a Gemini call: an uploaded page is billed as input tokens.
+    return await meterCall('gemini', 'gemini-2.5-flash', prompt.length, async () => {
+      const result = await model.generateContent([{ inlineData: { mimeType, data } }, prompt])
+      const text = result.response.text()
+      return { value: text, ...geminiUsage(result.response), outputChars: text.length }
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     if (msg.includes('429') || msg.toLowerCase().includes('quota')) {

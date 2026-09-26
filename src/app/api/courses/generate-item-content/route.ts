@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 
 function adminClient() {
   return createAdminClient(
@@ -16,7 +17,7 @@ function adminClient() {
 // POST /api/courses/generate-item-content  body: { course_id, title }
 // Generates the markdown content for one section STRICTLY from the course's stored
 // source file text — never from outside/general knowledge.
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('item-content', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -24,6 +25,10 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const rl = await aiRateLimit(`item-content:${user.id}`, { limit: 30, windowSecs: 3600 })
   if (!rl.allowed) {
@@ -76,4 +81,4 @@ ${course.source_text.slice(0, 10000)}`
     console.error('[generate-item-content]', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
-}
+})

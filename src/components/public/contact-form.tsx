@@ -64,7 +64,7 @@ export function ContactForm() {
           className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors resize-y" />
       </div>
       <button type="submit" disabled={sending}
-        className="w-full px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold transition-colors flex items-center justify-center gap-2">
+        className="w-full px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-on-accent font-semibold transition-colors flex items-center justify-center gap-2">
         {sending ? t('sending') : t('send')}
       </button>
     </form>

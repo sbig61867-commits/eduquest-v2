@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { AccessToken } from 'livekit-server-sdk'
+import { isOnExamRoster } from '@/lib/exam-roster'
 
 function adminClient() {
   return createAdminClient(
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   const admin = adminClient()
   const { data: exam } = await admin
     .from('exams')
-    .select('id, teacher_id, group_id, proctoring_enabled')
+    .select('*')
     .eq('id', examId)
     .single()
   if (!exam || !exam.proctoring_enabled) {
@@ -57,13 +58,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     }
   } else {
-    // Student must be enrolled in the exam's group.
-    const { count } = await admin
-      .from('group_students')
-      .select('student_id', { count: 'exact', head: true })
-      .eq('group_id', exam.group_id)
-      .eq('student_id', user.id)
-    if (!count) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
+    // Student must be on the exam's roster (its group, or its course).
+    if (!(await isOnExamRoster(admin, exam, user.id))) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
   }
 
   const isTeacher = role === 'teacher'

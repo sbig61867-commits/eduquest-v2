@@ -4,7 +4,7 @@ import { ScopedIntlProvider } from '@/i18n/provider'
 import { toLocale } from '@/i18n/config'
 import { marketingAlternates, type MarketingPath } from '@/i18n/public-routes'
 
-type MetaKey = 'home' | 'features' | 'pricing' | 'contact' | 'privacy' | 'terms'
+type MetaKey = 'home' | 'features' | 'pricing' | 'about' | 'security' | 'ai' | 'demo' | 'contact' | 'privacy' | 'terms'
 
 /**
  * Title, description and the per-language URLs (canonical + hreflang) for a
@@ -20,7 +20,15 @@ export async function marketingMetadata(key: MetaKey, path: MarketingPath): Prom
   }
 }
 
-/** Ships the `public` messages to a marketing page's client components. */
+/**
+ * Ships the `public` messages to a marketing page's client components, and
+ * opens the `.eq-public` scope that carries the light/dark appearance
+ * (src/app/globals.css, src/lib/theme.ts).
+ */
 export function MarketingPage({ children }: { children: React.ReactNode }) {
-  return <ScopedIntlProvider namespaces={['common', 'public']}>{children}</ScopedIntlProvider>
+  return (
+    <ScopedIntlProvider namespaces={['common', 'public']}>
+      <div className="eq-public">{children}</div>
+    </ScopedIntlProvider>
+  )
 }

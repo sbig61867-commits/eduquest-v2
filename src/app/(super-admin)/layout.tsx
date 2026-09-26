@@ -16,6 +16,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     { label: t('nav.invitations'), href: '/super-admin/invitations', icon: 'Mail' as const },
     { label: t('nav.messages'),    href: '/super-admin/messages',    icon: 'Inbox' as const },
     { label: t('nav.reports'),     href: '/super-admin/reports',     icon: 'BarChart2' as const },
+    { label: t('nav.aiUsage'),     href: '/super-admin/ai-usage',    icon: 'Sparkles' as const },
     { label: t('nav.features'),    href: '/super-admin/features',    icon: 'Flag' as const },
     { label: t('nav.audit'),       href: '/super-admin/audit',       icon: 'ShieldCheck' as const },
     { label: t('nav.settings'),    href: '/super-admin/settings',    icon: 'Settings' as const },

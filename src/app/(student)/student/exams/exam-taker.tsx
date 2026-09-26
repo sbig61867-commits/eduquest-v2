@@ -4,7 +4,8 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
-import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic, Monitor } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic, Monitor, Camera, Trash2, MessageSquareText } from 'lucide-react'
+import { prepareImageForUpload } from '@/lib/prepare-image'
 import type { Exam, Question, ProctoringEvent } from '@/types'
 import { useFaceDetection } from '@/hooks/use-face-detection'
 import { useObjectDetection } from '@/hooks/use-object-detection'
@@ -18,6 +19,8 @@ interface Props {
   tenantId: string
   violationWarningThreshold?: number
   onFinish: () => void
+  /** Label of the button on the result screen (defaults to "back to exams"). */
+  finishLabel?: string
 }
 
 // tenantId remains in Props for the caller's contract, but identity is
@@ -27,7 +30,7 @@ interface Props {
 // 'True'/'False' and graded in the DB, so only the visible label changes.
 const TRUE_FALSE_VALUES = ['True', 'False'] as const
 
-export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinish }: Props) {
+export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinish, finishLabel }: Props) {
   const t = useTranslations('student.taker')
   const locale = useLocale()
   // Homework is untimed: no countdown, no auto-submit — only the due date
@@ -49,6 +52,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [finalScore, setFinalScore] = useState<{ score: number; maxScore: number } | null>(null)
+  // Individual follow-up tasks: a photo of the handwritten answer per written
+  // question (signed URLs; the files themselves live in private storage).
+  const [answerFiles, setAnswerFiles] = useState<Record<string, string>>({})
+  const individual = !!exam.assigned_student_id
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -282,12 +289,13 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         streamRef.current?.getTracks().forEach(t => t.stop())
         if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
         setCameraStatus('idle')
-        toast.error(data.error ?? 'Could not start the exam.')
+        toast.error(data.error ?? t('startFailed'))
         return
       }
 
       // Resume support: compute real remaining time + restore server draft.
-      const { startedAt, resumed, answers_draft } = await res.json()
+      const { startedAt, resumed, answers_draft, answer_files } = await res.json()
+      if (answer_files && typeof answer_files === 'object') setAnswerFiles(answer_files)
       if (resumed && startedAt && !untimed) {
         const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
         const remaining = exam.duration_minutes * 60 - elapsedSecs
@@ -383,7 +391,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             <p className="text-amber-400 text-sm">{t('pendingReview')}</p>
           )}
           {violations.length > 0 && <p className="text-amber-400 text-sm">{t('violationsRecorded', { count: violations.length })}</p>}
-          <Button onClick={onFinish} className="mt-4">{t('backToExams')}</Button>
+          <Button onClick={onFinish} className="mt-4">{finishLabel ?? t('backToExams')}</Button>
         </div>
       </div>
     )
@@ -401,6 +409,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
                 : t('minutes', { count: exam.duration_minutes })}
             </p>
           </div>
+          <TeacherNote instructions={exam.instructions} urls={exam.attachment_urls} />
           <div className="space-y-3">
             {[
               untimed
@@ -503,13 +512,22 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       {exam.proctoring_enabled && violations.length >= violationWarningThreshold && (
         <div className="bg-red-600/20 border border-red-500 rounded-lg px-4 py-3 flex items-center gap-2 text-red-300 text-sm font-semibold">
           <AlertTriangle className="w-5 h-5 shrink-0" />
-          {violations.length} proctoring violations recorded. Your teacher will review all of them — further violations may invalidate this exam.
+          {t('violationsWarning', { count: violations.length })}
         </div>
+      )}
+
+      {(exam.instructions || (exam.attachment_urls?.length ?? 0) > 0) && (
+        <details className="bg-slate-900 border border-slate-800 rounded-xl px-5 py-3">
+          <summary className="cursor-pointer text-sm text-slate-300 flex items-center gap-2">
+            <MessageSquareText className="w-4 h-4 text-blue-400" />{t('teacherNote')}
+          </summary>
+          <div className="mt-3"><TeacherNote instructions={exam.instructions} urls={exam.attachment_urls} bare /></div>
+        </details>
       )}
 
       {/* Progress */}
       <div className="flex items-center gap-3">
-        <span className="text-slate-400 text-sm shrink-0">Q {current + 1} / {exam.questions.length}</span>
+        <span className="text-slate-400 text-sm shrink-0">{t('questionOf', { n: current + 1, total: exam.questions.length })}</span>
         <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
         </div>
@@ -554,6 +572,19 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             {(question.type === 'short_answer' || question.type === 'essay') && (
               <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder={t('answerPlaceholder')} />
             )}
+            {individual && (question.type === 'short_answer' || question.type === 'essay') && (
+              <AnswerPhoto
+                examId={exam.id}
+                questionId={question.id}
+                url={answerFiles[question.id]}
+                onChange={url => setAnswerFiles(f => {
+                  const next = { ...f }
+                  if (url) next[question.id] = url
+                  else delete next[question.id]
+                  return next
+                })}
+              />
+            )}
           </div>
         </div>
       )}
@@ -578,6 +609,108 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           </Button>
         )}
       </div>
+    </div>
+  )
+}
+
+/** The teacher's note on an individual task: weak points / what to do, plus their images. */
+function TeacherNote({ instructions, urls, bare = false }: { instructions?: string | null; urls?: string[]; bare?: boolean }) {
+  const t = useTranslations('student.taker')
+  const images = urls ?? []
+  if (!instructions && images.length === 0) return null
+  return (
+    <div className={bare ? 'space-y-3' : 'bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3'}>
+      {!bare && (
+        <p className="text-blue-300 text-sm font-medium flex items-center gap-2">
+          <MessageSquareText className="w-4 h-4" />{t('teacherNote')}
+        </p>
+      )}
+      {instructions && <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line">{instructions}</p>}
+      {images.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {images.map((url, i) => (
+            <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+              {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from private storage */}
+              <img src={url} alt={t('attachmentAlt', { n: i + 1 })} className="w-full h-28 object-cover" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A photo of the student's handwritten answer to one written question of an
+ * individual task. Shrunk on the device first (prepareImageForUpload), stored
+ * privately by /api/exam/answer-file, shown back through a signed URL.
+ */
+function AnswerPhoto({ examId, questionId, url, onChange }: {
+  examId: string; questionId: string; url?: string; onChange: (url: string | null) => void
+}) {
+  const t = useTranslations('student.taker')
+  const [busy, setBusy] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function upload(file: File) {
+    setBusy(true)
+    try {
+      const ready = await prepareImageForUpload(file)
+      const fd = new FormData()
+      fd.append('examId', examId)
+      fd.append('questionId', questionId)
+      fd.append('file', ready)
+      const res = await fetch('/api/exam/answer-file', { method: 'POST', body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) toast.error(data.error ?? t('photoFailed'))
+      else onChange(data.url)
+    } catch {
+      toast.error(t('photoFailed'))
+    }
+    setBusy(false)
+  }
+
+  async function remove() {
+    setBusy(true)
+    const res = await fetch('/api/exam/answer-file', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ examId, questionId }),
+    })
+    if (res.ok) onChange(null)
+    else toast.error((await res.json().catch(() => ({}))).error ?? t('photoFailed'))
+    setBusy(false)
+  }
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f) }}
+      />
+      {url ? (
+        <div className="flex items-start gap-3">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="block w-32 h-24 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from private storage */}
+            <img src={url} alt={t('photoAttached')} className="w-full h-full object-cover" />
+          </a>
+          <div className="flex flex-col gap-2">
+            <Button type="button" variant="secondary" size="sm" loading={busy} onClick={() => inputRef.current?.click()}>
+              <Camera className="w-4 h-4" />{t('replacePhoto')}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={remove} className="hover:text-red-400">
+              <Trash2 className="w-4 h-4" />{t('removePhoto')}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" variant="secondary" size="sm" loading={busy} onClick={() => inputRef.current?.click()}>
+            <Camera className="w-4 h-4" />{t('attachPhoto')}
+          </Button>
+          <span className="text-slate-500 text-xs">{t('photoHint')}</span>
+        </div>
+      )}
     </div>
   )
 }

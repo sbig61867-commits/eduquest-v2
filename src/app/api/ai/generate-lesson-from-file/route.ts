@@ -5,8 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { aiChatDetailed } from '@/lib/ai/chat'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
+import { geminiUsage, meterCall } from '@/lib/ai/meter'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
@@ -31,7 +32,7 @@ function getGeminiModel() {
 
 // ── Route ────────────────────────────────────────────────────────
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('lesson-from-file', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   // Limit comes from super-admin settings (ai_rate_limits.lesson_per_hour),
   // same as topic-based lesson generation — no more hardcoded 10.
@@ -83,14 +88,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { content, provider } = await composeLesson(fullText, level, customInstructions, questionTypes)
-    void logAiUsage(user.id, profile.tenant_id, 'lesson-from-file', provider)
+    const { content } = await composeLesson(fullText, level, customInstructions, questionTypes)
     return NextResponse.json({ content })
   } catch (e) {
     console.error('[generate-lesson-from-file] AI:', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
-}
+})
 
 // Prompt text: src/content/ai/lesson-from-file.ts.
 
@@ -124,19 +128,24 @@ async function composeWithGemini(fullText: string, level: string, customInstruct
   const chunks = splitIntoChunks(fullText, CHUNK_CHAR_TARGET)
   const model = getGeminiModel()
 
+  // Each chunk is one metered Gemini call (tokens from usageMetadata).
+  const generate = (prompt: string) => meterCall('gemini', GEMINI_MODEL, prompt.length, async () => {
+    const result = await model.generateContent(prompt)
+    const text = result.response.text()
+    return { value: text, ...geminiUsage(result.response), outputChars: text.length }
+  })
+
   if (chunks.length === 1) {
-    const result = await model.generateContent(buildLessonFromFilePrompt(chunks[0], level, customInstructions, qTypes))
-    return result.response.text()
+    return generate(buildLessonFromFilePrompt(chunks[0], level, customInstructions, qTypes))
   }
 
   // Long document: process each chunk independently (in order) and stitch
   // the results into one continuous lesson.
   const parts: string[] = []
   for (let i = 0; i < chunks.length; i++) {
-    const result = await model.generateContent(
+    parts.push(await generate(
       buildLessonFromFilePrompt(chunks[i], level, customInstructions, qTypes, { index: i, total: chunks.length })
-    )
-    parts.push(result.response.text())
+    ))
   }
   return parts.join('\n\n')
 }

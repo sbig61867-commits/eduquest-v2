@@ -144,7 +144,24 @@
     "completedSr": "(completed)",
     "nothingPublishedHint": "Your instructor has not published any content for this course. Check back soon.",
     "sectionsDone": "{done} of {total} sections complete",
-    "sectionOf": "Section {n} of {total}"
+    "sectionOf": "Section {n} of {total}",
+    "backToCourse": "Back to the course",
+    "videoUnavailable": "This video link is not valid. Please tell your teacher.",
+    "assessment": {
+      "quizNotAvailable": "This quiz is not available yet. It will appear here when your teacher publishes it.",
+      "taskNotAvailable": "This task is not available yet. It will appear here when your teacher publishes it.",
+      "questions": "{count, plural, one {# question} other {# questions}}",
+      "minutes": "{count, plural, one {# minute} other {# minutes}}",
+      "due": "Due {date}",
+      "noDue": "No due date",
+      "proctored": "Camera proctored",
+      "startQuiz": "Start the quiz",
+      "startTask": "Start the task",
+      "resume": "Continue where you left off",
+      "closed": "The due date has passed.",
+      "awaitingGrade": "Handed in. The grade is waiting for your teacher.",
+      "score": "Your score {score} of {max} ({pct}%)"
+    }
   },
   "exams": {
     "untimed": "No timer",
@@ -169,7 +186,9 @@
     "summary": "Available: {available} · Submitted: {completed}",
     "score": "Score",
     "minutesShort": "{count} min",
-    "questionCount": "{count, plural, =0{No questions} one{# question} other{# questions}}"
+    "questionCount": "{count, plural, =0{No questions} one{# question} other{# questions}}",
+    "forYou": "Just for you",
+    "teacherComment": "Your teacher's comment on your answer"
   },
   "taker": {
     "true": "True",
@@ -203,7 +222,18 @@
     "ruleTabs": "Tab switching and exiting fullscreen will be recorded.",
     "ruleInternet": "Make sure you have a stable internet connection.",
     "answered": "{count} answered",
-    "violationsRecorded": "{count, plural, one{# proctoring violation recorded} other{# proctoring violations recorded}}"
+    "violationsRecorded": "{count, plural, one{# proctoring violation recorded} other{# proctoring violations recorded}}",
+    "startFailed": "Could not start the exam.",
+    "violationsWarning": "{count, plural, one {# proctoring violation recorded} other {# proctoring violations recorded}}. Your teacher will review all of them, and further violations may invalidate this exam.",
+    "questionOf": "Question {n} of {total}",
+    "teacherNote": "From your teacher",
+    "attachmentAlt": "Teacher attachment {n}",
+    "attachPhoto": "Attach a photo of your answer",
+    "replacePhoto": "Replace photo",
+    "removePhoto": "Remove photo",
+    "photoAttached": "Your attached answer photo",
+    "photoFailed": "Could not upload the photo. Please try again.",
+    "photoHint": "Type your answer, photograph your answer on paper, or both."
   },
   "widgets": {
     "popup": {

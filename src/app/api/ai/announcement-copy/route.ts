@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 
 // Suggests announcement copy (title / body / button label) on the free Groq
 // tier. Text only — no image generation. Gated by manage_announcements and
@@ -37,7 +37,7 @@ function parseSuggestions(raw: string): Suggestion[] {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('announcement_copy', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -47,6 +47,10 @@ export async function POST(request: Request) {
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const limit = await rateLimit(`announcement_copy:${user.id}`, { limit: 15, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
@@ -67,10 +71,9 @@ export async function POST(request: Request) {
     if (suggestions.length === 0) {
       return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })
     }
-    void logAiUsage(user.id, profile.tenant_id, 'announcement_copy', 'groq')
     return NextResponse.json({ suggestions })
   } catch (err) {
     console.error('[api/ai/announcement-copy]', err instanceof Error ? err.message : err)
     return NextResponse.json({ ...(await apiErr('aiUnavailable')) }, { status: 503 })
   }
-}
+})

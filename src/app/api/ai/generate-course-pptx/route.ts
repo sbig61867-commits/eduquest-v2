@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChatDetailed } from '@/lib/ai/chat'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 
 // ── AI response parser ───────────────────────────────────────────
@@ -27,7 +27,7 @@ function parseAiJsonResponse(text: string): GeneratedCourse {
 
 // ── Route handler ────────────────────────────────────────────────
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('course-pptx', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -37,6 +37,10 @@ export async function POST(request: Request) {
   if (!profile?.can_create_courses) {
     return NextResponse.json({ ...(await apiErr('courseCreationDisabled')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const rl = await aiRateLimit(`course-file:${user.id}`, { limit: 5, windowSecs: 3600 })
   if (!rl.allowed) {
@@ -102,8 +106,7 @@ Document content:
 ${truncatedText}`
 
   try {
-    const { content: aiResponse, provider } = await aiChatDetailed(prompt, 'Return only valid JSON. No markdown. No explanation.')
-    void logAiUsage(user.id, profile.tenant_id, 'course-pptx', provider)
+    const { content: aiResponse } = await aiChatDetailed(prompt, 'Return only valid JSON. No markdown. No explanation.')
     const course = parseAiJsonResponse(aiResponse)
 
     if (!course.title || !Array.isArray(course.units) || course.units.length === 0) {
@@ -117,4 +120,4 @@ ${truncatedText}`
     console.error('[generate-course-file] AI error:', e)
     return NextResponse.json({ ...(await apiErr('courseFromFileFailed')) }, { status: 500 })
   }
-}
+})

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
-import { groupStudentRows, loadGroupData, requestNow, summarizeAttendance } from '@/lib/teacher-records'
+import { groupStudentRows, isShared, loadGroupData, requestNow, summarizeAttendance } from '@/lib/teacher-records'
 import { GroupRecordClient, type AssessmentBar } from './group-record-client'
 
 const CHART_LAST = 12
@@ -23,7 +23,8 @@ export default async function GroupRecordPage({ params }: { params: Promise<{ gr
 
   // Per-assessment average over the group's graded submissions, oldest first.
   const memberIds = new Set(data.members.map(m => m.studentId))
-  const bars: AssessmentBar[] = [...data.assessments]
+  // Work set for the whole group only: one student's individual task is not a group result.
+  const bars: AssessmentBar[] = data.assessments.filter(isShared)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .slice(-CHART_LAST)
     .map(a => {

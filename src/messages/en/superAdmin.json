@@ -11,7 +11,8 @@
     "reports": "Reports",
     "features": "Feature Flags",
     "audit": "Audit Log",
-    "settings": "Settings"
+    "settings": "Settings",
+    "aiUsage": "AI Usage"
   },
   "dashboard": {
     "title": "Platform overview",
@@ -54,25 +55,167 @@
     "noTenant": "No institution"
   },
   "aiUsage": {
-    "title": "AI Usage",
-    "subtitle": "How much each institution uses the AI generation chain (lessons, exams, courses).",
-    "loadError": "Could not load the usage data — run <code>supabase/ai_usage_log_migration.sql</code> on the database first.",
-    "totalCalls": "Total AI requests",
-    "activeTenants": "Active institutions",
-    "byTenant": "Usage by institution",
-    "noTenants": "No institutions yet.",
-    "columns": {
-      "tenant": "Institution",
-      "breakdown": "Breakdown",
-      "total": "Total requests",
-      "lastUsed": "Last used"
+    "title": "AI Usage & Cost",
+    "subtitle": "Every AI request on the platform: who used it, how many tokens it took, what it would cost, and each institution's monthly allowance.",
+    "migrationMissing": "Token and cost tracking is not active yet. Apply <code>supabase/ai_usage_metering_migration.sql</code> on the database.",
+    "loadError": "Could not load the usage report.",
+    "period": "Period",
+    "ranges": {
+      "7": "7 days",
+      "30": "30 days",
+      "90": "90 days",
+      "month": "This month",
+      "prev": "Last month"
+    },
+    "utcNote": "Days and months are counted in UTC.",
+    "legacyNote": "Requests logged before {date} were counted only, with no token or cost data.",
+    "exportCsv": "Export CSV",
+    "freeTier": {
+      "title": "Every AI provider runs on its free tier",
+      "body": "Nothing is billed today, so the actual cost is $0. The equivalent cost is what the same tokens would cost at each provider's published paid price. Use it to price plans for institutions and to see what growth would cost.",
+      "billed": "Billed providers: {providers}. Their calls count toward the actual cost."
+    },
+    "kpi": {
+      "requests": "Successful requests",
+      "requestsHint": "Failed: {failed} · Blocked: {blocked}",
+      "successRate": "Success rate",
+      "successRateHint": "Provider attempts: {calls}",
+      "tokens": "Tokens",
+      "tokensHint": "Input: {input} · Output: {output}",
+      "listCost": "Equivalent cost",
+      "listCostHint": "At paid prices",
+      "billedCost": "Actual cost",
+      "billedCostHint": "Actually billed",
+      "projection": "Month-end estimate",
+      "projectionHint": "Equivalent cost at this month's pace",
+      "avgCost": "Average per request",
+      "avgCostHint": "Tokens per request: {tokens}",
+      "latency": "Average response time",
+      "latencyHint": "95% of requests under {p95}"
+    },
+    "chart": {
+      "title": "Daily usage",
+      "metric": {
+        "requests": "Requests",
+        "tokens": "Tokens",
+        "cost": "Equivalent cost"
+      },
+      "empty": "No AI usage in this period.",
+      "failed": "Failed: {count}",
+      "showTable": "Show as table",
+      "hideTable": "Show as chart",
+      "day": "Day",
+      "ariaLabel": "Daily AI usage bar chart"
+    },
+    "tenants": {
+      "title": "Institutions",
+      "empty": "No institutions yet.",
+      "columns": {
+        "tenant": "Institution",
+        "requests": "Requests",
+        "tokens": "Tokens",
+        "cost": "Equivalent cost",
+        "month": "Allowance this month",
+        "lastUsed": "Last used"
+      },
+      "unlimited": "Unlimited",
+      "requestsOf": "Requests: {used} of {limit}",
+      "tokensOf": "Tokens: {used} of {limit}",
+      "requestsUsed": "Requests: {used}",
+      "edit": "Set allowance",
+      "inactive": "Inactive",
+      "alertWarning": "Past {pct}%",
+      "alertExceeded": "Limit reached",
+      "modeWarn": "Alert only",
+      "modeBlock": "Blocks at the limit",
+      "aiOff": "AI off"
+    },
+    "limits": {
+      "title": "Monthly AI allowance: {name}",
+      "usage": "Used this month so far. Requests: {requests} · Tokens: {tokens}",
+      "requestLimit": "Requests per month",
+      "tokenLimit": "Tokens per month",
+      "blankHint": "Leave empty for unlimited. 0 switches AI off for this institution.",
+      "action": "When the limit is reached",
+      "actionBlock": "Block new AI requests until next month",
+      "actionWarn": "Keep working, but raise an alert",
+      "threshold": "Early alert at (% of the limit)",
+      "thresholdHint": "You and the institution's admin get an alert in the notification bell.",
+      "invalid": "Enter a whole number of 0 or more, or leave the field empty.",
+      "invalidThreshold": "The alert percentage must be between 1 and 100.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Allowance saved",
+      "saveFailed": "Could not save the allowance"
     },
     "features": {
-      "lesson": "Lessons",
-      "exam": "Exams",
-      "course-pptx": "Courses",
-      "homework-from-file": "Homework (from a file)",
-      "lesson-from-file": "Lessons (from a file)"
+      "title": "By feature",
+      "empty": "No usage in this period.",
+      "columns": {
+        "feature": "Feature",
+        "requests": "Requests",
+        "share": "Share",
+        "avgTokens": "Tokens per request",
+        "cost": "Equivalent cost",
+        "failed": "Failed"
+      }
+    },
+    "providers": {
+      "title": "Providers and models",
+      "hint": "Every attempt, including fallbacks that failed before another provider answered.",
+      "empty": "No provider calls in this period.",
+      "columns": {
+        "provider": "Provider",
+        "model": "Model",
+        "attempts": "Attempts",
+        "failureRate": "Failure rate",
+        "avgMs": "Average time",
+        "tokens": "Tokens",
+        "cost": "Equivalent cost"
+      },
+      "estimated": "Estimated",
+      "unpriced": "No price",
+      "unpricedHint": "This model has no price yet, so its calls count as $0. Add it under Model prices."
+    },
+    "users": {
+      "title": "Top users",
+      "empty": "No usage in this period.",
+      "columns": {
+        "user": "User",
+        "tenant": "Institution",
+        "requests": "Requests",
+        "tokens": "Tokens",
+        "cost": "Equivalent cost"
+      },
+      "platform": "Platform"
+    },
+    "failures": {
+      "title": "Recent failed and blocked requests",
+      "empty": "None in this period.",
+      "blocked": "Blocked by the allowance",
+      "failed": "Failed",
+      "codes": "Codes: {codes}"
+    },
+    "platformUsage": "Platform account (no institution) · Requests: {requests} · Equivalent cost: {cost}",
+    "pricing": {
+      "title": "Model prices",
+      "hint": "USD per 1 million tokens, at each provider's paid price. A change applies to new requests; past requests keep the cost they were logged with.",
+      "verified": "Default prices verified on 26 September 2026.",
+      "columns": {
+        "model": "Model",
+        "input": "Input",
+        "output": "Output"
+      },
+      "modelPlaceholder": "provider/model-id",
+      "add": "Add model",
+      "remove": "Remove",
+      "billed": "Billed providers",
+      "billedHint": "Tick a provider only if you move it to a paid plan. Its calls then count as actual cost.",
+      "save": "Save prices",
+      "saved": "Prices saved",
+      "saveFailed": "Could not save the prices",
+      "reset": "Restore defaults",
+      "invalid": "Every row needs a model id and two prices of 0 or more."
     }
   },
   "features": {

@@ -9,6 +9,7 @@ import { getTerms } from '@/lib/terminology'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatDate } from '@/lib/utils'
+import { AiAllowanceCard } from '@/components/shared/ai-allowance-card'
 
 // Lesson/exam figures come from the metadata-only admin feeds (the admin
 // has no direct RLS read on lessons/exams — that would expose content and
@@ -78,6 +79,8 @@ export default async function AdminDashboard() {
           )
         })}
       </div>
+
+      <AiAllowanceCard supabase={supabase} />
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <h3 className="text-white font-semibold mb-4">{t('recentActivity')}</h3>

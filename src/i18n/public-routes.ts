@@ -21,7 +21,7 @@ import { LOCALES, type Locale, isLocale } from './config'
 export const LOCALE_HEADER = 'x-eq-locale'
 
 /** Marketing pages that exist in both languages. */
-export const MARKETING_PATHS = ['/', '/features', '/pricing', '/contact', '/privacy', '/terms'] as const
+export const MARKETING_PATHS = ['/', '/features', '/pricing', '/about', '/security', '/ai', '/demo', '/contact', '/privacy', '/terms'] as const
 export type MarketingPath = (typeof MARKETING_PATHS)[number]
 
 export function isMarketingPath(path: string): path is MarketingPath {

@@ -69,11 +69,11 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
-  let body: { id?: string; score?: number; grading_status?: string }
+  let body: { id?: string; score?: number; grading_status?: string; teacher_comment?: string | null }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  const { id, score, grading_status } = body
+  const { id, score, grading_status, teacher_comment } = body
   if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
   if (grading_status && !['pending', 'reviewing', 'published'].includes(grading_status)) {
     return NextResponse.json({ ...(await apiErr('invalidGradingStatus')) }, { status: 400 })
@@ -101,6 +101,16 @@ export async function PATCH(request: Request) {
     patch.is_graded = true
   }
   if (grading_status) patch.grading_status = grading_status
+  // The teacher's written review of the answer, shown to the student once the
+  // grading is published (individual_tasks_migration adds the column).
+  if (teacher_comment !== undefined) {
+    if (teacher_comment !== null && typeof teacher_comment !== 'string') {
+      return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+    }
+    const text = teacher_comment?.trim() ?? ''
+    if (text.length > 8000) return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
+    patch.teacher_comment = text || null
+  }
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
   }

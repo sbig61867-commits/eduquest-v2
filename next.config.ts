@@ -22,7 +22,12 @@ const CSP = [
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "media-src 'self' blob: data:",
+  // Course video items: a direct https video file the teacher linked (see
+  // src/lib/video-embed.ts, which only ever produces https URLs).
+  "media-src 'self' blob: data: https:",
+  // Only the two video players src/lib/video-embed.ts can produce. Nothing
+  // else may be framed (frame-ancestors below is the reverse direction).
+  "frame-src https://www.youtube-nocookie.com https://player.vimeo.com",
   "font-src 'self' data:",
   // Supabase (REST/auth/storage/realtime), the AI providers called from the
   // browser, LiveKit signalling, and Sentry ingest. Anything else is blocked,
