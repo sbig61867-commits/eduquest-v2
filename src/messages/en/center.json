@@ -1,6 +1,6 @@
 {
-  "headerTitle": "Centre Dashboard",
-  "sidebarTitle": "Centre Manager",
+  "headerTitle": "Continuing Education Dashboard",
+  "sidebarTitle": "Continuing Education Manager",
   "nav": {
     "dashboard": "Dashboard",
     "teachers": "Teachers",
@@ -14,7 +14,7 @@
     "mail": "My Mail"
   },
   "dashboard": {
-    "title": "Centre Manager Dashboard",
+    "title": "Continuing Education Manager Dashboard",
     "needsReports": "The dashboard requires the “View reports and transcripts” permission.",
     "loadFailed": "Could not load the dashboard. Make sure you have applied",
     "loadFailedThen": "then",
