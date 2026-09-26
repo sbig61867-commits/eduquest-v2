@@ -144,7 +144,24 @@
     "completedSr": "(مكتمل)",
     "nothingPublishedHint": "لم ينشر معلّمك أي محتوى لهذا المساق بعد. عُد لاحقاً.",
     "sectionsDone": "{done} من {total} قسم مكتمل",
-    "sectionOf": "القسم {n} من {total}"
+    "sectionOf": "القسم {n} من {total}",
+    "backToCourse": "العودة إلى المساق",
+    "videoUnavailable": "رابط هذا الفيديو غير صالح. أبلغ معلّمك.",
+    "assessment": {
+      "quizNotAvailable": "هذا الاختبار غير متاح بعد. سيظهر هنا عندما ينشره معلّمك.",
+      "taskNotAvailable": "هذه المهمة غير متاحة بعد. ستظهر هنا عندما ينشرها معلّمك.",
+      "questions": "{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالاً} other {{count} سؤال}}",
+      "minutes": "{count, plural, one {دقيقة واحدة} two {دقيقتان} few {{count} دقائق} many {{count} دقيقةً} other {{count} دقيقة}}",
+      "due": "آخر موعد {date}",
+      "noDue": "بلا موعد نهائي",
+      "proctored": "مراقب بالكاميرا",
+      "startQuiz": "ابدأ الاختبار",
+      "startTask": "ابدأ المهمة",
+      "resume": "متابعة من حيث توقفت",
+      "closed": "انتهى موعد التسليم.",
+      "awaitingGrade": "تم التسليم. الدرجة بانتظار تصحيح المعلّم.",
+      "score": "درجتك {score} من {max} ({pct}%)"
+    }
   },
   "exams": {
     "untimed": "بدون مؤقت",
@@ -169,7 +186,9 @@
     "summary": "متاح: {available} · مُسلَّم: {completed}",
     "score": "العلامة",
     "minutesShort": "{count} د",
-    "questionCount": "{count, plural, zero{لا أسئلة} one{سؤال واحد} two{سؤالان} few{{count} أسئلة} many{{count} سؤالاً} other{{count} سؤال}}"
+    "questionCount": "{count, plural, zero{لا أسئلة} one{سؤال واحد} two{سؤالان} few{{count} أسئلة} many{{count} سؤالاً} other{{count} سؤال}}",
+    "forYou": "مهمة خاصة بك",
+    "teacherComment": "ملاحظة معلّمك على حلّك"
   },
   "taker": {
     "true": "صح",
@@ -203,7 +222,18 @@
     "ruleTabs": "يُسجَّل الانتقال بين التبويبات والخروج من ملء الشاشة.",
     "ruleInternet": "تأكّد من أن اتصالك بالإنترنت مستقر.",
     "answered": "{count} مُجاب",
-    "violationsRecorded": "{count, plural, one{سُجّلت مخالفة مراقبة واحدة} two{سُجّلت مخالفتا مراقبة} few{سُجّلت {count} مخالفات مراقبة} many{سُجّلت {count} مخالفة مراقبة} other{سُجّلت {count} مخالفة مراقبة}}"
+    "violationsRecorded": "{count, plural, one{سُجّلت مخالفة مراقبة واحدة} two{سُجّلت مخالفتا مراقبة} few{سُجّلت {count} مخالفات مراقبة} many{سُجّلت {count} مخالفة مراقبة} other{سُجّلت {count} مخالفة مراقبة}}",
+    "startFailed": "تعذّر بدء الاختبار.",
+    "violationsWarning": "{count, plural, one {سُجّلت مخالفة مراقبة واحدة} two {سُجّلت مخالفتا مراقبة} few {سُجّلت {count} مخالفات مراقبة} many {سُجّلت {count} مخالفة مراقبة} other {سُجّلت {count} مخالفة مراقبة}}. سيراجعها معلّمك كلها، وقد تُلغي المخالفات الإضافية هذا الاختبار.",
+    "questionOf": "سؤال {n} من {total}",
+    "teacherNote": "من معلّمك",
+    "attachmentAlt": "مرفق من المعلّم {n}",
+    "attachPhoto": "أرفق صورة حلّك",
+    "replacePhoto": "استبدل الصورة",
+    "removePhoto": "احذف الصورة",
+    "photoAttached": "صورة حلّك المرفقة",
+    "photoFailed": "تعذّر رفع الصورة. حاول مرة أخرى.",
+    "photoHint": "يمكنك كتابة إجابتك، أو تصوير حلّك على الورق، أو الاثنين معاً."
   },
   "widgets": {
     "popup": {

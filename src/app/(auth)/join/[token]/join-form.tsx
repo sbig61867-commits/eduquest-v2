@@ -102,18 +102,22 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
     }
   }
 
+  const ring = isPublic ? 'focus:ring-violet-400' : 'focus:ring-blue-500'
+  const input = `w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 ${ring} focus:border-transparent transition`
+
   return (
-    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-      <h2 className="text-lg font-semibold text-white mb-5">{t('formTitle')}</h2>
+    <div className="rounded-[1.75rem] border border-slate-800 bg-slate-900/70 backdrop-blur-xl p-7 sm:p-10 shadow-2xl">
+      <h2 className="text-2xl font-bold text-white">{t('formTitle')}</h2>
+      <p className="text-slate-400 text-sm mt-2">{t('formSubtitle')}</p>
 
       {error && (
-        <div className="mb-4 space-y-2">
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+        <div className="mt-6 space-y-2">
+          <div role="alert" className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-sm">
             {error}
           </div>
           {isDev && debugInfo && (
             <details className="rounded-lg bg-slate-800 border border-slate-700 text-xs">
-              <summary className="px-3 py-2 text-amber-400 cursor-pointer select-none font-mono">
+              <summary className="px-3 py-2 text-amber-300 cursor-pointer select-none font-mono">
                 🛠 Dev — {t('devDetails')}
               </summary>
               <pre className="px-3 pb-3 text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
@@ -124,96 +128,110 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="mt-7 grid sm:grid-cols-2 gap-5">
         {/* Email — editable for public links, read-only for private */}
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('email')}</label>
+        <div className="sm:col-span-2">
+          <label htmlFor="join-email" className="block text-sm font-medium text-slate-300 mb-2">{t('email')}</label>
           {isPublic ? (
             <input
+              id="join-email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              dir="ltr"
+              autoComplete="email"
               placeholder="your@email.com"
-              className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+              className={input}
             />
           ) : (
             <>
               <input
+                id="join-email"
                 type="email"
                 value={invitedEmail}
                 readOnly
-                className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed select-none"
+                dir="ltr"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-800 text-slate-400 cursor-not-allowed select-none"
               />
-              <p className="text-xs text-slate-500 mt-1">
-                {t('lockedEmail')}
-              </p>
+              <p className="text-xs text-slate-500 mt-1.5">{t('lockedEmail')}</p>
             </>
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('fullName')}</label>
+        <div className="sm:col-span-2">
+          <label htmlFor="join-name" className="block text-sm font-medium text-slate-300 mb-2">{t('fullName')}</label>
           <input
+            id="join-name"
             type="text"
             value={fullName}
             onChange={e => setFullName(e.target.value)}
             required
             minLength={2}
+            autoComplete="name"
             placeholder={t('fullNamePlaceholder')}
-            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className={input}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('password')}</label>
+          <label htmlFor="join-password" className="block text-sm font-medium text-slate-300 mb-2">{t('password')}</label>
           <input
+            id="join-password"
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
             minLength={8}
+            autoComplete="new-password"
             placeholder={t('passwordPlaceholder')}
-            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className={input}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('confirmPassword')}</label>
+          <label htmlFor="join-confirm" className="block text-sm font-medium text-slate-300 mb-2">{t('confirmPassword')}</label>
           <input
+            id="join-confirm"
             type="password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             required
+            autoComplete="new-password"
             placeholder={t('confirmPlaceholder')}
-            className="w-full px-4 py-2.5 rounded-lg bg-white/10 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className={input}
           />
+          {confirmPassword.length > 0 && (
+            <p className={`text-xs mt-1.5 ${password === confirmPassword ? 'text-emerald-300' : 'text-red-300'}`}>
+              {password === confirmPassword ? t('match') : t('noMatch')}
+            </p>
+          )}
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className={`w-full py-2.5 px-4 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors mt-2 ${
+          className={`sm:col-span-2 w-full py-3 px-4 disabled:opacity-60 disabled:cursor-not-allowed text-on-accent font-semibold rounded-xl transition-colors shadow-lg ${
             isPublic
-              ? 'bg-purple-600 hover:bg-purple-500'
-              : 'bg-blue-600 hover:bg-blue-500'
+              ? 'bg-violet-600 hover:bg-violet-500 shadow-violet-600/20'
+              : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
           }`}
         >
           {loading ? t('submitLoading') : t('submit')}
         </button>
       </form>
 
-      <div className="flex items-center gap-3 mt-5">
-        <div className="flex-1 h-px bg-white/10" />
+      <div className="flex items-center gap-3 my-6">
+        <div className="flex-1 h-px bg-slate-800" />
         <span className="text-xs text-slate-500">{t('or')}</span>
-        <div className="flex-1 h-px bg-white/10" />
+        <div className="flex-1 h-px bg-slate-800" />
       </div>
 
       <button
         type="button"
         onClick={handleGoogleSignIn}
         disabled={googleLoading}
-        className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 px-4 bg-white hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-medium rounded-lg transition-colors"
+        className="w-full flex items-center justify-center gap-2.5 py-3 px-4 bg-slate-900 border border-slate-700 hover:border-slate-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors"
       >
         <GoogleIcon />
         {googleLoading ? t('googleLoading') : t('google')}

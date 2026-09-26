@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, BarChart3, BookOpen, CalendarCheck, ClipboardCheck, ClipboardList, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, BarChart3, BookOpen, CalendarCheck, ClipboardCheck, ClipboardList, ShieldAlert, UserRoundPen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { IndividualTaskComposer } from '@/components/teacher/records/individual-task-composer'
 import type { Locale } from '@/i18n/config'
 import { formatDate } from '@/lib/utils'
 import { itemDate, type AttendanceMark, type GroupInfo, type GroupMember, type RecordItem, type StudentSummary } from '@/lib/teacher-records'
@@ -15,14 +17,19 @@ type StatusFilter = 'all' | 'graded' | 'awaiting' | 'notSubmitted'
 const STATE_TONE = { graded: 'good', awaiting: 'info', inProgress: 'warn', missed: 'bad', open: 'muted' } as const
 const ATT_TONE = { present: 'good', late: 'warn', absent: 'bad', excused: 'info', unmarked: 'muted' } as const
 
-export function StudentRecordClient({ group, member, items, marks, summary }: {
+export function StudentRecordClient({ group, member, items, marks, summary, sources = [], followup }: {
   group: GroupInfo
   member: GroupMember
   items: RecordItem[]
   marks: AttendanceMark[]
   summary: StudentSummary
+  /** The group's shared exams/homework — what an individual task can follow up. */
+  sources?: { id: string; title: string }[]
+  /** Open the composer straight away, following up this exam. */
+  followup?: string
 }) {
   const t = useTranslations('teacher.records')
+  const [composing, setComposing] = useState(!!followup)
   const locale = useLocale() as Locale
   const [kind, setKind] = useState<KindFilter>('all')
   const [status, setStatus] = useState<StatusFilter>('all')
@@ -67,6 +74,9 @@ export function StudentRecordClient({ group, member, items, marks, summary }: {
             trend={summary.trend}
             labels={{ up: t('group.table.trendUp'), down: t('group.table.trendDown'), flat: t('group.table.trendFlat'), none: t('group.table.trendNone') }}
           />
+          <Button size="sm" className="ms-auto" onClick={() => setComposing(true)}>
+            <UserRoundPen className="w-4 h-4" />{t('individual.open')}
+          </Button>
         </div>
         <p className="text-slate-400 mt-1">
           {member.email}
@@ -148,9 +158,16 @@ export function StudentRecordClient({ group, member, items, marks, summary }: {
                     {i.assessment.kind === 'exam' ? t('student.items.exam') : t('student.items.homework')}
                   </Badge>
                   <Badge tone={STATE_TONE[i.status]}>{t(`student.items.state.${i.status}`)}</Badge>
+                  {i.assessment.assignedTo && <Badge tone="info">{t('individual.badge')}</Badge>}
+                  {i.assessment.countsTowardGrade === false && <Badge tone="muted">{t('individual.ungradedBadge')}</Badge>}
                   <span className="text-slate-500 text-xs">{date(itemDate(i))}</span>
                 </div>
                 <p className="text-slate-300 text-sm">{explain(i)}</p>
+                {i.assessment.assignedTo && (
+                  <Link href={`/teacher/exams?results=${i.assessment.id}`} className="inline-block text-xs text-blue-400 hover:text-blue-300">
+                    {t('individual.review')}
+                  </Link>
+                )}
                 {i.submission && i.status !== 'inProgress' && (
                   <p className="text-slate-500 text-xs">{t(`student.items.grading.${i.submission.gradingStatus}`)}</p>
                 )}
@@ -188,6 +205,13 @@ export function StudentRecordClient({ group, member, items, marks, summary }: {
                           {i.assessment.kind === 'exam' ? t('student.items.exam') : t('student.items.homework')}
                         </Badge>
                         {i.assessment.source === 'course' && <Badge tone="muted">{t('student.items.fromCourse')}</Badge>}
+                        {i.assessment.assignedTo && <Badge tone="info">{t('individual.badge')}</Badge>}
+                  {i.assessment.countsTowardGrade === false && <Badge tone="muted">{t('individual.ungradedBadge')}</Badge>}
+                        {i.assessment.assignedTo && (
+                          <Link href={`/teacher/exams?results=${i.assessment.id}`} className="text-xs text-blue-400 hover:text-blue-300">
+                            {t('individual.review')}
+                          </Link>
+                        )}
                         {i.assessment.lessonId && i.assessment.lessonTitle && (
                           <Link href={`/teacher/lessons/${i.assessment.lessonId}`} className="text-xs text-blue-400 hover:text-blue-300">
                             {t('student.items.lesson', { title: i.assessment.lessonTitle })}
@@ -280,6 +304,14 @@ export function StudentRecordClient({ group, member, items, marks, summary }: {
           )}
         </section>
       </div>
+      <IndividualTaskComposer
+        open={composing}
+        onClose={() => setComposing(false)}
+        groupId={group.id}
+        student={{ id: member.studentId, name: member.name || member.email }}
+        sources={sources}
+        initialSourceId={followup}
+      />
     </div>
   )
 }

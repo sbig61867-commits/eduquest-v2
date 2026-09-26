@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
+import { EVIDENCE_MAX_PER_STUDENT } from '@/lib/evidence-keys'
 
 // Captures a SINGLE evidence snapshot on SEVERE violations only — never
 // periodically, never with any AI. Enforces client-side cooldown + max
 // (the server re-enforces the max as source of truth). No video is stored.
+// The snapshot is a 320×240 WebP (~8–20 KB), kept outside Supabase for 30
+// hours for the exam's teacher only, then deleted (src/lib/evidence-keys.ts).
 //
 // Severity rules (agreed with the owner):
 //   • phone / suspicious object   → capture immediately
@@ -13,7 +16,7 @@ import { useCallback, useRef } from 'react'
 //   • face absent (sustained)     → capture after ~2 consecutive detections (~8s)
 //   • tab switch (repeated)       → capture on the 3rd occurrence
 
-const MAX_EVIDENCE = 10          // per student per exam (mirrors server cap)
+const MAX_EVIDENCE = EVIDENCE_MAX_PER_STUDENT
 const COOLDOWN_MS = 20_000       // spread evidence across the exam
 const FACE_ABSENT_WINDOW_MS = 6_000
 const CANVAS_W = 320
@@ -49,7 +52,11 @@ export function useEvidenceCapture(
       const ctx = canvas.getContext('2d')
       if (!ctx) { capturedRef.current -= 1; return }
       ctx.drawImage(video, 0, 0, CANVAS_W, CANVAS_H)
-      const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
+      // WebP is far smaller than JPEG at the same quality; browsers that cannot
+      // encode it return PNG instead, so fall back to a low-quality JPEG.
+      let dataUrl = canvas.toDataURL('image/webp', 0.5)
+      if (!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/jpeg', 0.55)
+      const base64 = dataUrl.split(',')[1]
       if (!base64) { capturedRef.current -= 1; return }
 
       const res = await fetch('/api/proctor/evidence', {

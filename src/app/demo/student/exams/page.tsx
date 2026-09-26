@@ -14,7 +14,7 @@ export default async function DemoStudentExams() {
           <DemoCard key={e.id} title={e.title}>
             <p className="text-slate-400 text-sm">{t('common.date', { date: e.date })}</p>
             <p className="text-slate-400 text-sm mb-3">{t('common.duration', { count: e.duration })}</p>
-            <button className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white">{t('student.enterExam')}</button>
+            <button className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-on-accent">{t('student.enterExam')}</button>
           </DemoCard>
         ))}
       </div>

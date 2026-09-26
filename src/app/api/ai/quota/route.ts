@@ -34,6 +34,7 @@ const FIXED_FEATURES: { key: string; limit: number }[] = [
   { key: 'course_suggestions', limit: 10 },
   { key: 'announcement_copy',  limit: 15 },
   { key: 'extract-file',       limit: 60 },
+  { key: 'individual_task_ai', limit: 30 },
 ]
 
 export async function GET() {

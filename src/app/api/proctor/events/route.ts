@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { isOnExamRoster } from '@/lib/exam-roster'
 
 // Records LOCAL proctoring detections (from the in-browser MediaPipe/TF/audio
 // layers) into the exam submission. NO AI is used here — this endpoint never
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   // Verify exam is published + proctored (service role — students can't SELECT exams).
   const { data: exam } = await adminClient()
     .from('exams')
-    .select('id, group_id, proctoring_enabled')
+    .select('*')
     .eq('id', examId)
     .eq('is_published', true)
     .single()
@@ -81,14 +82,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, appended: 0 })
   }
 
-  // Verify the student is enrolled in the exam's group before writing.
-  const { data: enrollment } = await supabase
-    .from('group_students')
-    .select('student_id')
-    .eq('group_id', exam.group_id)
-    .eq('student_id', user.id)
-    .single()
-  if (!enrollment) {
+  // Verify the student is on the exam's roster before writing.
+  if (!(await isOnExamRoster(supabase, exam, user.id))) {
     return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
   }
 

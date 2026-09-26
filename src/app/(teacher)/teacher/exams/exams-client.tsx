@@ -1,14 +1,15 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
-import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload } from 'lucide-react'
+import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload, GraduationCap, UserRoundPen, MessageSquareText } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
 import { extractFilesText } from '@/lib/ai/extract-client'
@@ -21,30 +22,62 @@ interface ResultRow {
   answers: Record<string, string>
   score: number | null; max_score: number; grading_status: string | null
   submitted_at: string | null; violations: number
+  /** Signed photos of handwritten answers, by question id (individual tasks). */
+  answer_file_urls?: Record<string, string>
+  teacher_comment?: string | null
 }
 interface ExamResults {
   title: string; group_name: string; max_score: number
   submitted_count: number; roster_count: number
   questions: Question[]
   results: ResultRow[]
+  group_id?: string | null
+  individual?: boolean
+  counts_toward_grade?: boolean
+  instructions?: string | null
+  attachment_urls?: string[]
 }
 
 const isAutoQ = (q: Question) => q.type === 'mcq' || q.type === 'true_false'
 const isAutoCorrect = (q: Question, ans?: string) =>
   (ans ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()
 
-interface Exam { id: string; title: string; duration_minutes: number; questions: Question[]; is_published: boolean; proctoring_enabled: boolean; created_at: string; groups: { name: string } | null }
+interface Exam {
+  id: string; title: string; duration_minutes: number; questions: Question[]; is_published: boolean; proctoring_enabled: boolean; created_at: string
+  type?: 'exam' | 'homework'; ends_at?: string | null
+  groups: { name: string } | null; courses?: { title: string } | null
+  assigned_student_id?: string | null; assignee?: { full_name: string | null } | null
+}
 interface Group { id: string; name: string }
-interface Props { initialExams: Exam[]; groups: Group[]; proctoringDefault?: boolean }
+interface Course { id: string; title: string }
+type Kind = 'exam' | 'homework'
+interface Props {
+  initialExams: Exam[]; groups: Group[]; courses?: Course[]; proctoringDefault?: boolean
+  /** Open the create modal for one course (arriving from the course builder). */
+  openFor?: { courseId: string; kind: Kind }
+  /** Open this exam's results straight away (arriving from a student's record). */
+  openResultsFor?: string
+}
 
-export function ExamsClient({ initialExams, groups, proctoringDefault = false }: Props) {
+interface ExamForm {
+  title: string; target: 'group' | 'course'; group_id: string; course_id: string; kind: Kind
+  duration_minutes: number; proctoring_enabled: boolean; due_date: string
+}
+
+export function ExamsClient({ initialExams, groups, courses = [], proctoringDefault = false, openFor, openResultsFor }: Props) {
   const router = useRouter()
   const t = useTranslations('teacher')
   const tAi = useTranslations('common.ai')
   const locale = useLocale() as Locale
   const [exams, setExams] = useState(initialExams)
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault })
+  const blankForm = (over: Partial<ExamForm> = {}): ExamForm => ({
+    title: '', target: groups.length || !courses.length ? 'group' : 'course',
+    group_id: groups[0]?.id ?? '', course_id: courses[0]?.id ?? '', kind: 'exam',
+    duration_minutes: 60, proctoring_enabled: proctoringDefault, due_date: '', ...over,
+  })
+  const [showModal, setShowModal] = useState(!!openFor)
+  const [form, setForm] = useState<ExamForm>(() =>
+    blankForm(openFor ? { target: 'course', course_id: openFor.courseId, kind: openFor.kind } : {}))
   const [questions, setQuestions] = useState<Question[]>([])
   const [aiTopic, setAiTopic] = useState('')
   const [aiCount, setAiCount] = useState(10)
@@ -121,6 +154,14 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     setResultsLoading(false)
   }
 
+  // A student's record links here to review and grade an individual task.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot deep link; openResults sets state after its fetch
+    if (openResultsFor) void openResults(openResultsFor)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const [comments, setComments] = useState<Record<string, string>>({})
+
   function autoScore(r: ResultRow): number {
     if (!results) return 0
     return results.questions.reduce((s, q) =>
@@ -134,7 +175,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     return autoScore(r) + manualSum
   }
 
-  async function patchSubmission(submissionId: string, patch: { score?: number; grading_status?: string }, examId: string) {
+  async function patchSubmission(submissionId: string, patch: { score?: number; grading_status?: string; teacher_comment?: string | null }, examId: string) {
     setGradeBusy(submissionId)
     const res = await fetch('/api/homework/submissions', {
       method: 'PATCH',
@@ -162,13 +203,33 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
     e.preventDefault()
     if (questions.length === 0) { toast.warning(t('exams.modal.addAtLeastOne')); return }
     setLoading(true)
+    const toCourse = form.target === 'course'
     const res = await fetch('/api/exams', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, questions }),
+      body: JSON.stringify({
+        title: form.title,
+        ...(toCourse ? { course_id: form.course_id, kind: form.kind } : { group_id: form.group_id }),
+        duration_minutes: form.duration_minutes,
+        proctoring_enabled: form.proctoring_enabled,
+        // datetime-local is the teacher's local time; send an absolute instant.
+        due_date: toCourse && form.kind === 'homework' && form.due_date ? new Date(form.due_date).toISOString() : null,
+        questions,
+      }),
     })
     const data = await res.json()
-    if (res.ok) { setExams(prev => [data, ...prev]); router.refresh() }
+    if (res.ok) {
+      setExams(prev => [data, ...prev])
+      // Arrived from the course builder: go back there to link it to an item.
+      if (openFor && toCourse) {
+        toast.success(t('exams.modal.createdForCourse'))
+        router.push(`/teacher/courses/${form.course_id}`)
+      } else {
+        router.refresh()
+      }
+    } else {
+      toast.error(data.error ?? t('exams.modal.createFailed'))
+    }
     setShowModal(false)
     setQuestions([])
     setLoading(false)
@@ -217,7 +278,7 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
           <h2 className="text-2xl font-bold text-white">{t('exams.title')}</h2>
           <p className="text-slate-400 mt-1">{t('exams.subtitle', { count: exams.length })}</p>
         </div>
-        <Button onClick={() => { setForm({ title: '', group_id: groups[0]?.id ?? '', duration_minutes: 60, proctoring_enabled: proctoringDefault }); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
+        <Button onClick={() => { setForm(blankForm()); setQuestions([]); setSelectedQ(new Set()); setExamFiles([]); setExamFileError(''); setGenMode('topic'); setShowModal(true) }}>
           <Plus className="w-4 h-4" /> {t('exams.newExam')}
         </Button>
       </div>
@@ -237,10 +298,17 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                     <h3 className="text-white font-semibold">{exam.title}</h3>
                     <Badge variant={exam.is_published ? 'green' : 'gray'}>{exam.is_published ? t('exams.published') : t('exams.draft')}</Badge>
                     {exam.proctoring_enabled && <Badge variant="blue"><ShieldCheck className="w-3 h-3 me-1" />{t('exams.proctored')}</Badge>}
+                    {exam.assigned_student_id
+                      ? <Badge variant="blue"><UserRoundPen className="w-3 h-3 me-1" />{t('exams.individualBadge', { name: exam.assignee?.full_name ?? '—' })}</Badge>
+                      : exam.type === 'homework' && <Badge variant="yellow">{t('exams.taskBadge')}</Badge>}
                   </div>
                   <p className="text-slate-400 text-sm flex items-center gap-1.5 flex-wrap">
-                    <Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span>
-                    · {t('exams.metaLine', { minutes: exam.duration_minutes, questions: exam.questions.length, date: formatDate(exam.created_at, locale) })}
+                    {exam.courses
+                      ? <><GraduationCap className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.courses.title}</span></>
+                      : <><Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span></>}
+                    · {exam.type === 'homework'
+                      ? t('exams.taskMetaLine', { questions: exam.questions.length, due: exam.ends_at ? t('exams.dueOn', { date: formatDateTime(exam.ends_at, locale) }) : t('exams.noDue') })
+                      : t('exams.metaLine', { minutes: exam.duration_minutes, questions: exam.questions.length, date: formatDate(exam.created_at, locale) })}
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -363,21 +431,60 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input label={t('exams.modal.examTitle')} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder={t('exams.modal.examTitlePlaceholder')} />
-            <div className="grid grid-cols-2 gap-4">
+            {courses.length > 0 && (
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-300">{t('exams.modal.groupLabel')}</label>
-                <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-slate-300">{t('exams.modal.targetLabel')}</label>
+                <div className="flex rounded-lg border border-slate-700 overflow-hidden w-fit">
+                  {(['group', 'course'] as const).map(target => (
+                    <button key={target} type="button" disabled={target === 'group' && groups.length === 0}
+                      onClick={() => setForm(p => ({ ...p, target, kind: target === 'group' ? 'exam' : p.kind }))}
+                      className={`px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${form.target === target ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}>
+                      {target === 'group' ? t('exams.modal.targetGroup') : t('exams.modal.targetCourse')}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <Input label={t('exams.modal.durationLabel')} type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              {form.target === 'group' ? (
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-300">{t('exams.modal.groupLabel')}</label>
+                  <select value={form.group_id} onChange={e => setForm(p => ({ ...p, group_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-300">{t('exams.modal.courseLabel')}</label>
+                  <select value={form.course_id} onChange={e => setForm(p => ({ ...p, course_id: e.target.value }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                </div>
+              )}
+              {form.target === 'course' && (
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-300">{t('exams.modal.kindLabel')}</label>
+                  <select value={form.kind} onChange={e => setForm(p => ({ ...p, kind: e.target.value as Kind }))} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="exam">{t('exams.modal.kindExam')}</option>
+                    <option value="homework">{t('exams.modal.kindTask')}</option>
+                  </select>
+                </div>
+              )}
+              {form.kind === 'exam' ? (
+                <Input label={t('exams.modal.durationLabel')} type="number" value={form.duration_minutes} onChange={e => setForm(p => ({ ...p, duration_minutes: Number(e.target.value) }))} min={5} />
+              ) : (
+                <Input label={t('exams.modal.dueDateLabel')} type="datetime-local" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
+              )}
             </div>
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.proctoring_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </div>
-              <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />{t('exams.modal.proctoringLabel')}</span>
-            </label>
+            {form.target === 'course' && <p className="text-slate-500 text-xs">{t('exams.modal.courseHint')}</p>}
+            {form.kind === 'exam' && (
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div onClick={() => setForm(p => ({ ...p, proctoring_enabled: !p.proctoring_enabled }))} className={`relative w-10 h-5 rounded-full transition-colors ${form.proctoring_enabled ? 'bg-blue-600' : 'bg-slate-700'}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.proctoring_enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+                <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />{t('exams.modal.proctoringLabel')}</span>
+              </label>
+            )}
 
             {questions.length > 0 && (
               <div className="space-y-2">
@@ -456,11 +563,28 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                 <p className="text-slate-400 text-sm flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {results.group_name}</p>
               </div>
               <div className="ms-auto flex gap-4 text-sm">
+                {results.individual && <Badge variant="blue">{t('exams.results.individual')}</Badge>}
                 <span className="text-slate-300">{t('exams.results.submittedOf', { submitted: results.submitted_count, total: results.roster_count })}</span>
                 <span className="text-slate-500">{t('exams.results.outOfMarks', { marks: results.max_score })}</span>
               </div>
             </div>
 
+            {results.individual && (results.instructions || (results.attachment_urls?.length ?? 0) > 0) && (
+              <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                <p className="text-blue-300 text-xs font-medium">{t('exams.results.sentToStudent')}</p>
+                {results.instructions && <p className="text-slate-200 text-sm whitespace-pre-line">{results.instructions}</p>}
+                {(results.attachment_urls?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {results.attachment_urls!.map((url, i) => (
+                      <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block w-20 h-16 rounded overflow-hidden border border-slate-700">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from private storage */}
+                        <img src={url} alt={t('exams.results.attachmentAlt', { n: i + 1 })} className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {results.results.length === 0 ? (
               <p className="text-slate-500 text-sm py-6 text-center">{t('exams.results.noStudents')}</p>
             ) : (
@@ -529,6 +653,12 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                           <span className={auto ? (correct ? 'text-emerald-300' : 'text-red-300') : 'text-slate-200'} dir="auto">{ans || t('exams.results.noAnswer')}</span>
                                         </p>
                                         {auto && !correct && <p className="text-xs ps-6 text-emerald-400">{t('exams.results.correctAnswer', { answer: q.correct_answer })}</p>}
+                                        {r.answer_file_urls?.[q.id] && (
+                                          <a href={r.answer_file_urls[q.id]} target="_blank" rel="noopener noreferrer" className="ms-6 block w-40 rounded-lg overflow-hidden border border-slate-700" title={t('exams.results.answerPhoto')}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from private storage */}
+                                            <img src={r.answer_file_urls[q.id]} alt={t('exams.results.answerPhoto')} className="w-full h-28 object-cover" />
+                                          </a>
+                                        )}
                                         {!auto && (
                                           <div className="flex items-center gap-2 ps-6">
                                             <label className="text-slate-400 text-xs">{t('exams.results.questionGrade')}</label>
@@ -546,7 +676,32 @@ export function ExamsClient({ initialExams, groups, proctoringDefault = false }:
                                     )
                                   })}
 
+                                  <div className="space-y-1.5">
+                                    <label className="flex items-center gap-1.5 text-slate-400 text-xs">
+                                      <MessageSquareText className="w-3.5 h-3.5" />{t('exams.results.commentLabel')}
+                                    </label>
+                                    <div className="flex items-start gap-2">
+                                      <textarea
+                                        value={comments[r.submission_id] ?? r.teacher_comment ?? ''}
+                                        onChange={e => setComments(c => ({ ...c, [r.submission_id!]: e.target.value }))}
+                                        rows={2} maxLength={8000} placeholder={t('exams.results.commentPlaceholder')}
+                                        className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-y focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                      <Button size="sm" variant="secondary" loading={gradeBusy === r.submission_id}
+                                        disabled={comments[r.submission_id] === undefined}
+                                        onClick={() => patchSubmission(r.submission_id!, { teacher_comment: comments[r.submission_id!] ?? '' }, resultsExamId)}>
+                                        <Save className="w-3.5 h-3.5" />{t('exams.results.saveComment')}
+                                      </Button>
+                                    </div>
+                                    <p className="text-slate-500 text-xs">{t('exams.results.commentHint')}</p>
+                                  </div>
+
                                   <div className="flex items-center gap-3 flex-wrap pt-1">
+                                    {!results.individual && results.group_id && (
+                                      <Link href={`/teacher/records/${results.group_id}/${r.student_id}?followup=${resultsExamId}`}
+                                        className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm">
+                                        <UserRoundPen className="w-3.5 h-3.5" />{t('exams.results.followUp')}
+                                      </Link>
+                                    )}
                                     {hasManualQ && (
                                       <>
                                         <span className="text-slate-300 text-sm">

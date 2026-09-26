@@ -6,6 +6,7 @@ import { writeLocaleCookie } from '@/components/shared/locale-switcher'
 import { pricingEnabled } from '@/lib/pricing/plans'
 import type { Locale } from '@/i18n/config'
 import { currentMarketingPath, localizedPath } from '@/i18n/public-routes'
+import { WRAP } from './ui'
 
 export type Lang = Locale
 
@@ -36,16 +37,59 @@ export { PublicNav } from './public-nav'
 
 export function PublicFooter({ lang }: { lang: Lang }) {
   const t = useTranslations('public.shell')
+  const f = useTranslations('public.shell.footer')
+  const columns: { title: string; links: { label: string; href: string }[] }[] = [
+    {
+      title: f('platform'),
+      links: [
+        { label: f('features'), href: localizedPath(lang, '/features') },
+        { label: f('ai'), href: localizedPath(lang, '/ai') },
+        { label: f('security'), href: localizedPath(lang, '/security') },
+        ...(pricingEnabled ? [{ label: t('pricing'), href: localizedPath(lang, '/pricing') }] : []),
+      ],
+    },
+    {
+      title: f('institution'),
+      links: [
+        { label: f('about'), href: localizedPath(lang, '/about') },
+        { label: f('demo'), href: localizedPath(lang, '/demo') },
+        { label: f('contact'), href: localizedPath(lang, '/contact') },
+      ],
+    },
+    {
+      title: f('policies'),
+      links: [
+        { label: t('privacy'), href: localizedPath(lang, '/privacy') },
+        { label: t('terms'), href: localizedPath(lang, '/terms') },
+      ],
+    },
+  ]
+
   return (
-    <footer className="border-t border-slate-800 mt-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-slate-400 text-sm">© {new Date().getFullYear()} EduQuest. {t('rights')}</p>
-        <div className="flex items-center gap-5 text-sm">
-          {pricingEnabled && <Link href={localizedPath(lang, '/pricing')} className="text-slate-400 hover:text-white transition-colors">{t('pricing')}</Link>}
-          <Link href={localizedPath(lang, '/privacy')} className="text-slate-400 hover:text-white transition-colors">{t('privacy')}</Link>
-          <Link href={localizedPath(lang, '/terms')} className="text-slate-400 hover:text-white transition-colors">{t('terms')}</Link>
-          <Link href={localizedPath(lang, '/contact')} className="text-slate-400 hover:text-white transition-colors">{t('contactUs')}</Link>
+    <footer className="border-t border-slate-800 mt-16 bg-slate-950">
+      <div className={`${WRAP} py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]`}>
+        <div className="sm:col-span-2 lg:col-span-1 max-w-sm">
+          <Link href={localizedPath(lang, '/')} className="inline-flex items-center gap-2.5">
+            <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
+            <span className="text-white font-bold text-lg">EduQuest</span>
+          </Link>
+          <p className="text-slate-400 text-sm mt-4 leading-relaxed">{f('tagline')}</p>
         </div>
+        {columns.map(col => (
+          <nav key={col.title} aria-label={col.title}>
+            <p className="text-white text-sm font-semibold">{col.title}</p>
+            <ul className="mt-4 space-y-3">
+              {col.links.map(l => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-slate-400 hover:text-white text-sm transition-colors">{l.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+      <div className="border-t border-slate-800/80">
+        <p className={`${WRAP} py-6 text-slate-500 text-sm`}>© {new Date().getFullYear()} EduQuest. {t('rights')}</p>
       </div>
     </footer>
   )

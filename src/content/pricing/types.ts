@@ -1,7 +1,7 @@
 // Wording of the /pricing page, one file per language (src/content/pricing/{ar,en}.ts).
 // Plan ids and prices are in src/lib/pricing/plans.ts; `plans` here is keyed by
 // those ids, so a plan without wording in either language is a type error.
-import type { PlanId } from '@/lib/pricing/plans'
+import type { LimitKey, PlanId } from '@/lib/pricing/plans'
 
 export interface PlanText {
   name: string
@@ -20,4 +20,13 @@ export interface PricingText {
   /** Bullets shown once under the cards — true for every plan. */
   includedInAll: string[]
   faqs: { q: string; a: string }[]
+  /** The usage-limits table; the numbers come from src/lib/pricing/plans.ts. */
+  limits: {
+    title: string
+    desc: string
+    limitLabel: string
+    byAgreement: string
+    labels: Record<LimitKey, string>
+    notes: string[]
+  }
 }

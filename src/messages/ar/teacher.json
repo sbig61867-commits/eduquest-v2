@@ -180,7 +180,18 @@
       "generateFailed": "فشل التوليد",
       "connectionError": "خطأ في الاتصال. حاول مجدداً.",
       "deleteFailed": "فشل حذف الاختبار",
-      "createExam": "إنشاء الاختبار ({marks} {unit})"
+      "createExam": "إنشاء الاختبار ({marks} {unit})",
+      "targetLabel": "يُقدَّم إلى",
+      "targetGroup": "مجموعة",
+      "targetCourse": "مقرر",
+      "courseLabel": "المقرر",
+      "kindLabel": "النوع",
+      "kindExam": "اختبار بمدة محددة",
+      "kindTask": "مهمة بموعد تسليم",
+      "dueDateLabel": "آخر موعد للتسليم (اختياري)",
+      "courseHint": "يظهر لطلاب المقرر المسجلين فيه. اربطه بعد ذلك بعنصر داخل وحدة من بناء المقرر.",
+      "createdForCourse": "تم الإنشاء. عد إلى المقرر واربطه بعنصر داخل الوحدة.",
+      "createFailed": "تعذر إنشاء الاختبار. حاول مرة أخرى."
     },
     "results": {
       "modalTitle": "نتائج الاختبار",
@@ -207,13 +218,27 @@
       "publish": "نشر النتيجة للطالب",
       "hide": "إخفاء النتيجة عن الطالب",
       "loadFailed": "فشل تحميل النتائج",
-      "saveFailed": "فشل الحفظ"
+      "saveFailed": "فشل الحفظ",
+      "individual": "مهمة فردية",
+      "sentToStudent": "ما أُرسل إلى الطالب",
+      "attachmentAlt": "مرفق {n}",
+      "answerPhoto": "صورة حل الطالب",
+      "commentLabel": "ملاحظتك على الحل",
+      "commentPlaceholder": "ما أحسن فيه وما يحتاج إلى تحسين",
+      "commentHint": "يراها الطالب بعد نشر التصحيح.",
+      "saveComment": "احفظ الملاحظة",
+      "followUp": "مهمة فردية لهذا الطالب"
     },
     "questionsViewer": {
       "titlePrefix": "أسئلة: {title}",
       "summary": "{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالاً} other {{count} سؤال}} · العلامة الكاملة:"
     },
-    "metaLine": "{minutes} د · {questions, plural, one {سؤال واحد} two {سؤالان} few {{questions} أسئلة} many {{questions} سؤالاً} other {{questions} سؤال}} · {date}"
+    "metaLine": "{minutes} د · {questions, plural, one {سؤال واحد} two {سؤالان} few {{questions} أسئلة} many {{questions} سؤالاً} other {{questions} سؤال}} · {date}",
+    "taskBadge": "مهمة",
+    "taskMetaLine": "{questions, plural, one {سؤال واحد} two {سؤالان} few {{questions} أسئلة} many {{questions} سؤالاً} other {{questions} سؤال}} · {due}",
+    "dueOn": "آخر موعد {date}",
+    "noDue": "بلا موعد نهائي",
+    "individualBadge": "فردية: {name}"
   },
   "engagement": {
     "title": "التفاعل على المنصة",
@@ -439,6 +464,26 @@
       "noGroupsYet": "لا يوجد طلاب في الاختبار الآن.",
       "muted": "الصوت مكتوم — اضغط للاستماع",
       "listening": "تستمع لكل الطلاب"
+    },
+    "optionalNotesLabel": "وصف أو تعليمات للطالب (اختياري)",
+    "assessment": {
+      "quizLabel": "الاختبار المرتبط",
+      "taskLabel": "المهمة المرتبطة",
+      "chooseQuiz": "اختر أحد اختبارات هذا المقرر",
+      "chooseTask": "اختر إحدى مهام هذا المقرر",
+      "noQuizzes": "لا يوجد اختبار لهذا المقرر بعد.",
+      "noTasks": "لا توجد مهمة لهذا المقرر بعد.",
+      "createQuiz": "إنشاء اختبار لهذا المقرر",
+      "createTask": "إنشاء مهمة لهذا المقرر",
+      "unpublishedHint": "غير منشور بعد، ولن يظهر للطلاب حتى تنشره من صفحة الاختبارات.",
+      "unpublishedBadge": "غير منشور",
+      "notLinked": "غير مرتبط",
+      "pickFirst": "اختر الاختبار أو المهمة المرتبطة أولاً."
+    },
+    "video": {
+      "urlLabel": "رابط الفيديو",
+      "hint": "رابط من يوتيوب أو فيميو، أو رابط مباشر لملف فيديو يبدأ بـ https.",
+      "invalid": "هذا الرابط غير مدعوم. استخدم رابط يوتيوب أو فيميو أو ملف فيديو مباشر."
     }
   },
   "lessonDetail": {
@@ -526,7 +571,24 @@
     "zoomHint": "اضغط للتكبير بجودة أعلى",
     "speaking": "يتكلم",
     "title": "المراقبة الحية — {exam}",
-    "connected": "{count, plural, zero{لا طلاب متصلون} one{طالب واحد متصل} two{طالبان متصلان} few{{count} طلاب متصلون} many{{count} طالباً متصلاً} other{{count} طالب متصل}}"
+    "connected": "{count, plural, zero{لا طلاب متصلون} one{طالب واحد متصل} two{طالبان متصلان} few{{count} طلاب متصلون} many{{count} طالباً متصلاً} other{{count} طالب متصل}}",
+    "evidence": {
+      "title": "لقطات المخالفات",
+      "note": "يطّلع عليها معلم الاختبار وحده، وتُحذف نهائياً بعد {hours, plural, one {ساعة واحدة} two {ساعتين} few {{hours} ساعات} many {{hours} ساعةً} other {{hours} ساعة}} من التقاطها.",
+      "empty": "لم تُلتقط أي لقطة حتى الآن. تُلتقط اللقطة عند المخالفات الجسيمة فقط.",
+      "disabled": "حفظ اللقطات غير مفعّل على المنصة بعد، فتُسجَّل المخالفات نصياً فقط.",
+      "loadError": "تعذّر تحميل اللقطات. ستُعاد المحاولة تلقائياً.",
+      "expiresIn": "{hours, plural, zero {تُحذف خلال أقل من ساعة} one {تُحذف خلال ساعة} two {تُحذف خلال ساعتين} few {تُحذف خلال {hours} ساعات} many {تُحذف خلال {hours} ساعةً} other {تُحذف خلال {hours} ساعة}}",
+      "close": "إغلاق",
+      "enlarge": "تكبير اللقطة",
+      "types": {
+        "suspicious_activity": "هاتف أو أداة مريبة",
+        "multiple_faces": "شخص آخر في الصورة",
+        "face_not_detected": "غياب الوجه",
+        "tab_switch": "مغادرة صفحة الاختبار",
+        "fullscreen_exit": "الخروج من ملء الشاشة"
+      }
+    }
   },
   "submissions": {
     "title": "التسليمات والدرجات",
@@ -718,6 +780,56 @@
         "of": "أنجز {done} من {total} عنصر منشور في {course}.",
         "none": "هذه المجموعة غير مرتبطة بمقرر من مقرراتك."
       }
+    },
+    "individual": {
+      "open": "مهمة فردية",
+      "badge": "مهمة فردية",
+      "ungradedBadge": "للتدريب بلا درجة",
+      "review": "افتح الحل والتصحيح",
+      "title": "مهمة فردية إلى {name}",
+      "step1": "1. ماذا كتب الطالب؟",
+      "step2": "2. ما سيصل إلى {name}",
+      "sourceLabel": "الاختبار الذي تتابعه (اختياري)",
+      "sourceNone": "لا شيء، اختبار ورقي أو ملاحظة عامة",
+      "usePlatformAnswer": "استخدم إجابته على المنصة",
+      "readPaper": "صورة حلّه على الورق",
+      "attachPaper": "أرفق الصورة بالمهمة ليراها الطالب",
+      "ocrHint": "تُقرأ الكتابة من الصورة آلياً لتحليلها. راجع النص المقروء قبل الاقتراح، فقد يخطئ في الخط غير الواضح.",
+      "answerLabel": "إجابة الطالب (للتحليل فقط، لا تُرسل إليه)",
+      "answerPlaceholder": "الصق إجابته أو اقرأها من صورة أو من المنصة",
+      "notesLabel": "ملاحظاتك (اختياري)",
+      "notesPlaceholder": "ما لاحظته أو ما تريد التركيز عليه",
+      "suggest": "اقترح نقاط الضعف والمهمة",
+      "suggestHint": "اقتراح مجاني يمكنك تعديله بالكامل. لا يُرسل شيء إلى الطالب قبل أن تضغط إرسال.",
+      "taskTitle": "عنوان المهمة",
+      "taskTitlePlaceholder": "مثال: إعادة كتابة الفقرة الثانية",
+      "instructionsLabel": "نقاط الضعف وما عليه فعله",
+      "instructionsPlaceholder": "اكتب له نقاط ضعفه وتوجيهاتك",
+      "questionsLabel": "المطلوب منه",
+      "questionPlaceholder": "سؤال أو فقرة يعيد العمل عليها",
+      "points": "الدرجة",
+      "removeQuestion": "احذف السؤال",
+      "addQuestion": "أضف سؤالاً",
+      "imagesLabel": "صور يراها الطالب",
+      "imageAlt": "صورة {n}",
+      "removeImage": "احذف الصورة",
+      "addImage": "أضف صورة ({count} من {max})",
+      "tooManyImages": "الحد الأقصى {max} صور.",
+      "dueLabel": "آخر موعد للتسليم (اختياري)",
+      "graded": "تُحتسب بدرجة",
+      "gradedHint": "تدخل درجتها في متوسط الطالب بعد أن تصححها.",
+      "ungradedHint": "للتدريب والملاحظات فقط، ولا تؤثر في متوسط الطالب.",
+      "cancel": "إلغاء",
+      "send": "أرسل إلى {name}",
+      "sent": "أُرسلت المهمة إلى {name}.",
+      "sendFailed": "تعذّر إرسال المهمة.",
+      "uploadFailed": "تعذّر رفع الصورة.",
+      "answerLoadFailed": "تعذّر تحميل إجابات الاختبار.",
+      "noPlatformAnswer": "لا توجد إجابة كتابية لهذا الطالب في هذا الاختبار.",
+      "answerFirst": "أضف إجابة الطالب أولاً.",
+      "suggestFailed": "تعذّر الاقتراح الآن. اكتب المهمة بنفسك أو حاول لاحقاً.",
+      "titleRequired": "اكتب عنوان المهمة.",
+      "questionRequired": "أضف سؤالاً واحداً على الأقل."
     }
   }
 }

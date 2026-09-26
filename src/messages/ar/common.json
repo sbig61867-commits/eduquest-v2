@@ -41,7 +41,9 @@
       "newSubmission": "{kind, select, homework{تسليم جديد في واجب} other{تسليم جديد في اختبار}}: {title}",
       "newUser": "{role, select, teacher{معلم جديد} other{طالب جديد}}: {name}",
       "contactMessage": "رسالة تواصل من {name}",
-      "newTenant": "مؤسسة جديدة: {name}"
+      "newTenant": "مؤسسة جديدة: {name}",
+      "aiAllowanceWarning": "تجاوزت {name} نسبة {pct}% من حصة الذكاء الاصطناعي الشهرية",
+      "aiAllowanceExceeded": "بلغت {name} حصة الذكاء الاصطناعي الشهرية"
     }
   },
   "error": {
@@ -77,7 +79,8 @@
       "item-content": "توليد محتوى عنصر في مساق",
       "course_suggestions": "اقتراحات تحسين المساق",
       "announcement_copy": "صياغة إعلان",
-      "extract-file": "استخراج نص من ملف ممسوح"
+      "extract-file": "استخراج نص من ملف ممسوح",
+      "individual_task_ai": "مسودة مهمة فردية"
     }
   },
   "lessonTabs": {
@@ -137,5 +140,34 @@
       "phone": "اتصل بنا",
       "email": "راسلنا بالبريد"
     }
+  },
+  "aiFeatures": {
+    "lesson": "درس من موضوع",
+    "lesson-from-file": "درس من ملف",
+    "exam": "توليد اختبار",
+    "homework-from-file": "واجب من ملف",
+    "course-pptx": "دورة من ملف",
+    "item-content": "محتوى عناصر الدورة",
+    "course_suggestions": "اقتراحات تحسين الدورات",
+    "announcement_copy": "صياغة الإعلانات",
+    "individual_task": "مسودة مهمة فردية",
+    "extract-file": "قراءة الملفات الممسوحة"
+  },
+  "aiAllowance": {
+    "title": "استهلاك الذكاء الاصطناعي هذا الشهر",
+    "subtitle": "حصة مؤسستك من ميزات الذكاء الاصطناعي في المنصة.",
+    "requests": "الطلبات",
+    "tokens": "التوكنز",
+    "ofLimit": "{used} من {limit}",
+    "unlimited": "بلا حد",
+    "reached": "بلغت مؤسستك حصة الذكاء الاصطناعي لهذا الشهر.",
+    "reachedWarn": "تجاوزت مؤسستك حصة الذكاء الاصطناعي لهذا الشهر. الميزات ما زالت تعمل، وتم تنبيه إدارة المنصة.",
+    "nearing": "استهلكت مؤسستك {pct}% من حصة الذكاء الاصطناعي لهذا الشهر.",
+    "aiOff": "ميزات الذكاء الاصطناعي متوقفة لمؤسستك.",
+    "renews": "تتجدد الحصة في أول كل شهر (بتوقيت UTC).",
+    "byFeature": "الأكثر استخداماً هذا الشهر"
+  },
+  "theme": {
+    "toggle": "التبديل بين المظهر النهاري والليلي"
   }
 }

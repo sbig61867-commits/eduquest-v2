@@ -2,6 +2,7 @@ import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { isOnExamRoster } from '@/lib/exam-roster'
 
 // Students no longer have direct SELECT on exams (answer-leak fix). The exam
 // (incl. correct_answer, used for server-side grading) is read with the
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('missingExamOrAnswers')) }, { status: 400 })
   }
 
-  // Verify the student belongs to this exam's group (via group_students)
+  // Verify the student is on this exam's roster (its group, or its course).
   // select('*') so optional columns (type, auto_publish) come through when
   // they exist without breaking if a migration hasn't been applied yet.
   const { data: exam } = await adminClient()
@@ -62,15 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
   }
 
-  // Verify student is enrolled in the group that owns this exam
-  const { data: enrollment } = await supabase
-    .from('group_students')
-    .select('student_id')
-    .eq('group_id', exam.group_id)
-    .eq('student_id', user.id)
-    .single()
-
-  if (!enrollment) {
+  if (!(await isOnExamRoster(supabase, exam, user.id))) {
     return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
   }
 

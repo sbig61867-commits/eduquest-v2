@@ -1,4 +1,5 @@
 import { aiTimeoutSignal, isAbortError } from './timeout'
+import { meterCall } from './meter'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
@@ -8,45 +9,54 @@ export async function groqChat(prompt: string, systemPrompt?: string, temperatur
     throw new Error('GROQ_API_KEY not configured')
   }
 
-  let res: Response
-  try {
-    res = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        // llama-3.3-70b-versatile was retired from Groq's catalog (404
-        // model_not_found) — gpt-oss-120b is free-tier and verified live.
-        model: 'openai/gpt-oss-120b',
-        messages: [
-          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-          { role: 'user', content: prompt },
-        ],
-        temperature,
-        max_tokens: 4096,
-      }),
-      // Prevents a hung Groq request from holding the invocation open for
-      // the full serverless function timeout. No retry on timeout — the
-      // caller's own error handling decides what to do (e.g. fall back to
-      // another provider), so a timeout can never turn into a retry storm.
-      signal: aiTimeoutSignal(),
-    })
-  } catch (err) {
-    if (isAbortError(err)) throw new Error('Groq API error: request timed out')
-    throw err
-  }
+  // gpt-oss-120b is free-tier and verified live (llama-3.3-70b-versatile was
+  // retired from Groq's catalog, 404 model_not_found). Metered: tokens come
+  // from Groq's `usage` block — see meter.ts.
+  const model = 'openai/gpt-oss-120b'
+  return meterCall('groq', model, prompt.length + (systemPrompt?.length ?? 0), async () => {
+    let res: Response
+    try {
+      res = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            { role: 'user', content: prompt },
+          ],
+          temperature,
+          max_tokens: 4096,
+        }),
+        // Prevents a hung Groq request from holding the invocation open for
+        // the full serverless function timeout. No retry on timeout — the
+        // caller's own error handling decides what to do (e.g. fall back to
+        // another provider), so a timeout can never turn into a retry storm.
+        signal: aiTimeoutSignal(),
+      })
+    } catch (err) {
+      if (isAbortError(err)) throw new Error('Groq API error: request timed out')
+      throw err
+    }
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Groq API error ${res.status}: ${err}`)
-  }
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Groq API error ${res.status}: ${err}`)
+    }
 
-  const data = await res.json()
-  const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('Groq returned no content (empty choices or content filter)')
-  return content
+    const data = await res.json()
+    const content = data.choices?.[0]?.message?.content
+    if (!content) throw new Error('Groq returned no content (empty choices or content filter)')
+    return {
+      value: content as string,
+      inputTokens: data.usage?.prompt_tokens,
+      outputTokens: data.usage?.completion_tokens,
+      outputChars: content.length,
+    }
+  })
 }
 
 export async function generateLessonContentGroq(

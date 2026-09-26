@@ -3,13 +3,15 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { PageTitle } from '@/components/shared/page-title'
-import { CoursePlayerClient, type PlayerLevel, type PlayerUnit } from './course-player-client'
+import { getExamPolicies } from '@/lib/settings'
+import type { Exam } from '@/types'
+import { CoursePlayerClient, type PlayerAssessment, type PlayerLevel, type PlayerUnit } from './course-player-client'
 
 interface RawItem {
   id: string
   type: string
   title: string
-  content: { body?: string } | null
+  content: { body?: string; exam_id?: string; video_url?: string } | null
   order_index: number
   is_published: boolean
 }
@@ -48,6 +50,8 @@ function toPlayerUnits(units: RawUnit[] | null): PlayerUnit[] {
           type: i.type,
           title: i.title,
           body: typeof i.content?.body === 'string' ? i.content.body : '',
+          examId: typeof i.content?.exam_id === 'string' ? i.content.exam_id : null,
+          videoUrl: typeof i.content?.video_url === 'string' ? i.content.video_url : null,
         })),
     }))
     .filter(u => u.items.length > 0)
@@ -108,15 +112,45 @@ export default async function StudentCoursePlayerPage({
     if (units.length > 0) levels = [{ id: 'flat', title: '', units }]
   }
 
-  const itemIds = levels.flatMap(l => l.units.flatMap(u => u.items.map(i => i.id)))
+  const items = levels.flatMap(l => l.units.flatMap(u => u.items))
+  const itemIds = items.map(i => i.id)
+  const linkedExamIds = [...new Set(items.flatMap(i => (i.examId ? [i.examId] : [])))]
 
-  const { data: progressRows } = itemIds.length > 0
-    ? await supabase
-        .from('student_progress')
-        .select('unit_item_id')
-        .eq('student_id', user.id)
-        .in('unit_item_id', itemIds)
-    : { data: [] }
+  // Quiz and task items run on the exam engine. get_student_exams is the only
+  // way a student reads an exam: it returns published exams of their groups
+  // and courses with correct_answer stripped. Anything it does not return
+  // (unpublished, another course's exam) simply shows as not available.
+  const [{ data: progressRows }, { data: feed }, { data: subs }, policies] = await Promise.all([
+    itemIds.length > 0
+      ? supabase.from('student_progress').select('unit_item_id').eq('student_id', user.id).in('unit_item_id', itemIds)
+      : Promise.resolve({ data: [] as { unit_item_id: string }[] }),
+    linkedExamIds.length > 0 ? supabase.rpc('get_student_exams') : Promise.resolve({ data: [] }),
+    linkedExamIds.length > 0
+      ? supabase.from('exam_submissions').select('exam_id, status, score, max_score, grading_status').eq('student_id', user.id).in('exam_id', linkedExamIds)
+      : Promise.resolve({ data: [] as { exam_id: string; status: string; score: number | null; max_score: number | null; grading_status: string }[] }),
+    getExamPolicies(supabase),
+  ])
+
+  type FeedRow = Exam & { course_id: string | null; group_name: string | null; course_title: string | null }
+  const subByExam = new Map((subs ?? []).map(sub => [sub.exam_id, sub]))
+  const assessments: Record<string, PlayerAssessment> = {}
+  for (const row of (feed ?? []) as FeedRow[]) {
+    if (!linkedExamIds.includes(row.id) || row.course_id !== id) continue
+    const sub = subByExam.get(row.id)
+    assessments[row.id] = {
+      exam: { ...row, questions: row.questions ?? [] },
+      submission: sub ? { status: sub.status, score: sub.score, maxScore: sub.max_score, gradingStatus: sub.grading_status } : null,
+    }
+  }
+
+  // A quiz or task item is done once its attempt is handed in, wherever it
+  // was handed in (the course player or the exams page). Items whose progress
+  // row is still missing are passed on so the player records them, which keeps
+  // course progress (get_course_progress, the teacher's records) in step.
+  const progressIds = new Set((progressRows ?? []).map(r => r.unit_item_id as string))
+  const submittedItemIds = items
+    .filter(i => i.examId && assessments[i.examId]?.submission?.status === 'submitted')
+    .map(i => i.id)
 
   const teacher = (course.users as unknown as { full_name: string } | null)?.full_name ?? null
 
@@ -140,7 +174,10 @@ export default async function StudentCoursePlayerPage({
           teacherName: teacher,
         }}
         levels={levels}
-        completedIds={(progressRows ?? []).map(r => r.unit_item_id as string)}
+        completedIds={[...new Set([...progressIds, ...submittedItemIds])]}
+        unsyncedIds={submittedItemIds.filter(itemId => !progressIds.has(itemId))}
+        assessments={assessments}
+        violationWarningThreshold={policies.violation_warning_threshold}
         studentId={user.id}
         tenantId={profile.tenant_id}
       />

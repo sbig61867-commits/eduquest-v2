@@ -1,6 +1,12 @@
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { AuthTopBar } from '@/components/public/auth-top-bar'
 import { JoinForm } from './join-form'
+
+// Invitation acceptance. Same public look (`.eq-public`, light/dark), shaped
+// as an official invitation: a ticket with a perforated edge beside the
+// registration form. Violet marks an open (public) link, blue a personal one.
+// An invalid link shows the same ticket, greyed and stamped.
 
 interface Props {
   params: Promise<{ token: string }>
@@ -22,32 +28,75 @@ async function getInvitation(token: string): Promise<InvitationResult> {
   return data as InvitationResult
 }
 
+const ACCENT = {
+  public: { band: 'from-violet-600/35 via-violet-600/10', chip: 'bg-violet-600 text-on-accent', text: 'text-violet-300', glow: 'bg-violet-500/15' },
+  personal: { band: 'from-blue-600/35 via-blue-600/10', chip: 'bg-blue-600 text-on-accent', text: 'text-blue-300', glow: 'bg-blue-500/15' },
+}
+
+function Perforation() {
+  return (
+    <div aria-hidden="true" className="relative h-8">
+      <span className="absolute inset-x-6 top-1/2 border-t-2 border-dashed border-slate-700" />
+      <span className="absolute -start-4 top-0 w-8 h-8 rounded-full bg-slate-950 border border-slate-800" />
+      <span className="absolute -end-4 top-0 w-8 h-8 rounded-full bg-slate-950 border border-slate-800" />
+    </div>
+  )
+}
+
+function Page({ glow, children }: { glow: string; children: React.ReactNode }) {
+  return (
+    <div className="eq-public relative min-h-screen bg-slate-950 overflow-hidden flex flex-col">
+      <div aria-hidden="true" className={`absolute -top-40 start-1/4 w-[42rem] h-[42rem] rounded-full ${glow} blur-3xl`} />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-[0.05] [background-image:radial-gradient(var(--color-white)_1px,transparent_1px)] [background-size:22px_22px]"
+      />
+      <AuthTopBar className="px-4 sm:px-8 lg:px-12 py-5" />
+      <main className="relative flex-1 flex items-center justify-center px-4 py-10">{children}</main>
+    </div>
+  )
+}
+
 export default async function JoinPage({ params }: Props) {
   const { token } = await params
-  const invitation = await getInvitation(token)
-  const t = await getTranslations('auth')
+  const [invitation, t, locale] = await Promise.all([getInvitation(token), getTranslations('auth'), getLocale()])
 
   if (!invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="w-full max-w-md p-8 text-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl space-y-4">
-          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
-            <span className="text-red-400 text-2xl">✕</span>
+      <Page glow="bg-red-500/10">
+        <div className="w-full max-w-md text-center">
+          <div className="relative">
+          <div className="rounded-[1.75rem] border border-slate-800 bg-slate-900/80 backdrop-blur-xl shadow-2xl overflow-hidden grayscale opacity-80">
+            <div className="px-8 pt-9 pb-6 bg-gradient-to-b from-slate-700/30 to-transparent">
+              <p className="text-slate-500 text-xs font-semibold">{t('join.ticketLabel')}</p>
+              <div aria-hidden="true" className="mt-4 mx-auto h-3 w-2/3 rounded bg-slate-700" />
+              <div aria-hidden="true" className="mt-3 mx-auto h-2 w-1/3 rounded bg-slate-800" />
+            </div>
+            <Perforation />
+            <div className="px-8 pb-9 pt-2 space-y-2" aria-hidden="true">
+              <div className="h-2 rounded bg-slate-800" />
+              <div className="h-2 w-4/5 mx-auto rounded bg-slate-800" />
+            </div>
           </div>
-          <h1 className="text-xl font-bold text-white">{t('join.invalidTitle')}</h1>
-          <p className="text-slate-400 text-sm">{t('join.invalidBody')}</p>
-          <p className="text-slate-500 text-sm">{t('join.invalidHint')}</p>
-          <a href="/login" className="inline-block mt-2 text-blue-400 hover:text-blue-300 text-sm underline">
+            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 px-5 py-2 rounded-xl border-4 border-red-400 text-red-300 text-2xl font-extrabold tracking-wider bg-slate-950/70">
+              {t('join.invalidStamp')}
+            </span>
+          </div>
+          <h1 className="mt-9 text-2xl font-bold text-white">{t('join.invalidTitle')}</h1>
+          <p className="text-slate-400 text-sm mt-3 leading-relaxed">{t('join.invalidBody')}</p>
+          <p className="text-slate-500 text-sm mt-1 leading-relaxed">{t('join.invalidHint')}</p>
+          <a href="/login" className="inline-block mt-7 px-6 py-3 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 text-sm transition-colors">
             {t('join.hasAccount')} {t('join.signIn')}
           </a>
         </div>
-      </div>
+      </Page>
     )
   }
 
-  const expiresLabel = new Date(invitation.expires_at).toLocaleDateString('ar-u-ca-gregory-nu-latn', {
-    month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+  const expiresLabel = new Date(invitation.expires_at).toLocaleDateString(
+    locale === 'ar' ? 'ar-u-ca-gregory-nu-latn' : 'en-GB',
+    { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' },
+  )
 
   // Resolve the role label: if the key exists in the auth.roles namespace use
   // the translation, otherwise fall back to the raw role string from the DB.
@@ -58,69 +107,47 @@ export default async function JoinPage({ params }: Props) {
     ? t(`roles.${invitation.role}`)
     : invitation.role
 
-  const accentColor = invitation.is_public ? 'purple' : 'blue'
+  const accent = invitation.is_public ? ACCENT.public : ACCENT.personal
+  const details: { label: string; value: string | number; tone?: string }[] = [
+    ...(!invitation.is_public && invitation.email ? [{ label: t('join.invitedEmail'), value: invitation.email }] : []),
+    ...(invitation.is_public ? [{ label: t('join.linkType'), value: t('join.openToAll'), tone: accent.text }] : []),
+    ...(invitation.is_public && invitation.max_uses != null ? [{ label: t('join.seatsLeft'), value: invitation.max_uses - invitation.use_count }] : []),
+    { label: t('join.expires'), value: expiresLabel, tone: 'text-amber-300' },
+  ]
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4">
-      <div className="w-full max-w-md space-y-6">
+    <Page glow={accent.glow}>
+      <div className="w-full max-w-6xl grid lg:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] gap-8 lg:gap-14 items-center">
+        {/* The invitation */}
+        <div className="eq-float">
+          <article className="rounded-[1.75rem] border border-slate-800 bg-slate-900/80 backdrop-blur-xl shadow-2xl overflow-hidden">
+            <div className={`px-8 pt-9 pb-7 bg-gradient-to-b ${accent.band} to-transparent`}>
+              <p className={`${accent.text} text-xs font-bold tracking-wide`}>{t('join.ticketLabel')}</p>
+              <p className="text-slate-300 text-sm mt-4">{t('join.headline')}</p>
+              <h1 className="text-white text-3xl font-extrabold mt-2 leading-snug break-words">{invitation.tenant_name}</h1>
+              <span className={`inline-block mt-5 px-4 py-1.5 rounded-full text-sm font-semibold ${accent.chip}`}>{roleLabel}</span>
+            </div>
+            <Perforation />
+            <dl className="px-8 pb-8 pt-2 space-y-3.5">
+              {details.map(d => (
+                <div key={d.label} className="flex items-center justify-between gap-4 text-sm">
+                  <dt className="text-slate-500">{d.label}</dt>
+                  <dd className={`font-medium text-end break-all ${d.tone ?? 'text-white'}`}>{d.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        </div>
 
-        {/* Header */}
-        <div className="text-center">
-          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-${accentColor}-600 mb-4`}>
-            <span className="text-white text-2xl font-bold">E</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">{t('join.invited')}</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {t('join.subtitle', { institution: invitation.tenant_name, role: roleLabel })}
+        {/* Registration */}
+        <div>
+          <JoinForm token={token} invitedEmail={invitation.email ?? ''} isPublic={invitation.is_public} />
+          <p className="mt-6 text-center text-slate-500 text-sm">
+            {t('join.hasAccount')}{' '}
+            <a href="/login" className="text-blue-400 hover:text-blue-300 underline underline-offset-4">{t('join.signIn')}</a>
           </p>
         </div>
-
-        {/* Invitation details card */}
-        <div className={`bg-${accentColor}-500/10 border border-${accentColor}-500/20 rounded-xl px-5 py-4 space-y-1.5`}>
-          {!invitation.is_public && invitation.email && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">{t('join.invitedEmail')}</span>
-              <span className="text-white font-medium">{invitation.email}</span>
-            </div>
-          )}
-          {invitation.is_public && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">{t('join.linkType')}</span>
-              <span className="text-purple-400 font-medium">{t('join.openToAll')}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{t('join.institution')}</span>
-            <span className="text-white font-medium">{invitation.tenant_name}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{t('join.role')}</span>
-            <span className="text-white font-medium">{roleLabel}</span>
-          </div>
-          {invitation.is_public && invitation.max_uses != null && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">{t('join.seatsLeft')}</span>
-              <span className="text-white font-medium">{invitation.max_uses - invitation.use_count}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">{t('join.expires')}</span>
-            <span className="text-amber-400 font-medium">{expiresLabel}</span>
-          </div>
-        </div>
-
-        {/* Registration form */}
-        <JoinForm
-          token={token}
-          invitedEmail={invitation.email ?? ''}
-          isPublic={invitation.is_public}
-        />
-
-        <p className="text-center text-slate-500 text-xs">
-          {t('join.hasAccount')}{' '}
-          <a href="/login" className="text-blue-400 hover:text-blue-300 underline">{t('join.signIn')}</a>
-        </p>
       </div>
-    </div>
+    </Page>
   )
 }

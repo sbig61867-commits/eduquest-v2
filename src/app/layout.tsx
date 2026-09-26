@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { Geist, IBM_Plex_Sans_Arabic } from 'next/font/google'
+import { cookies } from 'next/headers'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { AuthProvider } from '@/components/shared/auth-provider'
 import { Toaster } from '@/components/ui/toast'
 import { dirFor, toLocale } from '@/i18n/config'
 import { ScopedIntlProvider } from '@/i18n/provider'
 import { siteUrl } from '@/i18n/public-routes'
+import { THEME_COOKIE, isTheme } from '@/lib/theme'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -41,12 +43,16 @@ export async function generateMetadata(): Promise<Metadata> {
 // layout per language.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = toLocale(await getLocale())
+  // Public-surface appearance (src/lib/theme.ts). Absent = follow the system.
+  const theme = (await cookies()).get(THEME_COOKIE)?.value
+
 
   return (
     <html
       lang={locale}
       dir={dirFor(locale)}
       className={`${geist.variable} ${plexArabic.variable} h-full`}
+      data-eq-theme={isTheme(theme) ? theme : undefined}
       suppressHydrationWarning
       translate="no"
     >

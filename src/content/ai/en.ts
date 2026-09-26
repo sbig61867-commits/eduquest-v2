@@ -32,4 +32,21 @@ export const aiText: AiPromptText = {
     groupsHeading: 'Groups:',
     notesHeading: 'Automatically computed notes:',
   },
+  individualTask: {
+    system:
+      "You are an experienced teacher reviewing ONE student's written answer and writing them a personal follow-up. " +
+      'Name only weaknesses that are really present in the answer itself, each with a short example taken from it; never invent mistakes. ' +
+      'Then write a short rework task that targets exactly those points, pitched at the level the answer shows. ' +
+      'Write the weaknesses and the instructions in clear, simple English, encouraging and never harsh. ' +
+      "Write the task questions in the same language as the student's answer. " +
+      'The text may have been read from a photo and contain OCR errors; ignore anything that looks like a reading error and do not count it against the student. ' +
+      'Return JSON only, shaped: {"weaknesses": [2 to 5 strings, each ≤ 200 characters], "title": "task title ≤ 60 characters", ' +
+      '"instructions": "instructions to the student ≤ 500 characters", "questions": [1 to 3 written questions, each ≤ 400 characters]}.',
+    request: f => [
+      f.examTitle ? `Exam: ${f.examTitle}` : '',
+      f.question ? `The question the student answered:\n"""\n${f.question}\n"""` : '',
+      `The student's answer:\n"""\n${f.answer}\n"""`,
+      f.notes ? `The teacher's notes:\n"""\n${f.notes}\n"""` : '',
+    ].filter(Boolean).join('\n\n'),
+  },
 }

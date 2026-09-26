@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChatDetailed } from '@/lib/ai/chat'
-import { logAiUsage } from '@/lib/ai/usage'
+import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { getAiRateLimits } from '@/lib/settings'
 
 export const maxDuration = 300
@@ -105,7 +105,7 @@ function validate(raw: unknown, allowed: Set<string>): GeneratedQuestion[] {
   return out
 }
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('homework-from-file', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -115,6 +115,10 @@ export async function POST(request: Request) {
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Monthly AI allowance of the institution (super_admin sets it per tenant).
+  const denied = await authorizeAiUsage(user.id)
+  if (denied) return denied
 
   const aiLimits = await getAiRateLimits(supabase)
   const rl = await aiRateLimit(`homework-file:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
@@ -189,7 +193,6 @@ ${sourceText.slice(0, 30000)}`
     const maxRounds = Math.ceil(count / BATCH) + 2
     const seen = new Set<string>()
     const collected: GeneratedQuestion[] = []
-    let lastProvider = 'none'
 
     // Questions already in the teacher's draft (earlier generation runs) —
     // seed both dedup layers so new runs never repeat them.
@@ -200,12 +203,11 @@ ${sourceText.slice(0, 30000)}`
 
     for (let round = 0; round < maxRounds && collected.length < count; round++) {
       const need = Math.min(count - collected.length, BATCH)
-      const { content, provider } = await aiChatDetailed(
+      const { content } = await aiChatDetailed(
         buildPrompt(need, [...priorTexts, ...collected.map(q => q.text)]),
         'Return only valid JSON arrays, no markdown, no explanations.',
         { temperature: 0.3 } // strict source-grounding, not creative writing
       )
-      lastProvider = provider
       const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
       const match = text.match(/\[[\s\S]*\]/)
       if (!match) continue
@@ -233,10 +235,9 @@ ${sourceText.slice(0, 30000)}`
     }
 
     if (collected.length === 0) throw new Error('No valid questions after validation')
-    void logAiUsage(user.id, profile.tenant_id, 'homework-from-file', lastProvider)
     return NextResponse.json({ questions: collected, requested: count, delivered: collected.length })
   } catch (e) {
     console.error('[generate-homework-from-file] AI:', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
-}
+})

@@ -3,10 +3,12 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { LOCALES, LOCALE_LABEL, type Locale } from '@/i18n/config'
+import type { Locale } from '@/i18n/config'
 import { isMarketingPath, localizedPath, type MarketingPath } from '@/i18n/public-routes'
 import { pricingEnabled } from '@/lib/pricing/plans'
-import { FAQ_SECTION, FEATURE_ANCHORS, ROLE_ANCHORS, ROLES_SECTION, roleAnchorId } from './anchors'
+import { ThemeToggle } from './theme-toggle'
+import { LocaleToggle } from './locale-toggle'
+import { FAQ_SECTION, FEATURE_ANCHORS, ROLE_ANCHORS, ROLES_SECTION, roleAnchorId, setAnchor } from './anchors'
 
 // Header of the public pages: a mega-menu per section, in the spirit of large
 // product sites. Each trigger opens one wide panel (heading + overview link on
@@ -24,8 +26,8 @@ import { FAQ_SECTION, FEATURE_ANCHORS, ROLE_ANCHORS, ROLES_SECTION, roleAnchorId
 //
 // No icons by design (see public-copy-style.test.ts for the copy rules).
 
-type MenuKey = 'platform' | 'audience' | 'resources' | 'contact'
-type Target = { path: MarketingPath | '/demo' | '/login'; hash?: string }
+type MenuKey = 'platform' | 'audience' | 'about' | 'resources' | 'contact'
+type Target = { path: MarketingPath | '/login'; hash?: string }
 type MenuDef = { key: MenuKey; overview: Target; items: { key: string; to: Target }[] }
 
 const MENUS: MenuDef[] = [
@@ -38,6 +40,15 @@ const MENUS: MenuDef[] = [
     key: 'audience',
     overview: { path: '/features', hash: ROLES_SECTION },
     items: ROLE_ANCHORS.map(r => ({ key: r, to: { path: '/features', hash: roleAnchorId(r) } })),
+  },
+  {
+    key: 'about',
+    overview: { path: '/about' },
+    items: [
+      { key: 'about', to: { path: '/about' } },
+      { key: 'security', to: { path: '/security' } },
+      { key: 'ai', to: { path: '/ai' } },
+    ],
   },
   {
     key: 'resources',
@@ -77,7 +88,6 @@ function hrefFor(lang: Locale, to: Target): string {
 export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale) => void }) {
   const t = useTranslations('public.shell')
   const m = useTranslations('public.shell.menu')
-  const other = LOCALES.find(l => l !== lang) ?? lang
 
   const [open, setOpen] = useState<MenuKey | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -104,6 +114,12 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
     setOpen(null)
     setMobileOpen(false)
   }, [])
+
+  // A menu link records its in-page anchor (see anchors.ts) before navigating.
+  const follow = (to: Target) => {
+    setAnchor(to.hash ?? '')
+    closeAll()
+  }
 
   // Hide on scroll down, show on scroll up / near the top / pointer at the top edge.
   useEffect(() => {
@@ -188,15 +204,15 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
             : 'bg-slate-950 border-transparent'
         }`}
       >
-        <nav aria-label={m('navLabel')} className="relative max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+        <nav aria-label={m('navLabel')} className="relative max-w-[88rem] mx-auto px-3 sm:px-8 lg:px-12 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 lg:gap-8 min-w-0">
             <Link href={localizedPath(lang, '/')} onClick={closeAll} className="flex items-center gap-2.5 shrink-0 px-1">
-              <span className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">E</span>
+              <span className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg shrink-0">E</span>
               <span className="text-white font-bold text-lg hidden sm:inline">EduQuest</span>
             </Link>
 
             {/* Desktop triggers */}
-            <ul className="hidden md:flex items-center gap-1">
+            <ul className="hidden lg:flex items-center gap-1">
               {MENUS.map(menu => {
                 const isOpen = open === menu.key
                 return (
@@ -239,18 +255,11 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setLang(other)}
-              lang={other}
-              aria-label={`${t('switchLanguage')}: ${LOCALE_LABEL[other]}`}
-              className="px-2.5 py-2 rounded-full text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors whitespace-nowrap"
-            >
-              {LOCALE_LABEL[other]}
-            </button>
+            <ThemeToggle />
+            <LocaleToggle active={lang} onPick={setLang} />
             <Link
               href="/login"
-              className="px-3 sm:px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors whitespace-nowrap"
+              className="px-3 sm:px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-on-accent text-sm font-medium transition-colors whitespace-nowrap"
             >
               {t('login')}
             </Link>
@@ -259,7 +268,7 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
               aria-expanded={mobileOpen}
               aria-controls={`${panelId}-mobile`}
               onClick={() => { setOpen(null); setMobileOpen(v => !v) }}
-              className="md:hidden px-3 py-2 rounded-full text-sm text-slate-200 border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap"
+              className="lg:hidden px-3 py-2 rounded-full text-sm text-slate-200 border border-slate-700 hover:bg-slate-800 transition-colors whitespace-nowrap"
             >
               {mobileOpen ? m('close') : m('open')}
             </button>
@@ -270,18 +279,18 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
         <div
           id={panelId}
           ref={panelRef}
-          className={`absolute inset-x-0 top-full hidden md:block origin-top transition-[opacity,transform,visibility] duration-200 ease-out motion-reduce:transition-none ${
+          className={`absolute inset-x-0 top-full hidden lg:block origin-top transition-[opacity,transform,visibility] duration-200 ease-out motion-reduce:transition-none ${
             active ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-2 pointer-events-none'
           }`}
         >
           <div className="bg-slate-900 border-b border-slate-800 shadow-2xl shadow-black/40 rounded-b-3xl">
             {active && (
-              <div key={active.key} className="eq-menu-in max-w-6xl mx-auto px-6 py-10 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-10">
+              <div key={active.key} className="eq-menu-in max-w-[88rem] mx-auto px-12 py-10 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-10">
                 <div>
                   <p className="text-2xl lg:text-3xl font-bold text-white leading-snug max-w-sm">{m(`${active.key}.heading`)}</p>
                   <Link
                     href={hrefFor(lang, active.overview)}
-                    onClick={closeAll}
+                    onClick={() => follow(active.overview)}
                     className="inline-flex mt-7 px-5 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-medium transition-colors"
                   >
                     {m(`${active.key}.overview`)}
@@ -294,7 +303,7 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
                       <li key={item.key}>
                         <Link
                           href={hrefFor(lang, item.to)}
-                          onClick={closeAll}
+                          onClick={() => follow(item.to)}
                           className="block rounded-xl px-3 py-3 hover:bg-slate-800/70 focus-visible:bg-slate-800/70 outline-none transition-colors"
                         >
                           <span className="block text-slate-100 font-medium">{m(`${active.key}.items.${item.key}.title`)}</span>
@@ -312,7 +321,7 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
         {/* Mobile sheet */}
         <div
           id={`${panelId}-mobile`}
-          className={`md:hidden absolute inset-x-0 top-full transition-[opacity,transform,visibility] duration-200 ease-out motion-reduce:transition-none ${
+          className={`lg:hidden absolute inset-x-0 top-full transition-[opacity,transform,visibility] duration-200 ease-out motion-reduce:transition-none ${
             mobileOpen ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-2 pointer-events-none'
           }`}
         >
@@ -325,7 +334,7 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
                     <li key={item.key}>
                       <Link
                         href={hrefFor(lang, item.to)}
-                        onClick={closeAll}
+                        onClick={() => follow(item.to)}
                         className="block rounded-xl px-3 py-2.5 hover:bg-slate-800/70 transition-colors"
                       >
                         <span className="block text-slate-100">{m(`${menu.key}.items.${item.key}.title`)}</span>

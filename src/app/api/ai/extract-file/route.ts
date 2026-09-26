@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
+import { identifyAiCaller, meteredAiRoute } from '@/lib/ai/usage'
 
 export const maxDuration = 30
 
@@ -13,7 +14,7 @@ export const maxDuration = 30
 // even though every file was individually small, and the resulting platform-
 // level rejection surfaced to teachers as a generic "connection error".
 
-export async function POST(request: Request) {
+export const POST = meteredAiRoute('extract-file', async (request: Request) => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -23,6 +24,11 @@ export async function POST(request: Request) {
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Plain PDF/DOCX/PPTX parsing is free; only the Gemini-vision fallback for
+  // scanned files is AI, and it is metered against this user. Not gated by the
+  // institution allowance: a teacher must still be able to read an ordinary file.
+  identifyAiCaller(user.id)
 
   // Extraction is local parsing (cheap) except the Gemini-vision fallback for
   // scanned files — generous fixed cap, independent of the admin-configured
@@ -51,4 +57,4 @@ export async function POST(request: Request) {
     const { status, error, code } = await extractionErrorResponse(e)
     return NextResponse.json({ error, code }, { status })
   }
-}
+})

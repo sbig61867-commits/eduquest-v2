@@ -8,6 +8,7 @@ import {
 import { loadCenterAccess } from '@/lib/center-access'
 import { CAPABILITIES } from '@/lib/permissions'
 import { getTranslations, getLocale } from 'next-intl/server'
+import { AiAllowanceCard } from '@/components/shared/ai-allowance-card'
 
 // Centre dashboard. Every number comes from ONE call to the
 // get_center_dashboard() RPC, which aggregates in Postgres and returns
@@ -301,6 +302,8 @@ export default async function CenterDashboard({ searchParams }: { searchParams: 
         <Tile label={t('tiles.openMatters')} value={d.engagement.open_requests + d.engagement.pending_appeals} icon={Inbox} tone="text-rose-400"
           sub={t('tiles.openMattersSub', { requests: d.engagement.open_requests, appeals: d.engagement.pending_appeals })} />
       </div>
+
+      <AiAllowanceCard supabase={supabase} />
 
       {capabilityCard}
     </div>

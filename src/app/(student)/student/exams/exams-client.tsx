@@ -25,6 +25,7 @@ interface Submission {
   score: number | null
   max_score: number | null
   grading_status: string
+  teacher_comment?: string | null
 }
 
 interface Props {
@@ -105,8 +106,10 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
         <div className="flex items-start justify-between mb-3">
           <h3 className="text-white font-semibold flex-1 min-w-0">{exam.title}</h3>
+          {exam.assigned_student_id && <Badge variant="blue">{t('forYou')}</Badge>}
           {isRetake && <Badge variant="yellow">{t('retry')}</Badge>}
         </div>
+        {exam.instructions && <p className="text-slate-400 text-sm mb-3 line-clamp-2 whitespace-pre-line">{exam.instructions}</p>}
         <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{untimedLabel(exam, t('untimed'), t('minutesShort', { count: exam.duration_minutes }))}</span>
           <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{t('questionCount', { count: exam.questions.length })}</span>
@@ -130,6 +133,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 opacity-75">
         <div className="flex items-start justify-between mb-3">
           <h3 className="text-white font-semibold flex-1 min-w-0">{exam.title}</h3>
+          {exam.assigned_student_id && <Badge variant="blue">{t('forYou')}</Badge>}
           <Badge variant="green"><CheckCircle2 className="w-3 h-3" /> {t('submitted')}</Badge>
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-500">
@@ -142,6 +146,12 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
             <span className="text-amber-400 text-xs">{t('resultsPending')}</span>
           )}
         </div>
+        {sub?.teacher_comment && (
+          <div className="mt-3 rounded-lg bg-slate-800/70 border border-slate-700 px-3 py-2">
+            <p className="text-xs text-slate-400 mb-1">{t('teacherComment')}</p>
+            <p className="text-sm text-slate-200 whitespace-pre-line">{sub.teacher_comment}</p>
+          </div>
+        )}
       </div>
     )
   }

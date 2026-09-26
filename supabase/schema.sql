@@ -30,7 +30,13 @@ CREATE TABLE tenants (
   -- (locale_preferences_migration.sql). Independent of the app's platform
   -- DEFAULT_LOCALE ('en'), which only applies when no tenant is known.
   default_locale TEXT NOT NULL DEFAULT 'ar'
-    CONSTRAINT tenants_default_locale_check CHECK (default_locale IN ('ar','en'))
+    CONSTRAINT tenants_default_locale_check CHECK (default_locale IN ('ar','en')),
+  -- Monthly AI allowance (ai_usage_metering_migration.sql). NULL = unlimited,
+  -- 0 = AI off. Written only by super_admin (tenants_manage).
+  ai_monthly_request_limit INTEGER CONSTRAINT tenants_ai_request_limit_check CHECK (ai_monthly_request_limit IS NULL OR ai_monthly_request_limit >= 0),
+  ai_monthly_token_limit   BIGINT  CONSTRAINT tenants_ai_token_limit_check CHECK (ai_monthly_token_limit IS NULL OR ai_monthly_token_limit >= 0),
+  ai_limit_action TEXT NOT NULL DEFAULT 'block' CONSTRAINT tenants_ai_limit_action_check CHECK (ai_limit_action IN ('block', 'warn')),
+  ai_alert_threshold_pct SMALLINT NOT NULL DEFAULT 80 CONSTRAINT tenants_ai_alert_threshold_check CHECK (ai_alert_threshold_pct BETWEEN 1 AND 100)
 );
 
 CREATE TABLE users (
@@ -672,9 +678,11 @@ CREATE TABLE survey_responses (
 );
 
 -- ============================================================
--- AI usage log (see supabase/ai_usage_log_migration.sql for the full
--- migration with the get_tenant_ai_usage() aggregate feed — applied
--- separately on live DB)
+-- AI usage ledger. Base table: ai_usage_log_migration.sql. Metering columns,
+-- the daily rollup, allowance alerts and the RPCs record_ai_usage /
+-- check_ai_allowance (service_role only), get_ai_usage_report (super_admin)
+-- and get_my_ai_allowance (institution staff): ai_usage_metering_migration.sql
+-- — the functions live only in that file.
 -- ============================================================
 CREATE TABLE ai_usage_log (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -682,8 +690,53 @@ CREATE TABLE ai_usage_log (
   user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
   feature     TEXT NOT NULL,
   provider    TEXT NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  model            TEXT,
+  status           TEXT NOT NULL DEFAULT 'success' CONSTRAINT ai_usage_log_status_check CHECK (status IN ('success', 'failed', 'blocked')),
+  provider_calls   INTEGER NOT NULL DEFAULT 1,
+  failed_calls     INTEGER NOT NULL DEFAULT 0,
+  input_tokens     BIGINT NOT NULL DEFAULT 0,
+  output_tokens    BIGINT NOT NULL DEFAULT 0,
+  tokens_estimated BOOLEAN NOT NULL DEFAULT FALSE,
+  list_cost_usd    NUMERIC(14,6) NOT NULL DEFAULT 0,  -- at the provider's paid price
+  billed_cost_usd  NUMERIC(14,6) NOT NULL DEFAULT 0,  -- actually charged (0 on free tiers)
+  latency_ms       INTEGER,
+  detail           JSONB,                             -- {"calls":[{p,m,ok,in,out,ms,cost,err?,est?,np?}]}
+  metered          BOOLEAN NOT NULL DEFAULT FALSE     -- FALSE = logged before metering (count only)
 );
+CREATE INDEX idx_ai_usage_log_tenant_created ON ai_usage_log (tenant_id, created_at DESC);
+CREATE INDEX idx_ai_usage_log_created ON ai_usage_log (created_at DESC);
+CREATE INDEX idx_ai_usage_log_user_created ON ai_usage_log (user_id, created_at DESC);
+
+CREATE TABLE ai_usage_daily (
+  tenant_id       UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  day             DATE NOT NULL,
+  feature         TEXT NOT NULL,
+  provider        TEXT NOT NULL,
+  requests        INTEGER NOT NULL DEFAULT 0,
+  failed          INTEGER NOT NULL DEFAULT 0,
+  blocked         INTEGER NOT NULL DEFAULT 0,
+  provider_calls  INTEGER NOT NULL DEFAULT 0,
+  input_tokens    BIGINT NOT NULL DEFAULT 0,
+  output_tokens   BIGINT NOT NULL DEFAULT 0,
+  list_cost_usd   NUMERIC(14,6) NOT NULL DEFAULT 0,
+  billed_cost_usd NUMERIC(14,6) NOT NULL DEFAULT 0,
+  CONSTRAINT ai_usage_daily_key UNIQUE NULLS NOT DISTINCT (tenant_id, day, feature, provider)
+);
+CREATE INDEX idx_ai_usage_daily_day ON ai_usage_daily (day);
+
+CREATE TABLE ai_usage_alerts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  month       DATE NOT NULL,
+  metric      TEXT NOT NULL CHECK (metric IN ('requests', 'tokens')),
+  level       TEXT NOT NULL CHECK (level IN ('warning', 'exceeded')),
+  used        BIGINT NOT NULL,
+  limit_value BIGINT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ai_usage_alerts_once UNIQUE (tenant_id, month, metric, level)
+);
+CREATE INDEX idx_ai_usage_alerts_created ON ai_usage_alerts (created_at DESC);
 
 
 -- ============================================================

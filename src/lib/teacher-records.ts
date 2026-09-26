@@ -37,7 +37,16 @@ export interface Assessment {
   maxPoints: number
   /** 'course' = set on the group's linked course rather than on the group. */
   source: 'group' | 'course'
+  /** Individual follow-up task: the one student it was sent to (null = the whole roster). */
+  assignedTo?: string | null
+  /** false = feedback/practice only: shown with its status, never in an average. */
+  countsTowardGrade?: boolean
+  /** The exam an individual task follows up, when there is one. */
+  sourceExamId?: string | null
 }
+
+/** Work set for everyone, as opposed to one student's individual task. */
+export const isShared = (a: Assessment) => !a.assignedTo
 
 export interface Submission {
   id: string
@@ -125,12 +134,17 @@ export function itemDate(item: RecordItem): string {
 /**
  * One student's items: every assessment that applies to them, with their
  * submission (or its absence) classified. An assessment that closed before the
- * student joined does not apply to them and is left out.
+ * student joined does not apply to them and is left out, and so is another
+ * student's individual task. A feedback-only task keeps its status but never
+ * gets a percentage, so it stays out of every average.
  */
-export function buildItems(assessments: Assessment[], subs: Submission[], joinedAt: string | null, now: number): RecordItem[] {
+export function buildItems(
+  assessments: Assessment[], subs: Submission[], joinedAt: string | null, now: number, studentId?: string,
+): RecordItem[] {
   const byExam = new Map(subs.map(s => [s.examId, s]))
   const joined = joinedAt ? new Date(joinedAt).getTime() : null
   return assessments
+    .filter(a => !a.assignedTo || a.assignedTo === studentId)
     .filter(a => !(joined && a.endsAt && new Date(a.endsAt).getTime() < joined && !byExam.has(a.id)))
     .map(a => {
       const s = byExam.get(a.id) ?? null
@@ -140,7 +154,7 @@ export function buildItems(assessments: Assessment[], subs: Submission[], joined
       else if (s) status = 'inProgress'
       else status = a.endsAt && new Date(a.endsAt).getTime() < now ? 'missed' : 'open'
       const score = status === 'graded' ? s!.score : null
-      const pct = score != null && max ? Math.round((score / max) * 100) : null
+      const pct = score != null && max && a.countsTowardGrade !== false ? Math.round((score / max) * 100) : null
       return { assessment: a, submission: s, status, pct, score, max }
     })
     .sort((x, y) => itemDate(y).localeCompare(itemDate(x)))
@@ -248,8 +262,9 @@ export async function loadGroupData(supabase: SupabaseClient, teacherId: string,
   const examFilter = group.courseId ? `group_id.eq.${group.id},course_id.eq.${group.courseId}` : `group_id.eq.${group.id}`
   const [{ data: memberRows }, { data: examRows }, { data: sessionRows }] = await Promise.all([
     supabase.from('group_students').select('student_id, joined_at, users(full_name, email, is_active)').eq('group_id', group.id),
+    // `*` so the individual-task columns come through once individual_tasks_migration is applied.
     supabase.from('exams')
-      .select('id, title, type, lesson_id, created_at, ends_at, questions, group_id, lessons(title)')
+      .select('*, lessons(title)')
       .eq('teacher_id', teacherId).eq('is_published', true).is('deleted_at', null).or(examFilter),
     supabase.from('attendance_sessions').select('id, session_date, title').eq('group_id', group.id).order('session_date', { ascending: false }),
   ])
@@ -264,10 +279,13 @@ export async function loadGroupData(supabase: SupabaseClient, teacherId: string,
   const assessments: Assessment[] = ((examRows ?? []) as unknown as {
     id: string; title: string; type: string; lesson_id: string | null; created_at: string; ends_at: string | null
     questions: unknown; group_id: string | null; lessons: { title: string } | null
+    assigned_student_id?: string | null; counts_toward_grade?: boolean | null; source_exam_id?: string | null
   }[]).map(e => ({
     id: e.id, kind: e.type === 'homework' ? 'homework' : 'exam', title: e.title, lessonId: e.lesson_id,
     lessonTitle: e.lessons?.title ?? null, createdAt: e.created_at, endsAt: e.ends_at,
     maxPoints: pointsOf(e.questions), source: e.group_id ? 'group' : 'course',
+    assignedTo: e.assigned_student_id ?? null, countsTowardGrade: e.counts_toward_grade !== false,
+    sourceExamId: e.source_exam_id ?? null,
   }))
 
   const examIds = assessments.map(a => a.id)
@@ -334,7 +352,7 @@ export function progressFor(data: GroupData, studentId: string) {
 /** A row per student of the group, for the group page's table. */
 export function groupStudentRows(data: GroupData, now: number) {
   return data.members.map(m => {
-    const items = buildItems(data.assessments, data.submissions.filter(s => s.studentId === m.studentId), m.joinedAt, now)
+    const items = buildItems(data.assessments, data.submissions.filter(s => s.studentId === m.studentId), m.joinedAt, now, m.studentId)
     return { member: m, summary: summarize(items, marksFor(data, m.studentId), progressFor(data, m.studentId)) }
   })
 }
@@ -368,8 +386,9 @@ export async function loadGroupCards(supabase: SupabaseClient, teacherId: string
     return [{
       group: d.group,
       students: d.members.length,
-      exams: d.assessments.filter(a => a.kind === 'exam').length,
-      homework: d.assessments.filter(a => a.kind === 'homework').length,
+      // Work set for the whole group; individual tasks are counted per student.
+      exams: d.assessments.filter(a => isShared(a) && a.kind === 'exam').length,
+      homework: d.assessments.filter(a => isShared(a) && a.kind === 'homework').length,
       avg: graded.length ? Math.round(graded.reduce((a, x) => a + x, 0) / graded.length) : null,
       attendanceRate: att.rate,
       atRisk: students.filter(s => s.summary.atRisk).length,

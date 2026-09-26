@@ -1,24 +1,47 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
-import { useMemo, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
+import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown,
   FileText, GraduationCap, ListChecks, PlayCircle, Sparkles, Video,
+  ClipboardList, ShieldCheck, Clock, Hourglass,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Markdown } from '@/components/shared/markdown'
 import { toast } from '@/components/ui/toast'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
+import { parseVideoUrl } from '@/lib/video-embed'
+import type { Exam } from '@/types'
+import type { Locale } from '@/i18n/config'
+
+// The exam screen carries LiveKit and the proctoring detectors; load it only
+// when the student actually starts a quiz or task.
+const ExamTaker = dynamic(() => import('../../exams/exam-taker').then(m => m.ExamTaker), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-xl bg-slate-800 animate-pulse" />,
+})
 
 export interface PlayerItem {
   id: string
   type: string
   title: string
   body: string
+  /** quiz / task items: the exam row they run on (unit_items.content.exam_id). */
+  examId?: string | null
+  /** video items: the link the teacher pasted (unit_items.content.video_url). */
+  videoUrl?: string | null
+}
+
+/** A linked quiz or task as get_student_exams serves it, plus this student's attempt. */
+export interface PlayerAssessment {
+  exam: Exam
+  submission: { status: string; score: number | null; maxScore: number | null; gradingStatus: string } | null
 }
 
 export interface PlayerUnit {
@@ -43,6 +66,11 @@ interface Props {
   }
   levels: PlayerLevel[]
   completedIds: string[]
+  /** Quiz / task items handed in but without a student_progress row yet. */
+  unsyncedIds?: string[]
+  /** Keyed by exam id; a linked exam missing here is not available to the student. */
+  assessments?: Record<string, PlayerAssessment>
+  violationWarningThreshold?: number
   /** Read from the session on the server; RLS re-checks it against current_tenant_id(). */
   studentId: string
   tenantId: string
@@ -63,10 +91,28 @@ const TYPE_ICON: Record<string, typeof FileText> = {
 // it was still English while the rest of the screen was Arabic.
 const ITEM_TYPES = ['text', 'grammar', 'idioms', 'rules', 'task', 'quiz', 'video'] as const
 
-export function CoursePlayerClient({ course, levels, completedIds, studentId, tenantId }: Props) {
+export function CoursePlayerClient({
+  course, levels, completedIds, unsyncedIds = [], assessments = {}, violationWarningThreshold, studentId, tenantId,
+}: Props) {
   const t = useTranslations('student.player')
   const supabase = createClient()
-  const [completed, setCompleted] = useState<Set<string>>(() => new Set(completedIds))
+  const router = useRouter()
+  // Server truth (progress rows + handed-in quizzes) plus what was marked here.
+  const [markedHere, setMarkedHere] = useState<Set<string>>(() => new Set())
+  const completed = useMemo(() => new Set([...completedIds, ...markedHere]), [completedIds, markedHere])
+  const setCompleted = (next: (prev: Set<string>) => Set<string>) => setMarkedHere(prev => next(prev))
+  const [taking, setTaking] = useState<string | null>(null)
+
+  // Record progress for quizzes/tasks handed in without a progress row
+  // (e.g. from the exams page), so the course percentage everywhere agrees.
+  const unsyncedKey = unsyncedIds.join(',')
+  useEffect(() => {
+    if (!unsyncedKey) return
+    void supabase.from('student_progress').upsert(
+      unsyncedKey.split(',').map(id => ({ student_id: studentId, unit_item_id: id, tenant_id: tenantId })),
+      { onConflict: 'student_id,unit_item_id', ignoreDuplicates: true },
+    )
+  }, [unsyncedKey, studentId, tenantId, supabase])
   const [saving, setSaving] = useState(false)
   const [openLevels, setOpenLevels] = useState<Record<string, boolean>>(
     () => Object.fromEntries(levels.map((l, i) => [l.id, i === 0]))
@@ -135,6 +181,24 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
   }
 
   const Icon = TYPE_ICON[current.item.type] ?? FileText
+  const linked = current.item.examId ? assessments[current.item.examId] : undefined
+  const isAssessment = !!current.item.examId
+  const videoSource = current.item.type === 'video' ? parseVideoUrl(current.item.videoUrl) : null
+
+  if (taking && assessments[taking]) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <ExamTaker
+          exam={assessments[taking].exam}
+          userId={studentId}
+          tenantId={tenantId}
+          violationWarningThreshold={violationWarningThreshold}
+          finishLabel={t('backToCourse')}
+          onFinish={() => { setTaking(null); router.refresh() }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -236,14 +300,28 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             {completed.has(current.item.id) && (
               <span className="flex items-center gap-1.5 text-[12px] text-success shrink-0">
                 <Check className="w-3.5 h-3.5" aria-hidden="true" />
-                {t('player.done')}
+                {t('done')}
               </span>
             )}
           </div>
 
+          {current.item.type === 'video' && (
+            videoSource
+              ? <VideoPlayer source={videoSource} title={current.item.title} />
+              : <p className="text-[13px] text-fg-muted mb-4">{t('videoUnavailable')}</p>
+          )}
+
+          {isAssessment && (
+            <AssessmentPanel
+              kind={current.item.type === 'task' ? 'task' : 'quiz'}
+              assessment={linked}
+              onStart={() => setTaking(current.item.examId!)}
+            />
+          )}
+
           {current.item.body.trim()
             ? <Markdown content={current.item.body} />
-            : <p className="text-[13px] text-fg-muted">{t('noContent')}</p>}
+            : !isAssessment && current.item.type !== 'video' && <p className="text-[13px] text-fg-muted">{t('noContent')}</p>}
 
           {/* Section navigation */}
           <div className="flex flex-wrap items-center gap-3 mt-8 pt-5 border-t border-border">
@@ -255,12 +333,12 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
             >
               <ArrowLeft className="w-4 h-4 rtl:hidden" aria-hidden="true" />
               <ArrowRight className="w-4 h-4 hidden rtl:inline" aria-hidden="true" />
-              {t('player.prev')}
+              {t('prev')}
             </Button>
 
-            {!completed.has(current.item.id) ? (
+            {!isAssessment && !completed.has(current.item.id) ? (
               <Button size="sm" loading={saving} onClick={markComplete}>
-                {t('player.markComplete')}
+                {t('markComplete')}
               </Button>
             ) : (
               <Button
@@ -268,7 +346,7 @@ export function CoursePlayerClient({ course, levels, completedIds, studentId, te
                 disabled={activeIndex >= total - 1}
                 onClick={() => setActiveIndex(i => Math.min(total - 1, i + 1))}
               >
-                {t('player.next')}
+                {t('next')}
                 <ArrowRight className="w-4 h-4 rtl:hidden" aria-hidden="true" />
                 <ArrowLeft className="w-4 h-4 hidden rtl:inline" aria-hidden="true" />
               </Button>
@@ -295,5 +373,109 @@ function BackLink() {
       <ArrowRight className="w-3.5 h-3.5 hidden rtl:inline" aria-hidden="true" />
       {t('player.allCourses')}
     </Link>
+  )
+}
+
+function VideoPlayer({ source, title }: { source: NonNullable<ReturnType<typeof parseVideoUrl>>; title: string }) {
+  return (
+    <div className="mb-5 rounded-lg overflow-hidden bg-black aspect-video">
+      {source.kind === 'file' ? (
+        <video src={source.url} controls preload="metadata" className="w-full h-full">
+          <track kind="captions" />
+        </video>
+      ) : (
+        <iframe
+          src={source.embedUrl}
+          title={title}
+          className="w-full h-full"
+          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          loading="lazy"
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * A quiz or task item: what it is, where the student stands, and the one
+ * action that makes sense next. Grades appear only once the teacher's
+ * grading is published, exactly as on the exams and grades pages.
+ */
+function AssessmentPanel({ kind, assessment, onStart }: {
+  kind: 'quiz' | 'task'
+  assessment: PlayerAssessment | undefined
+  onStart: () => void
+}) {
+  const t = useTranslations('student.player.assessment')
+  const locale = useLocale() as Locale
+  // Captured once per mount: the purity lint forbids Date.now() during render.
+  const [now] = useState(() => Date.now())
+
+  if (!assessment) {
+    return (
+      <div className="mb-5 rounded-lg border border-border bg-canvas p-4 text-[13px] text-fg-muted flex items-center gap-2">
+        <Hourglass className="w-4 h-4 shrink-0" aria-hidden="true" />
+        {kind === 'quiz' ? t('quizNotAvailable') : t('taskNotAvailable')}
+      </div>
+    )
+  }
+
+  const { exam, submission } = assessment
+  const isTask = exam.type === 'homework'
+  const questions = exam.questions.length
+  const closed = !!exam.ends_at && new Date(exam.ends_at).getTime() < now
+  const handedIn = submission?.status === 'submitted'
+  const inProgress = submission?.status === 'in_progress'
+  const graded = handedIn && submission.gradingStatus === 'published' && submission.score != null
+
+  return (
+    <div className="mb-5 rounded-lg border border-border bg-canvas p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+          <ClipboardList className="w-[17px] h-[17px] text-accent" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-semibold text-fg">{exam.title}</p>
+          <p className="text-[12px] text-fg-muted mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{t('questions', { count: questions })}</span>
+            {isTask ? (
+              <span>· {exam.ends_at ? t('due', { date: formatDateTime(exam.ends_at, locale) }) : t('noDue')}</span>
+            ) : (
+              <span className="inline-flex items-center gap-1">· <Clock className="w-3 h-3" aria-hidden="true" />{t('minutes', { count: exam.duration_minutes })}</span>
+            )}
+            {exam.proctoring_enabled && (
+              <span className="inline-flex items-center gap-1">· <ShieldCheck className="w-3 h-3" aria-hidden="true" />{t('proctored')}</span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {handedIn ? (
+        graded ? (
+          <p className="text-[13px] text-success flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+            {t('score', {
+              score: submission.score!,
+              max: submission.maxScore ?? 0,
+              pct: submission.maxScore ? Math.round((submission.score! / submission.maxScore) * 100) : 0,
+            })}
+          </p>
+        ) : (
+          <p className="text-[13px] text-fg-secondary flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-success" aria-hidden="true" />
+            {t('awaitingGrade')}
+          </p>
+        )
+      ) : closed ? (
+        <p className="text-[13px] text-fg-muted">{t('closed')}</p>
+      ) : (
+        <Button size="sm" onClick={onStart}>
+          <PlayCircle className="w-4 h-4" aria-hidden="true" />
+          {inProgress ? t('resume') : isTask ? t('startTask') : t('startQuiz')}
+        </Button>
+      )}
+    </div>
   )
 }

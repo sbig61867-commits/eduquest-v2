@@ -27,6 +27,109 @@ body {
   font-family: var(--font-arabic), Arial, Helvetica, sans-serif;
 }
 
+/* ── Public surface appearance (marketing pages + sign-in) ──────────────────
+   The public components are art-directed dark (slate + blue). The light
+   appearance is produced HERE by remapping the palette inside `.eq-public`,
+   so the components keep a single set of classes: page/panel slates flip to
+   paper tones, `white` (headings) becomes ink, and pale accent text darkens
+   for contrast. Text on a solid accent uses `text-on-accent`, which never
+   flips. Choice: <html data-eq-theme> (from the eq_theme cookie, see
+   src/lib/theme.ts); without it the system setting decides. */
+@theme {
+  --color-on-accent: #ffffff;
+}
+
+@custom-variant eq-light {
+  :root[data-eq-theme="light"] & { @slot; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-eq-theme]) & { @slot; }
+  }
+}
+
+:root[data-eq-theme="light"] .eq-public {
+  --color-slate-950: oklch(98.4% 0.003 247.858);
+  --color-slate-900: oklch(100% 0 0);
+  --color-slate-800: oklch(92.9% 0.013 255.508);
+  --color-slate-700: oklch(86.9% 0.022 252.894);
+  --color-slate-600: oklch(70.4% 0.04 256.788);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-400: oklch(44.6% 0.043 257.281);
+  --color-slate-300: oklch(37.2% 0.044 257.287);
+  --color-slate-200: oklch(27.9% 0.041 260.031);
+  --color-slate-100: oklch(20.8% 0.042 265.755);
+  --color-white: oklch(20.8% 0.042 265.755);
+  --color-blue-200: oklch(42.4% 0.199 265.638);
+  --color-blue-300: oklch(48.8% 0.243 264.376);
+  --color-blue-400: oklch(54.6% 0.245 262.881);
+  --color-sky-300: oklch(50% 0.134 242.749);
+  --color-emerald-300: oklch(50.8% 0.118 165.612);
+  --color-emerald-400: oklch(59.6% 0.145 163.225);
+  --color-amber-300: oklch(55.5% 0.163 48.998);
+  --color-red-300: oklch(50.5% 0.213 27.518);
+  --color-red-400: oklch(57.7% 0.245 27.325);
+  --color-sky-400: oklch(58.8% 0.158 241.966);
+  --color-violet-300: oklch(49.1% 0.27 292.581);
+  --color-violet-400: oklch(54.1% 0.281 293.009);
+  --color-amber-400: oklch(66.6% 0.179 58.318);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-eq-theme]) .eq-public {
+    --color-slate-950: oklch(98.4% 0.003 247.858);
+    --color-slate-900: oklch(100% 0 0);
+    --color-slate-800: oklch(92.9% 0.013 255.508);
+    --color-slate-700: oklch(86.9% 0.022 252.894);
+    --color-slate-600: oklch(70.4% 0.04 256.788);
+    --color-slate-500: oklch(55.4% 0.046 257.417);
+    --color-slate-400: oklch(44.6% 0.043 257.281);
+    --color-slate-300: oklch(37.2% 0.044 257.287);
+    --color-slate-200: oklch(27.9% 0.041 260.031);
+    --color-slate-100: oklch(20.8% 0.042 265.755);
+    --color-white: oklch(20.8% 0.042 265.755);
+    --color-blue-200: oklch(42.4% 0.199 265.638);
+    --color-blue-300: oklch(48.8% 0.243 264.376);
+    --color-blue-400: oklch(54.6% 0.245 262.881);
+    --color-sky-300: oklch(50% 0.134 242.749);
+    --color-emerald-300: oklch(50.8% 0.118 165.612);
+    --color-emerald-400: oklch(59.6% 0.145 163.225);
+    --color-amber-300: oklch(55.5% 0.163 48.998);
+    --color-red-300: oklch(50.5% 0.213 27.518);
+    --color-red-400: oklch(57.7% 0.245 27.325);
+    --color-sky-400: oklch(58.8% 0.158 241.966);
+    --color-violet-300: oklch(49.1% 0.27 292.581);
+    --color-violet-400: oklch(54.1% 0.281 293.009);
+    --color-amber-400: oklch(66.6% 0.179 58.318);
+  --color-sky-400: oklch(58.8% 0.158 241.966);
+  --color-violet-300: oklch(49.1% 0.27 292.581);
+  --color-violet-400: oklch(54.1% 0.281 293.009);
+  --color-amber-400: oklch(66.6% 0.179 58.318);
+    color-scheme: light;
+  }
+}
+.eq-public { color-scheme: dark; }
+/* Overscroll / rubber-band area behind a light public page. */
+:root[data-eq-theme="light"] body:has(.eq-public) { background: oklch(98.4% 0.003 247.858); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-eq-theme]) body:has(.eq-public) { background: oklch(98.4% 0.003 247.858); }
+}
+
+/* Sign-in showcase: gentle drift of the decorative cards. */
+@keyframes eq-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.eq-float { animation: eq-float 7s ease-in-out infinite; }
+
+/* Password reset success: fills over the delay before the redirect. */
+@keyframes eq-grow {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+.eq-grow { animation: eq-grow 2.5s linear forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .eq-float { animation: none; }
+}
+
 /* Public header menu: the panel content fades in on open and when switching
    between menus (src/components/public/public-nav.tsx). */
 @keyframes eq-menu-in {

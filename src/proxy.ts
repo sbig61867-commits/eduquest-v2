@@ -7,13 +7,15 @@ import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/about', '/security', '/ai', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
 // yet (they're creating their account), so gating it would 307-redirect the
 // POST to /login and the client would see a non-JSON body as "Registration failed".
-const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/demo-', '/demo']
+// /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
+// and is gated by CRON_SECRET inside the route instead.
+const PUBLIC_PREFIXES = ['/auth/callback', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true

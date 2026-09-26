@@ -180,7 +180,18 @@
       "generateFailed": "Generation failed",
       "connectionError": "Connection error. Please try again.",
       "deleteFailed": "Failed to delete exam",
-      "createExam": "Create Exam ({marks} {unit})"
+      "createExam": "Create Exam ({marks} {unit})",
+      "targetLabel": "Assign to",
+      "targetGroup": "A group",
+      "targetCourse": "A course",
+      "courseLabel": "Course",
+      "kindLabel": "Type",
+      "kindExam": "Timed exam",
+      "kindTask": "Task with a due date",
+      "dueDateLabel": "Due date (optional)",
+      "courseHint": "Shown to the students enrolled in the course. Then link it to an item inside a unit from the course builder.",
+      "createdForCourse": "Created. Back in the course, link it to an item inside a unit.",
+      "createFailed": "Could not create the exam. Please try again."
     },
     "results": {
       "modalTitle": "Exam Results",
@@ -207,13 +218,27 @@
       "publish": "Publish result to student",
       "hide": "Hide result from student",
       "loadFailed": "Failed to load results",
-      "saveFailed": "Failed to save"
+      "saveFailed": "Failed to save",
+      "individual": "Individual task",
+      "sentToStudent": "What the student was sent",
+      "attachmentAlt": "Attachment {n}",
+      "answerPhoto": "Photo of the student's answer",
+      "commentLabel": "Your comment on the answer",
+      "commentPlaceholder": "What went well and what still needs work",
+      "commentHint": "The student sees it once the grading is published.",
+      "saveComment": "Save comment",
+      "followUp": "Individual task for this student"
     },
     "questionsViewer": {
       "titlePrefix": "Questions: {title}",
       "summary": "{count, plural, one {# question} other {# questions}} · Full marks:"
     },
-    "metaLine": "{minutes} min · {questions, plural, one {# question} other {# questions}} · {date}"
+    "metaLine": "{minutes} min · {questions, plural, one {# question} other {# questions}} · {date}",
+    "taskBadge": "Task",
+    "taskMetaLine": "{questions, plural, one {# question} other {# questions}} · {due}",
+    "dueOn": "Due {date}",
+    "noDue": "No due date",
+    "individualBadge": "Individual: {name}"
   },
   "engagement": {
     "title": "Platform Engagement",
@@ -439,6 +464,26 @@
       "noGroupsYet": "No students in the exam right now.",
       "muted": "Audio muted — click to listen",
       "listening": "Listening to all students"
+    },
+    "optionalNotesLabel": "Description or instructions for the student (optional)",
+    "assessment": {
+      "quizLabel": "Linked quiz",
+      "taskLabel": "Linked task",
+      "chooseQuiz": "Choose one of this course's quizzes",
+      "chooseTask": "Choose one of this course's tasks",
+      "noQuizzes": "This course has no quiz yet.",
+      "noTasks": "This course has no task yet.",
+      "createQuiz": "Create a quiz for this course",
+      "createTask": "Create a task for this course",
+      "unpublishedHint": "Not published yet. Students will not see it until you publish it on the exams page.",
+      "unpublishedBadge": "Unpublished",
+      "notLinked": "Not linked",
+      "pickFirst": "Choose the linked quiz or task first."
+    },
+    "video": {
+      "urlLabel": "Video link",
+      "hint": "A YouTube or Vimeo link, or a direct https link to a video file.",
+      "invalid": "This link is not supported. Use a YouTube, Vimeo or direct video file link."
     }
   },
   "lessonDetail": {
@@ -526,7 +571,24 @@
     "zoomHint": "Click to enlarge at higher quality",
     "speaking": "Speaking",
     "title": "Live Monitoring — {exam}",
-    "connected": "{count, plural, =0{No students connected} one{# student connected} other{# students connected}}"
+    "connected": "{count, plural, =0{No students connected} one{# student connected} other{# students connected}}",
+    "evidence": {
+      "title": "Violation snapshots",
+      "note": "Only the exam teacher can see them, and they are permanently deleted {hours, plural, one {# hour} other {# hours}} after capture.",
+      "empty": "No snapshot has been taken yet. Snapshots are taken for serious violations only.",
+      "disabled": "Snapshot storage is not enabled on the platform yet, so violations are recorded as text only.",
+      "loadError": "Could not load the snapshots. Retrying automatically.",
+      "expiresIn": "{hours, plural, =0 {Deleted within the hour} one {Deleted in # hour} other {Deleted in # hours}}",
+      "close": "Close",
+      "enlarge": "Enlarge snapshot",
+      "types": {
+        "suspicious_activity": "Phone or suspicious object",
+        "multiple_faces": "Another person in view",
+        "face_not_detected": "Face not visible",
+        "tab_switch": "Left the exam page",
+        "fullscreen_exit": "Exited full screen"
+      }
+    }
   },
   "submissions": {
     "title": "Submissions & Grades",
@@ -718,6 +780,56 @@
         "of": "Completed {done} of {total} published items in {course}.",
         "none": "This group is not linked to one of your courses."
       }
+    },
+    "individual": {
+      "open": "Individual task",
+      "badge": "Individual",
+      "ungradedBadge": "Practice, not graded",
+      "review": "Open answer and grading",
+      "title": "Individual task for {name}",
+      "step1": "1. What did the student write?",
+      "step2": "2. What {name} will receive",
+      "sourceLabel": "The exam this follows up (optional)",
+      "sourceNone": "None, a paper exam or a general note",
+      "usePlatformAnswer": "Use their answer on the platform",
+      "readPaper": "Photo of their paper answer",
+      "attachPaper": "Attach the photo to the task for the student to see",
+      "ocrHint": "The writing is read from the photo automatically for the analysis. Check the text before suggesting; unclear handwriting can be misread.",
+      "answerLabel": "The student's answer (for the analysis only, not sent to them)",
+      "answerPlaceholder": "Paste their answer, or read it from a photo or the platform",
+      "notesLabel": "Your notes (optional)",
+      "notesPlaceholder": "What you noticed or want to focus on",
+      "suggest": "Suggest weak points and a task",
+      "suggestHint": "A free suggestion you can fully edit. Nothing reaches the student until you press send.",
+      "taskTitle": "Task title",
+      "taskTitlePlaceholder": "For example: rewrite the second paragraph",
+      "instructionsLabel": "Weak points and what to do",
+      "instructionsPlaceholder": "Write their weak points and your guidance",
+      "questionsLabel": "What they must do",
+      "questionPlaceholder": "A question or paragraph to rework",
+      "points": "Points",
+      "removeQuestion": "Remove question",
+      "addQuestion": "Add a question",
+      "imagesLabel": "Images the student will see",
+      "imageAlt": "Image {n}",
+      "removeImage": "Remove image",
+      "addImage": "Add an image ({count} of {max})",
+      "tooManyImages": "At most {max} images.",
+      "dueLabel": "Due date (optional)",
+      "graded": "Counts towards the grade",
+      "gradedHint": "Its grade enters the student's average once you grade it.",
+      "ungradedHint": "Practice and feedback only; it never affects the student's average.",
+      "cancel": "Cancel",
+      "send": "Send to {name}",
+      "sent": "Task sent to {name}.",
+      "sendFailed": "Could not send the task.",
+      "uploadFailed": "Could not upload the image.",
+      "answerLoadFailed": "Could not load the exam answers.",
+      "noPlatformAnswer": "This student has no written answer in this exam.",
+      "answerFirst": "Add the student's answer first.",
+      "suggestFailed": "No suggestion right now. Write the task yourself or try again later.",
+      "titleRequired": "Write a task title.",
+      "questionRequired": "Add at least one question."
     }
   }
 }

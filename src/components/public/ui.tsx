@@ -1,0 +1,128 @@
+'use client'
+
+import Link from 'next/link'
+
+// Shared building blocks of the public pages (landing, features, pricing,
+// about, security, AI). Pure presentation: every string comes from the caller,
+// so the i18n ratchet never sees a literal here. The light/dark appearance is
+// handled by the `.eq-public` palette remap (src/app/globals.css).
+
+/** Wide container: the page fills large screens instead of a narrow column. */
+export const WRAP = 'max-w-[88rem] mx-auto px-4 sm:px-8 lg:px-12'
+export const PANEL = 'rounded-3xl border border-slate-800 bg-slate-900/60'
+/** Faint square grid, faded out towards the bottom (hero backdrops). */
+export const GRID_BG =
+  'opacity-[0.06] [background-image:linear-gradient(to_right,var(--color-white)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-white)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]'
+
+export function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <p className="text-blue-400 text-sm font-semibold tracking-wide mb-3">{children}</p>
+}
+
+export function SectionHead({ eyebrow, title, desc, center }: { eyebrow?: string; title: string; desc?: string; center?: boolean }) {
+  return (
+    <div className={`mb-10 sm:mb-12 max-w-3xl ${center ? 'text-center mx-auto' : ''}`}>
+      {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+      <h2 className="text-2xl sm:text-4xl font-bold text-white leading-snug">{title}</h2>
+      {desc && <p className="text-slate-400 mt-4 text-base sm:text-lg leading-relaxed">{desc}</p>}
+    </div>
+  )
+}
+
+/** Segmented control shared by the two-state demos. */
+export function Segmented({ options, value, onChange, label }: { options: string[]; value: number; onChange: (i: number) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex flex-wrap gap-1 p-1 rounded-2xl bg-slate-950/70 border border-slate-800">
+      {options.map((o, i) => (
+        <button
+          key={o}
+          type="button"
+          aria-pressed={i === value}
+          onClick={() => onChange(i)}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+            i === value ? 'bg-blue-600 text-on-accent' : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
+          }`}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** A check mark drawn in CSS (the public pages carry no icon font). */
+export function CheckDot({ tone = 'bg-blue-600' }: { tone?: string }) {
+  return (
+    <span aria-hidden="true" className={`mt-0.5 flex items-center justify-center w-5 h-5 rounded-full shrink-0 ${tone}`}>
+      <span className="block w-1.5 h-2.5 -mt-0.5 border-b-2 border-r-2 border-on-accent rotate-45" />
+    </span>
+  )
+}
+
+/** Top-of-page hero used by every inner public page. */
+export function PageHero({ eyebrow, title, desc, children }: { eyebrow: string; title: string; desc: string; children?: React.ReactNode }) {
+  return (
+    <section className="relative">
+      <div aria-hidden="true" className={`absolute inset-0 ${GRID_BG}`} />
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[32rem] bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.2),transparent_65%)]" />
+      <div className={`relative ${WRAP} pt-14 sm:pt-20 pb-12 sm:pb-16 text-center`}>
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/25 text-blue-300 text-sm font-medium">
+          <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-blue-400 motion-safe:animate-pulse" />
+          {eyebrow}
+        </span>
+        <h1 className="mt-7 text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight max-w-5xl mx-auto">{title}</h1>
+        <p className="text-slate-400 text-base sm:text-lg mt-6 max-w-3xl mx-auto leading-loose">{desc}</p>
+        {children}
+      </div>
+    </section>
+  )
+}
+
+/** Closing call to action shared by the inner pages. */
+export function CtaBand({ title, desc, primary, secondary }: {
+  title: string
+  desc: string
+  primary: { label: string; href: string }
+  secondary?: { label: string; href: string }
+}) {
+  return (
+    <section className={`${WRAP} py-12 sm:py-16`}>
+      <div className="relative overflow-hidden rounded-[2rem] border border-blue-500/30 bg-gradient-to-br from-blue-600/30 via-slate-900 to-slate-950 px-6 py-14 sm:p-20 text-center">
+        <div aria-hidden="true" className="absolute -top-24 left-1/2 -translate-x-1/2 w-[36rem] h-[36rem] rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="relative">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">{title}</h2>
+          <p className="text-slate-300 mt-4 max-w-2xl mx-auto leading-relaxed">{desc}</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
+            <Link href={primary.href} className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-blue-50 text-slate-950 font-semibold transition-colors">
+              {primary.label}
+            </Link>
+            {secondary && (
+              <Link href={secondary.href} className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-slate-600 hover:border-slate-400 text-slate-100 font-semibold transition-colors">
+                {secondary.label}
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** Two-column FAQ accordion (topic titles, not questions: see the copy rules). */
+export function FaqGrid({ items }: { items: { q: string; a: string }[] }) {
+  return (
+    <div className="grid md:grid-cols-2 gap-3 items-start">
+      {items.map(f => (
+        <details key={f.q} className="group rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden open:border-blue-500/40">
+          <summary className="flex items-center justify-between gap-4 p-5 cursor-pointer list-none text-white font-medium hover:bg-slate-800/40 transition-colors [&::-webkit-details-marker]:hidden">
+            {f.q}
+            <span aria-hidden="true" className="relative w-3.5 h-3.5 shrink-0">
+              <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-slate-400 rounded" />
+              <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-slate-400 rounded transition-transform group-open:rotate-90 group-open:opacity-0" />
+            </span>
+          </summary>
+          <p className="px-5 pb-5 -mt-1 text-slate-400 text-sm leading-relaxed">{f.a}</p>
+        </details>
+      ))}
+    </div>
+  )
+}
