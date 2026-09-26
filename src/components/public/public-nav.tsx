@@ -255,8 +255,11 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <ThemeToggle />
-            <LocaleToggle active={lang} onPick={setLang} />
+            {/* On phones these two move into the menu sheet, so the bar never overflows. */}
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+              <ThemeToggle />
+              <LocaleToggle active={lang} onPick={setLang} />
+            </div>
             <Link
               href="/login"
               className="px-3 sm:px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-on-accent text-sm font-medium transition-colors whitespace-nowrap"
@@ -326,6 +329,10 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
           }`}
         >
           <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto bg-slate-900 border-b border-slate-800 shadow-2xl shadow-black/40 px-4 py-6 space-y-7">
+            <div className="sm:hidden flex items-center justify-end gap-2 px-3">
+              <ThemeToggle />
+              <LocaleToggle active={lang} onPick={setLang} />
+            </div>
             {MENUS.map(menu => (
               <section key={menu.key}>
                 <p className="text-slate-500 text-sm mb-2 px-3">{m(`${menu.key}.label`)}</p>
