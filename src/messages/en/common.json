@@ -136,6 +136,14 @@
       "whatsapp": "Contact on WhatsApp",
       "phone": "Call us",
       "email": "Email us"
-    }
+    },
+    "interested": "I'm interested",
+    "interestedOn": "You're interested",
+    "interestNote": "Your interest is registered — the centre will contact you. Tap again to withdraw it.",
+    "interestSaved": "Interest registered",
+    "interestFailed": "Could not register your interest — try again later",
+    "pinned": "Pinned",
+    "endsInHours": "{count, plural, one {Ends in 1 hour} other {Ends in {count} hours}}",
+    "endsInDays": "{count, plural, one {Ends in 1 day} other {Ends in {count} days}}"
   }
 }

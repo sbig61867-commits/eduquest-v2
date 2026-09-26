@@ -136,6 +136,14 @@
       "whatsapp": "تواصل عبر واتساب",
       "phone": "اتصل بنا",
       "email": "راسلنا بالبريد"
-    }
+    },
+    "interested": "أنا مهتم",
+    "interestedOn": "سجّلت اهتمامك",
+    "interestNote": "سُجّل اهتمامك — سيتواصل معك المركز. اضغط مرة أخرى لإلغائه.",
+    "interestSaved": "سُجّل اهتمامك",
+    "interestFailed": "تعذّر تسجيل اهتمامك — حاول لاحقاً",
+    "pinned": "مثبّت",
+    "endsInHours": "ينتهي خلال {count, plural, one {ساعة واحدة} two {ساعتين} few {{count} ساعات} many {{count} ساعةً} other {{count} ساعة}}",
+    "endsInDays": "ينتهي خلال {count, plural, one {يوم واحد} two {يومين} few {{count} أيام} many {{count} يوماً} other {{count} يوم}}"
   }
 }

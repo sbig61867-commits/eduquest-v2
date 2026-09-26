@@ -146,7 +146,7 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-09-25.
+- `announcement_engagement_migration.sql` — `announcements.collect_interest` ("I'm interested" button) + `announcements.pinned`, and `announcement_events` (one row per announcement × student × `view`|`click`|`interest`, unique). SELECT policy only (own rows for a student; tenant rows for staff roles), all writes revoked — written by `/api/announcements/events`, which takes visibility from `get_student_announcements()` through the student's own session before a service-role upsert. `get_student_announcements()` is dropped and recreated with `collect_interest`, `pinned`, `interested` and pinned-first ordering; grants re-asserted (`REVOKE ALL … FROM PUBLIC, anon`). Staff read the interested list through `/api/announcements/interested` (same gate as editing). **Until applied**, the loader's `announcement_events` read fails → `engagementReady=false` → the manager hides pinning/interest/stats and the API never sends the new columns; nothing breaks. Dry-run 2026-09-26 in a forced-rollback transaction on the live DB: pinned-first ordering, own-row isolation (s1 2 rows, s2 1 row), admin sees tenant rows, duplicate blocked, student direct INSERT 42501, anon feed 42501.
 
 ## Centre manager panel
 

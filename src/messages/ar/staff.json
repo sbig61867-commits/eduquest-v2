@@ -472,7 +472,50 @@
       }
     },
     "imageTooBig": "تعذّر تصغير الصورة بما يكفي لرفعها (صورة GIF المتحركة يجب أن تكون أقل من 4 ميجابايت).",
-    "imageUnreadable": "لا يستطيع متصفحك قراءة صيغة هذه الصورة — احفظها بصيغة JPG أو PNG وحاول مجدداً."
+    "imageUnreadable": "لا يستطيع متصفحك قراءة صيغة هذه الصورة — احفظها بصيغة JPG أو PNG وحاول مجدداً.",
+    "copyOf": "نسخة من {title}",
+    "extended": "مُدّد أسبوعاً آخر ونُشر",
+    "pinnedOk": "ثُبّت في الأعلى",
+    "unpinnedOk": "أُلغي التثبيت",
+    "filterAll": "الكل",
+    "searchPlaceholder": "ابحث في الإعلانات…",
+    "noMatches": "لا توجد إعلانات تطابق هذا الفلتر.",
+    "duplicate": "نسخ",
+    "extendWeek": "تمديد أسبوع",
+    "duration": {
+      "label": "ينتهي بعد:",
+      "days": "{count, plural, one {يوم واحد} two {يومين} few {{count} أيام} many {{count} يوماً} other {{count} يوم}}",
+      "none": "بلا تاريخ انتهاء"
+    },
+    "interest": {
+      "toggle": "إظهار زر «أنا مهتم»",
+      "toggleHint": "يسجّل الطالب اهتمامه بضغطة واحدة، وتصلك قائمة بالأسماء والبريد لتتواصل معهم.",
+      "title": "المهتمون بـ «{title}»",
+      "loadFailed": "تعذّر تحميل القائمة",
+      "loading": "جارٍ التحميل…",
+      "empty": "لم يسجّل أحد اهتمامه بعد.",
+      "count": "{count, plural, one {طالب واحد مهتم} two {طالبان مهتمان} few {{count} طلاب مهتمين} many {{count} طالباً مهتماً} other {{count} طالب مهتم}}",
+      "colName": "الاسم",
+      "colEmail": "البريد الإلكتروني",
+      "colDate": "التاريخ",
+      "copyEmails": "نسخ البريد",
+      "downloadCsv": "تنزيل (Excel)",
+      "copied": "نُسخت عناوين البريد",
+      "copyFailed": "تعذّر النسخ — المتصفح منع الوصول للحافظة"
+    },
+    "pin": {
+      "toggle": "تثبيت في الأعلى",
+      "toggleHint": "يظهر أولاً في صفحة الطالب الرئيسية قبل الإعلانات الأحدث.",
+      "pinned": "مثبّت",
+      "pin": "تثبيت",
+      "unpin": "إلغاء التثبيت"
+    },
+    "stats": {
+      "views": "{count, plural, one {مشاهدة واحدة} two {مشاهدتان} few {{count} مشاهدات} many {{count} مشاهدةً} other {{count} مشاهدة}}",
+      "clicks": "{count, plural, one {نقرة واحدة} two {نقرتان} few {{count} نقرات} many {{count} نقرةً} other {{count} نقرة}}",
+      "interest": "{count, plural, one {مهتم واحد} two {مهتمان} few {{count} مهتمين} many {{count} مهتماً} other {{count} مهتم}}",
+      "viewsHint": "الطلاب الذين شاهدوا الإعلان مرة واحدة على الأقل"
+    }
   },
   "invitations": {
     "createFailed": "فشل إنشاء الدعوة",

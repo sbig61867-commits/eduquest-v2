@@ -63,7 +63,7 @@ export default async function StudentDashboard() {
         <p className="text-slate-400 mt-1">{t('subtitle')}</p>
       </div>
 
-      <AnnouncementsBanner announcements={announcements} />
+      <AnnouncementsBanner announcements={announcements} track />
 
       <SurveyCard />
 
