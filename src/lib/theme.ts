@@ -5,9 +5,12 @@
  * remapping the palette inside `.eq-public` (see src/app/globals.css), so the
  * components keep one set of classes.
  *
- * Resolution: the `eq_theme` cookie, when present, is written onto
- * <html data-eq-theme> by the root layout on the server (no flash, no inline
- * script). Without it the page follows `prefers-color-scheme`.
+ * Resolution: the `eq_theme` cookie, when present, is copied onto
+ * <html data-eq-theme> by THEME_BOOT_SCRIPT, an inline script in the root
+ * layout's <head> that runs before first paint (no flash). It is read in the
+ * browser, never on the server, so a public page's HTML does not depend on the
+ * visitor's cookies and can be served from the CDN cache (see src/proxy.ts).
+ * Without the cookie the page follows `prefers-color-scheme`.
  */
 export const THEMES = ['light', 'dark'] as const
 export type Theme = (typeof THEMES)[number]
@@ -32,3 +35,8 @@ export function applyTheme(next: Theme) {
   document.documentElement.setAttribute(THEME_ATTR, next)
   document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${MAX_AGE}; samesite=lax`
 }
+
+/** Runs before first paint: applies a saved choice to <html>. Keep it tiny and dependency-free. */
+export const THEME_BOOT_SCRIPT =
+  `try{var m=document.cookie.match(/(?:^|; )${THEME_COOKIE}=(light|dark)(?:;|$)/);` +
+  `if(m)document.documentElement.setAttribute('${THEME_ATTR}',m[1])}catch(e){}`

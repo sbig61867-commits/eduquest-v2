@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n/config'
+import { LOCALE_COOKIE, type Locale } from '@/i18n/config'
+import { writeLocaleCookie } from '@/components/shared/locale-switcher'
 import { isMarketingPath, localizedPath, type MarketingPath } from '@/i18n/public-routes'
 import { pricingEnabled } from '@/lib/pricing/plans'
 import { ThemeToggle } from './theme-toggle'
@@ -120,6 +121,12 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
     setAnchor(to.hash ?? '')
     closeAll()
   }
+
+  // A page served from the CDN cache sets no cookie, so remember the language
+  // of the URL here: it carries through to /login and into the app.
+  useEffect(() => {
+    if (!document.cookie.split('; ').includes(`${LOCALE_COOKIE}=${lang}`)) writeLocaleCookie(lang)
+  }, [lang])
 
   // Hide on scroll down, show on scroll up / near the top / pointer at the top edge.
   useEffect(() => {
