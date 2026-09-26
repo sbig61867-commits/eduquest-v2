@@ -22,7 +22,7 @@
     },
     "announce_to_university": {
       "label": "Address institution students",
-      "hint": "Also target institution students, and classify a student as an institution student. Without it, announcements reach continuing-education students only"
+      "hint": "Also target institution students, and classify a student as an institution student. Without it, announcements reach centre students only"
     },
     "manage_schedules": {
       "label": "Manage timetables",
@@ -41,8 +41,8 @@
       "hint": "Access reports, grade transcripts and the dashboard"
     },
     "manage_center_staff": {
-      "label": "Manage continuing education managers and their permissions",
-      "hint": "Create continuing education manager accounts and configure their permissions"
+      "label": "Manage centre managers and their permissions",
+      "hint": "Create centre manager accounts and configure their permissions"
     },
     "manage_academic_structure": {
       "label": "Manage academic structure",
@@ -165,7 +165,7 @@
     "invited": "Invitation sent by email",
     "affiliationFailed": "Could not change the classification",
     "nowInstitution": "Now also {label}",
-    "nowCentreOnly": "Now a continuing-education trainee only",
+    "nowCentreOnly": "Now a centre trainee only",
     "statusFailed": "Could not change the status",
     "search": "Search by name or email…",
     "thName": "Name",
@@ -174,9 +174,9 @@
     "thStatus": "Status",
     "active": "Active",
     "disabled": "Disabled",
-    "centreTrainee": "Continuing-education trainee",
+    "centreTrainee": "Centre trainee",
     "makeInstitution": "Treat as {label}",
-    "makeCentreOnly": "Treat as continuing-education trainee",
+    "makeCentreOnly": "Treat as centre trainee",
     "enable": "Enable",
     "disable": "Disable",
     "modeInvite": "Invite by email (recommended)",
@@ -187,7 +187,7 @@
     "email": "Email",
     "tempPassword": "Temporary password (at least 8 characters)",
     "alsoInstitution": "Also {label}",
-    "affiliationHint": "Leave it empty for a trainee who came to the continuing education centre from outside {institution} — they will not receive {institution} announcements.",
+    "affiliationHint": "Leave it empty for a trainee who came to the centre from outside {institution} — they will not receive {institution} announcements.",
     "cancel": "Cancel",
     "sendInvite": "Send invitation",
     "createAccount": "Create account",
@@ -366,7 +366,7 @@
     "audience": {
       "all": "All students",
       "university": "Institution students",
-      "center": "Continuing-education students",
+      "center": "Centre students",
       "groups": "Specific groups"
     },
     "briefRequired": "Write a short description of the announcement first",
@@ -414,7 +414,7 @@
     "ctaPlaceholder": "Register now",
     "audienceLabel": "Audience",
     "audienceLocked": "Requires permission to address {students}",
-    "audienceNote": "Your announcements reach continuing-education students only (those enrolled in a course, or not classified as {student}). To address {students} you need the permission to address {students}.",
+    "audienceNote": "Your announcements reach centre students only (those enrolled in a course, or not classified as {student}). To address {students} you need the permission to address {students}.",
     "noGroups": "No groups.",
     "startsAt": "Starts at (optional)",
     "endsAt": "Ends at (optional)",
@@ -428,7 +428,7 @@
     "empty": "No announcements yet.",
     "emptyHint": "Create an announcement to show students on their home page.",
     "groupsCount": "{count, plural, one {# group} other {# groups}}",
-    "centerOnlyNote": " · continuing-education students only",
+    "centerOnlyNote": " · centre students only",
     "edit": "Edit",
     "hide": "Hide",
     "publish": "Publish",

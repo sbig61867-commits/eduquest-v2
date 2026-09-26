@@ -13,7 +13,7 @@
   },
   "portalTitle": "بوابة الطالب",
   "roleTitle": "طالب",
-  "centreTraineeTitle": "متدرب التعليم المستمر",
+  "centreTraineeTitle": "متدرب المركز",
   "lessons": {
     "title": "دروسي",
     "count": "{count, plural, zero {لا دروس متاحة} one {درس واحد متاح} two {درسان متاحان} few {{count} دروس متاحة} many {{count} درساً متاحاً} other {{count} درس متاح}}",
@@ -93,7 +93,7 @@
     "emailLocked": "لا يمكن تغيير البريد الإلكتروني",
     "save": "حفظ التغييرات",
     "noGroups": "لست مسجّلاً في أي مجموعة بعد.",
-    "centreEnrolled": "مسجّل عن طريق مركز التعليم المستمر في {institution} — تصلك دوراته وإعلاناته.",
+    "centreEnrolled": "مسجّل عن طريق مركز التعليم المستمر في {institution} — تصلك دورات المركز وإعلاناته.",
     "saved": "تم تحديث الاسم بنجاح",
     "myGroups": "مجموعاتي ({count})",
     "teacher": "المعلم: {name}",

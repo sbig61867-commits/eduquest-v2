@@ -30,7 +30,7 @@
       "title": "Interactive Demo — EduQuest",
       "description": "Browse the EduQuest platform in four roles with sample data and no sign-in.",
       "admin": "Demo — Institution Admin Dashboard — EduQuest",
-      "center": "Demo — Continuing Education Manager Dashboard — EduQuest",
+      "center": "Demo — Centre Manager Dashboard — EduQuest",
       "student": "Demo — Student Dashboard — EduQuest",
       "teacher": "Demo — Teacher Dashboard — EduQuest",
       "roleDescription": "A guided tour of the {role} on EduQuest with sample data."
@@ -61,7 +61,7 @@
       "center": {
         "label": "Continuing Education Centre Manager",
         "desc": "Timetables and announcements",
-        "dash": "continuing education manager dashboard"
+        "dash": "centre manager dashboard"
       }
     },
     "shell": {

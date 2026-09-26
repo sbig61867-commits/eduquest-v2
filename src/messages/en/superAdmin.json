@@ -49,8 +49,8 @@
   },
   "permissions": {
     "title": "Permissions",
-    "subtitle": "Decide what each institution admin and continuing education manager can do. An admin can never grant a permission they do not hold.",
-    "emptyHint": "No institution admins or continuing education managers yet.",
+    "subtitle": "Decide what each institution admin and centre manager can do. An admin can never grant a permission they do not hold.",
+    "emptyHint": "No institution admins or centre managers yet.",
     "noTenant": "No institution"
   },
   "aiUsage": {
@@ -133,8 +133,8 @@
     "archiveConfirm": "Archive “{name}”? All of its users will be blocked from signing in. The data is kept and can be restored later.",
     "deleteConfirm": "Permanently delete “{name}”?\n\nEverything will be erased for good: users and their accounts, groups, lessons, exams and grades. This cannot be undone.\n\nTo pause it temporarily, use “Archive” instead.",
     "deleteConfirmFinal": "Final confirmation: this is an irreversible deletion of “{name}”.",
-    "centerOn": "Enable the continuing-education centre for “{name}”? The student split and the continuing education manager role will appear.",
-    "centerOff": "Remove the continuing-education centre from “{name}”? Every student will be treated as the institution's own and no continuing education managers can be added. No account or data is deleted.",
+    "centerOn": "Enable the continuing-education centre for “{name}”? The student split and the centre manager role will appear.",
+    "centerOff": "Remove the continuing-education centre from “{name}”? Every student will be treated as the institution's own and no centre managers can be added. No account or data is deleted.",
     "academicOn": "Enable the academic structure (faculties, departments and terms) for “{name}”?",
     "academicOff": "Return “{name}” to the original structure? Faculties and departments will be hidden from users without deleting any data, and come back as they were when re-enabled.",
     "addModalTitle": "Add a new institution",
@@ -142,7 +142,7 @@
     "namePlaceholder": "e.g. King Abdullah University",
     "slug": "Identifier (in the link)",
     "type": "Institution type",
-    "hasCenterLong": "Has a continuing-education centre (student split + continuing education manager)",
+    "hasCenterLong": "Has a continuing-education centre (student split + centre manager)",
     "create": "Create institution",
     "addAdminTitle": "Add admin — {name}",
     "addAdminHint": "This admin will manage the teachers and students of <b>{name}</b>.",

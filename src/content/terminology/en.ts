@@ -51,7 +51,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
 
 export const roleLabels: RoleLabels = {
   super_admin: 'Owner',
-  center_manager: 'Continuing Education Manager',
+  center_manager: 'Centre Manager',
   teacher: 'Teacher',
   student: 'Student',
 }

@@ -108,11 +108,11 @@ describe('students', () => {
 
   it('centre trainee: Centre Trainee title/header and the centre card, never faculties', () => {
     signIn(user({ role: 'student', is_university_student: false }), tenant({}))
-    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب التعليم المستمر" />)
-    expect(screen.getByText('متدرب التعليم المستمر')).toBeInTheDocument()
+    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
+    expect(screen.getByText('متدرب المركز')).toBeInTheDocument()
     unmount()
     render(<Header title="بوابة الطالب" />)
-    expect(screen.getByText(/متدرب التعليم المستمر/)).toBeInTheDocument()
+    expect(screen.getByText(/متدرب المركز/)).toBeInTheDocument()
   })
 
   it('centre trainee profile shows the centre card and no faculty block', () => {
@@ -125,7 +125,7 @@ describe('students', () => {
 
   it('university student: Student title and faculty › department on profile', () => {
     signIn(user({ role: 'student', is_university_student: true }), tenant({ structure_mode: 'academic' }))
-    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب التعليم المستمر" />)
+    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
     expect(screen.getByText('طالب')).toBeInTheDocument()
     unmount()
     render(<StudentProfileClient profile={profile} groups={[]}
@@ -136,7 +136,7 @@ describe('students', () => {
 
   it('trainee flag is ignored in a tenant without a centre', () => {
     signIn(user({ role: 'student', is_university_student: false }), tenant({ has_center: false, institution_type: 'school' }))
-    render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب التعليم المستمر" />)
+    render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
     expect(screen.getByText('طالب')).toBeInTheDocument()
   })
 })

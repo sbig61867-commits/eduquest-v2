@@ -13,7 +13,7 @@
   },
   "portalTitle": "Student Portal",
   "roleTitle": "Student",
-  "centreTraineeTitle": "Continuing Education Trainee",
+  "centreTraineeTitle": "Centre Trainee",
   "lessons": {
     "title": "My Lessons",
     "count": "{count, plural, =0 {No lessons available} one {# lesson available} other {# lessons available}}",
@@ -115,7 +115,7 @@
     "pastCoursesHint": "Progress is frozen as of your transfer — for reference only; nothing new counts here.",
     "itemsCompleted": "{done} / {total} items completed",
     "pastGroup": "Group: {name}",
-    "enrolledSummary": "{count} enrolled · Continuing Education Centre",
+    "enrolledSummary": "{count} enrolled · Continuing Education Center",
     "courseFallback": "Course",
     "movedOn": "Moved {date}",
     "movedTo": "Moved {date} → {course}"

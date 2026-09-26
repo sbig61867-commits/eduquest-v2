@@ -22,7 +22,7 @@
     },
     "announce_to_university": {
       "label": "مخاطبة طلاب المؤسسة",
-      "hint": "توجيه الإعلانات لطلاب المؤسسة أيضاً، وتصنيف الطالب كطالب مؤسسة. بدونها تصل إعلاناته لطلاب التعليم المستمر فقط"
+      "hint": "توجيه الإعلانات لطلاب المؤسسة أيضاً، وتصنيف الطالب كطالب مؤسسة. بدونها تصل إعلاناته لطلاب المركز فقط"
     },
     "manage_schedules": {
       "label": "إدارة جداول المواعيد",
@@ -165,7 +165,7 @@
     "invited": "تم إرسال الدعوة إلى البريد",
     "affiliationFailed": "تعذّر تغيير التصنيف",
     "nowInstitution": "صار {label} أيضاً",
-    "nowCentreOnly": "صار متدرب تعليم مستمر فقط",
+    "nowCentreOnly": "صار متدرب مركز فقط",
     "statusFailed": "تعذّر تغيير الحالة",
     "search": "بحث بالاسم أو البريد…",
     "thName": "الاسم",
@@ -174,9 +174,9 @@
     "thStatus": "الحالة",
     "active": "نشط",
     "disabled": "معطّل",
-    "centreTrainee": "متدرب التعليم المستمر",
+    "centreTrainee": "متدرب مركز",
     "makeInstitution": "اعتباره {label}",
-    "makeCentreOnly": "اعتباره متدرب تعليم مستمر",
+    "makeCentreOnly": "اعتباره متدرب مركز",
     "enable": "تفعيل",
     "disable": "تعطيل",
     "modeInvite": "دعوة بالبريد (مستحسن)",
@@ -187,7 +187,7 @@
     "email": "البريد الإلكتروني",
     "tempPassword": "كلمة مرور مؤقتة (8 أحرف على الأقل)",
     "alsoInstitution": "{label} أيضاً",
-    "affiliationHint": "اتركه فارغاً لمتدرب جاء لمركز التعليم المستمر من خارج {institution} — عندها لا تصله إعلانات {institution}.",
+    "affiliationHint": "اتركه فارغاً لمتدرب جاء للمركز من خارج {institution} — عندها لا تصله إعلانات {institution}.",
     "cancel": "إلغاء",
     "sendInvite": "إرسال الدعوة",
     "createAccount": "إنشاء الحساب",
@@ -366,7 +366,7 @@
     "audience": {
       "all": "كل الطلاب",
       "university": "طلاب المؤسسة",
-      "center": "طلاب التعليم المستمر",
+      "center": "طلاب المركز",
       "groups": "مجموعات محددة"
     },
     "briefRequired": "اكتب وصفاً مختصراً للإعلان أولاً",
@@ -414,7 +414,7 @@
     "ctaPlaceholder": "سجّل الآن",
     "audienceLabel": "الجمهور",
     "audienceLocked": "تحتاج صلاحية مخاطبة {students}؟",
-    "audienceNote": "إعلاناتك تصل لطلاب التعليم المستمر فقط (المسجّلين في دورة، أو غير المصنّفين {student}). لمخاطبة {students} تحتاج صلاحية مخاطبة {students}.",
+    "audienceNote": "إعلاناتك تصل لطلاب المركز فقط (المسجّلين في دورة، أو غير المصنّفين {student}). لمخاطبة {students} تحتاج صلاحية مخاطبة {students}؟",
     "noGroups": "لا توجد مجموعات.",
     "startsAt": "يبدأ في (اختياري)",
     "endsAt": "ينتهي في (اختياري)",
@@ -428,7 +428,7 @@
     "empty": "لا توجد إعلانات بعد.",
     "emptyHint": "أنشئ إعلاناً ليظهر للطلاب في صفحتهم الرئيسية.",
     "groupsCount": "{count, plural, one {مجموعة واحدة} two {مجموعتان} few {{count} مجموعات} many {{count} مجموعةً} other {{count} مجموعة}}",
-    "centerOnlyNote": " · طلاب التعليم المستمر فقط",
+    "centerOnlyNote": " · طلاب المركز فقط",
     "edit": "تعديل",
     "hide": "إخفاء",
     "publish": "نشر",

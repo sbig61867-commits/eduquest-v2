@@ -14,7 +14,7 @@
     "appeals": "Appeals",
     "announcements": "Announcements",
     "schedules": "Schedules",
-    "centerStaff": "Continuing Education Staff",
+    "centerStaff": "Centre Staff",
     "archive": "Archive",
     "invitations": "Invitations",
     "settings": "Settings"
@@ -39,9 +39,9 @@
     "migrationMissingEnd": "."
   },
   "centerStaff": {
-    "title": "Continuing Education Managers",
-    "subtitle": "Grant each continuing education manager the permissions you want — you cannot grant a permission you do not hold yourself.",
-    "emptyHint": "No continuing education managers yet — invite them from the Invitations page with the “Continuing Education Manager” role."
+    "title": "Centre Managers",
+    "subtitle": "Grant each centre manager the permissions you want — you cannot grant a permission you do not hold yourself.",
+    "emptyHint": "No centre managers yet — invite them from the Invitations page with the “Centre Manager” role."
   },
   "appeals": {
     "title": "Proctoring Appeals",
@@ -135,9 +135,9 @@
       "search": "Search for a student…",
       "empty": "No students found",
       "deleteConfirm": "Remove this student?",
-      "centreTrainee": "Continuing-education trainee",
+      "centreTrainee": "Centre trainee",
       "markInstitution": "Mark as {label}",
-      "markCentreOnly": "Mark as continuing-education trainee only"
+      "markCentreOnly": "Mark as centre-only trainee"
     }
   },
   "groups": {

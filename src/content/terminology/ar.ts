@@ -3,9 +3,8 @@
 //
 // Naming rule: the institution admin is always named after the institution
 // («مدير الجامعة», «مدير مركز التدريب» …) and the centre_manager role is
-// always «مدير مركز التعليم المستمر». The continuing-education side never uses
-// a bare «المركز», so the two accounts can never read the same — a training
-// centre tenant used to label both roles «مدير المركز».
+// «مدير المركز». A training-centre tenant used to name its institution
+// «المركز» too, so both roles read «مدير المركز»; it is now «مركز التدريب».
 import type { InstitutionType } from '@/types'
 import type { Terms } from '@/lib/terminology'
 import type { RoleLabels } from './types'
@@ -55,7 +54,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
 
 export const roleLabels: RoleLabels = {
   super_admin: 'المدير العام',
-  center_manager: 'مدير مركز التعليم المستمر',
+  center_manager: 'مدير المركز',
   teacher: 'معلم',
   student: 'طالب',
 }
