@@ -23,6 +23,7 @@ export const EVIDENCE_ROOT = 'evidence'
 
 export const SEVERE_EVIDENCE_TYPES = [
   'suspicious_activity', 'multiple_faces', 'face_not_detected', 'tab_switch', 'fullscreen_exit',
+  'face_mismatch', 'spoof_detected',
 ] as const
 export type EvidenceType = (typeof SEVERE_EVIDENCE_TYPES)[number]
 

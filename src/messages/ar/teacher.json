@@ -619,7 +619,9 @@
         "multiple_faces": "شخص آخر في الصورة",
         "face_not_detected": "غياب الوجه",
         "tab_switch": "مغادرة صفحة الاختبار",
-        "fullscreen_exit": "الخروج من ملء الشاشة"
+        "fullscreen_exit": "الخروج من ملء الشاشة",
+        "face_mismatch": "وجه مختلف عن وجه البداية",
+        "spoof_detected": "صورة أو شاشة بدل وجه حقيقي"
       }
     },
     "weakConnection": "اتصال ضعيف",

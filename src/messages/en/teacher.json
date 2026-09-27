@@ -619,7 +619,9 @@
         "multiple_faces": "Another person in view",
         "face_not_detected": "Face not visible",
         "tab_switch": "Left the exam page",
-        "fullscreen_exit": "Exited full screen"
+        "fullscreen_exit": "Exited full screen",
+        "face_mismatch": "A different face than at the start",
+        "spoof_detected": "Photo or screen instead of a real face"
       }
     },
     "weakConnection": "Weak connection",

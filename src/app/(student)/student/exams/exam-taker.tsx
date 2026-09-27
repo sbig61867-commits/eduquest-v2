@@ -18,6 +18,8 @@ import { orderForStudent, shouldShuffle } from '@/lib/exam-shuffle'
 import { formatMonitoringSummary } from '@/lib/proctoring-events'
 import { environmentFlags, readEnvironmentFacts } from '@/lib/device-environment'
 import { useMonitoringCoverage } from '@/hooks/use-monitoring-coverage'
+import { useFaceIdentity } from '@/hooks/use-face-identity'
+import { SpeechDetector } from '@/lib/speech-detector'
 
 interface Props {
   exam: Exam
@@ -174,6 +176,9 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       camera_stopped: '⚠️ Camera/microphone disconnected — please reconnect immediately!',
       multiple_faces: '⚠️ Multiple faces detected!',
       audio_detected: '⚠️ Loud audio detected!',
+      speech_detected: '⚠️ Talking detected!',
+      face_mismatch: '⚠️ Please stay in front of the camera yourself!',
+      spoof_detected: '⚠️ Show your real face to the camera!',
       looking_away: '⚠️ Please look at the screen!',
       suspicious_activity: '⚠️ Suspicious activity detected!',
     }
@@ -242,6 +247,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   }, [proctoringActive, recordEvent])
 
   useFaceDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable, coverage.onFrame)
+  // Identity continuity + photo/screen spoof, capable devices only (Human, MIT).
+  useFaceIdentity(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
   // TensorFlow COCO-SSD: phone, book, extra person detection
   useObjectDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
 
@@ -320,40 +327,43 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     return () => clearInterval(interval)
   }, [started, submitted, untimed])
 
-  // Start audio monitoring via Web Audio API.
-  // Tuned against false positives: a violation needs GENUINELY loud audio
-  // (threshold 48, not 30 — normal typing/breathing/room hum stays below),
-  // SUSTAINED across 2 consecutive samples (~4s, so a cough or chair squeak
-  // doesn't trigger), and a 20s cooldown so one conversation logs once, not
-  // once per 3 seconds.
+  // Audio monitoring via the Web Audio API, on the device, no download:
+  //  • speech (src/lib/speech-detector.ts): voice-band energy with a syllable
+  //    rhythm — someone talking, not a fan or a chair;
+  //  • very loud sound sustained ~4 s (the former check, kept for noise that
+  //    is not speech), with a 20 s cooldown.
   const startAudioMonitor = useCallback((stream: MediaStream) => {
     const ctx = new AudioContext()
     const analyzer = ctx.createAnalyser()
-    analyzer.fftSize = 256
+    analyzer.fftSize = 1024
+    analyzer.smoothingTimeConstant = 0.3
     const src = ctx.createMediaStreamSource(stream)
     src.connect(analyzer)
     audioCtxRef.current = ctx
     analyzerRef.current = analyzer
     const data = new Uint8Array(analyzer.frequencyBinCount)
+    const speech = new SpeechDetector({ sampleRate: ctx.sampleRate, binCount: analyzer.frequencyBinCount })
     const LOUD_THRESHOLD = 48
+    const LOUD_FRAMES = 40
     const COOLDOWN_MS = 20_000
     let loudStreak = 0
-    let lastViolationAt = 0
+    let lastLoudAt = 0
     audioIntervalRef.current = setInterval(() => {
       analyzer.getByteFrequencyData(data)
+      const now = Date.now()
+      if (speech.feed(data, now)) addViolation('speech_detected', 'voice with syllable rhythm for 1.5 s+')
       const avg = data.reduce((a, b) => a + b, 0) / data.length
       if (avg > LOUD_THRESHOLD) {
         loudStreak += 1
-        const now = Date.now()
-        if (loudStreak >= 2 && now - lastViolationAt > COOLDOWN_MS) {
-          lastViolationAt = now
+        if (loudStreak >= LOUD_FRAMES && now - lastLoudAt > COOLDOWN_MS) {
+          lastLoudAt = now
           loudStreak = 0
           addViolation('audio_detected', `Sustained audio level: ${Math.round(avg)}`)
         }
       } else {
         loudStreak = 0
       }
-    }, 2000)
+    }, 100)
   }, [addViolation])
 
   async function startExam() {
