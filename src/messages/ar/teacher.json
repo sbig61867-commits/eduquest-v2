@@ -322,7 +322,8 @@
       "detector_unavailable": "أداة كشف غير متاحة",
       "monitoring_gap": "توقفت المراقبة مؤقتاً",
       "environment_flag": "بيئة الجهاز",
-      "monitoring_summary": "نسبة المراقبة"
+      "monitoring_summary": "نسبة المراقبة",
+      "clip_requested": "مقطع طلبه المعلم"
     }
   },
   "courses": {
@@ -621,7 +622,8 @@
         "tab_switch": "مغادرة صفحة الاختبار",
         "fullscreen_exit": "الخروج من ملء الشاشة",
         "face_mismatch": "وجه مختلف عن وجه البداية",
-        "spoof_detected": "صورة أو شاشة بدل وجه حقيقي"
+        "spoof_detected": "صورة أو شاشة بدل وجه حقيقي",
+        "on_request": "مقطع طلبه المعلم"
       }
     },
     "weakConnection": "اتصال ضعيف",
@@ -638,7 +640,11 @@
     "watchLimit": "يمكنك مشاهدة {max} طلاب كحد أقصى في الوقت نفسه",
     "connectingStudent": "جارٍ الاتصال بكاميرا الطالب…",
     "silentMonitoring": "مراقبة صامتة",
-    "violationsCount": "{count, plural, one {مخالفة واحدة} two {مخالفتان} few {{count} مخالفات} many {{count} مخالفةً} other {{count} مخالفة}}"
+    "violationsCount": "{count, plural, one {مخالفة واحدة} two {مخالفتان} few {{count} مخالفات} many {{count} مخالفةً} other {{count} مخالفة}}",
+    "clipLast30": "آخر 30 ثانية",
+    "clipHint": "اطلب من جهاز هذا الطالب آخر 30 ثانية من الكاميرا والصوت. تُحفظ 30 ساعة مثل اللقطات.",
+    "clipRequested": "أُرسل الطلب. يظهر المقطع بين الأدلة خلال ثوانٍ.",
+    "clipRequestFailed": "تعذّر إرسال الطلب. حاول مرة أخرى."
   },
   "submissions": {
     "title": "التسليمات والدرجات",

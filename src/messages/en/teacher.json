@@ -322,7 +322,8 @@
       "detector_unavailable": "Detector unavailable",
       "monitoring_gap": "Monitoring paused",
       "environment_flag": "Device environment",
-      "monitoring_summary": "Monitoring coverage"
+      "monitoring_summary": "Monitoring coverage",
+      "clip_requested": "Clip requested by the teacher"
     }
   },
   "courses": {
@@ -621,7 +622,8 @@
         "tab_switch": "Left the exam page",
         "fullscreen_exit": "Exited full screen",
         "face_mismatch": "A different face than at the start",
-        "spoof_detected": "Photo or screen instead of a real face"
+        "spoof_detected": "Photo or screen instead of a real face",
+        "on_request": "Clip requested by the teacher"
       }
     },
     "weakConnection": "Weak connection",
@@ -638,7 +640,11 @@
     "watchLimit": "You can watch up to {max} students at once",
     "connectingStudent": "Connecting to the student's camera…",
     "silentMonitoring": "Silent monitoring",
-    "violationsCount": "{count, plural, one {1 violation} other {{count} violations}}"
+    "violationsCount": "{count, plural, one {1 violation} other {{count} violations}}",
+    "clipLast30": "Last 30 s",
+    "clipHint": "Ask this student's device for its last 30 seconds of camera and sound. Kept 30 hours, like snapshots.",
+    "clipRequested": "Requested. The clip appears among the evidence in a few seconds.",
+    "clipRequestFailed": "Could not send the request. Try again."
   },
   "submissions": {
     "title": "Submissions & Grades",

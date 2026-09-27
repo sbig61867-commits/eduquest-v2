@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Room, RemoteTrack, RemoteParticipant } from 'livekit-client'
-import { ArrowLeft, Eye, EyeOff, MicOff, Radio, ShieldCheck, Video, VideoOff, Volume2, Users, WifiOff, AlertTriangle, Camera } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, MicOff, Radio, ShieldCheck, Video, VideoOff, Volume2, Users, WifiOff, AlertTriangle, Camera, History } from 'lucide-react'
+import { toast } from '@/components/ui/toast'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import {
-  MAX_WATCHED, TEACHER_PRESENCE_KEY, WATCHING_ATTRIBUTE, WATCH_EVENT, liveTopic,
+  CLIP_EVENT, MAX_WATCHED, TEACHER_PRESENCE_KEY, WATCHING_ATTRIBUTE, WATCH_EVENT, liveTopic,
   type StudentPresence,
 } from '@/lib/live-channel'
 import { EvidencePanel } from './evidence-panel'
@@ -259,6 +260,13 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     setStreams({})
     setZoomed(null)
   }
+  // Ask one student's device for its last 30 seconds (in-memory segments).
+  function requestClip(id: string) {
+    channelRef.current?.send({ type: 'broadcast', event: CLIP_EVENT, payload: { ids: [id], seconds: 30 } })
+      .then(() => toast.success(t('clipRequested')))
+      .catch(() => toast.error(t('clipRequestFailed')))
+  }
+
   function toggleWatch(id: string) {
     setWatching(prev => prev.includes(id)
       ? prev.filter(x => x !== id)
@@ -362,6 +370,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
                     weak={!!stream?.weak}
                     zoomed={!!zoomedItem}
                     onToggleWatch={() => toggleWatch(s.id)}
+                    onRequestClip={() => requestClip(s.id)}
                     onZoom={() => { if (s.watched) setZoomed(z => (z === s.id ? null : s.id)) }}
                   />
                 )
@@ -398,9 +407,10 @@ function StudentTile(props: {
   weak: boolean
   zoomed: boolean
   onToggleWatch: () => void
+  onRequestClip: () => void
   onZoom: () => void
 }) {
-  const { name, presence, watched, liveOn, canWatch, videoEl, hasVideo, speaking, weak, zoomed, onToggleWatch, onZoom } = props
+  const { name, presence, watched, liveOn, canWatch, videoEl, hasVideo, speaking, weak, zoomed, onToggleWatch, onRequestClip, onZoom } = props
   const t = useTranslations('teacher.live')
   const holder = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -450,6 +460,12 @@ function StudentTile(props: {
 
       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2 flex items-center justify-between gap-2">
         <span className="text-white text-sm font-medium truncate">{name}</span>
+        <button
+          onClick={e => { e.stopPropagation(); onRequestClip() }}
+          title={t('clipHint')}
+          className="shrink-0 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-slate-800/90 text-slate-100 hover:bg-slate-700">
+          <History className="w-3.5 h-3.5" /> {t('clipLast30')}
+        </button>
         {liveOn && (
           <button
             onClick={e => { e.stopPropagation(); onToggleWatch() }}

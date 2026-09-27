@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, X, Clock } from 'lucide-react'
+import { Camera, X, Clock, Film } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { EvidenceItem } from '@/app/api/proctor/evidence/route'
 
@@ -100,7 +100,14 @@ export function EvidencePanel({ examId, refreshSignal = 0 }: { examId: string; r
                   className="w-full text-start rounded-lg border border-slate-800 bg-slate-950 overflow-hidden hover:border-amber-500/50 transition-colors"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from the external evidence bucket; next/image would proxy and cache it */}
-                  <img src={item.url} alt="" loading="lazy" className="w-full aspect-[4/3] object-cover bg-slate-800" />
+                  {item.media === 'video' ? (
+                    <div className="relative">
+                      <video src={item.url} preload="metadata" muted playsInline className="w-full aspect-[4/3] object-cover bg-slate-800" />
+                      <Film className="absolute top-1.5 start-1.5 w-4 h-4 text-white drop-shadow" />
+                    </div>
+                  ) : (
+                    <img src={item.url} alt="" loading="lazy" className="w-full aspect-[4/3] object-cover bg-slate-800" />
+                  )}
                   <div className="p-2.5 space-y-1">
                     <p className="text-white text-sm font-medium truncate">{item.studentName}</p>
                     <p className="text-amber-300 text-xs">{typeLabel(item.type)}</p>
@@ -125,7 +132,9 @@ export function EvidencePanel({ examId, refreshSignal = 0 }: { examId: string; r
               <X className="w-4 h-4" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
-            <img src={open.url} alt="" className="w-full aspect-[4/3] object-contain bg-black" />
+            {open.media === 'video'
+              ? <video src={open.url} controls autoPlay playsInline className="w-full aspect-[4/3] object-contain bg-black" />
+              : <img src={open.url} alt="" className="w-full aspect-[4/3] object-contain bg-black" />}
             <div className="p-4 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-white font-semibold">{open.studentName}</p>

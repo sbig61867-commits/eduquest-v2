@@ -20,6 +20,9 @@ export function liveTopic(examId: string): string {
 /** Broadcast event carrying `{ ids: string[] }`, the students to watch. */
 export const WATCH_EVENT = 'watch'
 
+/** Broadcast event carrying `{ ids: string[]; seconds: number }`: send your last clips. */
+export const CLIP_EVENT = 'clip'
+
 /** Presence key the teacher's page uses (students use their user id). */
 export const TEACHER_PRESENCE_KEY = 'teacher'
 

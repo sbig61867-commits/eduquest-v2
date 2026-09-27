@@ -19,6 +19,7 @@ import { formatMonitoringSummary } from '@/lib/proctoring-events'
 import { environmentFlags, readEnvironmentFacts } from '@/lib/device-environment'
 import { useMonitoringCoverage } from '@/hooks/use-monitoring-coverage'
 import { useFaceIdentity } from '@/hooks/use-face-identity'
+import { useClipRecorder } from '@/hooks/use-clip-recorder'
 import { SpeechDetector } from '@/lib/speech-detector'
 
 interface Props {
@@ -160,6 +161,9 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const [evidenceStored, setEvidenceStored] = useState(0)
   const onEvidenceStored = useCallback(() => setEvidenceStored(n => n + 1), [])
   const { onViolation: maybeCaptureEvidence } = useEvidenceCapture(exam.id, videoRef, proctoringActive, onEvidenceStored)
+  // Short evidence clips from an in-memory ring of 10 s segments (never
+  // uploaded unless a severe violation happens or the teacher asks).
+  const { onViolation: clipOnViolation, sendRecent: sendRecentClips } = useClipRecorder(exam.id, streamRef, proctoringActive, onEvidenceStored)
 
   // Define addViolation BEFORE hook calls that reference it. It updates the UI
   // alert, buffers the event for the DB recorder, and asks the evidence layer
@@ -169,6 +173,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     setViolations(prev => [...prev, event])
     recordEvent(type, details)
     maybeCaptureEvidence(type)
+    clipOnViolation(type)
     const messages: Record<string, string> = {
       tab_switch: '⚠️ Tab switch detected!',
       fullscreen_exit: '⚠️ Please return to fullscreen mode!',
@@ -184,7 +189,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     }
     setViolationAlert(messages[type] ?? '⚠️ Proctoring alert!')
     setTimeout(() => setViolationAlert(''), 4000)
-  }, [recordEvent, maybeCaptureEvidence])
+  }, [recordEvent, maybeCaptureEvidence, clipOnViolation])
 
   // ── Writing signals (not violations): pasted text and a large block of text
   //    appearing at once in a written answer. In the age of AI chat tools
@@ -214,7 +219,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   //    watches this student. Nothing on this screen says whether that is
   //    happening; the consent text says it may happen at any time. ──
   const liveCounts = useMemo(() => ({ v: violations.length, ev: evidenceStored }), [violations.length, evidenceStored])
-  const { watched, stopWatching } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts)
+  const { watched, stopWatching } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts, sendRecentClips)
   useLivePublish(exam.id, proctoringActive && watched, streamRef, stopWatching)
 
   // A detector that fails to load on this device is NOT the student's fault,

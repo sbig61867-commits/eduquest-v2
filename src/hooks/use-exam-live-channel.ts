@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { WATCH_EVENT, liveTopic, watchPayloadIncludes, type StudentPresence } from '@/lib/live-channel'
+import { CLIP_EVENT, WATCH_EVENT, liveTopic, watchPayloadIncludes, type StudentPresence } from '@/lib/live-channel'
 
 // The student's side of the per-exam live channel (see src/lib/live-channel.ts).
 // It announces the student to the teacher's page and returns whether the
@@ -18,7 +18,11 @@ export function useExamLiveChannel(
   userId: string,
   active: boolean,
   counts: StudentPresence,
+  /** The teacher asked this student for the last `seconds` of evidence clips. */
+  onClipRequest?: (seconds: number) => void,
 ): { watched: boolean; stopWatching: () => void } {
+  const onClipRequestRef = useRef(onClipRequest)
+  useEffect(() => { onClipRequestRef.current = onClipRequest }, [onClipRequest])
   const [watched, setWatched] = useState(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const subscribedRef = useRef(false)
@@ -44,6 +48,12 @@ export function useExamLiveChannel(
       channel
         .on('broadcast', { event: WATCH_EVENT }, ({ payload }) => {
           setWatched(watchPayloadIncludes(payload, userId))
+        })
+        // Only the exam's teacher can broadcast here (RLS), so this is trusted.
+        .on('broadcast', { event: CLIP_EVENT }, ({ payload }) => {
+          if (!watchPayloadIncludes(payload, userId)) return
+          const seconds = Number((payload as { seconds?: unknown }).seconds)
+          onClipRequestRef.current?.(Number.isFinite(seconds) ? Math.min(Math.max(seconds, 10), 30) : 30)
         })
         .subscribe(status => {
           subscribedRef.current = status === 'SUBSCRIBED'
