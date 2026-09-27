@@ -588,7 +588,8 @@
         "tab_switch": "Left the exam page",
         "fullscreen_exit": "Exited full screen"
       }
-    }
+    },
+    "weakConnection": "Weak connection"
   },
   "submissions": {
     "title": "Submissions & Grades",

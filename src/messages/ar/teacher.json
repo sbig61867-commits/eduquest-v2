@@ -588,7 +588,8 @@
         "tab_switch": "مغادرة صفحة الاختبار",
         "fullscreen_exit": "الخروج من ملء الشاشة"
       }
-    }
+    },
+    "weakConnection": "اتصال ضعيف"
   },
   "submissions": {
     "title": "التسليمات والدرجات",

@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import {
-  Room, RoomEvent, Track, RemoteTrack, RemoteParticipant,
+  Room, RoomEvent, Track, RemoteTrack, RemoteParticipant, ConnectionQuality,
   type RemoteTrackPublication,
 } from 'livekit-client'
-import { ArrowLeft, Mic, MicOff, Video, VideoOff, Volume2, Users } from 'lucide-react'
+import { ArrowLeft, Mic, MicOff, Video, VideoOff, Volume2, Users, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
@@ -17,6 +17,8 @@ interface Feed {
   hasVideo: boolean
   hasAudio: boolean
   speaking: boolean
+  /** The student's own connection, as LiveKit measures it. */
+  weakConnection: boolean
 }
 
 export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: string; examTitle: string; liveConfigured: boolean }) {
@@ -37,15 +39,17 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     let cancelled = false
     // adaptiveStream: LiveKit sends each tile only the resolution its size
     // needs, so a wall of small tiles stays smooth instead of pulling full
-    // streams for every student.
-    const room = new Room({ adaptiveStream: true })
+    // streams for every student. pixelDensity 'screen' sizes that choice to
+    // the real screen (a HiDPI laptop/phone gets the sharper layer instead of
+    // a blurry one picked by CSS pixels alone).
+    const room = new Room({ adaptiveStream: { pixelDensity: 'screen' } })
     roomRef.current = room
 
     function upsert(identity: string, patch: Partial<Feed>) {
       setFeeds(prev => {
         const base: Feed = prev[identity] ?? {
           identity, name: identity, videoEl: null, audioEl: null,
-          hasVideo: false, hasAudio: false, speaking: false,
+          hasVideo: false, hasAudio: false, speaking: false, weakConnection: false,
         }
         return { ...prev, [identity]: { ...base, ...patch } }
       })
@@ -56,7 +60,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
       mediaEls.current[id] ??= {}
       if (track.kind === Track.Kind.Video) {
         const el = track.attach() as HTMLVideoElement
-        el.muted = true; el.className = 'w-full h-full object-cover'
+        el.muted = true; el.playsInline = true; el.className = 'w-full h-full object-cover'
         mediaEls.current[id].video = el
         upsert(id, { name: participant.name || id, hasVideo: true })
       } else if (track.kind === Track.Kind.Audio) {
@@ -84,6 +88,13 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
           const next = { ...prev }
           for (const id of Object.keys(next)) next[id] = { ...next[id], speaking: ids.has(id) }
           return next
+        })
+      })
+      // Tells the teacher when a stutter is the student's own network, not the platform.
+      .on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+        if (participant.isLocal) return
+        upsert(participant.identity, {
+          weakConnection: quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost,
         })
       })
       .on(RoomEvent.ParticipantDisconnected, participant => {
@@ -238,6 +249,11 @@ function StudentTile({ feed, videoEl, zoomed, onClick }: { feed: Feed; videoEl?:
       <div ref={holder} className="absolute inset-0 flex items-center justify-center">
         {!feed.hasVideo && <VideoOff className="w-8 h-8 text-slate-700" />}
       </div>
+      {feed.weakConnection && (
+        <div className="absolute top-2 start-2 flex items-center gap-1 bg-amber-500/90 text-black text-xs font-bold px-2 py-0.5 rounded-full">
+          <WifiOff className="w-3 h-3" /> {t('weakConnection')}
+        </div>
+      )}
       {/* Speaking badge — tells the teacher WHO the sound is coming from */}
       {feed.speaking && (
         <div className="absolute top-2 end-2 flex items-center gap-1 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">

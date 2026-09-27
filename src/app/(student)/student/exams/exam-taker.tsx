@@ -155,7 +155,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
   // ── Live layer: publish camera+mic to LiveKit so the teacher watches
   //    in real time (no-ops when LiveKit isn't configured). ──
-  useLivePublish(exam.id, proctoringActive)
+  useLivePublish(exam.id, proctoringActive, streamRef)
 
   // A detector that fails to load on this device is NOT the student's fault,
   // so it is recorded for the teacher (so "no events" is never mistaken for a
@@ -295,7 +295,18 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     if (exam.proctoring_enabled) {
       let stream: MediaStream
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        // The one capture for the whole exam: the detectors, the evidence
+        // snapshots and the live stream to the teacher all share it.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            // Front camera: phones default to the rear one.
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 24, max: 30 },
+          },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        })
       } catch {
         setCameraStatus('error')
         toast.error(t('mediaPermission'))
