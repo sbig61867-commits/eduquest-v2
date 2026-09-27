@@ -2,7 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { canManageAccountRole } from '@/lib/staff-auth'
+import { canManageAccountOf } from '@/lib/staff-auth'
 import { loadTeacherFootprint, studentBlock, teacherBlock } from '@/lib/account-scope'
 
 function adminClient() {
@@ -48,8 +48,8 @@ export async function PATCH(request: Request) {
   if (target.role === 'super_admin') {
     return NextResponse.json({ ...(await apiErr('cannotEditOwner')) }, { status: 403 })
   }
-  // A centre manager may only (de)activate teachers/students, behind the matching flag.
-  if (caller.role === 'center_manager' && !canManageAccountRole(caller, target.role)) {
+  // Behind the matching capability flag, for admins as well as centre managers.
+  if (!canManageAccountOf(caller, target.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
   // …and only people who exist purely on the centre side. Teachers and

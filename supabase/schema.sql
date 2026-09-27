@@ -62,7 +62,11 @@ CREATE TABLE users (
   -- per-user UI language; NULL = inherit tenants.default_locale. Deliberately
   -- NOT pinned in users_update — a user may set their own language, and the
   -- other pinned columns stay pinned regardless (locale_preferences_migration.sql)
-  locale TEXT CONSTRAINT users_locale_check CHECK (locale IS NULL OR locale IN ('ar','en'))
+  locale TEXT CONSTRAINT users_locale_check CHECK (locale IS NULL OR locale IN ('ar','en')),
+  -- TRUE = switched off by its institution's suspension (not individually);
+  -- a restore re-activates only these. Pinned in users_update
+  -- (fix_admin_user_escalation_migration.sql).
+  suspended_by_tenant BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE feature_flags (
@@ -444,23 +448,20 @@ CREATE POLICY "users_select" ON users FOR SELECT USING (
     )
   )
 );
+-- Owner only: profiles come from handle_new_user and the service-role routes.
+-- A university_admin writes other users ONLY through route handlers
+-- (fix_admin_user_escalation_migration.sql) — a direct RLS branch let an admin
+-- promote anyone to admin or write capability flags it does not hold.
 CREATE POLICY "users_insert" ON users FOR INSERT WITH CHECK (
-  current_user_role() IN ('super_admin','university_admin')
+  current_user_role() = 'super_admin'
 );
 CREATE POLICY "users_update" ON users FOR UPDATE
   USING (
     current_user_role() = 'super_admin'
-    OR (current_user_role() = 'university_admin' AND tenant_id = current_tenant_id())
     OR id = auth.uid()
   )
   WITH CHECK (
     current_user_role() = 'super_admin'
-    OR (
-      current_user_role() = 'university_admin'
-      AND tenant_id = current_tenant_id()
-      AND role <> 'super_admin'
-      AND id <> auth.uid()
-    )
     OR (
       -- Self-update: profile fields only. RLS gates rows, NOT columns, so every
       -- column that influences identity or authorization must be pinned here —
@@ -479,6 +480,8 @@ CREATE POLICY "users_update" ON users FOR UPDATE
                       (SELECT u.permissions FROM users u WHERE u.id = auth.uid())
       AND can_create_courses IS NOT DISTINCT FROM
                       (SELECT u.can_create_courses FROM users u WHERE u.id = auth.uid())
+      AND suspended_by_tenant IS NOT DISTINCT FROM
+                      (SELECT u.suspended_by_tenant FROM users u WHERE u.id = auth.uid())
     )
   );
 

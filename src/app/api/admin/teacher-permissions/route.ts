@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { staffCan } from '@/lib/staff-auth'
 
 function getAdminClient() {
   return createAdminClient(
@@ -20,9 +21,9 @@ export async function PATCH(request: Request) {
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: caller } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
+    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
 
-  if (!caller || !['super_admin', 'university_admin'].includes(caller.role)) {
+  if (!caller || !['super_admin', 'university_admin'].includes(caller.role) || !staffCan(caller, 'manage_teachers')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 

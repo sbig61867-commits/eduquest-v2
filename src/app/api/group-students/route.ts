@@ -22,8 +22,10 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
     .eq('id', userId)
     .single()
 
-  const managerAllowed = profile?.role === 'center_manager' && staffCan(profile, 'manage_groups')
-  if (!profile?.tenant_id || (!managerAllowed && !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? ''))) {
+  // Teachers (own groups, checked below) · staff holding manage_groups — the
+  // flag binds a university_admin too, not only a centre manager.
+  const allowed = profile?.role === 'teacher' || (!!profile && staffCan(profile, 'manage_groups'))
+  if (!profile?.tenant_id || !allowed) {
     return { ...(await apiErr('forbidden')), status: 403, profile: null, group: null }
   }
 

@@ -7,7 +7,7 @@ import { getLocale } from 'next-intl/server'
 import { isLocale, toLocale } from '@/i18n/config'
 import { rateLimit } from '@/lib/rate-limit'
 import { getInvitationDefaults } from '@/lib/settings'
-import { canManageAccountRole } from '@/lib/staff-auth'
+import { canManageAccountOf } from '@/lib/staff-auth'
 import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
 
@@ -123,7 +123,9 @@ export async function POST(request: Request) {
       { status: 403 }
     )
   }
-  if (caller.role === 'center_manager' && !canManageAccountRole(caller, role)) {
+  // Staff (admins included) need the capability for the invited role; a
+  // teacher's ceiling is already students of their own groups only.
+  if (caller.role !== 'teacher' && !canManageAccountOf(caller, role)) {
     return NextResponse.json({ ...(await apiErr('cannotInviteRole')) }, { status: 403 })
   }
 

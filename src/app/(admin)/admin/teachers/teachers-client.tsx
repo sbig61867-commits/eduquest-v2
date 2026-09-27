@@ -5,7 +5,6 @@ import type { Locale } from '@/i18n/config'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Search, Trash2, ToggleLeft, UserPlus, BookOpen } from 'lucide-react'
@@ -19,7 +18,6 @@ export function TeachersClient({ initialTeachers }: Props) {
   const locale = useLocale() as Locale
   const [teachers, setTeachers] = useState(initialTeachers)
   const [search, setSearch] = useState('')
-  const supabase = createClient()
   const router = useRouter()
 
   const filtered = teachers.filter(t =>
@@ -27,12 +25,15 @@ export function TeachersClient({ initialTeachers }: Props) {
     t.email.toLowerCase().includes(search.toLowerCase())
   )
 
+  // Through the route (capability + tenant checks, service-role write): the
+  // users_update policy no longer lets an admin write other users' rows.
   async function toggleStatus(teacher: User) {
-    const { error } = await supabase
-      .from('users')
-      .update({ is_active: !teacher.is_active })
-      .eq('id', teacher.id)
-    if (!error) {
+    const res = await fetch('/api/admin/toggle-user', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: teacher.id, isActive: !teacher.is_active }),
+    })
+    if (res.ok) {
       setTeachers(prev => prev.map(t => t.id === teacher.id ? { ...t, is_active: !t.is_active } : t))
       router.refresh()
     }

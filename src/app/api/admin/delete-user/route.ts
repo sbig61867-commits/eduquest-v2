@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
+import { canManageAccountOf } from '@/lib/staff-auth'
 
 export async function DELETE(request: Request) {
   const supabase = await createClient()
@@ -10,7 +11,7 @@ export async function DELETE(request: Request) {
   if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: callerProfile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', caller.id).single()
+    .from('users').select('role, tenant_id, permissions').eq('id', caller.id).single()
 
   if (!callerProfile || !['university_admin', 'super_admin'].includes(callerProfile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
@@ -43,6 +44,10 @@ export async function DELETE(request: Request) {
   const ROLE_RANK: Record<string, number> = { student: 0, teacher: 1, university_admin: 2, super_admin: 3 }
   if ((ROLE_RANK[targetProfile.role] ?? 0) >= (ROLE_RANK[callerProfile.role] ?? 0)) {
     return NextResponse.json({ ...(await apiErr('cannotDeleteEqualOrHigher')) }, { status: 403 })
+  }
+  // …and the capability for that role (an owner-restricted admin loses it).
+  if (!canManageAccountOf(callerProfile, targetProfile.role)) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const admin = createAdminClient(
