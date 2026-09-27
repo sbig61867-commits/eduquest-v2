@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import { isViolation } from '@/lib/proctoring-events'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
@@ -79,7 +80,7 @@ export default async function GradesPage() {
       homework: isHomework(exam),
       max,
       pct: Math.round(((sub.score ?? 0) / (max || 1)) * 100),
-      flagged: (sub.proctoring_events ?? []).some(e => e.type !== 'detector_unavailable'),
+      flagged: (sub.proctoring_events ?? []).some(isViolation),
     }
   })
 

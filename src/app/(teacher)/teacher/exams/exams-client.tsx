@@ -12,6 +12,8 @@ import { toast } from '@/components/ui/toast'
 import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload, GraduationCap, UserRoundPen, MessageSquareText } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
+import { SimilarityPanel } from '@/components/teacher/similarity-panel'
+import type { SimilarPair } from '@/lib/answer-similarity'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import type { Question } from '@/types'
 import { useTranslations, useLocale } from 'next-intl'
@@ -36,6 +38,8 @@ interface ExamResults {
   counts_toward_grade?: boolean
   instructions?: string | null
   attachment_urls?: string[]
+  /** Collusion hints between submitted students (src/lib/answer-similarity.ts). */
+  similarity?: SimilarPair[]
 }
 
 const isAutoQ = (q: Question) => q.type === 'mcq' || q.type === 'true_false'
@@ -585,6 +589,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
                 )}
               </div>
             )}
+            <SimilarityPanel pairs={results.similarity ?? []} />
             {results.results.length === 0 ? (
               <p className="text-slate-500 text-sm py-6 text-center">{t('exams.results.noStudents')}</p>
             ) : (

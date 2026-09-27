@@ -227,7 +227,13 @@
       "commentPlaceholder": "What went well and what still needs work",
       "commentHint": "The student sees it once the grading is published.",
       "saveComment": "Save comment",
-      "followUp": "Individual task for this student"
+      "followUp": "Individual task for this student",
+      "similarity": {
+        "title": "{count, plural, one {1 pair of students with strikingly similar answers} other {{count} pairs of students with strikingly similar answers}}",
+        "note": "A hint to look closer, not proof of cheating. Pairs are listed when they share several identical wrong answers, especially rare ones, or nearly identical written answers. Right answers never count: students who know the material agree by knowledge.",
+        "sameWrong": "{same} identical wrong answers out of {wrong} shared mistakes",
+        "sameText": "{count, plural, one {1 nearly identical written answer} other {{count} nearly identical written answers}}"
+      }
     },
     "questionsViewer": {
       "titlePrefix": "Questions: {title}",
@@ -290,7 +296,34 @@
     "noSubmissionsHint": "Enable proctoring when creating an exam to see reports here.",
     "incompleteMonitoring": "Monitoring incomplete on this student's device",
     "violations": "{count, plural, one{# violation} other{# violations}}",
-    "scoreLine": "Score: {score}/{max} ({pct}%) · {at}"
+    "scoreLine": "Score: {score}/{max} ({pct}%) · {at}",
+    "violationsHeading": "Violations",
+    "signalsHeading": "Signals to review",
+    "signalsNote": "Not proctoring violations by themselves, but worth a look next to the answers.",
+    "detectorNote": "A detector could not load on this device ({detectors}). Not a violation, but a lack of flags here is not proof of a clean attempt.",
+    "unknownDetector": "unknown",
+    "coverage": "Monitored {pct}% of the attempt",
+    "coverageLow": "Monitored only {pct}% of the attempt. The camera detectors were not watching for the rest of the time.",
+    "environment": "Device environment",
+    "eventTypes": {
+      "tab_switch": "Left the exam page",
+      "fullscreen_exit": "Exited full screen",
+      "face_not_detected": "Face not visible",
+      "multiple_faces": "Another person in view",
+      "looking_away": "Looking away",
+      "audio_detected": "Loud sound",
+      "speech_detected": "Speech detected",
+      "suspicious_activity": "Phone or suspicious object",
+      "camera_stopped": "Camera or microphone stopped",
+      "face_mismatch": "A different face than at the start",
+      "spoof_detected": "Photo or screen held up instead of a real face",
+      "paste_detected": "Pasted text into an answer",
+      "bulk_insert": "A large block of text appeared at once",
+      "detector_unavailable": "Detector unavailable",
+      "monitoring_gap": "Monitoring paused",
+      "environment_flag": "Device environment",
+      "monitoring_summary": "Monitoring coverage"
+    }
   },
   "courses": {
     "title": "My Courses",

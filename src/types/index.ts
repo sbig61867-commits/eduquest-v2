@@ -1,3 +1,4 @@
+import type { ProctoringEventType } from '@/lib/proctoring-events'
 export type Role = 'super_admin' | 'university_admin' | 'center_manager' | 'teacher' | 'student'
 
 export type InstitutionType = 'university' | 'school' | 'institute' | 'training_center' | 'company'
@@ -106,7 +107,8 @@ export interface ExamSubmission {
 }
 
 export interface ProctoringEvent {
-  type: 'tab_switch' | 'fullscreen_exit' | 'face_not_detected' | 'multiple_faces' | 'audio_detected' | 'looking_away' | 'suspicious_activity' | 'detector_unavailable' | 'camera_stopped'
+  /** Meaning of each type (violation / signal / info): src/lib/proctoring-events.ts */
+  type: ProctoringEventType
   timestamp: string
   details?: string
 }

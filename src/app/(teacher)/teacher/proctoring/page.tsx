@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users, Radio } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users, Radio, ClipboardPaste, Cpu, Gauge } from 'lucide-react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
@@ -10,6 +10,7 @@ import type { ProctoringEvent, Question } from '@/types'
 import { AppealReviewList, type AppealRow } from '@/components/teacher/appeal-review-list'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
+import { coveragePercent, eventKind, parseMonitoringSummary } from '@/lib/proctoring-events'
 
 type ViolationIconKey = keyof typeof VIOLATION_ICONS
 
@@ -20,22 +21,17 @@ const VIOLATION_ICONS = {
   multiple_faces:    Users,
   looking_away:      Eye,
   audio_detected:    Mic,
+  speech_detected:   Mic,
   suspicious_activity: AlertTriangle,
   camera_stopped:    Eye,
+  face_mismatch:     Users,
+  spoof_detected:    Eye,
+  paste_detected:    ClipboardPaste,
+  bulk_insert:       ClipboardPaste,
 } as const
 
-const VIOLATION_LABELS: Record<string, string> = {
-  tab_switch:          'Tab Switch',
-  fullscreen_exit:     'Left Fullscreen',
-  face_not_detected:   'Face Not Detected',
-  multiple_faces:      'Multiple Faces',
-  looking_away:        'Looking Away',
-  audio_detected:      'Loud Audio',
-  suspicious_activity: 'Suspicious Object',
-  camera_stopped:      'Camera/Mic Stopped',
-}
-
-const isMonitoringGap = (e: ProctoringEvent) => e.type === 'detector_unavailable'
+// Low coverage worth a warning: the detectors watched less than this share.
+const LOW_COVERAGE_PCT = 80
 
 interface ExamRow { title: string; teacher_id: string; proctoring_enabled: boolean; questions: Question[] }
 interface UserRow  { full_name: string; email: string }
@@ -71,7 +67,7 @@ export default async function ProctoringReportsPage() {
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
 
-  const violationCount = (s: SubmissionRow) => (s.proctoring_events ?? []).filter(e => !isMonitoringGap(e)).length
+  const violationCount = (s: SubmissionRow) => (s.proctoring_events ?? []).filter(e => eventKind(e.type) === 'violation').length
   const flagged = submissions.filter(s => violationCount(s) > 0)
   const clean   = submissions.filter(s => violationCount(s) === 0)
 
@@ -137,9 +133,14 @@ export default async function ProctoringReportsPage() {
         <div className="space-y-4">
           {submissions.map(sub => {
             const allEvents: ProctoringEvent[] = sub.proctoring_events ?? []
-            const events = allEvents.filter(e => !isMonitoringGap(e))
-            const gaps = allEvents.filter(isMonitoringGap)
+            const events = allEvents.filter(e => eventKind(e.type) === 'violation')
+            const signals = allEvents.filter(e => eventKind(e.type) === 'signal')
+            const gaps = allEvents.filter(e => e.type === 'detector_unavailable' || e.type === 'monitoring_gap')
+            const environment = allEvents.filter(e => e.type === 'environment_flag')
+            const summary = parseMonitoringSummary(allEvents.find(e => e.type === 'monitoring_summary')?.details)
+            const coverage = summary ? coveragePercent(summary) : null
             const isFlagged = events.length > 0
+            const label = (type: string) => (t.has(`proctoring.eventTypes.${type}`) ? t(`proctoring.eventTypes.${type}`) : type)
             const max = sub.exams?.questions?.reduce((a, q) => a + q.points, 0) || 1
             const pct = Math.round(((sub.score ?? 0) / max) * 100)
 
@@ -156,22 +157,40 @@ export default async function ProctoringReportsPage() {
                   </div>
                 </div>
 
+                {coverage !== null && (
+                  <div className={`flex items-start gap-2 rounded-lg p-3 mb-3 border ${coverage < LOW_COVERAGE_PCT ? 'bg-amber-500/5 border-amber-500/20' : 'bg-slate-800/40 border-slate-700/60'}`}>
+                    <Gauge className={`w-4 h-4 shrink-0 mt-0.5 ${coverage < LOW_COVERAGE_PCT ? 'text-amber-400' : 'text-emerald-400'}`} />
+                    <p className={`text-sm ${coverage < LOW_COVERAGE_PCT ? 'text-amber-300' : 'text-slate-300'}`}>
+                      {coverage < LOW_COVERAGE_PCT ? t('proctoring.coverageLow', { pct: coverage }) : t('proctoring.coverage', { pct: coverage })}
+                    </p>
+                  </div>
+                )}
+
                 {gaps.length > 0 && (
                   <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 mb-3">
                     <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <p className="text-amber-300 text-sm font-medium">{t('proctoring.incompleteMonitoring')}</p>
                       <p className="text-slate-400 text-xs">
-                        A detector could not load ({gaps.map(g => g.details?.split(':')[0]).filter(Boolean).join(', ') || 'unknown'}).
-                        Not a violation — but a lack of flags here is not proof of a clean attempt.
+                        {t('proctoring.detectorNote', { detectors: gaps.map(g => g.details?.split(':')[0]).filter(Boolean).join(', ') || t('proctoring.unknownDetector') })}
                       </p>
+                    </div>
+                  </div>
+                )}
+
+                {environment.length > 0 && (
+                  <div className="flex items-start gap-2 bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 mb-3">
+                    <Cpu className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-slate-300 text-sm font-medium">{t('proctoring.environment')}</p>
+                      {environment.map((e, i) => <p key={i} className="text-slate-400 text-xs truncate">{e.details}</p>)}
                     </div>
                   </div>
                 )}
 
                 {events.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{t('proctoring.violations')}</p>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{t('proctoring.violationsHeading')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {events.map((ev, i) => {
                         const Icon = VIOLATION_ICONS[ev.type as ViolationIconKey] ?? AlertTriangle
@@ -179,13 +198,32 @@ export default async function ProctoringReportsPage() {
                           <div key={i} className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-lg p-3">
                             <Icon className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                             <div className="min-w-0">
-                              <p className="text-red-300 text-sm font-medium">{VIOLATION_LABELS[ev.type] ?? ev.type}</p>
+                              <p className="text-red-300 text-sm font-medium">{label(ev.type)}</p>
                               {ev.details && <p className="text-slate-500 text-xs truncate">{ev.details}</p>}
                               {ev.timestamp && <p className="text-slate-600 text-xs">{formatDateTime(ev.timestamp, locale)}</p>}
                             </div>
                           </div>
                         )
                       })}
+                    </div>
+                  </div>
+                )}
+
+                {signals.length > 0 && (
+                  <div className="space-y-2 mt-3">
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{t('proctoring.signalsHeading')}</p>
+                    <p className="text-slate-500 text-xs">{t('proctoring.signalsNote')}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {signals.map((ev, i) => (
+                        <div key={i} className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+                          <ClipboardPaste className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-amber-300 text-sm font-medium">{label(ev.type)}</p>
+                            {ev.details && <p className="text-slate-500 text-xs truncate">{ev.details}</p>}
+                            {ev.timestamp && <p className="text-slate-600 text-xs">{formatDateTime(ev.timestamp, locale)}</p>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
