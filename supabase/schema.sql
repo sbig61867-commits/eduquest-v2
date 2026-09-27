@@ -1811,3 +1811,66 @@ CREATE TABLE announcement_events (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (announcement_id, student_id, kind)
 );
+
+
+-- ── On-demand live proctoring channel (live_proctoring_channel_migration.sql) ──
+-- 'teacher' | 'student' | NULL for the calling user on an exam-live topic.
+-- SECURITY DEFINER so it can read exams / exam_submissions regardless of the
+-- caller's table policies; search_path pinned (see fix_helper_search_path.sql).
+CREATE OR REPLACE FUNCTION public.exam_live_role(p_topic TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_uid  UUID := auth.uid();
+  v_exam UUID;
+BEGIN
+  IF v_uid IS NULL OR p_topic IS NULL
+     OR p_topic !~ '^exam-live:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    RETURN NULL;
+  END IF;
+  v_exam := substr(p_topic, 11)::uuid;
+
+  IF EXISTS (
+    SELECT 1 FROM public.exams e
+    WHERE e.id = v_exam AND e.teacher_id = v_uid
+      AND e.proctoring_enabled AND e.deleted_at IS NULL
+  ) THEN
+    RETURN 'teacher';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.exam_submissions s
+    WHERE s.exam_id = v_exam AND s.student_id = v_uid AND s.status = 'in_progress'
+  ) THEN
+    RETURN 'student';
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.exam_live_role(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.exam_live_role(TEXT) TO authenticated;
+
+DROP POLICY IF EXISTS exam_live_read ON realtime.messages;
+CREATE POLICY exam_live_read ON realtime.messages
+  FOR SELECT TO authenticated
+  USING (
+    realtime.messages.extension IN ('broadcast', 'presence')
+    AND public.exam_live_role((SELECT realtime.topic())) IS NOT NULL
+  );
+
+DROP POLICY IF EXISTS exam_live_write ON realtime.messages;
+CREATE POLICY exam_live_write ON realtime.messages
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    (realtime.messages.extension = 'presence'
+      AND public.exam_live_role((SELECT realtime.topic())) IS NOT NULL)
+    OR
+    (realtime.messages.extension = 'broadcast'
+      AND public.exam_live_role((SELECT realtime.topic())) = 'teacher')
+  );

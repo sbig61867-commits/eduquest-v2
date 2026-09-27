@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { LiveMonitor } from './live-monitor'
-import { EvidencePanel } from './evidence-panel'
 
 export default async function LiveProctoringPage({ params }: { params: Promise<{ examId: string }> }) {
   const { examId } = await params
@@ -23,12 +22,7 @@ export default async function LiveProctoringPage({ params }: { params: Promise<{
 
   const liveConfigured = !!(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY)
 
-  // The snapshot panel works even when LiveKit is not configured: violations
-  // are captured on the student's device either way.
-  return (
-    <div className="grid xl:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
-      <LiveMonitor examId={exam.id} examTitle={exam.title} liveConfigured={liveConfigured} />
-      <EvidencePanel examId={exam.id} />
-    </div>
-  )
+  // The page works without LiveKit too: who is in the exam, violation counts
+  // and snapshots all come from the students' devices either way.
+  return <LiveMonitor examId={exam.id} examTitle={exam.title} liveConfigured={liveConfigured} />
 }

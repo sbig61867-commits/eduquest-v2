@@ -589,7 +589,21 @@
         "fullscreen_exit": "Exited full screen"
       }
     },
-    "weakConnection": "Weak connection"
+    "weakConnection": "Weak connection",
+    "liveStart": "Start live view",
+    "liveStop": "Stop live view",
+    "liveIdle": "Live view is off, so nothing is streamed and nothing is spent. Silent monitoring keeps running for every student: violations are detected on their devices, counted here and backed by snapshots.",
+    "liveHint": "Pick the students to watch, up to {max} at once. Only they stream, and only while this page is open. Students are not told when they are being watched.",
+    "channelError": "Could not connect to the exam's monitoring channel. Try refreshing the page.",
+    "watch": "Watch",
+    "unwatch": "Stop",
+    "watchPage": "Watch this page",
+    "unwatchAll": "Stop watching all",
+    "watchingCount": "{count, plural, =0 {Nobody watched yet} one {Watching 1 of {max}} other {Watching {count} of {max}}}",
+    "watchLimit": "You can watch up to {max} students at once",
+    "connectingStudent": "Connecting to the student's camera…",
+    "silentMonitoring": "Silent monitoring",
+    "violationsCount": "{count, plural, one {1 violation} other {{count} violations}}"
   },
   "submissions": {
     "title": "Submissions & Grades",

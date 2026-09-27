@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 
-// Live proctoring must publish the exam page's own camera/mic stream, never
-// open a second capture: on a phone the double capture blurred the picture,
-// made the sound choppy and doubled the CPU load.
+// Live proctoring is on demand. The student publishes the exam page's own
+// camera/mic stream (never a second capture: on a phone that blurred the
+// picture, made the sound choppy and doubled the CPU load), only while the
+// teacher watches, and leaves as soon as LiveKit says the teacher is gone.
 
 const publishTrack = vi.fn().mockResolvedValue({})
 const setCameraEnabled = vi.fn()
@@ -11,13 +12,21 @@ const setMicrophoneEnabled = vi.fn()
 const connect = vi.fn().mockResolvedValue(undefined)
 const disconnect = vi.fn().mockResolvedValue(undefined)
 let roomOptions: Record<string, unknown> | undefined
+let handlers: Record<string, (...args: unknown[]) => void> = {}
 
 vi.mock('livekit-client', () => ({
   Room: class {
     localParticipant = { publishTrack, setCameraEnabled, setMicrophoneEnabled }
+    remoteParticipants = new Map()
     constructor(opts: Record<string, unknown>) { roomOptions = opts }
+    on(event: string, fn: (...args: unknown[]) => void) { handlers[event] = fn; return this }
     connect = connect
     disconnect = disconnect
+  },
+  RoomEvent: {
+    ParticipantDisconnected: 'participantDisconnected',
+    ParticipantAttributesChanged: 'participantAttributesChanged',
+    Disconnected: 'disconnected',
   },
   Track: { Source: { Camera: 'camera', Microphone: 'microphone' } },
   VideoPresets: { h180: { width: 320, height: 180 } },
@@ -35,17 +44,19 @@ function fakeStream() {
   return { stream, video, audio }
 }
 
+const tokenResponse = () => new Response(JSON.stringify({ token: 't', url: 'wss://lk.test', identity: 'student-1', teacher: 'teacher-1' }), { status: 200 })
+
 describe('useLivePublish', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     roomOptions = undefined
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ token: 't', url: 'wss://lk.test' }), { status: 200 })))
+    handlers = {}
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => tokenResponse()))
   })
 
   it('publishes the exam stream it is given and never opens a second capture', async () => {
     const { stream, video, audio } = fakeStream()
-    const ref = { current: stream }
-    const { unmount } = renderHook(() => useLivePublish('exam-1', true, ref))
+    const { unmount } = renderHook(() => useLivePublish('exam-1', true, { current: stream }))
 
     await waitFor(() => expect(publishTrack).toHaveBeenCalledTimes(2))
     expect(publishTrack).toHaveBeenCalledWith(video, expect.objectContaining({ source: 'camera', degradationPreference: 'maintain-framerate' }))
@@ -58,6 +69,42 @@ describe('useLivePublish', () => {
     expect(roomOptions).toMatchObject({ stopLocalTrackOnUnpublish: false })
     unmount()
     expect(disconnect).toHaveBeenCalledWith(false)
+  })
+
+  it('does not connect at all while nobody watches (active = false)', async () => {
+    const { stream } = fakeStream()
+    renderHook(() => useLivePublish('exam-1', false, { current: stream }))
+    await new Promise(r => setTimeout(r, 20))
+    expect(fetch).not.toHaveBeenCalled()
+    expect(connect).not.toHaveBeenCalled()
+  })
+
+  it('stops when the server says the teacher is not watching (409)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 409 })))
+    const onEnded = vi.fn()
+    const { stream } = fakeStream()
+    renderHook(() => useLivePublish('exam-1', true, { current: stream }, onEnded))
+    await waitFor(() => expect(onEnded).toHaveBeenCalled())
+    expect(connect).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledTimes(1) // no retries
+  })
+
+  it('leaves as soon as the teacher leaves or stops watching this student', async () => {
+    const onEnded = vi.fn()
+    const { stream } = fakeStream()
+    renderHook(() => useLivePublish('exam-1', true, { current: stream }, onEnded))
+    await waitFor(() => expect(publishTrack).toHaveBeenCalledTimes(2))
+
+    // Another student leaving changes nothing.
+    handlers.participantDisconnected({ identity: 'student-2' })
+    expect(onEnded).not.toHaveBeenCalled()
+    // The teacher still watching us: nothing.
+    handlers.participantAttributesChanged({}, { identity: 'teacher-1', attributes: { watching: 'student-1,student-3' } })
+    expect(onEnded).not.toHaveBeenCalled()
+    // The teacher drops us from the watch list: leave.
+    handlers.participantAttributesChanged({}, { identity: 'teacher-1', attributes: { watching: 'student-3' } })
+    expect(disconnect).toHaveBeenCalledWith(false)
+    expect(onEnded).toHaveBeenCalled()
   })
 
   it('does nothing when live proctoring is not configured', async () => {

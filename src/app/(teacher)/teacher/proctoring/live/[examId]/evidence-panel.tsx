@@ -1,15 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Camera, X, Clock } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { EvidenceItem } from '@/app/api/proctor/evidence/route'
 
 // Violation snapshots of THIS exam, next to the live wall. Snapshots live
-// outside Supabase for 30 hours only (src/lib/evidence-keys.ts); each link
-// is signed for 10 minutes, so the list is refreshed every POLL_MS.
+// outside Supabase for 30 hours only (src/lib/evidence-keys.ts).
+//
+// Refreshed when it matters, not on a timer: `refreshSignal` is the total
+// snapshot count the students report on the exam's live channel, so the list
+// reloads as soon as a new snapshot is stored. A slow fallback poll covers a
+// dropped channel and keeps the 10-minute signed links fresh.
 
-const POLL_MS = 20_000
+const FALLBACK_POLL_MS = 2 * 60_000
+const MIN_GAP_MS = 3_000
 const HOUR_MS = 60 * 60 * 1000
 
 type State =
@@ -18,16 +23,19 @@ type State =
   | { kind: 'error' }
   | { kind: 'ready'; items: EvidenceItem[]; ttlHours: number }
 
-export function EvidencePanel({ examId }: { examId: string }) {
+export function EvidencePanel({ examId, refreshSignal = 0 }: { examId: string; refreshSignal?: number }) {
   const t = useTranslations('teacher.live.evidence')
   const locale = useLocale()
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [open, setOpen] = useState<EvidenceItem | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const loadRef = useRef<() => void>(() => {})
+  const lastLoadRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
+      lastLoadRef.current = Date.now()
       try {
         const res = await fetch(`/api/proctor/evidence?examId=${examId}`, { cache: 'no-store' })
         if (!res.ok) throw new Error(String(res.status))
@@ -39,10 +47,19 @@ export function EvidencePanel({ examId }: { examId: string }) {
         if (!cancelled) setState(prev => (prev.kind === 'ready' ? prev : { kind: 'error' }))
       }
     }
+    loadRef.current = () => { load() }
     load()
-    const id = window.setInterval(load, POLL_MS)
+    const id = window.setInterval(load, FALLBACK_POLL_MS)
     return () => { cancelled = true; window.clearInterval(id) }
   }, [examId])
+
+  // A new snapshot was stored somewhere in the exam → reload (debounced).
+  useEffect(() => {
+    if (refreshSignal === 0) return
+    const wait = Math.max(0, MIN_GAP_MS - (Date.now() - lastLoadRef.current))
+    const id = window.setTimeout(() => loadRef.current(), wait + 500)
+    return () => window.clearTimeout(id)
+  }, [refreshSignal])
 
   // Close the enlarged view with Escape.
   useEffect(() => {

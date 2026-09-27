@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { signOutAndLeave } from '@/lib/sign-out'
 
-// Polls /api/session/check every 60s to detect: user disabled/deleted, tenant
+// Polls /api/session/check every 3 min to detect: user disabled/deleted, tenant
 // suspended/deleted. When the check fails, signs out immediately instead of
 // waiting for the JWT to expire (up to ~1h). Also re-checks on tab focus so
 // a user who returns after their tenant was suspended is kicked right away.
@@ -11,8 +11,11 @@ import { signOutAndLeave } from '@/lib/sign-out'
 // Not Realtime because Supabase Realtime enforces RLS on postgres_changes,
 // and non-admin users don't have SELECT on the universities row that would
 // change. Polling on a server endpoint (service-role) is simpler and honest.
-const POLL_INTERVAL_MS = 60_000
-const MIN_GAP_MS = 30_000
+// Every 3 min (was 1): a disabled account or suspended tenant is signed out
+// within 3 minutes, or at once on the next focus after MIN_GAP_MS — while the
+// database answers a third of the checks.
+const POLL_INTERVAL_MS = 3 * 60_000
+const MIN_GAP_MS = 60_000
 // The first check waits until the page has finished loading, so it never
 // competes with the page's own requests.
 const FIRST_CHECK_DELAY_MS = 4_000

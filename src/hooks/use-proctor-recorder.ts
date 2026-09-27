@@ -8,7 +8,10 @@ import { useCallback, useEffect, useRef } from 'react'
 // /api/proctor/events every FLUSH_INTERVAL, plus a final flush on demand
 // (before submit) and on unmount.
 
-const FLUSH_INTERVAL_MS = 15_000
+// 30 s: the database copy is the record of the attempt, not the live view —
+// the teacher's page sees each student's counts instantly on the exam's live
+// channel (src/lib/live-channel.ts), so the DB write can be half as frequent.
+const FLUSH_INTERVAL_MS = 30_000
 
 interface Buffered { count: number; firstAt: string; lastAt: string; details?: string }
 

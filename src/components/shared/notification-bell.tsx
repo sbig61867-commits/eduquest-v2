@@ -50,8 +50,11 @@ export function NotificationBell() {
     // competes with the page's own requests (on the student dashboard it runs
     // many of the same queries).
     const first = setTimeout(load, 2500)
-    // Refresh the badge every minute, but not for a tab nobody is looking at.
-    const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 60_000)
+    // Refresh the badge every 5 minutes, and not for a tab nobody is looking
+    // at. Each refresh runs several queries (for a student: memberships,
+    // lessons, exams, results), so once a minute per open tab was the largest
+    // steady load on the database. Opening the bell always loads fresh.
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load() }, 5 * 60_000)
     return () => { clearTimeout(first); clearInterval(t) }
   }, [])
 
