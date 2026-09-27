@@ -24,6 +24,7 @@ import { EvidencePanel } from './evidence-panel'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const PAGE_SIZE = 9
+const ATTRIBUTE_SETTLE_MS = 600
 
 interface Media {
   video?: HTMLVideoElement
@@ -234,6 +235,9 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     ;(async () => {
       if (room && liveStatus === 'live') {
         await room.localParticipant.setAttributes({ [WATCHING_ATTRIBUTE]: watchKey }).catch(() => {})
+        // Give LiveKit a moment to publish the attribute before the students
+        // ask for a token (they also retry a refusal, see use-live-publish).
+        await new Promise(r => setTimeout(r, ATTRIBUTE_SETTLE_MS))
       }
       if (!cancelled) sendWatch()
     })()
