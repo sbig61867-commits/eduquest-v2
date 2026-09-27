@@ -12,6 +12,7 @@ import { useObjectDetection } from '@/hooks/use-object-detection'
 import { useLivePublish } from '@/hooks/use-live-publish'
 import { useProctorRecorder } from '@/hooks/use-proctor-recorder'
 import { useEvidenceCapture } from '@/hooks/use-evidence-capture'
+import { canRequestFullscreen, enterFullscreen } from '@/lib/fullscreen'
 
 interface Props {
   exam: Exam
@@ -64,6 +65,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const handleSubmitRef = useRef<() => void>(() => {})
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'active' | 'error'>('idle')
   const [consentGiven, setConsentGiven] = useState(false)
+  // Full screen could not be entered when the exam started (see enterFullscreen):
+  // 'retry' on the next tap, or 'unsupported' on a device without it.
+  const [fullscreenGap, setFullscreenGap] = useState<'none' | 'retry' | 'unsupported'>('none')
+  const fullscreenGapReportedRef = useRef(false)
 
   const proctoringActive = started && exam.proctoring_enabled && cameraStatus === 'active'
 
@@ -194,6 +199,25 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [started, exam.proctoring_enabled, addViolation])
 
+  // Full screen that could not be entered at start: retry on the student's
+  // next tap, which carries a fresh user gesture. A device with no element
+  // full screen (iPhone) is recorded once for the teacher — not a violation,
+  // just a monitoring gap, like a detector that failed to load.
+  useEffect(() => {
+    if (!proctoringActive || fullscreenGap !== 'unsupported' || fullscreenGapReportedRef.current) return
+    fullscreenGapReportedRef.current = true
+    recordEvent('detector_unavailable', 'fullscreen: not supported on this device')
+  }, [proctoringActive, fullscreenGap, recordEvent])
+
+  useEffect(() => {
+    if (!proctoringActive || fullscreenGap !== 'retry') return
+    const retry = () => {
+      enterFullscreen().then(ok => { if (ok) setFullscreenGap('none') })
+    }
+    document.addEventListener('pointerdown', retry)
+    return () => document.removeEventListener('pointerdown', retry)
+  }, [proctoringActive, fullscreenGap])
+
   // Timer — uses ref to avoid stale closure over handleSubmit
   useEffect(() => {
     if (!started || submitted || untimed) return
@@ -250,28 +274,30 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     if (exam.proctoring_enabled && !consentGiven) return
 
     if (exam.proctoring_enabled) {
+      let stream: MediaStream
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        streamRef.current = stream
-        setCameraStatus('active')
-        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play() }
-        startAudioMonitor(stream)
-        // A track can stop mid-exam (device unplugged, OS-level camera kill,
-        // permission revoked from the browser's own UI) without the app ever
-        // calling stop() itself — that's a real monitoring gap the proctor
-        // must see, not a silent camera-status flip.
-        stream.getTracks().forEach(track => {
-          track.addEventListener('ended', () => {
-            setCameraStatus('error')
-            addViolation('camera_stopped', `${track.kind} track ended unexpectedly`)
-          })
-        })
-        await document.documentElement.requestFullscreen()
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       } catch {
         setCameraStatus('error')
         toast.error(t('mediaPermission'))
         return
       }
+      streamRef.current = stream
+      setCameraStatus('active')
+      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}) }
+      startAudioMonitor(stream)
+      // A track can stop mid-exam (device unplugged, OS-level camera kill,
+      // permission revoked from the browser's own UI) without the app ever
+      // calling stop() itself — that's a real monitoring gap the proctor
+      // must see, not a silent camera-status flip.
+      stream.getTracks().forEach(track => {
+        track.addEventListener('ended', () => {
+          setCameraStatus('error')
+          addViolation('camera_stopped', `${track.kind} track ended unexpectedly`)
+        })
+      })
+      // Best-effort; a refusal is retried on the student's next tap (below).
+      if (!(await enterFullscreen())) setFullscreenGap(canRequestFullscreen() ? 'retry' : 'unsupported')
     }
 
     // Register the attempt server-side. The server records the authoritative
