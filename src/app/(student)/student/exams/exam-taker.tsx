@@ -199,6 +199,25 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [started, exam.proctoring_enabled, addViolation])
 
+  // ── Camera preview ──
+  // Face detection, object detection and evidence snapshots all read frames
+  // from this <video>. It only exists once the exam screen renders, so the
+  // stream is attached here, not in startExam() (where the element was still
+  // missing: the stream was never attached, every camera-based detector read an
+  // empty element and skipped it silently, and no snapshot was ever taken).
+  // If no frame arrives, the teacher is told instead of seeing a clean attempt.
+  useEffect(() => {
+    const video = videoRef.current
+    const stream = streamRef.current
+    if (!proctoringActive || !video || !stream) return
+    if (video.srcObject !== stream) video.srcObject = stream
+    Promise.resolve().then(() => video.play()).catch(() => {})
+    const check = setTimeout(() => {
+      if (video.readyState < 2) recordEvent('detector_unavailable', 'camera: no video frames reached the detectors')
+    }, 10_000)
+    return () => clearTimeout(check)
+  }, [proctoringActive, recordEvent])
+
   // Full screen that could not be entered at start: retry on the student's
   // next tap, which carries a fresh user gesture. A device with no element
   // full screen (iPhone) is recorded once for the teacher — not a violation,
@@ -283,8 +302,9 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         return
       }
       streamRef.current = stream
+      // The <video> the detectors read only mounts with the exam screen, after
+      // `started` — the effect "Camera preview" attaches the stream to it then.
       setCameraStatus('active')
-      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}) }
       startAudioMonitor(stream)
       // A track can stop mid-exam (device unplugged, OS-level camera kill,
       // permission revoked from the browser's own UI) without the app ever
@@ -522,7 +542,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             </span>
           )}
           {exam.proctoring_enabled && cameraStatus === 'active' && (
-            <video ref={videoRef} className="w-20 h-14 rounded-lg object-cover border border-slate-700 bg-slate-800" muted />
+            <video ref={videoRef} className="w-20 h-14 rounded-lg object-cover border border-slate-700 bg-slate-800" muted playsInline autoPlay />
           )}
         </div>
       </div>
