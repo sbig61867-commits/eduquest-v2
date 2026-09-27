@@ -36,8 +36,10 @@ const exam = {
 
 const originalRequestFullscreen = document.documentElement.requestFullscreen
 
+let stream: MediaStream
+
 function stubCamera() {
-  const stream = { getTracks: () => [] } as unknown as MediaStream
+  stream = { getTracks: () => [] } as unknown as MediaStream
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
@@ -84,6 +86,18 @@ describe('starting a proctored exam when full screen is unavailable', () => {
     expect(toastError).not.toHaveBeenCalledWith('mediaPermission')
     await waitFor(() => expect(recordEvent).toHaveBeenCalledWith('detector_unavailable', 'fullscreen: not supported on this device'))
     expect(recordEvent.mock.calls.filter(c => c[0] === 'detector_unavailable')).toHaveLength(1)
+  })
+
+  it('attaches the camera stream to the <video> the detectors and snapshots read', async () => {
+    // The element mounts only with the exam screen; the stream used to be set
+    // on it before it existed, so every camera-based detector read nothing.
+    document.documentElement.requestFullscreen = vi.fn().mockResolvedValue(undefined)
+    await startTheExam()
+    await screen.findByText('Two plus two')
+    const video = document.querySelector('video') as HTMLVideoElement
+    expect(video).not.toBeNull()
+    await waitFor(() => expect(video.srcObject).toBe(stream))
+    expect(video.hasAttribute('playsinline')).toBe(true)
   })
 
   it('still blocks the exam when the camera permission is really denied', async () => {
