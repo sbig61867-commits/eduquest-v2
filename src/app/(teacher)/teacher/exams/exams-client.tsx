@@ -66,6 +66,8 @@ interface Props {
 interface ExamForm {
   title: string; target: 'group' | 'course'; group_id: string; course_id: string; kind: Kind
   duration_minutes: number; proctoring_enabled: boolean; due_date: string
+  /** Optional Safe Exam Browser Config Key (proctored exams). */
+  seb_config_key?: string
 }
 
 export function ExamsClient({ initialExams, groups, courses = [], proctoringDefault = false, openFor, openResultsFor }: Props) {
@@ -216,6 +218,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
         ...(toCourse ? { course_id: form.course_id, kind: form.kind } : { group_id: form.group_id }),
         duration_minutes: form.duration_minutes,
         proctoring_enabled: form.proctoring_enabled,
+        seb_config_key: form.kind === 'exam' && form.proctoring_enabled ? (form.seb_config_key ?? '').trim() || null : null,
         // datetime-local is the teacher's local time; send an absolute instant.
         due_date: toCourse && form.kind === 'homework' && form.due_date ? new Date(form.due_date).toISOString() : null,
         questions,
@@ -488,6 +491,13 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
                 </div>
                 <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />{t('exams.modal.proctoringLabel')}</span>
               </label>
+            )}
+            {form.kind === 'exam' && form.proctoring_enabled && (
+              <div className="space-y-1">
+                <Input label={t('exams.modal.sebLabel')} value={form.seb_config_key ?? ''} dir="ltr"
+                  onChange={e => setForm(p => ({ ...p, seb_config_key: e.target.value }))} placeholder={t('exams.modal.sebPlaceholder')} />
+                <p className="text-slate-500 text-xs">{t('exams.modal.sebHint')}</p>
+              </div>
             )}
 
             {questions.length > 0 && (

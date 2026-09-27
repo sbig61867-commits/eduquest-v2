@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { isOnExamRoster } from '@/lib/exam-roster'
 import { signFileMap } from '@/lib/exam-files'
+import { normalizeSebKey, verifySebProof, type SebProof } from '@/lib/seb'
 
 // Students no longer have direct SELECT on exams (answer-leak fix). Reading exam
 // metadata here uses the service-role client; authorization is enforced
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
-  let body: { examId?: string }
+  let body: { examId?: string; seb?: SebProof | null }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
@@ -59,6 +60,14 @@ export async function POST(request: Request) {
   }
   if (exam.ends_at && now > new Date(exam.ends_at).getTime()) {
     return NextResponse.json({ ...(await apiErr('examEnded')) }, { status: 403 })
+  }
+
+  // Optional Safe Exam Browser requirement (src/lib/seb.ts): only SEB running
+  // the teacher's exact configuration can produce this proof. The column
+  // exists once supabase/seb_config_key_migration.sql is applied.
+  const sebKey = normalizeSebKey(exam.seb_config_key)
+  if (sebKey && !verifySebProof(sebKey, body.seb, new URL(request.url).origin)) {
+    return NextResponse.json({ ...(await apiErr('sebRequired')), seb_required: true }, { status: 403 })
   }
 
   // Via the service-role client so EXECUTE can be revoked from anon/authenticated

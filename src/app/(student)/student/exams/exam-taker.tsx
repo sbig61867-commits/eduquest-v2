@@ -22,6 +22,7 @@ import { useFaceIdentity } from '@/hooks/use-face-identity'
 import { useClipRecorder } from '@/hooks/use-clip-recorder'
 import { useThumbnailSender } from '@/hooks/use-thumbnail-sender'
 import { SecondCameraPanel } from '@/components/student/second-camera-panel'
+import { readSebProof } from '@/lib/seb-client'
 import { SpeechDetector } from '@/lib/speech-detector'
 
 interface Props {
@@ -448,7 +449,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       const res = await fetch('/api/exam/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ examId: exam.id }),
+        // Safe Exam Browser's proof, when the page runs inside SEB (else null).
+        body: JSON.stringify({ examId: exam.id, seb: await readSebProof() }),
       })
 
       if (!res.ok) {

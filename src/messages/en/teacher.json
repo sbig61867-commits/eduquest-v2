@@ -191,7 +191,10 @@
       "dueDateLabel": "Due date (optional)",
       "courseHint": "Shown to the students enrolled in the course. Then link it to an item inside a unit from the course builder.",
       "createdForCourse": "Created. Back in the course, link it to an item inside a unit.",
-      "createFailed": "Could not create the exam. Please try again."
+      "createFailed": "Could not create the exam. Please try again.",
+      "sebLabel": "Safe Exam Browser Config Key (optional)",
+      "sebPlaceholder": "64-character key",
+      "sebHint": "For high-stakes exams on computers: students must then open the exam in Safe Exam Browser with your configuration. Leave empty to allow any browser."
     },
     "results": {
       "modalTitle": "Exam Results",
