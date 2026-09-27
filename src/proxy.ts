@@ -14,9 +14,11 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // yet (they're creating their account), so gating it would 307-redirect the
 // POST to /login and the client would see a non-JSON body as "Registration failed".
 // /auth/signout is public so an already-expired session can still clear its cookies.
+// /models/ holds the on-device proctoring models (static files copied by
+// scripts/copy-human-models.mjs); the proxy matcher only skips images.
 // /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
 // and is gated by CRON_SECRET inside the route instead.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/demo-', '/demo']
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
