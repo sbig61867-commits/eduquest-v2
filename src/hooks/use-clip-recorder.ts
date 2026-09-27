@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { CLIP_MAX_PER_STUDENT, CLIP_SEGMENT_MS, ON_REQUEST, isEvidenceType } from '@/lib/evidence-keys'
+import { CLIP_MAX_PER_STUDENT, CLIP_SEGMENT_MS, ON_REQUEST, ROOM_SCAN, isEvidenceType } from '@/lib/evidence-keys'
 import { RING_SIZE, pickClipMimeType, recentSegments, segmentForViolation, type Segment } from '@/lib/clip-segments'
 
 // Short evidence clips, recorded on the student's device.
@@ -29,6 +29,9 @@ export function useClipRecorder(
 ) {
   const ringRef = useRef<Segment[]>([])
   const pendingRef = useRef<{ type: string; at: number }[]>([])
+  // The first segment of the attempt is the room scan, when one was asked for.
+  const roomScanRef = useRef(false)
+  const firstDoneRef = useRef(false)
   const sentRef = useRef(0)
   const lastSentRef = useRef(0)
   const uploadedRef = useRef(new WeakSet<Blob>())
@@ -77,6 +80,10 @@ export function useClipRecorder(
       recorder.onstop = () => {
         const seg: Segment = { start, end: Date.now(), data: new Blob(chunks, { type: mimeType }) }
         ringRef.current = [...ringRef.current, seg].slice(-RING_SIZE)
+        if (!firstDoneRef.current) {
+          firstDoneRef.current = true
+          if (roomScanRef.current) upload(seg, ROOM_SCAN)
+        }
         // Violations waiting for this segment to finish.
         const waiting = pendingRef.current.filter(p => p.at <= seg.end)
         pendingRef.current = pendingRef.current.filter(p => p.at > seg.end)
@@ -109,11 +116,14 @@ export function useClipRecorder(
     pendingRef.current.push({ type, at: now })
   }, [active])
 
+  /** Keep the first segment of the attempt as the room scan. */
+  const requestRoomScan = useCallback(() => { roomScanRef.current = true }, [])
+
   /** The exam's teacher asked for the last `seconds` seconds. */
   const sendRecent = useCallback((seconds: number) => {
     if (!active) return
     for (const seg of recentSegments(ringRef.current, seconds, Date.now())) upload(seg, ON_REQUEST)
   }, [active, upload])
 
-  return useMemo(() => ({ onViolation, sendRecent }), [onViolation, sendRecent])
+  return useMemo(() => ({ onViolation, sendRecent, requestRoomScan }), [onViolation, sendRecent, requestRoomScan])
 }

@@ -41,6 +41,10 @@ interface Props {
 // 'True'/'False' and graded in the DB, so only the visible label changes.
 const TRUE_FALSE_VALUES = ['True', 'False'] as const
 
+// The room scan lasts one clip segment.
+const ROOM_SCAN_MS = 10_000
+const FACE_TYPES = new Set(['face_not_detected', 'looking_away', 'multiple_faces', 'face_mismatch', 'spoof_detected'])
+
 // More characters than this appearing in one input event, without a paste,
 // means text was dropped or injected rather than typed.
 const BULK_INSERT_CHARS = 60
@@ -165,12 +169,28 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const { onViolation: maybeCaptureEvidence } = useEvidenceCapture(exam.id, videoRef, proctoringActive, onEvidenceStored)
   // Short evidence clips from an in-memory ring of 10 s segments (never
   // uploaded unless a severe violation happens or the teacher asks).
-  const { onViolation: clipOnViolation, sendRecent: sendRecentClips } = useClipRecorder(exam.id, streamRef, proctoringActive, onEvidenceStored)
+  const { onViolation: clipOnViolation, sendRecent: sendRecentClips, requestRoomScan } = useClipRecorder(exam.id, streamRef, proctoringActive, onEvidenceStored)
+
+  // ── Room scan: for the first seconds the student turns the camera slowly
+  //    around the room; that first clip segment is kept as evidence. The face
+  //    naturally leaves the frame meanwhile, so face checks are paused. ──
+  const [roomScanning, setRoomScanning] = useState(false)
+  const roomScanUntilRef = useRef(0)
+  useEffect(() => {
+    if (!proctoringActive) return
+    roomScanUntilRef.current = Date.now() + ROOM_SCAN_MS
+    requestRoomScan()
+    const on = setTimeout(() => setRoomScanning(true), 0)
+    const off = setTimeout(() => setRoomScanning(false), ROOM_SCAN_MS)
+    return () => { clearTimeout(on); clearTimeout(off) }
+  }, [proctoringActive, requestRoomScan])
 
   // Define addViolation BEFORE hook calls that reference it. It updates the UI
   // alert, buffers the event for the DB recorder, and asks the evidence layer
   // whether this violation is severe enough to snapshot.
   const addViolation = useCallback((type: string, details?: string) => {
+    // The camera is pointed around the room on purpose during the scan.
+    if (Date.now() < roomScanUntilRef.current && FACE_TYPES.has(type)) return
     const event: ProctoringEvent = { type: type as ProctoringEvent['type'], timestamp: new Date().toISOString(), details }
     setViolations(prev => [...prev, event])
     recordEvent(type, details)
@@ -658,6 +678,12 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           )}
         </div>
       </div>
+
+      {roomScanning && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3 text-blue-300 text-sm font-medium">
+          {t('roomScan')}
+        </div>
+      )}
 
       {/* Optional phone side camera (desk + screen) */}
       {exam.proctoring_enabled && cameraStatus === 'active' && <SecondCameraPanel examId={exam.id} />}

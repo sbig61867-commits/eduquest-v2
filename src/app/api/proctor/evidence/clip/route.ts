@@ -5,7 +5,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { isOnExamRoster } from '@/lib/exam-roster'
 import { rateLimit } from '@/lib/rate-limit'
 import {
-  CLIP_MAX_BYTES, CLIP_MAX_PER_STUDENT, ON_REQUEST,
+  CLIP_MAX_BYTES, CLIP_MAX_PER_STUDENT, ON_REQUEST, ROOM_SCAN,
   evidenceKey, evidenceKeysFromEvents, expiresAt, extOf, isClipExt, isEvidenceType, isUuid, sniffEvidenceVideo,
   type EvidenceType,
 } from '@/lib/evidence-keys'
@@ -37,7 +37,8 @@ export async function POST(request: Request) {
   const examId = params.get('examId')
   const rawType = params.get('type')
   if (!isUuid(examId)) return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
-  const type: EvidenceType | null = rawType === ON_REQUEST ? ON_REQUEST : isEvidenceType(rawType) ? rawType : null
+  const type: EvidenceType | null =
+    rawType === ON_REQUEST ? ON_REQUEST : rawType === ROOM_SCAN ? ROOM_SCAN : isEvidenceType(rawType) ? rawType : null
   if (!type) return NextResponse.json({ stored: false, reason: 'not_severe' })
   if (!isEvidenceStoreConfigured()) return NextResponse.json({ stored: false, reason: 'store_unconfigured' })
 
@@ -67,6 +68,8 @@ export async function POST(request: Request) {
   if (!attempt || attempt.status !== 'in_progress') return NextResponse.json({ stored: false, reason: 'not_in_progress' })
   const clips = evidenceKeysFromEvents(attempt.proctoring_events).filter(k => isClipExt(extOf(k.key)))
   if (clips.length >= CLIP_MAX_PER_STUDENT) return NextResponse.json({ stored: false, reason: 'limit_reached' })
+  // One room scan per attempt.
+  if (type === ROOM_SCAN && clips.some(k => k.type === ROOM_SCAN)) return NextResponse.json({ stored: false, reason: 'limit_reached' })
 
   const capturedAt = Date.now()
   const key = evidenceKey(examId, user.id, type, capturedAt, ext)
@@ -79,13 +82,13 @@ export async function POST(request: Request) {
     p_exam_id: examId,
     p_student_id: user.id,
     p_events: [{
-      // A teacher-requested clip is not a violation: it is filed as info.
+      // A teacher-requested clip and the room scan are not violations: info.
       type: type === ON_REQUEST ? 'clip_requested' : type,
       timestamp: new Date(capturedAt).toISOString(),
       evidence: true,
       evidence_key: key,
       evidence_expires_at: new Date(expiresAt(capturedAt)).toISOString(),
-      details: type === ON_REQUEST ? 'Clip requested by the teacher' : 'Evidence clip captured',
+      details: type === ON_REQUEST ? 'Clip requested by the teacher' : type === ROOM_SCAN ? 'Room scan at the start' : 'Evidence clip captured',
     }],
   })
 

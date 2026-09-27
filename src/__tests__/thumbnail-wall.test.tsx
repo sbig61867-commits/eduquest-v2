@@ -60,7 +60,7 @@ describe('thumbnail sender', () => {
     vi.useFakeTimers()
     httpSend.mockReset()
     // jsdom has no canvas: a tiny stand-in that "encodes" a WebP.
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: () => {} } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: () => {} } as never)
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/webp;base64,AAAA')
   })
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })

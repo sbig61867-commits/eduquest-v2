@@ -233,7 +233,8 @@
     "removePhoto": "Remove photo",
     "photoAttached": "Your attached answer photo",
     "photoFailed": "Could not upload the photo. Please try again.",
-    "photoHint": "Type your answer, photograph your answer on paper, or both."
+    "photoHint": "Type your answer, photograph your answer on paper, or both.",
+    "roomScan": "Room check: slowly turn your camera around the room, then back to your face. It takes 10 seconds."
   },
   "widgets": {
     "popup": {

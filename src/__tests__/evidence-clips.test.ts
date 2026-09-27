@@ -145,3 +145,17 @@ describe('clip upload route', () => {
     expect((await post(webm)).status).toBe(401)
   })
 })
+
+describe('room scan clip', () => {
+  beforeEach(() => {
+    state.user = 'student'; state.status = 'in_progress'; state.events = []; state.proctored = true
+    state.onRoster = true; state.stored = []; state.appended = []
+  })
+
+  it('is filed as info and kept once per attempt', async () => {
+    expect(await (await post(webm, 'room_scan')).json()).toEqual({ stored: true })
+    expect(state.appended[0]).toMatchObject({ type: 'room_scan' })
+    state.events = [{ evidence_key: state.stored[0] }]
+    expect(await (await post(webm, 'room_scan')).json()).toMatchObject({ stored: false, reason: 'limit_reached' })
+  })
+})

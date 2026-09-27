@@ -21,7 +21,7 @@ export const VIOLATION_TYPES = [
 
 export const SIGNAL_TYPES = ['paste_detected', 'bulk_insert'] as const
 
-export const INFO_TYPES = ['detector_unavailable', 'monitoring_gap', 'environment_flag', 'monitoring_summary', 'clip_requested', 'second_camera_connected'] as const
+export const INFO_TYPES = ['detector_unavailable', 'monitoring_gap', 'environment_flag', 'monitoring_summary', 'clip_requested', 'second_camera_connected', 'room_scan'] as const
 
 export type ViolationType = (typeof VIOLATION_TYPES)[number]
 export type SignalType = (typeof SIGNAL_TYPES)[number]

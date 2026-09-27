@@ -27,7 +27,9 @@ export const SEVERE_EVIDENCE_TYPES = [
 ] as const
 /** A clip the exam's teacher asked for ("the last 30 seconds"), not tied to a violation. */
 export const ON_REQUEST = 'on_request'
-export type EvidenceType = (typeof SEVERE_EVIDENCE_TYPES)[number] | typeof ON_REQUEST
+/** The student's slow turn of the camera around the room at the start (one per attempt). */
+export const ROOM_SCAN = 'room_scan'
+export type EvidenceType = (typeof SEVERE_EVIDENCE_TYPES)[number] | typeof ON_REQUEST | typeof ROOM_SCAN
 
 export type EvidenceExt = 'webp' | 'jpg' | 'webm' | 'mp4'
 
@@ -50,13 +52,13 @@ export function isUuid(v: unknown): v is string {
 }
 
 /** A severe violation type — what the student's device may attach evidence to. */
-export function isEvidenceType(v: unknown): v is Exclude<EvidenceType, typeof ON_REQUEST> {
+export function isEvidenceType(v: unknown): v is Exclude<EvidenceType, typeof ON_REQUEST | typeof ROOM_SCAN> {
   return typeof v === 'string' && (SEVERE_EVIDENCE_TYPES as readonly string[]).includes(v)
 }
 
 /** Any type an evidence key may carry (severe violations + teacher requests). */
 export function isEvidenceKeyType(v: unknown): v is EvidenceType {
-  return v === ON_REQUEST || isEvidenceType(v)
+  return v === ON_REQUEST || v === ROOM_SCAN || isEvidenceType(v)
 }
 
 export function isClipExt(ext: EvidenceExt): boolean {
