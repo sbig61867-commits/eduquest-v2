@@ -20,6 +20,7 @@ import { environmentFlags, readEnvironmentFacts } from '@/lib/device-environment
 import { useMonitoringCoverage } from '@/hooks/use-monitoring-coverage'
 import { useFaceIdentity } from '@/hooks/use-face-identity'
 import { useClipRecorder } from '@/hooks/use-clip-recorder'
+import { SecondCameraPanel } from '@/components/student/second-camera-panel'
 import { SpeechDetector } from '@/lib/speech-detector'
 
 interface Props {
@@ -653,6 +654,9 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           )}
         </div>
       </div>
+
+      {/* Optional phone side camera (desk + screen) */}
+      {exam.proctoring_enabled && cameraStatus === 'active' && <SecondCameraPanel examId={exam.id} />}
 
       {/* Violation alert */}
       {violationAlert && (

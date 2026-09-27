@@ -20,7 +20,13 @@ export function useObjectDetection(
   enabled: boolean,
   onViolation: OnViolation,
   onUnavailable?: OnUnavailable,
+  /** Objects that count as suspicious. The phone's side camera passes only
+   *  phones and books: from the side, the student's own laptop, keyboard and
+   *  screen are always in view and are not suspicious there. */
+  suspiciousObjects: readonly string[] = SUSPICIOUS_OBJECTS,
 ) {
+  const suspiciousRef = useRef(suspiciousObjects)
+  useEffect(() => { suspiciousRef.current = suspiciousObjects }, [suspiciousObjects])
   const modelRef = useRef<CocoSsdModel | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // On a slow device one inference can take longer than the sample interval;
@@ -41,7 +47,7 @@ export function useObjectDetection(
       const predictions = await modelRef.current.detect(video)
       for (const pred of predictions) {
         const label = pred.class.toLowerCase()
-        if (SUSPICIOUS_OBJECTS.includes(label) && pred.score > 0.5) {
+        if (suspiciousRef.current.includes(label) && pred.score > 0.5) {
           onViolation('suspicious_activity', `${pred.class} detected (${Math.round(pred.score * 100)}% confidence)`)
           break
         }

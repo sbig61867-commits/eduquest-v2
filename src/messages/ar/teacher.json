@@ -323,7 +323,8 @@
       "monitoring_gap": "توقفت المراقبة مؤقتاً",
       "environment_flag": "بيئة الجهاز",
       "monitoring_summary": "نسبة المراقبة",
-      "clip_requested": "مقطع طلبه المعلم"
+      "clip_requested": "مقطع طلبه المعلم",
+      "second_camera_connected": "كاميرا الجوال الجانبية متصلة"
     }
   },
   "courses": {

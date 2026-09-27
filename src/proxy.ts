@@ -16,7 +16,7 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // /auth/signout is public so an already-expired session can still clear its cookies.
 // /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
 // and is gated by CRON_SECRET inside the route instead.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/demo-', '/demo']
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true

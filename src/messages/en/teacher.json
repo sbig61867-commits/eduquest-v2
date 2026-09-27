@@ -323,7 +323,8 @@
       "monitoring_gap": "Monitoring paused",
       "environment_flag": "Device environment",
       "monitoring_summary": "Monitoring coverage",
-      "clip_requested": "Clip requested by the teacher"
+      "clip_requested": "Clip requested by the teacher",
+      "second_camera_connected": "Phone side camera connected"
     }
   },
   "courses": {
