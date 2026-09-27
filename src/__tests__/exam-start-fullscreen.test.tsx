@@ -18,6 +18,7 @@ vi.mock('@/components/ui/toast', () => ({ toast: { error: (m: string) => toastEr
 vi.mock('@/hooks/use-face-detection', () => ({ useFaceDetection: () => {} }))
 vi.mock('@/hooks/use-object-detection', () => ({ useObjectDetection: () => {} }))
 vi.mock('@/hooks/use-live-publish', () => ({ useLivePublish: () => {} }))
+vi.mock('@/hooks/use-exam-live-channel', () => ({ useExamLiveChannel: () => ({ watched: false, stopWatching: () => {} }) }))
 vi.mock('@/hooks/use-evidence-capture', () => ({ useEvidenceCapture: () => ({ onViolation: () => {} }) }))
 vi.mock('@/hooks/use-proctor-recorder', () => ({
   useProctorRecorder: () => ({ record: recordEvent, flush: async () => {} }),

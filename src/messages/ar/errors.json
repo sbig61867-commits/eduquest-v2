@@ -149,6 +149,7 @@
   "lessonUpdateFailed": "فشل تحديث الدرس",
   "linkMailboxFirst": "اربط بريدك أولاً",
   "liveNotConfigured": "المراقبة المباشرة غير مهيّأة",
+  "liveNotWatching": "المعلم لا يشاهد هذا الطالب مباشرةً الآن",
   "logoUrlInvalid": "رابط الشعار غير صالح",
   "logoUrlScheme": "رابط الشعار يجب أن يبدأ بـ https://",
   "logoUrlTooLong": "رابط الشعار طويل جداً",

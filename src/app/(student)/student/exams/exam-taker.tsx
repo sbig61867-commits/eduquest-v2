@@ -1,7 +1,7 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic, Monitor, Camera, Trash2, MessageSquareText } from 'lucide-react'
@@ -12,6 +12,7 @@ import { useObjectDetection } from '@/hooks/use-object-detection'
 import { useLivePublish } from '@/hooks/use-live-publish'
 import { useProctorRecorder } from '@/hooks/use-proctor-recorder'
 import { useEvidenceCapture } from '@/hooks/use-evidence-capture'
+import { useExamLiveChannel } from '@/hooks/use-exam-live-channel'
 import { canRequestFullscreen, enterFullscreen } from '@/lib/fullscreen'
 
 interface Props {
@@ -105,22 +106,32 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     return () => clearTimeout(timeout)
   }, [answers, started, submitted, draftKey])
 
-  // Server-side draft sync every 60 s (timed exams only — excludes homework).
+  // Server-side draft sync every 60 s (timed exams only — excludes homework),
+  // and only when the answers changed since the last save: an idle student
+  // costs the database nothing. The interval does not restart on every
+  // keystroke (it reads the answers through a ref), so a student who keeps
+  // typing is still saved once a minute.
+  const answersRef = useRef(answers)
+  useEffect(() => { answersRef.current = answers }, [answers])
+  const savedDraftRef = useRef('{}')
   useEffect(() => {
     if (!started || submitted || untimed) return
     const id = setInterval(async () => {
+      const draft = JSON.stringify(answersRef.current)
+      if (draft === savedDraftRef.current) return
       try {
-        await fetch('/api/exam/draft', {
+        const res = await fetch('/api/exam/draft', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ examId: exam.id, answers }),
+          body: JSON.stringify({ examId: exam.id, answers: answersRef.current }),
         })
+        if (res.ok) savedDraftRef.current = draft
       } catch {
         // Network hiccup — next interval will retry.
       }
     }, 60_000)
     return () => clearInterval(id)
-  }, [answers, started, submitted, untimed, exam.id])
+  }, [started, submitted, untimed, exam.id])
 
   // ── Event recorder: persists local detections to the DB, batched + deduped,
   //    with ZERO AI. The only proctoring data that reaches the server is these
@@ -129,7 +140,9 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
   // ── Evidence capture: one snapshot on SEVERE violations only (no AI, no
   //    periodic capture, capped + cooldown, private bucket). ──
-  const { onViolation: maybeCaptureEvidence } = useEvidenceCapture(exam.id, videoRef, proctoringActive)
+  const [evidenceStored, setEvidenceStored] = useState(0)
+  const onEvidenceStored = useCallback(() => setEvidenceStored(n => n + 1), [])
+  const { onViolation: maybeCaptureEvidence } = useEvidenceCapture(exam.id, videoRef, proctoringActive, onEvidenceStored)
 
   // Define addViolation BEFORE hook calls that reference it. It updates the UI
   // alert, buffers the event for the DB recorder, and asks the evidence layer
@@ -153,9 +166,14 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     setTimeout(() => setViolationAlert(''), 4000)
   }, [recordEvent, maybeCaptureEvidence])
 
-  // ── Live layer: publish camera+mic to LiveKit so the teacher watches
-  //    in real time (no-ops when LiveKit isn't configured). ──
-  useLivePublish(exam.id, proctoringActive)
+  // ── Live layer, on demand and silent: the student joins the exam's live
+  //    channel (who is in the exam + violation counts for the teacher, no
+  //    table touched) and streams camera+mic to LiveKit ONLY while the teacher
+  //    watches this student. Nothing on this screen says whether that is
+  //    happening; the consent text says it may happen at any time. ──
+  const liveCounts = useMemo(() => ({ v: violations.length, ev: evidenceStored }), [violations.length, evidenceStored])
+  const { watched, stopWatching } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts)
+  useLivePublish(exam.id, proctoringActive && watched, streamRef, stopWatching)
 
   // A detector that fails to load on this device is NOT the student's fault,
   // so it is recorded for the teacher (so "no events" is never mistaken for a
@@ -295,7 +313,18 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     if (exam.proctoring_enabled) {
       let stream: MediaStream
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        // The one capture for the whole exam: the detectors, the evidence
+        // snapshots and the live stream to the teacher all share it.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            // Front camera: phones default to the rear one.
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 24, max: 30 },
+          },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        })
       } catch {
         setCameraStatus('error')
         toast.error(t('mediaPermission'))

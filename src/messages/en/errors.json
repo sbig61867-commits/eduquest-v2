@@ -149,6 +149,7 @@
   "lessonUpdateFailed": "Could not update the lesson",
   "linkMailboxFirst": "Link your mailbox first",
   "liveNotConfigured": "Live proctoring is not configured",
+  "liveNotWatching": "The teacher is not watching this student live right now",
   "logoUrlInvalid": "The logo URL is not valid",
   "logoUrlScheme": "The logo URL must start with https://",
   "logoUrlTooLong": "The logo URL is too long",

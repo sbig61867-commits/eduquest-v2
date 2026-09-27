@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { EVIDENCE_MAX_PER_STUDENT } from '@/lib/evidence-keys'
 
 // Captures a SINGLE evidence snapshot on SEVERE violations only — never
@@ -26,7 +26,11 @@ export function useEvidenceCapture(
   examId: string,
   videoRef: React.RefObject<HTMLVideoElement | null>,
   active: boolean,
+  /** Called after each snapshot the server actually stored. */
+  onStored?: () => void,
 ) {
+  const onStoredRef = useRef(onStored)
+  useEffect(() => { onStoredRef.current = onStored }, [onStored])
   const capturedRef = useRef(0)
   const lastCaptureRef = useRef(0)
   const faceStreakRef = useRef(0)
@@ -70,6 +74,7 @@ export function useEvidenceCapture(
       if (res.ok) {
         const data = await res.json().catch(() => ({}))
         if (!data.stored) capturedRef.current -= 1
+        else onStoredRef.current?.()
       } else {
         capturedRef.current -= 1
       }

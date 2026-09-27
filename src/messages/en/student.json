@@ -210,7 +210,7 @@
     "answerPlaceholder": "Write your answer here…",
     "next": "Next",
     "desktopRecommendation": "A desktop or tablet is recommended for a more stable experience, especially in formal exams — this is advice to avoid potential issues, not a requirement; you can take the exam from any device that supports camera and microphone.",
-    "consentText": "I agree to enable exam proctoring: face, gaze, and suspicious object detection runs entirely on my device, and no image is sent for analysis outside my device. When a severe violation occurs (such as an additional person appearing or exiting full screen), one screenshot is saved as evidence reviewed only by the exam teacher. If the camera or microphone stops during the exam, it will be automatically logged for the proctor.",
+    "consentText": "I agree to enable exam proctoring: face, gaze, and suspicious object detection runs entirely on my device, and no image is sent for analysis outside my device. When a severe violation occurs (such as an additional person appearing or exiting full screen), one screenshot is saved as evidence reviewed only by the exam teacher. If the camera or microphone stops during the exam, it will be automatically logged for the proctor. During the exam the teacher may also watch the camera and hear the microphone live at any moment, without notice; nothing of it is recorded.",
     "start": "Start Exam",
     "prev": "Previous",
     "submit": "Submit",
