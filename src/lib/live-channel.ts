@@ -23,6 +23,22 @@ export const WATCH_EVENT = 'watch'
 /** Broadcast event carrying `{ ids: string[]; seconds: number }`: send your last clips. */
 export const CLIP_EVENT = 'clip'
 
+/**
+ * Thumbnail wall (supabase/live_thumbnails_migration.sql). The teacher turns
+ * it on with THUMBS_EVENT `{ on: boolean }` on the live channel and repeats
+ * `on: true` every THUMBS_KEEPALIVE_MS; a student stops by itself after
+ * THUMBS_TIMEOUT_MS of silence (a closed tab never says "off"). Pictures go
+ * to a separate one-way topic only the teacher can read.
+ */
+export const THUMBS_EVENT = 'thumbs'
+export const THUMB_EVENT = 'thumb'
+export const THUMB_EVERY_MS = 5_000
+export const THUMBS_KEEPALIVE_MS = 30_000
+export const THUMBS_TIMEOUT_MS = 75_000
+export function thumbsTopic(examId: string): string {
+  return `exam-thumbs:${examId}`
+}
+
 /** Presence key the teacher's page uses (students use their user id). */
 export const TEACHER_PRESENCE_KEY = 'teacher'
 

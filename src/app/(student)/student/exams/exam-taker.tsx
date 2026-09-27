@@ -20,6 +20,7 @@ import { environmentFlags, readEnvironmentFacts } from '@/lib/device-environment
 import { useMonitoringCoverage } from '@/hooks/use-monitoring-coverage'
 import { useFaceIdentity } from '@/hooks/use-face-identity'
 import { useClipRecorder } from '@/hooks/use-clip-recorder'
+import { useThumbnailSender } from '@/hooks/use-thumbnail-sender'
 import { SecondCameraPanel } from '@/components/student/second-camera-panel'
 import { SpeechDetector } from '@/lib/speech-detector'
 
@@ -220,7 +221,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   //    watches this student. Nothing on this screen says whether that is
   //    happening; the consent text says it may happen at any time. ──
   const liveCounts = useMemo(() => ({ v: violations.length, ev: evidenceStored }), [violations.length, evidenceStored])
-  const { watched, stopWatching } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts, sendRecentClips)
+  const { watched, stopWatching, thumbsOn } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts, sendRecentClips)
+  // Teacher's thumbnail wall: a tiny picture every few seconds, not while
+  // this student is already being watched in video.
+  useThumbnailSender(exam.id, userId, videoRef, proctoringActive && thumbsOn && !watched)
   useLivePublish(exam.id, proctoringActive && watched, streamRef, stopWatching)
 
   // A detector that fails to load on this device is NOT the student's fault,

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { Room, RemoteTrack, RemoteParticipant } from 'livekit-client'
-import { ArrowLeft, Eye, EyeOff, MicOff, Radio, ShieldCheck, Video, VideoOff, Volume2, Users, WifiOff, AlertTriangle, Camera, History } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, MicOff, Radio, ShieldCheck, Video, VideoOff, Volume2, Users, WifiOff, AlertTriangle, Camera, History, LayoutGrid } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import {
-  CLIP_EVENT, MAX_WATCHED, TEACHER_PRESENCE_KEY, WATCHING_ATTRIBUTE, WATCH_EVENT, liveTopic,
+  CLIP_EVENT, MAX_WATCHED, TEACHER_PRESENCE_KEY, THUMBS_EVENT, THUMBS_KEEPALIVE_MS, THUMB_EVENT,
+  WATCHING_ATTRIBUTE, WATCH_EVENT, liveTopic, thumbsTopic,
   type StudentPresence,
 } from '@/lib/live-channel'
 import { EvidencePanel } from './evidence-panel'
@@ -54,6 +55,13 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   const [muted, setMuted] = useState(true)
   const [zoomed, setZoomed] = useState<string | null>(null)
   const [page, setPage] = useState(0)
+
+  // ── Thumbnail wall (off by default; supabase/live_thumbnails_migration.sql) ──
+  const [wallOn, setWallOn] = useState(false)
+  const [wallUnavailable, setWallUnavailable] = useState(false)
+  const [thumbs, setThumbs] = useState<Record<string, { img: string; at: number }>>({})
+  const wallOnRef = useRef(false)
+  useEffect(() => { wallOnRef.current = wallOn }, [wallOn])
   const roomRef = useRef<Room | null>(null)
   const mediaEls = useRef<Record<string, Media>>({})
 
@@ -64,6 +72,10 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   const watchKey = liveOn ? watchingPresent.join(',') : ''
   const watchRef = useRef('')
   useEffect(() => { watchRef.current = watchKey }, [watchKey])
+
+  const sendThumbsState = useCallback(() => {
+    channelRef.current?.send({ type: 'broadcast', event: THUMBS_EVENT, payload: { on: wallOnRef.current } }).catch(() => {})
+  }, [])
 
   const sendWatch = useCallback(() => {
     const ids = watchRef.current ? watchRef.current.split(',') : []
@@ -94,7 +106,11 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
           setStudents(next)
         })
         // A student who joins (or reconnects) late learns the current set.
-        .on('presence', { event: 'join' }, ({ key }) => { if (key !== TEACHER_PRESENCE_KEY) sendWatch() })
+        .on('presence', { event: 'join' }, ({ key }) => {
+          if (key === TEACHER_PRESENCE_KEY) return
+          sendWatch()
+          if (wallOnRef.current) sendThumbsState()
+        })
         .subscribe(status => {
           if (status === 'SUBSCRIBED') {
             setChannelStatus('ready')
@@ -111,7 +127,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [examId, sendWatch])
+  }, [examId, sendWatch, sendThumbsState])
 
   // Names for new ids, one query per batch (never per tick).
   const studentIds = Object.keys(students).sort().join(',')
@@ -250,6 +266,51 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     for (const m of Object.values(mediaEls.current)) if (m.audio) m.audio.muted = muted
   }, [muted, streams])
 
+  // The wall: subscribe to the one-way picture topic while it is on, and keep
+  // telling the students it is on (they stop by themselves otherwise).
+  useEffect(() => {
+    if (!wallOn) return
+    const supabase = createClient()
+    let cancelled = false
+    let channel: RealtimeChannel | null = null
+    ;(async () => {
+      await supabase.realtime.setAuth()
+      if (cancelled) return
+      channel = supabase.channel(thumbsTopic(examId), { config: { private: true } })
+      channel
+        .on('broadcast', { event: THUMB_EVENT }, ({ payload }) => {
+          const p = payload as { id?: unknown; img?: unknown }
+          if (typeof p?.id !== 'string' || !UUID_RE.test(p.id) || typeof p.img !== 'string' || p.img.length > 40_000) return
+          // Only a small WebP/JPEG picture, never anything else, may reach an <img>.
+          if (!/^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(p.img)) return
+          const id = p.id, img = p.img
+          setThumbs(prev => ({ ...prev, [id]: { img, at: Date.now() } }))
+        })
+        .subscribe(status => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            // Not permitted yet (migration pending) — say so and switch off.
+            setWallUnavailable(true)
+            setWallOn(false)
+          }
+        })
+    })().catch(() => { if (!cancelled) { setWallUnavailable(true); setWallOn(false) } })
+
+    sendThumbsState()
+    const keepAlive = setInterval(sendThumbsState, THUMBS_KEEPALIVE_MS)
+    return () => {
+      cancelled = true
+      clearInterval(keepAlive)
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [wallOn, examId, sendThumbsState])
+
+  function toggleWall() {
+    const next = !wallOn
+    wallOnRef.current = next
+    setWallOn(next)
+    if (!next) { sendThumbsState(); setThumbs({}) }
+  }
+
   function startLive() {
     setLiveStatus('connecting')
     setLiveOn(true)
@@ -301,6 +362,10 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
               <Radio className="w-4 h-4" /> {liveOn ? t('liveStop') : t('liveStart')}
             </button>
           )}
+          <button onClick={toggleWall} title={t('wallHint')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${wallOn ? 'bg-slate-200 text-slate-900' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}>
+            <LayoutGrid className="w-4 h-4" /> {wallOn ? t('wallStop') : t('wallStart')}
+          </button>
           {liveOn && liveStatus === 'live' && (
             <button onClick={() => setMuted(m => !m)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${muted ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-emerald-600 text-white'}`}>
@@ -316,6 +381,8 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
             {!liveConfigured ? t('disabled') : liveOn ? t('liveHint', { max: MAX_WATCHED }) : t('liveIdle')}
           </p>
         </div>
+
+        {wallUnavailable && !wallOn && <p className="text-amber-400 text-sm">{t('wallUnavailable')}</p>}
 
         {channelStatus === 'connecting' && <p className="text-slate-500 text-sm py-8 text-center">{t('connecting')}</p>}
         {channelStatus === 'error' && <p className="text-red-400 text-sm py-8 text-center">{t('channelError')}</p>}
@@ -366,6 +433,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
                     canWatch={!atLimit}
                     videoEl={s.watched ? mediaEls.current[s.id]?.video : undefined}
                     hasVideo={!!stream?.hasVideo}
+                    thumb={wallOn && !s.watched ? thumbs[s.id]?.img : undefined}
                     speaking={!!stream?.speaking}
                     weak={!!stream?.weak}
                     zoomed={!!zoomedItem}
@@ -403,6 +471,8 @@ function StudentTile(props: {
   canWatch: boolean
   videoEl?: HTMLVideoElement
   hasVideo: boolean
+  /** Latest wall picture (a validated data: URL), when the wall is on and no video. */
+  thumb?: string
   speaking: boolean
   weak: boolean
   zoomed: boolean
@@ -410,7 +480,7 @@ function StudentTile(props: {
   onRequestClip: () => void
   onZoom: () => void
 }) {
-  const { name, presence, watched, liveOn, canWatch, videoEl, hasVideo, speaking, weak, zoomed, onToggleWatch, onRequestClip, onZoom } = props
+  const { name, presence, watched, liveOn, canWatch, videoEl, hasVideo, thumb, speaking, weak, zoomed, onToggleWatch, onRequestClip, onZoom } = props
   const t = useTranslations('teacher.live')
   const holder = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -426,7 +496,11 @@ function StudentTile(props: {
       onClick={onZoom}
       title={watched && !zoomed ? t('zoomHint') : ''}>
       <div ref={holder} className="absolute inset-0 flex items-center justify-center" />
-      {!(watched && hasVideo) && (
+      {!watched && thumb && (
+        // eslint-disable-next-line @next/next/no-img-element -- a live base64 frame, not a static asset
+        <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      )}
+      {!(watched && hasVideo) && !(!watched && thumb) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-600">
           {watched ? <Video className="w-8 h-8 animate-pulse" /> : <VideoOff className="w-8 h-8" />}
           <span className="text-xs text-slate-500">{watched ? t('connectingStudent') : t('silentMonitoring')}</span>

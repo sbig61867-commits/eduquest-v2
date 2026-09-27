@@ -645,7 +645,11 @@
     "clipLast30": "Last 30 s",
     "clipHint": "Ask this student's device for its last 30 seconds of camera and sound. Kept 30 hours, like snapshots.",
     "clipRequested": "Requested. The clip appears among the evidence in a few seconds.",
-    "clipRequestFailed": "Could not send the request. Try again."
+    "clipRequestFailed": "Could not send the request. Try again.",
+    "wallStart": "Picture wall",
+    "wallStop": "Hide picture wall",
+    "wallHint": "A small picture of every student, refreshed every 5 seconds while this page is open. Much lighter than video, and nothing is stored.",
+    "wallUnavailable": "The picture wall needs a database update that has not been applied yet."
   },
   "submissions": {
     "title": "Submissions & Grades",
