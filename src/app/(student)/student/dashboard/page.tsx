@@ -8,9 +8,11 @@ import { BookOpen, ClipboardList, BarChart2, Bell } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { SurveyCard } from '@/components/student/survey-card'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
+import { isScoreVisible } from '@/lib/score-visibility'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
-interface GradeRow { id: string; score: number; max_score: number; exams: { title: string } | null }
+interface GradeRow { id: string; exam_id: string; score: number; max_score: number | null; grading_status: string | null }
+interface RpcExam { id: string; title: string; type?: string | null }
 
 export default async function StudentDashboard() {
   const t = await getTranslations('student.dashboard')
@@ -38,7 +40,9 @@ export default async function StudentDashboard() {
     // Students have no direct exams SELECT; count enrolled exams via the RPC.
     supabase.rpc('get_student_exams'),
     supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''),
-    supabase.from('grades').select('id, score, max_score, exams(title)').eq('student_id', user?.id ?? '').order('graded_at', { ascending: false }).limit(5),
+    // exam_submissions, not grades: visibility depends on grading_status, and
+    // the teacher's manual grade lives here. Over-fetch, then filter to 5.
+    supabase.from('exam_submissions').select('id, exam_id, score, max_score, grading_status').eq('student_id', user?.id ?? '').not('score', 'is', null).order('submitted_at', { ascending: false }).limit(20),
     // Students have no direct announcements SELECT; the RPC applies publication
     // state, the date window and audience targeting server-side.
     supabase.rpc('get_student_announcements'),
@@ -54,7 +58,11 @@ export default async function StudentDashboard() {
   ]
 
   const lessonList = (recentLessons ?? []) as unknown as LessonRow[]
-  const gradeList = (grades ?? []) as unknown as GradeRow[]
+  // Students have no exams SELECT, so titles/types come from the RPC feed.
+  const examById = new Map(((examRows ?? []) as RpcExam[]).map(e => [e.id, e]))
+  const gradeList = ((grades ?? []) as GradeRow[])
+    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type))
+    .slice(0, 5)
 
   return (
     <div className="space-y-6">
@@ -115,8 +123,8 @@ export default async function StudentDashboard() {
             <ul className="space-y-3">
               {gradeList.map(g => (
                 <li key={g.id} className="flex items-center justify-between gap-3">
-                  <p className="text-white text-sm font-medium truncate">{g.exams?.title ?? 'Exam'}</p>
-                  <span className="text-emerald-400 text-sm font-semibold shrink-0">{g.score}/{g.max_score}</span>
+                  <p className="text-white text-sm font-medium truncate">{examById.get(g.exam_id)?.title ?? 'Exam'}</p>
+                  <span className="text-emerald-400 text-sm font-semibold shrink-0">{g.score}{g.max_score != null ? `/${g.max_score}` : ''}</span>
                 </li>
               ))}
             </ul>

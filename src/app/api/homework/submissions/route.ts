@@ -120,5 +120,13 @@ export async function PATCH(request: Request) {
     console.error('[homework/submissions PATCH]', error)
     return NextResponse.json({ ...(await apiErr('updateFailed')) }, { status: 500 })
   }
+
+  // finalize_exam_submission also wrote the auto-score into `grades`; keep
+  // that row in step with the teacher's manual grade.
+  if (patch.score !== undefined) {
+    const { error: gradeErr } = await admin
+      .from('grades').update({ score: patch.score, graded_at: new Date().toISOString() }).eq('submission_id', id)
+    if (gradeErr) console.error('[homework/submissions PATCH] grades sync', gradeErr)
+  }
   return NextResponse.json({ ok: true })
 }

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import type { Question } from '@/types'
 import { AppealButton, type AppealSummary } from '@/components/student/appeal-panel'
+import { isScoreVisible } from '@/lib/score-visibility'
 
 interface RawSubmission {
   id: string
@@ -16,6 +17,7 @@ interface RawSubmission {
   score: number
   max_score: number | null
   submitted_at: string
+  grading_status: string | null
   proctoring_events: Array<{ type?: string }> | null
 }
 interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[]; type?: string }
@@ -33,7 +35,7 @@ export default async function GradesPage() {
   const [{ data: raw }, { data: rpcExams }] = await Promise.all([
     supabase
       .from('exam_submissions')
-      .select('id, exam_id, score, max_score, submitted_at, proctoring_events')
+      .select('id, exam_id, score, max_score, submitted_at, grading_status, proctoring_events')
       .eq('student_id', user.id)
       .not('score', 'is', null)
       .order('submitted_at', { ascending: false }),
@@ -60,7 +62,13 @@ export default async function GradesPage() {
   // fallback for a database without student_exams_expose_type_migration.
   const isHomework = (e?: RpcExam) => !!e && (e.type ? e.type === 'homework' : (e.duration_minutes <= 0 || e.duration_minutes >= 43200))
 
-  const submissions = ((raw ?? []) as RawSubmission[]).map(sub => {
+  // Unpublished homework keeps its auto-score out of sight until the teacher publishes.
+  const visible = ((raw ?? []) as RawSubmission[]).filter(sub => {
+    const exam = examMap.get(sub.exam_id)
+    return isScoreVisible(sub.grading_status, exam ? (isHomework(exam) ? 'homework' : 'exam') : undefined)
+  })
+
+  const submissions = visible.map(sub => {
     const exam = examMap.get(sub.exam_id)
     const max = sub.max_score
       ?? exam?.questions?.reduce((a, q) => a + (q.points ?? 0), 0)
