@@ -11,6 +11,7 @@ import { buildMime, getAccessToken, sendGmail, type ConnectionRow } from '@/lib/
 // addresses — so a linked mailbox can't be turned into a spam relay.
 
 const MAX_RECIPIENTS = 50
+const DAILY_MESSAGE_CAP = 300
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 
 export async function POST(request: Request) {
@@ -29,11 +30,31 @@ export async function POST(request: Request) {
   if (!subject || subject.length > 200) return NextResponse.json({ ...(await apiErr('subjectRequired200')) }, { status: 400 })
   if (!text || text.length > 20000) return NextResponse.json({ ...(await apiErr('bodyRequired')) }, { status: 400 })
 
-  // Gmail's own daily cap is ~500 (personal) / ~2000 (Workspace); stay well under it.
-  const limit = await rateLimit(`mail-send:${caller.id}`, { limit: 300, windowSecs: 86400 })
-  if (!limit.allowed) return NextResponse.json({ ...(await apiErr('dailySendLimit')) }, { status: 429 })
+  // Request-rate guard only — the daily cap below counts messages, not calls.
+  const limit = await rateLimit(`mail-send:${caller.id}`, { limit: 60, windowSecs: 3600 })
+  if (!limit.allowed) return NextResponse.json({ ...(await apiErr('tooManyRequests')) }, { status: 429 })
 
   const admin = serviceClient()
+
+  // Gmail's own daily cap is ~500 (personal) / ~2000 (Workspace); stay well under
+  // it. One request carries up to 50 recipients, so the cap is on MESSAGES sent
+  // in the last 24 h — every attempt is logged in mail_messages below.
+  const since = new Date(Date.now() - 86_400_000).toISOString()
+  const { count: sentToday, error: countErr } = await admin
+    .from('mail_messages').select('id', { count: 'exact', head: true })
+    .eq('sender_id', caller.id).gte('created_at', since)
+  if (countErr) {
+    console.error('[mail/send] daily count', countErr)
+    return NextResponse.json({ ...(await apiErr('unexpected')) }, { status: 500 })
+  }
+  const remaining = DAILY_MESSAGE_CAP - (sentToday ?? 0)
+  if (ids.length > remaining) {
+    return NextResponse.json(
+      remaining > 0 ? { ...(await apiErr('dailySendLimitRemaining', { remaining })) } : { ...(await apiErr('dailySendLimit')) },
+      { status: 429 },
+    )
+  }
+
   const { data: conn } = await admin
     .from('mail_connections').select('*')
     .eq('user_id', caller.id).eq('provider', 'google').maybeSingle()

@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { getTranslations } from 'next-intl/server'
+import { isScoreVisible } from '@/lib/score-visibility'
 
 interface Notif { id: string; type: string; title: string; subtitle: string; date: string; href: string }
 
@@ -74,7 +75,7 @@ export async function GET() {
         ? supabase.from('lessons').select('id, title, created_at, groups(name)').in('group_id', groupIds).eq('is_published', true).is('deleted_at', null).order('created_at', { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as unknown[] }),
       supabase.rpc('get_student_exams'),
-      supabase.from('exam_submissions').select('id, score, max_score, submitted_at, exams(title)').eq('student_id', user.id).not('score', 'is', null).order('submitted_at', { ascending: false }).limit(6),
+      supabase.from('exam_submissions').select('id, exam_id, score, max_score, submitted_at, grading_status').eq('student_id', user.id).not('score', 'is', null).order('submitted_at', { ascending: false }).limit(20),
     ])
     for (const l of (lessons ?? []) as Array<{ id: string; title: string; created_at: string; groups: { name: string } | { name: string }[] | null }>) {
       const g = Array.isArray(l.groups) ? l.groups[0] : l.groups
@@ -83,8 +84,14 @@ export async function GET() {
     for (const e of ((rpcExams ?? []) as Array<{ id: string; title: string; created_at: string }>).slice(0, 8)) {
       items.push({ id: `exam-${e.id}`, type: 'exam', title: t('newExam', { title: e.title }), subtitle: '', date: e.created_at, href: '/student/exams' })
     }
-    for (const gr of (grades ?? []) as Array<{ id: string; score: number; max_score: number | null; submitted_at: string; exams: { title: string } | { title: string }[] | null }>) {
-      const ex = Array.isArray(gr.exams) ? gr.exams[0] : gr.exams
+    // Titles/types from the RPC (students have no exams SELECT); unpublished
+    // homework scores are not announced as "published".
+    const examById = new Map(((rpcExams ?? []) as Array<{ id: string; title: string; type?: string | null }>).map(e => [e.id, e]))
+    const visibleGrades = ((grades ?? []) as Array<{ id: string; exam_id: string; score: number; max_score: number | null; submitted_at: string; grading_status: string | null }>)
+      .filter(gr => isScoreVisible(gr.grading_status, examById.get(gr.exam_id)?.type))
+      .slice(0, 6)
+    for (const gr of visibleGrades) {
+      const ex = examById.get(gr.exam_id)
       items.push({ id: `grade-${gr.id}`, type: 'grade', title: t('gradePublished', { title: ex?.title ?? t('examFallback') }), subtitle: `${gr.score}${gr.max_score ? `/${gr.max_score}` : ''}`, date: gr.submitted_at, href: '/student/grades' })
     }
 
