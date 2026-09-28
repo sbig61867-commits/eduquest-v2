@@ -296,7 +296,22 @@
     "passwordPlaceholder": "8 أحرف على الأقل",
     "createAdmin": "إنشاء مدير",
     "adminCreateFailed": "فشل إنشاء المدير",
-    "adminCreated": "✓ أُنشئ المدير \"{name}\" — يمكنه الآن تسجيل الدخول بـ {email}"
+    "adminCreated": "✓ أُنشئ المدير \"{name}\" — يمكنه الآن تسجيل الدخول بـ {email}",
+    "seatStudents": "الطلاب",
+    "seatTeachers": "المعلمون",
+    "seatUsage": "{label}: {used} من {limit}",
+    "seatUnlimited": "{label}: {used} (بلا حد)",
+    "seatFull": "مكتمل",
+    "setLimits": "حدود الباقة",
+    "limitsTitle": "حدود الباقة: {name}",
+    "limitsHint": "تُحسب الحسابات النشطة فقط. تسري فوراً: متى وصلت المؤسسة إلى الحد يتوقف قبول روابط الدعوة الجديدة والانضمام وإنشاء الحسابات وإعادة التفعيل لذلك الدور حتى ترفعه. خفض الحد لا يعطّل أي حساب قائم. اترك الحقل فارغاً لإلغاء الحد.",
+    "studentLimit": "الحد الأقصى للطلاب النشطين",
+    "teacherLimit": "الحد الأقصى للمعلمين النشطين",
+    "limitPlaceholder": "بلا حد",
+    "limitsSave": "حفظ الحدود",
+    "limitsSaved": "حُفظت الحدود وأصبحت سارية",
+    "limitsSaveFailed": "تعذّر حفظ الحدود",
+    "limitsInvalid": "أدخل عدداً صحيحاً (0 أو أكثر)، أو اترك الحقل فارغاً."
   },
   "users": {
     "title": "كل المستخدمين",

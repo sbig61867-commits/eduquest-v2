@@ -9,16 +9,26 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Building2, Archive, ArchiveRestore, Trash2, UserPlus, Mail } from 'lucide-react'
+import { Plus, Building2, Archive, ArchiveRestore, Trash2, UserPlus, Mail, Gauge } from 'lucide-react'
+import type { SeatRole, SeatStatus } from '@/lib/seat-limit'
 import { formatDate } from '@/lib/utils'
 import type { Tenant, InstitutionType, StructureMode } from '@/types'
 import { INSTITUTION_TYPES, getTerms } from '@/lib/terminology'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 
-interface Props { initialTenants: Tenant[] }
+interface Props { initialTenants: Tenant[]; seats?: Record<string, Record<SeatRole, SeatStatus>> }
 
-export function TenantsClient({ initialTenants }: Props) {
+/** '' → null (no limit); otherwise a whole number ≥ 0, or undefined when invalid. */
+function parseSeatLimit(raw: string): number | null | undefined {
+  const v = raw.trim()
+  if (v === '') return null
+  if (!/^\d+$/.test(v)) return undefined
+  const n = Number(v)
+  return Number.isSafeInteger(n) ? n : undefined
+}
+
+export function TenantsClient({ initialTenants, seats = {} }: Props) {
   const t = useTranslations('superAdmin.tenants')
   const tc = useTranslations('common.actions')
   const locale = useLocale() as Locale
@@ -35,8 +45,53 @@ export function TenantsClient({ initialTenants }: Props) {
   const [adminError, setAdminError] = useState('')
   const [adminSuccess, setAdminSuccess] = useState('')
 
+  // Plan seat limits modal
+  const [limitsTarget, setLimitsTarget] = useState<Tenant | null>(null)
+  const [limitsForm, setLimitsForm] = useState({ student: '', teacher: '' })
+  const [limitsSaving, setLimitsSaving] = useState(false)
+
   const supabase = createClient()
   const router = useRouter()
+
+  function openLimits(tenant: Tenant) {
+    setLimitsTarget(tenant)
+    setLimitsForm({
+      student: tenant.student_limit?.toString() ?? '',
+      teacher: tenant.teacher_limit?.toString() ?? '',
+    })
+  }
+
+  // Written with the owner's own session (tenants_manage: super_admin only),
+  // so an institution can never raise its own limit. Binding immediately:
+  // every join / invitation / re-activation reads the live row.
+  async function saveLimits(e: React.FormEvent) {
+    e.preventDefault()
+    if (!limitsTarget) return
+    const student_limit = parseSeatLimit(limitsForm.student)
+    const teacher_limit = parseSeatLimit(limitsForm.teacher)
+    if (student_limit === undefined || teacher_limit === undefined) { toast.error(t('limitsInvalid')); return }
+    setLimitsSaving(true)
+    const { data, error: err } = await supabase
+      .from('tenants').update({ student_limit, teacher_limit }).eq('id', limitsTarget.id).select().single()
+    setLimitsSaving(false)
+    if (err) { toast.error(t('limitsSaveFailed')); return }
+    setTenants(prev => prev.map(x => x.id === limitsTarget.id ? data : x))
+    setLimitsTarget(null)
+    toast.success(t('limitsSaved'))
+    router.refresh()
+  }
+
+  function usageLine(tenantId: string, role: SeatRole) {
+    const s = seats[tenantId]?.[role]
+    const used = s?.used ?? 0
+    const label = t(role === 'student' ? 'seatStudents' : 'seatTeachers')
+    if (s?.limit == null) return <span className="text-slate-400">{t('seatUnlimited', { label, used })}</span>
+    return (
+      <span className={s.allowed ? 'text-slate-300' : 'text-amber-400 font-medium'}>
+        {t('seatUsage', { label, used, limit: s.limit })}{!s.allowed && ` · ${t('seatFull')}`}
+      </span>
+    )
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -208,9 +263,16 @@ export function TenantsClient({ initialTenants }: Props) {
                 />
                 {t('hasCenter')}
               </label>
+              <div className="mb-2 space-y-0.5 text-xs">
+                <p>{usageLine(tenant.id, 'student')}</p>
+                <p>{usageLine(tenant.id, 'teacher')}</p>
+              </div>
               <p className="text-slate-500 text-xs mb-4">{t('createdAt', { date: formatDate(tenant.created_at, locale) })}</p>
 
               <div className="space-y-2 pt-3 border-t border-slate-800">
+                <Button variant="secondary" size="sm" className="w-full" onClick={() => openLimits(tenant)}>
+                  <Gauge className="w-4 h-4" /> {t('setLimits')}
+                </Button>
                 {/* Add admin manually */}
                 <Button variant="secondary" size="sm" className="w-full" onClick={() => openAddAdmin(tenant)}>
                   <UserPlus className="w-4 h-4" /> {t('addAdminManual')}
@@ -288,6 +350,33 @@ export function TenantsClient({ initialTenants }: Props) {
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">{tc('cancel')}</Button>
             <Button type="submit" loading={loading} className="flex-1">{t('create')}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Plan seat limits */}
+      <Modal open={!!limitsTarget} onClose={() => setLimitsTarget(null)} title={t('limitsTitle', { name: limitsTarget?.name ?? '' })}>
+        <form onSubmit={saveLimits} className="space-y-4">
+          <p className="text-slate-400 text-sm">{t('limitsHint')}</p>
+          <Input
+            label={t('studentLimit')} inputMode="numeric" value={limitsForm.student}
+            onChange={e => setLimitsForm(p => ({ ...p, student: e.target.value }))}
+            placeholder={t('limitPlaceholder')}
+          />
+          <Input
+            label={t('teacherLimit')} inputMode="numeric" value={limitsForm.teacher}
+            onChange={e => setLimitsForm(p => ({ ...p, teacher: e.target.value }))}
+            placeholder={t('limitPlaceholder')}
+          />
+          {limitsTarget && (
+            <div className="text-xs space-y-0.5">
+              <p>{usageLine(limitsTarget.id, 'student')}</p>
+              <p>{usageLine(limitsTarget.id, 'teacher')}</p>
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setLimitsTarget(null)} className="flex-1">{tc('cancel')}</Button>
+            <Button type="submit" loading={limitsSaving} className="flex-1">{t('limitsSave')}</Button>
           </div>
         </form>
       </Modal>

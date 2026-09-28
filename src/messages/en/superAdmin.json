@@ -296,7 +296,22 @@
     "passwordPlaceholder": "At least 8 characters",
     "createAdmin": "Create admin",
     "adminCreateFailed": "Could not create the admin",
-    "adminCreated": "✓ Admin “{name}” created — they can now sign in with {email}"
+    "adminCreated": "✓ Admin “{name}” created — they can now sign in with {email}",
+    "seatStudents": "Students",
+    "seatTeachers": "Teachers",
+    "seatUsage": "{label}: {used} of {limit}",
+    "seatUnlimited": "{label}: {used} (no limit)",
+    "seatFull": "full",
+    "setLimits": "Plan limits",
+    "limitsTitle": "Plan limits: {name}",
+    "limitsHint": "Counts active accounts only. Takes effect immediately: once an institution reaches a limit, no new invitation links, joins, account creations or re-activations for that role are accepted until you raise it. Lowering a limit never disables anyone. Leave empty for no limit.",
+    "studentLimit": "Maximum active students",
+    "teacherLimit": "Maximum active teachers",
+    "limitPlaceholder": "No limit",
+    "limitsSave": "Save limits",
+    "limitsSaved": "Limits saved and in effect",
+    "limitsSaveFailed": "Could not save the limits",
+    "limitsInvalid": "Enter a whole number of 0 or more, or leave the field empty."
   },
   "users": {
     "title": "All Users",

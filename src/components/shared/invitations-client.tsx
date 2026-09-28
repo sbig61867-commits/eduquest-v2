@@ -10,6 +10,7 @@ import type { Invitation } from '@/types'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
+import type { SeatRole, SeatStatus } from '@/lib/seat-limit'
 
 interface Props {
   callerRole: 'super_admin' | 'university_admin' | 'teacher'
@@ -77,6 +78,10 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
   const [formError, setFormError]     = useState('')
   const [creating, setCreating]       = useState(false)
   const [newLink, setNewLink]         = useState<string | null>(null)
+  // The institution's plan seats (null for the owner, who picks a tenant).
+  const [seats, setSeats]             = useState<Record<SeatRole, SeatStatus> | null>(null)
+  const fullRoles = seats ? (Object.keys(seats) as SeatRole[]).filter(r => !seats[r].allowed) : []
+  const roleFull = (fullRoles as string[]).includes(role)
 
   // When role changes to university_admin, force private
   const handleRoleChange = (newRole: string) => {
@@ -90,6 +95,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     const res = await fetch('/api/invitations')
     const data = await res.json()
     setInvitations(data.invitations ?? [])
+    setSeats(data.seats ?? null)
     setLoading(false)
   }, [])
 
@@ -100,6 +106,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       .then(data => {
         if (!cancelled) {
           setInvitations(data.invitations ?? [])
+          setSeats(data.seats ?? null)
           setLoading(false)
         }
       })
@@ -199,6 +206,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Plan limit reached: new links for that role are paused until the
+          platform raises the limit (the server refuses them regardless). */}
+      {fullRoles.map(r => (
+        <div key={r} className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-300 text-sm">
+          {t('seatFull', { role: getRoleLabel(r, ownTenant?.institution_type, locale), limit: seats![r].limit ?? 0 })}
+        </div>
+      ))}
 
       {/* Create Form */}
       {showForm && (
@@ -394,7 +409,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               </button>
               <button
                 type="submit"
-                disabled={creating}
+                disabled={creating || roleFull}
                 className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-60 ${
                   isPublic
                     ? 'bg-purple-600 hover:bg-purple-500'

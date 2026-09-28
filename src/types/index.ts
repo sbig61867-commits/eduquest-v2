@@ -14,6 +14,9 @@ export interface Tenant {
   institution_type: InstitutionType
   structure_mode: StructureMode
   has_center: boolean
+  /** Plan caps on ACTIVE students / teachers; NULL = no cap (src/lib/seat-limit.ts). */
+  student_limit?: number | null
+  teacher_limit?: number | null
 }
 
 export interface User {

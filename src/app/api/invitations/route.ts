@@ -10,6 +10,7 @@ import { getInvitationDefaults } from '@/lib/settings'
 import { canManageAccountOf } from '@/lib/staff-auth'
 import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
+import { checkSeatLimit, getSeatUsage, isSeatRole, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 
 function getAdminClient() {
   return createAdminClient(
@@ -68,7 +69,11 @@ export async function GET() {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ invitations: data ?? [] })
+  // The institution's plan seats, so the screen can say up front that new
+  // links for a full role are paused (the POST refuses them regardless).
+  const seats = profile.tenant_id ? await getSeatUsage(getAdminClient(), profile.tenant_id) : null
+
+  return NextResponse.json({ invitations: data ?? [], seats })
 }
 
 // ── POST /api/invitations ────────────────────────────────────
@@ -172,6 +177,18 @@ export async function POST(request: Request) {
   const { has_center: hasCenter } = await getTenantSettings(supabase, tenant_id)
   if (role === 'center_manager' && !hasCenter) {
     return NextResponse.json({ ...(await apiErr('noCentre')) }, { status: 409 })
+  }
+
+  // ── Plan seat cap ────────────────────────────────────────
+  // An institution at its student/teacher limit cannot hand out new links
+  // for that role until the owner raises the limit or a seat is freed.
+  // Links created earlier stay, but every join is refused while full
+  // (accept-invitation + the DB trigger), so none of them can overshoot.
+  if (isSeatRole(role)) {
+    const seat = await checkSeatLimit(getAdminClient(), tenant_id, role)
+    if (!seat.allowed) {
+      return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[role])), limit: seat.limit }, { status: 403 })
+    }
   }
 
   // ── Validate group_id if provided ───────────────────────

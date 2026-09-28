@@ -17,9 +17,12 @@ CREATE TABLE tenants (
   logo_url    TEXT,
   is_active   BOOLEAN DEFAULT TRUE,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
-  -- Plan seat cap on ACTIVE students; NULL = unlimited. Enforced in
-  -- src/lib/student-limit.ts — see tenant_student_limit_migration.sql.
+  -- Plan seat caps on ACTIVE students / teachers; NULL = unlimited. Enforced by
+  -- trigger users_enforce_seat_limit (every path) + src/lib/seat-limit.ts
+  -- (friendly pre-checks) — tenant_student_limit_migration.sql,
+  -- tenant_seat_limits_migration.sql.
   student_limit INTEGER CHECK (student_limit IS NULL OR student_limit >= 0),
+  teacher_limit INTEGER CONSTRAINT tenants_teacher_limit_check CHECK (teacher_limit IS NULL OR teacher_limit >= 0),
   -- Drives UI vocabulary only (src/lib/terminology.ts) — see institution_type_migration.sql.
   institution_type TEXT NOT NULL DEFAULT 'university'
     CONSTRAINT tenants_institution_type_check
@@ -1877,3 +1880,70 @@ CREATE POLICY exam_live_write ON realtime.messages
     (realtime.messages.extension = 'broadcast'
       AND public.exam_live_role((SELECT realtime.topic())) = 'teacher')
   );
+
+-- ============================================================
+-- PLAN SEAT LIMITS (see tenant_seat_limits_migration.sql)
+-- An active student/teacher entering a tenant that is at its limit is refused,
+-- whatever the path (invitation, create-user, re-activation, Google join).
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.enforce_tenant_seat_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_limit INTEGER;
+  v_used  INTEGER;
+BEGIN
+  -- Only an active student/teacher of a tenant occupies a seat.
+  IF NEW.tenant_id IS NULL OR NOT COALESCE(NEW.is_active, TRUE)
+     OR NEW.role NOT IN ('student', 'teacher') THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    -- Already held this seat before the change: nothing new is taken.
+    IF OLD.tenant_id IS NOT DISTINCT FROM NEW.tenant_id AND OLD.role = NEW.role
+       AND COALESCE(OLD.is_active, TRUE) THEN
+      RETURN NEW;
+    END IF;
+    -- The owner restoring a suspended institution hands back seats it held.
+    IF OLD.suspended_by_tenant AND NOT NEW.suspended_by_tenant
+       AND OLD.tenant_id IS NOT DISTINCT FROM NEW.tenant_id AND OLD.role = NEW.role THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  -- Lock the institution row: concurrent joins to it queue here, so the
+  -- count below cannot be read by two of them at once.
+  SELECT CASE NEW.role WHEN 'student' THEN t.student_limit ELSE t.teacher_limit END
+    INTO v_limit
+  FROM public.tenants t
+  WHERE t.id = NEW.tenant_id
+  FOR UPDATE;
+
+  IF v_limit IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT count(*) INTO v_used
+  FROM public.users u
+  WHERE u.tenant_id = NEW.tenant_id AND u.role = NEW.role
+    AND u.is_active AND u.id <> NEW.id;
+
+  IF v_used >= v_limit THEN
+    RAISE EXCEPTION '%', CASE NEW.role WHEN 'student' THEN 'STUDENT_LIMIT_REACHED' ELSE 'TEACHER_LIMIT_REACHED' END
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN NEW;
+END $$;
+
+-- Trigger-only function: nobody calls it directly.
+REVOKE ALL ON FUNCTION public.enforce_tenant_seat_limit() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS users_enforce_seat_limit ON public.users;
+CREATE TRIGGER users_enforce_seat_limit
+  BEFORE INSERT OR UPDATE OF role, tenant_id, is_active ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_tenant_seat_limit();

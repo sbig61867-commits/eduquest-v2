@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import { checkStudentLimit, STUDENT_LIMIT_CODE } from '@/lib/student-limit'
+import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 import { canManageAccountOf } from '@/lib/staff-auth'
 import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
@@ -92,12 +92,13 @@ export async function POST(request: Request) {
 
     const { has_center: hasCenter } = await getTenantSettings(adminClient, tenant_id)
 
-    // Plan seat cap — enforced server-side before the auth identity exists,
-    // so a refused request leaves nothing to roll back.
-    if (role === 'student') {
-      const seat = await checkStudentLimit(adminClient, tenant_id)
+    // Plan seat cap (students / teachers) — checked before the auth identity
+    // exists, so a refused request leaves nothing to roll back. The DB trigger
+    // users_enforce_seat_limit re-checks it race-free on the upsert below.
+    if (isSeatRole(role)) {
+      const seat = await checkSeatLimit(adminClient, tenant_id, role)
       if (!seat.allowed) {
-        return NextResponse.json({ ...(await apiErr(STUDENT_LIMIT_CODE)), limit: seat.limit }, { status: 403 })
+        return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[role])), limit: seat.limit }, { status: 403 })
       }
     }
 
@@ -149,6 +150,9 @@ export async function POST(request: Request) {
       console.error('[create-user] profile upsert error:', upsertError)
       // Rollback: delete the auth user so we don't leave orphaned auth entries
       await adminClient.auth.admin.deleteUser(authData.user.id)
+      // The seat filled up between the pre-check and the write (DB trigger).
+      const full = seatRoleFromDbError(upsertError.message)
+      if (full) return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[full])) }, { status: 403 })
       return NextResponse.json({ ...(await apiErr('userProfileCreateFailed')) }, { status: 500 })
     }
 
