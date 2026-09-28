@@ -24,7 +24,9 @@ node_modules
 # These read SUPABASE_SERVICE_ROLE_KEY and may embed test credentials.
 _tmp_*
 *.local.mjs
-/scripts/
+/scripts/*
+# …except the prebuild step (copies the self-hosted face models; no env, no network).
+!/scripts/copy-human-models.mjs
 /hf-admin/
 /hf-teacher/
 /load-tests/
