@@ -6,7 +6,6 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import {
   canEditPermissionsOf, ungrantableCapabilities, sanitizePermissions, 
 } from '@/lib/permissions'
-import { getTenantSettings } from '@/lib/structure-mode'
 
 // Sets another staff member's capability flags.
 //   super_admin      → may configure a university_admin (and a center_manager)
@@ -47,12 +46,7 @@ export async function PATCH(request: Request) {
   if (caller.role !== 'super_admin' && target.tenant_id !== caller.tenant_id) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
-  // Only a university's own centre is configured by its admin; the centre
-  // managers of any other institution are configured by the owner alone.
-  const institutionType = target.tenant_id
-    ? (await getTenantSettings(admin, target.tenant_id)).institution_type
-    : null
-  if (!canEditPermissionsOf(caller.role, target.role, institutionType)) {
+  if (!canEditPermissionsOf(caller.role, target.role)) {
     return NextResponse.json({ ...(await apiErr('cannotEditRolePermissions')) }, { status: 403 })
   }
 

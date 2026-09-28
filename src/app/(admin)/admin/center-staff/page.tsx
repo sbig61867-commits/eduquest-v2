@@ -4,7 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { getTranslations } from 'next-intl/server'
 import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
-import { can, canEditPermissionsOf, resolvePermissions, CAPABILITIES, type Capability } from '@/lib/permissions'
+import { can, resolvePermissions } from '@/lib/permissions'
 import { NoPermission } from '@/components/shared/no-permission'
 import { getTenantSettings } from '@/lib/structure-mode'
 
@@ -19,8 +19,7 @@ export default async function AdminCenterStaffPage() {
   if (!user?.tenant_id) redirect('/login')
 
   // Institutions without a continuing-education centre have no centre staff.
-  const settings = await getTenantSettings(supabase, user.tenant_id)
-  if (!settings.has_center) redirect('/admin/dashboard')
+  if (!(await getTenantSettings(supabase, user.tenant_id)).has_center) redirect('/admin/dashboard')
 
   const { data: me } = await supabase
     .from('users').select('role, permissions').eq('id', user.id).single()
@@ -28,10 +27,6 @@ export default async function AdminCenterStaffPage() {
   if (!can(me?.role, me?.permissions, 'manage_center_staff')) {
     return <NoPermission capability="manage_center_staff" />
   }
-  // Only a university's own centre is configured by its admin; anywhere else
-  // the owner sets these capabilities, so the page is read-only (the API
-  // refuses the write as well — canEditPermissionsOf).
-  const canEdit = canEditPermissionsOf(me?.role, 'center_manager', settings.institution_type)
 
   const { data: rows } = await supabase
     .from('users')
@@ -57,14 +52,12 @@ export default async function AdminCenterStaffPage() {
       <div>
         <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
         <p className="text-slate-400 mt-1">
-          {canEdit ? t('subtitle') : t('ownerManaged')}
+          {t('subtitle')}
         </p>
       </div>
       <PermissionsEditor
         staff={staff}
-        grantable={canEdit
-          ? resolvePermissions(me?.role, me?.permissions)
-          : Object.fromEntries(CAPABILITIES.map(c => [c, false])) as Record<Capability, boolean>}
+        grantable={resolvePermissions(me?.role, me?.permissions)}
         emptyHint={t('emptyHint')}
       />
     </div>

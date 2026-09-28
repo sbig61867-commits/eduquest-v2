@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 
 import { canManageAccountOf } from '@/lib/staff-auth'
-import { canEditPermissionsOf } from '@/lib/permissions'
+import { canEditPermissionsOf, ungrantableCapabilities } from '@/lib/permissions'
 
 // The single gate create-user / toggle-user / delete-user / invitations use.
 // Security review 2026-09-27: capability flags used to bind centre managers
@@ -53,30 +53,30 @@ describe('canManageAccountOf', () => {
   })
 })
 
-// Owner's rule (2026-09-28): a university_admin configures the centre managers
-// of its own university's centre only. An independent training centre (or any
-// institution that is not a university) — the owner alone sets them.
-describe('canEditPermissionsOf — university centre vs independent centre', () => {
-  it('lets a university admin configure its own centre managers', () => {
-    expect(canEditPermissionsOf('university_admin', 'center_manager', 'university')).toBe(true)
+// Owner's rule (2026-09-28): the owner grants each institution admin its
+// capabilities — university or independent centre alike. Inside that grant
+// the admin runs the institution freely, including its centre managers'
+// capabilities, but can never hand anyone a capability it does not hold.
+describe('an institution admin configures its own staff within the owner\'s grant', () => {
+  it('lets an institution admin configure its centre managers, never another admin', () => {
+    expect(canEditPermissionsOf('university_admin', 'center_manager')).toBe(true)
+    expect(canEditPermissionsOf('university_admin', 'university_admin')).toBe(false)
+    expect(canEditPermissionsOf('super_admin', 'university_admin')).toBe(true)
+    expect(canEditPermissionsOf('center_manager', 'center_manager')).toBe(false)
   })
 
-  it('never lets a non-university institution admin configure centre managers', () => {
-    for (const type of ['training_center', 'school', 'institute', 'company', null, undefined]) {
-      expect(canEditPermissionsOf('university_admin', 'center_manager', type)).toBe(false)
-    }
+  it('lets an unrestricted admin grant any capability', () => {
+    expect(ungrantableCapabilities('university_admin', {}, { manage_students: true, view_reports: true })).toEqual([])
   })
 
-  it('keeps the owner in charge everywhere', () => {
-    for (const type of ['university', 'training_center', null]) {
-      expect(canEditPermissionsOf('super_admin', 'center_manager', type)).toBe(true)
-      expect(canEditPermissionsOf('super_admin', 'university_admin', type)).toBe(true)
-    }
+  it('blocks exactly what the owner withheld from the admin', () => {
+    const owned = { view_reports: false, manage_courses: false }
+    expect(ungrantableCapabilities('university_admin', owned, {
+      manage_students: true, view_reports: true, manage_courses: true,
+    }).sort()).toEqual(['manage_courses', 'view_reports'])
   })
 
-  it('never lets an admin configure another admin, nor anyone else configure staff', () => {
-    expect(canEditPermissionsOf('university_admin', 'university_admin', 'university')).toBe(false)
-    expect(canEditPermissionsOf('center_manager', 'center_manager', 'university')).toBe(false)
-    expect(canEditPermissionsOf('teacher', 'center_manager', 'university')).toBe(false)
+  it('allows switching a withheld capability OFF for a centre manager', () => {
+    expect(ungrantableCapabilities('university_admin', { view_reports: false }, { view_reports: false })).toEqual([])
   })
 })
