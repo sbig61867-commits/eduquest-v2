@@ -64,14 +64,22 @@ export function resolvePermissions(
 
 /**
  * Which roles may edit whose capabilities.
- * The owner configures admins; an admin configures centre managers.
+ *
+ * The owner (super_admin) configures every admin and every centre manager.
+ * A university_admin may configure the centre managers of THEIR OWN
+ * university's continuing-education centre — only when the institution is a
+ * university. Any other institution (an independent training centre, a
+ * school, an institute, a company) is not a university's centre: its centre
+ * managers' capabilities are set by the owner alone, as the owner granted them.
+ * `institutionType` is the TARGET's tenant type; unknown ⇒ not a university.
  */
 export function canEditPermissionsOf(
   editorRole: string | null | undefined,
   targetRole: string | null | undefined,
+  institutionType?: string | null,
 ): boolean {
   if (editorRole === 'super_admin') return targetRole === 'university_admin' || targetRole === 'center_manager'
-  if (editorRole === 'university_admin') return targetRole === 'center_manager'
+  if (editorRole === 'university_admin') return targetRole === 'center_manager' && institutionType === 'university'
   return false
 }
 

@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 
 import { canManageAccountOf } from '@/lib/staff-auth'
+import { canEditPermissionsOf } from '@/lib/permissions'
 
 // The single gate create-user / toggle-user / delete-user / invitations use.
 // Security review 2026-09-27: capability flags used to bind centre managers
@@ -49,5 +50,33 @@ describe('canManageAccountOf', () => {
   it('never passes teachers or students', () => {
     expect(canManageAccountOf({ role: 'teacher', permissions: { manage_students: true } }, 'student')).toBe(false)
     expect(canManageAccountOf({ role: 'student', permissions: {} }, 'student')).toBe(false)
+  })
+})
+
+// Owner's rule (2026-09-28): a university_admin configures the centre managers
+// of its own university's centre only. An independent training centre (or any
+// institution that is not a university) — the owner alone sets them.
+describe('canEditPermissionsOf — university centre vs independent centre', () => {
+  it('lets a university admin configure its own centre managers', () => {
+    expect(canEditPermissionsOf('university_admin', 'center_manager', 'university')).toBe(true)
+  })
+
+  it('never lets a non-university institution admin configure centre managers', () => {
+    for (const type of ['training_center', 'school', 'institute', 'company', null, undefined]) {
+      expect(canEditPermissionsOf('university_admin', 'center_manager', type)).toBe(false)
+    }
+  })
+
+  it('keeps the owner in charge everywhere', () => {
+    for (const type of ['university', 'training_center', null]) {
+      expect(canEditPermissionsOf('super_admin', 'center_manager', type)).toBe(true)
+      expect(canEditPermissionsOf('super_admin', 'university_admin', type)).toBe(true)
+    }
+  })
+
+  it('never lets an admin configure another admin, nor anyone else configure staff', () => {
+    expect(canEditPermissionsOf('university_admin', 'university_admin', 'university')).toBe(false)
+    expect(canEditPermissionsOf('center_manager', 'center_manager', 'university')).toBe(false)
+    expect(canEditPermissionsOf('teacher', 'center_manager', 'university')).toBe(false)
   })
 })

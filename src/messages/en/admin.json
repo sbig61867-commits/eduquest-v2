@@ -41,7 +41,8 @@
   "centerStaff": {
     "title": "Centre Managers",
     "subtitle": "Grant each centre manager the permissions you want — you cannot grant a permission you do not hold yourself.",
-    "emptyHint": "No centre managers yet — invite them from the Invitations page with the “Centre Manager” role."
+    "emptyHint": "No centre managers yet — invite them from the Invitations page with the “Centre Manager” role.",
+    "ownerManaged": "These centre managers belong to an institution that is not a university, so their permissions are set by the platform owner only. You can view them here but not change them."
   },
   "appeals": {
     "title": "Proctoring Appeals",
