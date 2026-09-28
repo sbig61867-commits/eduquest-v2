@@ -558,7 +558,8 @@
     "statusDepleted": "Depleted",
     "statusExpired": "Expired",
     "groupLabel": "Group",
-    "groupOptional": "Group (optional)"
+    "groupOptional": "Group (optional)",
+    "seatFull": "{role}: your institution has reached its limit of {limit}. New invitations for this role are paused until the platform raises the limit or a place becomes free."
   },
   "banner": {
     "tabs": {

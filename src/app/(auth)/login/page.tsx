@@ -14,7 +14,7 @@ import { AuthTopBar } from '@/components/public/auth-top-bar'
 // src/app/globals.css): a form on one side and, on large screens, a showcase
 // panel with a rotating spotlight on the other.
 
-const KNOWN_ERRORS = ['account_disabled', 'university_removed', 'invitation_required', 'auth_callback_failed']
+const KNOWN_ERRORS = ['account_disabled', 'university_removed', 'invitation_required', 'auth_callback_failed', 'institution_full']
 type Showcase = typeof enAuth.login.showcase
 /** How long each spotlight slide stays up. */
 const SLIDE_MS = 6500

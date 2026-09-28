@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { getSeatUsage } from '@/lib/seat-limit'
 import { TenantsClient } from './tenants-client'
 
 export default async function TenantsPage() {
@@ -10,5 +11,10 @@ export default async function TenantsPage() {
     .select('*')
     .order('created_at', { ascending: false })
 
-  return <TenantsClient initialTenants={tenants ?? []} />
+  // Live seat usage per institution (the owner's session reads every tenant).
+  const seats = Object.fromEntries(await Promise.all(
+    (tenants ?? []).map(async t => [t.id, await getSeatUsage(supabase, t.id)] as const),
+  ))
+
+  return <TenantsClient initialTenants={tenants ?? []} seats={seats} />
 }

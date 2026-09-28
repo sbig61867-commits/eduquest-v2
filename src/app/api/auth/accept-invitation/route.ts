@@ -2,7 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
-import { checkStudentLimit, STUDENT_LIMIT_CODE } from '@/lib/student-limit'
+import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 
 function getAdminClient() {
   return createAdminClient(
@@ -86,14 +86,14 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Step 2b: plan seat cap (students only) ───────────────────
+  // ── Step 2b: plan seat cap (students / teachers) ─────────────
   // Checked before the auth user is created so a refusal needs no rollback.
   // Public multi-use links are the main way a tenant could silently exceed
-  // its plan, so this is the check that actually matters in practice.
-  if (inv.role === 'student') {
-    const seat = await checkStudentLimit(admin, inv.tenant_id)
+  // its plan. accept_invitation re-checks it race-free (DB trigger).
+  if (isSeatRole(inv.role)) {
+    const seat = await checkSeatLimit(admin, inv.tenant_id, inv.role)
     if (!seat.allowed) {
-      return NextResponse.json({ ...(await apiErr(STUDENT_LIMIT_CODE)) }, { status: 403 })
+      return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[inv.role])) }, { status: 403 })
     }
   }
 
@@ -164,6 +164,14 @@ export async function POST(request: Request) {
           { ...(await apiErr('invitationUnusable')) },
           { status: 410 }
         )
+      }
+      // The last seat was taken between the pre-check and the accept.
+      const full = seatRoleFromDbError(code)
+      if (full) {
+        await admin.auth.admin.deleteUser(userId).catch(e =>
+          console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
+        )
+        return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[full])) }, { status: 403 })
       }
       throw new Error(`accept_invitation: ${rpcErr.message}`)
     }

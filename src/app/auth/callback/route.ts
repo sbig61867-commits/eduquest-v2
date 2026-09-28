@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getRoleDashboardPath } from '@/lib/utils'
 import { rateLimit } from '@/lib/rate-limit'
+import { seatRoleFromDbError } from '@/lib/seat-limit'
 import type { Role } from '@/types'
 
 interface ProfileRow {
@@ -145,6 +146,19 @@ export async function GET(request: Request) {
 
         if (!rpcErr) {
           return NextResponse.redirect(`${origin}${getRoleDashboardPath(inv.role)}`)
+        }
+        // The institution is at its plan limit for this role (DB trigger;
+        // the RPC rolled back, so nothing was provisioned). Remove the login
+        // only when this very sign-in created it — same rule as (d) below —
+        // and tell the visitor why instead of a generic "invitation required".
+        if (seatRoleFromDbError(rpcErr.message)) {
+          if (Date.now() - new Date(profile.created_at).getTime() < FRESH_ACCOUNT_WINDOW_MS) {
+            await admin.auth.admin.deleteUser(user.id).catch(e =>
+              console.error('[auth/callback] cleanup deleteUser failed for', user.id, e)
+            )
+          }
+          await supabase.auth.signOut().catch(() => {})
+          return NextResponse.redirect(`${origin}/login?error=institution_full`)
         }
         // Fall through to (d): the invitation was consumed/expired between
         // our fail-fast check and the atomic RPC, or something else failed.

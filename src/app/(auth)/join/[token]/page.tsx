@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
 import { JoinForm } from './join-form'
+import { checkSeatLimit, isSeatRole } from '@/lib/seat-limit'
 
 // Invitation acceptance. Same public look (`.eq-public`, light/dark), shaped
 // as an official invitation: a ticket with a perforated edge beside the
@@ -16,16 +17,40 @@ type InvitationResult =
   | { email: string | null; role: string; tenant_name: string; expires_at: string; is_public: boolean; max_uses: number | null; use_count: number }
   | null
 
-async function getInvitation(token: string): Promise<InvitationResult> {
-  const admin = createAdminClient(
+function adminClient() {
+  return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const { data, error } = await admin.rpc('get_invitation_by_token', { p_token: token })
+}
+
+async function getInvitation(token: string): Promise<InvitationResult> {
+  const { data, error } = await adminClient().rpc('get_invitation_by_token', { p_token: token })
   if (error) console.error('[join-page] RPC error:', error.message, error.code)
   if (!data) console.error('[join-page] RPC returned null for token:', token.slice(0, 8) + '…')
   return data as InvitationResult
+}
+
+/**
+ * Why a still-valid link cannot be used right now: its institution is
+ * suspended, or at its plan limit for the invited role. Shown instead of a
+ * sign-up form that would only fail at the end (the accept route and the DB
+ * trigger refuse it either way). Fails open — the refusal still happens there.
+ */
+async function closedReason(token: string): Promise<'full' | 'suspended' | null> {
+  try {
+    const admin = adminClient()
+    const { data: inv } = await admin
+      .from('invitations').select('tenant_id, role, tenants(is_active)').eq('token', token).maybeSingle()
+    if (!inv) return null
+    const tenant = inv.tenants as unknown as { is_active: boolean } | null
+    if (tenant && tenant.is_active === false) return 'suspended'
+    if (isSeatRole(inv.role) && !(await checkSeatLimit(admin, inv.tenant_id, inv.role)).allowed) return 'full'
+  } catch (e) {
+    console.error('[join-page] closed check failed:', e instanceof Error ? e.message : e)
+  }
+  return null
 }
 
 const ACCENT = {
@@ -59,9 +84,12 @@ function Page({ glow, children }: { glow: string; children: React.ReactNode }) {
 
 export default async function JoinPage({ params }: Props) {
   const { token } = await params
-  const [invitation, t, locale] = await Promise.all([getInvitation(token), getTranslations('auth'), getLocale()])
+  const [invitation, closed, t, locale] = await Promise.all([getInvitation(token), closedReason(token), getTranslations('auth'), getLocale()])
 
-  if (!invitation) {
+  if (!invitation || closed) {
+    const copy = closed === 'full'
+      ? { stamp: t('join.fullStamp'), title: t('join.fullTitle'), body: t('join.fullBody'), hint: t('join.fullHint') }
+      : { stamp: t('join.invalidStamp'), title: t('join.invalidTitle'), body: t('join.invalidBody'), hint: t('join.invalidHint') }
     return (
       <Page glow="bg-red-500/10">
         <div className="w-full max-w-md text-center">
@@ -79,12 +107,12 @@ export default async function JoinPage({ params }: Props) {
             </div>
           </div>
             <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 px-5 py-2 rounded-xl border-4 border-red-400 text-red-300 text-2xl font-extrabold tracking-wider bg-slate-950/70">
-              {t('join.invalidStamp')}
+              {copy.stamp}
             </span>
           </div>
-          <h1 className="mt-9 text-2xl font-bold text-white">{t('join.invalidTitle')}</h1>
-          <p className="text-slate-400 text-sm mt-3 leading-relaxed">{t('join.invalidBody')}</p>
-          <p className="text-slate-500 text-sm mt-1 leading-relaxed">{t('join.invalidHint')}</p>
+          <h1 className="mt-9 text-2xl font-bold text-white">{copy.title}</h1>
+          <p className="text-slate-400 text-sm mt-3 leading-relaxed">{copy.body}</p>
+          <p className="text-slate-500 text-sm mt-1 leading-relaxed">{copy.hint}</p>
           <a href="/login" className="inline-block mt-7 px-6 py-3 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-200 text-sm transition-colors">
             {t('join.hasAccount')} {t('join.signIn')}
           </a>

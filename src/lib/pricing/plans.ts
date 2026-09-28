@@ -33,9 +33,9 @@ export type PlanId = 'pilot' | 'institution' | 'university'
  * the paid plans' figures are per month.
  */
 export interface PlanLimits {
-  /** Active students (enforced: tenants.student_limit, src/lib/student-limit.ts). */
+  /** Active students (enforced: tenants.student_limit, src/lib/seat-limit.ts). */
   students: number | null
-  /** Instructors and staff accounts. */
+  /** Instructors (active teachers enforced: tenants.teacher_limit, src/lib/seat-limit.ts) and staff accounts. */
   staff: number | null
   /** Metered AI requests (tenants.ai_monthly_request_limit once the metering migration is applied). */
   aiRequests: number | null

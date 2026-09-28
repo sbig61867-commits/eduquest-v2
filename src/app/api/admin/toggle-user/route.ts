@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { canManageAccountOf } from '@/lib/staff-auth'
 import { loadTeacherFootprint, studentBlock, teacherBlock } from '@/lib/account-scope'
+import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 
 function adminClient() {
   return createAdminClient(
@@ -36,7 +37,7 @@ export async function PATCH(request: Request) {
 
   // Verify the target user belongs to the caller's tenant (super_admin can update anyone)
   const { data: target } = await supabase
-    .from('users').select('id, tenant_id, role, is_university_student').eq('id', userId).single()
+    .from('users').select('id, tenant_id, role, is_active, is_university_student').eq('id', userId).single()
 
   if (!target) return NextResponse.json({ ...(await apiErr('userNotFound')) }, { status: 404 })
 
@@ -63,9 +64,20 @@ export async function PATCH(request: Request) {
     if (block) return NextResponse.json({ ...(await apiErr(block)), scope: block }, { status: 403 })
   }
 
+  // Re-enabling a student/teacher takes a plan seat back: refused while the
+  // institution is at its limit (the DB trigger enforces the same rule).
+  if (isActive && target.is_active === false && target.tenant_id && isSeatRole(target.role)) {
+    const seat = await checkSeatLimit(adminClient(), target.tenant_id, target.role)
+    if (!seat.allowed) {
+      return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[target.role])), limit: seat.limit }, { status: 403 })
+    }
+  }
+
   const { error } = await adminClient()
     .from('users').update({ is_active: isActive }).eq('id', userId)
 
+  const full = seatRoleFromDbError(error?.message)
+  if (full) return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[full])) }, { status: 403 })
   if (error) {
     console.error('[toggle-user]', error)
     return NextResponse.json({ ...(await apiErr('userStatusFailed')) }, { status: 500 })
