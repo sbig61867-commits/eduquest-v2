@@ -225,7 +225,9 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
         group_id: groupId,
         title: hwForm.title,
         questions,
-        due_date: hwForm.due_date || null,
+        // datetime-local has no timezone; a bare string would be stored as
+        // UTC and shift the deadline by the teacher's offset. Send an instant.
+        due_date: hwForm.due_date ? new Date(hwForm.due_date).toISOString() : null,
         auto_publish: autoPublishHw,
       }),
     })

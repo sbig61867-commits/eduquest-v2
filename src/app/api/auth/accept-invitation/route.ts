@@ -173,6 +173,14 @@ export async function POST(request: Request) {
         )
         return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[full])) }, { status: 403 })
       }
+      if (code.includes('GROUP_FULL')) {
+        // The invitation's group hit its seat cap (accept_invitation_group_rules_migration.sql).
+        // The RPC rolled back, so the invitation use was not consumed.
+        await admin.auth.admin.deleteUser(userId).catch(e =>
+          console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
+        )
+        return NextResponse.json({ ...(await apiErr('invitationGroupFull')) }, { status: 409 })
+      }
       throw new Error(`accept_invitation: ${rpcErr.message}`)
     }
 

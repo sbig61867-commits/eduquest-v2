@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serviceClient, staffCan, isTenantTeacher } from '@/lib/staff-auth'
+import { deleteEntity } from '@/lib/delete-entity'
 
 type Profile = {
   role: string
@@ -13,10 +14,10 @@ type Profile = {
 async function loadCaller() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { user: null, profile: null }
+  if (!user) return { supabase, user: null, profile: null }
   const { data } = await supabase
     .from('users').select('role, tenant_id, can_create_courses, permissions').eq('id', user.id).single()
-  return { user, profile: data as Profile | null }
+  return { supabase, user, profile: data as Profile | null }
 }
 
 /** Staff (admin / centre manager with manage_courses) manage every course in their tenant. */
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
 
 /** Owner teacher, or course staff in the same tenant. */
 async function authorizeCourse(courseId: string) {
-  const { user, profile } = await loadCaller()
+  const { supabase, user, profile } = await loadCaller()
   if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
   if (!profile?.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
 
@@ -86,7 +87,7 @@ async function authorizeCourse(courseId: string) {
   const allowed = !!course && course.tenant_id === profile.tenant_id &&
     (course.teacher_id === user.id || isCourseStaff(profile))
   if (!allowed) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
-  return { admin, profile: profile as Profile & { tenant_id: string } }
+  return { admin, supabase, userId: user.id, profile: profile as Profile & { tenant_id: string } }
 }
 
 // PATCH /api/courses — update course (publish toggle, rename, reassign teacher)
@@ -141,11 +142,13 @@ export async function DELETE(request: Request) {
   const auth = await authorizeCourse(id)
   if ('error' in auth) return auth.error
 
-  const { error } = await auth.admin.from('courses').delete().eq('id', id)
+  // Archive by default; hard delete only when the owner enabled it — same
+  // policy as groups/lessons/exams, so a deleted course stays restorable.
+  const { error, mode } = await deleteEntity(auth.admin, auth.supabase, 'course', id, auth.userId, auth.profile.tenant_id)
   if (error) {
     console.error('[api/courses DELETE]', error)
     return NextResponse.json({ ...(await apiErr('courseDeleteFailed')) }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, mode })
 }

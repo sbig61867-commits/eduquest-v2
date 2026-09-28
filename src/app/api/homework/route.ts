@@ -79,6 +79,11 @@ export async function POST(request: Request) {
   if (!Array.isArray(questions) || questions.length === 0) {
     return NextResponse.json({ ...(await apiErr('questionRequired')) }, { status: 400 })
   }
+  // Expect an ISO instant from the client (it converts the local datetime);
+  // reject anything unparseable instead of letting the insert 500.
+  if (due_date != null && isNaN(new Date(due_date).getTime())) {
+    return NextResponse.json({ ...(await apiErr('invalidDate')) }, { status: 400 })
+  }
 
   // Verify teacher owns the lesson
   const lesson = await getOwnedLesson(lesson_id, user.id, profile.tenant_id)
@@ -122,7 +127,7 @@ export async function POST(request: Request) {
     // large value only satisfies the finalize RPC's deadline check —
     // the real cutoff is ends_at (the due date).
     duration_minutes: 43200,
-    ends_at: due_date ?? null,
+    ends_at: due_date ? new Date(due_date).toISOString() : null,
     is_published: true,
     auto_publish: auto_publish !== false,
   }

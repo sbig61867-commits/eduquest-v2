@@ -6,6 +6,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { isScoreVisible } from '@/lib/score-visibility'
 
 export default async function NotificationsPage() {
   const t = await getTranslations('student.notifications')
@@ -37,21 +38,28 @@ export default async function NotificationsPage() {
     supabase.rpc('get_student_exams'),
     supabase
       .from('exam_submissions')
-      .select('id, score, submitted_at, exams(title)')
+      .select('id, exam_id, score, submitted_at, grading_status')
       .eq('student_id', user.id)
       .not('score', 'is', null)
       .order('submitted_at', { ascending: false })
-      .limit(5),
+      .limit(20),
   ])
 
   type RpcExamRow = { id: string; title: string; created_at: string; group_name: string | null; [key: string]: unknown }
   type LessonRow  = { id: string; title: string; created_at: string; groups: { name: string }[] | { name: string } | null }
-  type GradeRow   = { id: string; score: number; submitted_at: string; exams: { title: string }[] | { title: string } | null }
+  type GradeRow   = { id: string; exam_id: string; score: number; submitted_at: string; grading_status: string | null }
 
   // RPC returns flat group_name; reshape to match the lessons/grades shape and cap at 10.
   const recentExams = (rpcExams ?? [])
     .slice(0, 10)
     .map((e: RpcExamRow) => ({ ...e, groups: e.group_name ? { name: e.group_name } : null }))
+
+  // Students have no exams SELECT (a joined exams(title) is null), so titles
+  // and types come from the RPC. Unpublished homework scores are not "posted".
+  const examById = new Map(((rpcExams ?? []) as RpcExamRow[]).map(e => [e.id, e]))
+  const visibleGrades = ((recentGrades ?? []) as GradeRow[])
+    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type as string | undefined))
+    .slice(0, 5)
 
   // Merge and sort all notifications by date
   const notifications = [
@@ -69,10 +77,10 @@ export default async function NotificationsPage() {
       subtitle: `In group: ${e.groups?.name ?? '—'}`,
       date: e.created_at,
     })),
-    ...(recentGrades ?? [] as GradeRow[]).map((g: GradeRow) => ({
+    ...visibleGrades.map((g: GradeRow) => ({
       id: `grade-${g.id}`,
       type: 'grade' as const,
-      title: `Grade posted: ${Array.isArray(g.exams) ? (g.exams[0]?.title ?? 'Exam') : (g.exams?.title ?? 'Exam')}`,
+      title: `Grade posted: ${examById.get(g.exam_id)?.title ?? 'Exam'}`,
       subtitle: t('scorePoints', { score: g.score ?? 0 }),
       date: g.submitted_at,
     })),
