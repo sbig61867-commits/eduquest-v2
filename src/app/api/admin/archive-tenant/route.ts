@@ -14,7 +14,13 @@ function adminClient() {
 // POST /api/admin/archive-tenant  body: { tenant_id, archive: boolean }
 // Archiving deactivates the university AND every user inside it, so none of them
 // can log in (is_active flows into the JWT via the sync_user_claims trigger, which
-// the auth proxy enforces). No data is deleted — restoring re-activates everything.
+// the auth proxy enforces). No data is deleted.
+//
+// The user cascade is done by the DB trigger on_tenant_active_change
+// (supabase/fix_admin_user_escalation_migration.sql), NOT here: it marks the
+// accounts the suspension switched off (users.suspended_by_tenant) and a
+// restore re-activates only those — an account disabled individually before
+// the suspension stays disabled. A blanket users update here would undo that.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user: caller } } = await supabase.auth.getUser()
@@ -44,15 +50,6 @@ export async function POST(request: Request) {
   if (tenantErr || !tenant) {
     console.error('[archive-tenant] tenant update:', tenantErr)
     return NextResponse.json({ ...(await apiErr('tenantUpdateFailed')) }, { status: 500 })
-  }
-
-  // 2. Cascade the same flag to every user in the tenant (blocks/restores their login).
-  //    Goes through public.users so the sync_user_claims trigger re-syncs the JWT claim.
-  const { error: usersErr } = await admin
-    .from('users').update({ is_active: nextActive }).eq('tenant_id', tenant_id)
-  if (usersErr) {
-    console.error('[archive-tenant] users update:', usersErr)
-    return NextResponse.json({ ...(await apiErr('tenantUsersUpdateFailed')) }, { status: 500 })
   }
 
   return NextResponse.json({ tenant, archived: archive })

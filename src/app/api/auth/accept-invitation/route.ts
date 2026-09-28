@@ -67,6 +67,15 @@ export async function POST(request: Request) {
     )
   }
 
+  // ── Step 1b: the institution must not be suspended ────────────
+  // A pending link would otherwise mint an ACTIVE account inside a suspended
+  // tenant (accept_invitation re-checks this in the DB as well).
+  const { data: tenant } = await admin
+    .from('tenants').select('is_active').eq('id', inv.tenant_id).maybeSingle()
+  if (!tenant?.is_active) {
+    return NextResponse.json({ ...(await apiErr('invitationInvalid')) }, { status: 410 })
+  }
+
   // ── Step 2: verify email for private invitations ──────────────
   if (!inv.is_public) {
     if (!inv.email || inv.email.toLowerCase() !== cleanEmail) {

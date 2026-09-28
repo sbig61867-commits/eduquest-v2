@@ -52,6 +52,23 @@ export function canManageAccountRole(caller: Pick<StaffCaller, 'role' | 'permiss
   return false
 }
 
+/**
+ * The one gate for creating / inviting / (de)activating / deleting an account
+ * of `targetRole`, for every staff role. A university_admin is bound by the
+ * same capability flags as a centre manager (default ON, but the owner may
+ * switch them off) — before this, only centre managers were checked, so an
+ * owner-restricted admin could keep managing teachers and students.
+ *   teacher / student  → manage_teachers / manage_students
+ *   center_manager     → a university_admin holding manage_center_staff
+ *   university_admin   → the owner only
+ * super_admin passes everything; the route still applies its own tenant rules.
+ */
+export function canManageAccountOf(caller: Pick<StaffCaller, 'role' | 'permissions'>, targetRole: string): boolean {
+  if (caller.role === 'super_admin') return true
+  if (targetRole === 'center_manager') return caller.role === 'university_admin' && staffCan(caller, 'manage_center_staff')
+  return canManageAccountRole(caller, targetRole)
+}
+
 /** Confirm a user id is an active-or-not teacher in this tenant. */
 export async function isTenantTeacher(admin: ReturnType<typeof serviceClient>, tenantId: string, teacherId: unknown) {
   if (typeof teacherId !== 'string' || !teacherId) return false

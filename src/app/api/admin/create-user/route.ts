@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
 import { checkStudentLimit, STUDENT_LIMIT_CODE } from '@/lib/student-limit'
-import { canManageAccountRole } from '@/lib/staff-auth'
+import { canManageAccountOf } from '@/lib/staff-auth'
 import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
 
@@ -70,8 +70,8 @@ export async function POST(request: Request) {
     if (!ALLOWED[callerProfile.role]?.includes(role)) {
       return NextResponse.json({ error: `Your role cannot create a ${role} account` }, { status: 403 })
     }
-    // A centre manager additionally needs the matching per-user capability.
-    if (callerProfile.role === 'center_manager' && !canManageAccountRole(callerProfile, role)) {
+    // Every staff role additionally needs the matching per-user capability.
+    if (!canManageAccountOf(callerProfile, role)) {
       return NextResponse.json({ ...(await apiErr('cannotCreateRole')) }, { status: 403 })
     }
 
@@ -84,6 +84,12 @@ export async function POST(request: Request) {
     }
 
     const adminClient = getAdminClient()
+
+    // Never mint an active account inside a suspended institution.
+    const { data: tenant } = await adminClient.from('tenants').select('is_active').eq('id', tenant_id).maybeSingle()
+    if (!tenant) return NextResponse.json({ ...(await apiErr('tenantNotFound')) }, { status: 404 })
+    if (!tenant.is_active) return NextResponse.json({ ...(await apiErr('tenantSuspended')) }, { status: 403 })
+
     const { has_center: hasCenter } = await getTenantSettings(adminClient, tenant_id)
 
     // Plan seat cap — enforced server-side before the auth identity exists,

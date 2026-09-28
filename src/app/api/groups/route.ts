@@ -21,11 +21,13 @@ async function loadCaller() {
   return { supabase, user, profile: profile as Profile | null }
 }
 
-/** teacher (own groups) · university_admin / super_admin · center_manager with manage_groups */
+/** teacher (own groups) · staff (admin, centre manager) holding manage_groups · super_admin */
 function mayManageGroups(profile: Profile | null): profile is Profile & { tenant_id: string } {
   if (!profile?.tenant_id) return false
-  if (['teacher', 'university_admin', 'super_admin'].includes(profile.role)) return true
-  return profile.role === 'center_manager' && staffCan(profile, 'manage_groups')
+  if (profile.role === 'teacher') return true
+  // staffCan: super_admin always; university_admin default ON (owner may
+  // switch it off); center_manager default OFF.
+  return staffCan(profile, 'manage_groups')
 }
 
 export async function POST(request: Request) {
