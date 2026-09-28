@@ -53,6 +53,7 @@ export function SecondCameraPanel({ examId }: { examId: string }) {
         <div className="px-4 pb-4 flex flex-col sm:flex-row items-center gap-4">
           <div className="w-[160px] h-[160px] shrink-0 rounded-lg bg-white flex items-center justify-center">
             {loading && <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />}
+            {/* eslint-disable-next-line @next/next/no-img-element -- a data: URL generated in the browser; next/image has nothing to optimise */}
             {qr && !loading && <img src={qr} alt={t('qrAlt')} width={160} height={160} className="rounded-lg" />}
           </div>
           <div className="space-y-2 text-sm min-w-0">

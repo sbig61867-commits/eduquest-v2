@@ -99,13 +99,13 @@ export function EvidencePanel({ examId, refreshSignal = 0 }: { examId: string; r
                   aria-label={t('enlarge')}
                   className="w-full text-start rounded-lg border border-slate-800 bg-slate-950 overflow-hidden hover:border-amber-500/50 transition-colors"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from the external evidence bucket; next/image would proxy and cache it */}
                   {item.media === 'video' ? (
                     <div className="relative">
                       <video src={item.url} preload="metadata" muted playsInline className="w-full aspect-[4/3] object-cover bg-slate-800" />
                       <Film className="absolute top-1.5 start-1.5 w-4 h-4 text-white drop-shadow" />
                     </div>
                   ) : (
+                    // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from the external evidence bucket; next/image would proxy and cache it
                     <img src={item.url} alt="" loading="lazy" className="w-full aspect-[4/3] object-cover bg-slate-800" />
                   )}
                   <div className="p-2.5 space-y-1">
@@ -131,9 +131,9 @@ export function EvidencePanel({ examId, refreshSignal = 0 }: { examId: string; r
               className="absolute top-2 end-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80">
               <X className="w-4 h-4" />
             </button>
-            {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
             {open.media === 'video'
               ? <video src={open.url} controls autoPlay playsInline className="w-full aspect-[4/3] object-contain bg-black" />
+              // eslint-disable-next-line @next/next/no-img-element -- see above
               : <img src={open.url} alt="" className="w-full aspect-[4/3] object-contain bg-black" />}
             <div className="p-4 flex flex-wrap items-center justify-between gap-2">
               <div>
