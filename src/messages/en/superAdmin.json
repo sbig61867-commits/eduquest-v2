@@ -314,7 +314,11 @@
     "limitsSave": "Save limits",
     "limitsSaved": "Limits saved and in effect",
     "limitsSaveFailed": "Could not save the limits",
-    "limitsInvalid": "Enter a whole number of 0 or more, or leave the field empty."
+    "limitsInvalid": "Enter a whole number of 0 or more, or leave the field empty.",
+    "codeLabel": "Institution code",
+    "codeInvalid": "The code is 2–6 capital letters or digits (EQ is reserved for the platform).",
+    "codeTaken": "Another institution already uses this code.",
+    "codeSaved": "Code saved — new account IDs use it; existing IDs never change."
   },
   "users": {
     "title": "All Users",
@@ -367,7 +371,19 @@
       "chooseInstitution": "— Choose the institution —",
       "create": "Create user",
       "createFailed": "Could not create the user"
-    }
+    },
+    "lookupTitle": "Find a user by ID",
+    "lookupPlaceholder": "e.g. QOU-S48203917",
+    "lookupAction": "Search",
+    "memberCode": "ID",
+    "lookupInstitution": "Institution",
+    "lookupRole": "Role",
+    "lookupStatus": "Status",
+    "lookupCreated": "Created",
+    "lookupGroups": "Groups",
+    "lookupCourses": "Courses",
+    "lookupNone": "None",
+    "lookupNameIncomplete": "Name incomplete"
   },
   "settings": {
     "title": "Platform settings",

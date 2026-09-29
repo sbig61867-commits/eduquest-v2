@@ -10,6 +10,10 @@ import { NextIntlClientProvider } from 'next-intl'
 import arMessages from '@/messages/ar'
 import { JOIN_NAME_COOKIE } from '@/lib/person-name'
 
+// The Google button is hidden by default (src/lib/google-sign-in.ts); these
+// specs cover its name gate, so switch it on.
+process.env.NEXT_PUBLIC_GOOGLE_SIGNIN = 'on'
+
 const signInWithOAuth = vi.fn().mockResolvedValue({ error: null })
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/lib/supabase/client', () => ({

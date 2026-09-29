@@ -62,9 +62,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('linkMailboxFirst')), code: 'NOT_LINKED' }, { status: 409 })
   }
 
-  const { data: recipients } = await admin
+  const { data: found } = await admin
     .from('users').select('id, email, full_name, role')
     .in('id', ids).eq('tenant_id', caller.tenant_id).in('role', ['student', 'teacher']).eq('is_active', true)
+  // Accounts created by member ID hold their ID, not an address, in `email`.
+  const recipients = (found ?? []).filter(r => typeof r.email === 'string' && r.email.includes('@'))
   if (!recipients?.length) return NextResponse.json({ ...(await apiErr('noValidRecipients')) }, { status: 400 })
 
   const { data: sender } = await admin.from('users').select('full_name').eq('id', caller.id).maybeSingle()

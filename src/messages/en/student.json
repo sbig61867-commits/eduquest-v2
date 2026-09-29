@@ -95,7 +95,9 @@
     "centreEnrolled": "Enrolled through the Continuing Education Centre at {institution} — you receive the centre's courses and announcements.",
     "myGroups": "My Groups ({count})",
     "teacher": "Teacher: {name}",
-    "centreTrainee": "Continuing-education centre trainee"
+    "centreTrainee": "Continuing-education centre trainee",
+    "memberId": "ID",
+    "memberIdHint": "You can sign in with it instead of your email, with your password."
   },
   "courses": {
     "title": "My Courses",

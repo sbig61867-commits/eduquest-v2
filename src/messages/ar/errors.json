@@ -324,6 +324,13 @@
   "teacherLimit": "وصلت مؤسستك إلى الحد الأقصى لعدد المعلمين في باقتها الحالية. تواصل مع إدارة المنصة لرفعه.",
   "sebRequired": "يجب فتح هذا الاختبار في متصفح Safe Exam Browser بالإعدادات التي شاركها معك المعلم.",
   "sebKeyInvalid": "مفتاح إعدادات Safe Exam Browser يجب أن يكون المفتاح المكوّن من 64 خانة من أداة SEB Config Tool.",
-  "sebNeedsMigration": "اشتراط Safe Exam Browser يحتاج تحديثاً لقاعدة البيانات لم يُطبَّق بعد.",
-  "teacherGroupRequired": "اختر إحدى مجموعاتك ليُضاف إليها الطالب"
+  "sebNeedsMigration": "اشتراط Safe Exam Browser يحتاج تحديثاً لقاعدة البيانات لم يُطبَّق بعد.",
+  "teacherGroupRequired": "اختر إحدى مجموعاتك ليُضاف إليها الطالب",
+  "memberCodeInvalid": "صيغة المعرّف غير صحيحة. مثال صحيح: QOU-S48203917",
+  "memberCodeNotReady": "معرّفات المستخدمين تحتاج تحديث قاعدة البيانات (member_code_migration.sql).",
+  "memberNotFound": "لا يوجد حساب بهذا المعرّف.",
+  "invalidLogin": "المعرّف أو كلمة المرور غير صحيحة.",
+  "passwordUnchanged": "اختر كلمة مرور مختلفة عن المؤقتة.",
+  "passwordChangeFailed": "تعذّر تغيير كلمة المرور.",
+  "memberIdStudentsOnly": "الحساب بالمعرّف متاح للطلاب فقط."
 }

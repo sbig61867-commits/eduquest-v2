@@ -9,6 +9,8 @@ export interface Tenant {
   id: string
   name: string
   slug: string
+  /** Short institution prefix of member codes (QOU); set after member_code_migration.sql. */
+  code?: string
   logo_url: string | null
   is_active: boolean
   created_at: string
@@ -31,6 +33,8 @@ export interface User {
   tenant_id: string | null
   is_active: boolean
   can_create_courses: boolean
+  /** Permanent account ID, e.g. QOU-S48203917 (member_code_migration.sql). */
+  member_code?: string
   /** Students only: university student (true) vs centre-only trainee (false). */
   is_university_student?: boolean
   /** Per-user capability flags — see src/lib/permissions.ts */

@@ -9,6 +9,8 @@ import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { checkNameParts, type NameParts } from '@/lib/person-name'
 import { saveStudentName } from '@/lib/student-names'
+import { generateTempPassword, placeholderEmail } from '@/lib/member-login'
+import { randomUUID } from 'crypto'
 import { enrolStudentInGroup, groupHasRoom, type EnrolmentGroup } from '@/lib/group-enrolment'
 
 function getAdminClient() {
@@ -56,7 +58,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, password, role } = body
+    const { role } = body
+    // 'member_id': a student account without an email — the platform issues a
+    // member ID and a temporary password for staff to hand over. Every other
+    // account is created with the email and password staff typed.
+    const byMemberId = body.login_mode === 'member_id'
+    if (byMemberId && role !== 'student') {
+      return NextResponse.json({ ...(await apiErr('memberIdStudentsOnly')) }, { status: 400 })
+    }
+    const email: string = byMemberId ? placeholderEmail(randomUUID()) : (typeof body.email === 'string' ? body.email : '')
+    const password: string = byMemberId ? generateTempPassword() : (typeof body.password === 'string' ? body.password : '')
 
     if (!email?.trim() || !password || !role) {
       return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
@@ -116,6 +127,13 @@ export async function POST(request: Request) {
 
     const adminClient = getAdminClient()
 
+    // The member ID comes from member_code_migration.sql; without it an
+    // account by ID could never sign in, so refuse before creating anything.
+    if (byMemberId) {
+      const { error: colErr } = await adminClient.from('users').select('member_code').limit(1)
+      if (colErr) return NextResponse.json({ ...(await apiErr('memberCodeNotReady')) }, { status: 409 })
+    }
+
     // Never mint an active account inside a suspended institution.
     const { data: tenant } = await adminClient.from('tenants').select('is_active').eq('id', tenant_id).maybeSingle()
     if (!tenant) return NextResponse.json({ ...(await apiErr('tenantNotFound')) }, { status: 404 })
@@ -156,6 +174,10 @@ export async function POST(request: Request) {
       email: email.trim(),
       password,
       email_confirm: true,
+      // Staff chose this password: the person must replace it at first
+      // sign-in (src/proxy.ts → /change-password). app_metadata is
+      // service-role only, so they cannot clear the flag themselves.
+      app_metadata: { must_change_password: true },
       // No role/tenant_id in metadata — trigger now always defaults to 'student'/NULL
       user_metadata: { full_name },
     })
@@ -224,6 +246,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...(await apiErr('userProfileCreateFailed')) }, { status: 500 })
     }
 
+    if (byMemberId) {
+      // The member code is issued by the users trigger; read it back.
+      const { data: coded } = await adminClient.from('users').select('member_code').eq('id', authData.user.id).single()
+      // Show the ID wherever the platform shows an email: the profile copy of
+      // the email becomes the ID (the auth email stays the placeholder, which
+      // /api/auth/login-id reads from auth, never from here).
+      if (coded?.member_code) {
+        await adminClient.from('users').update({ email: coded.member_code }).eq('id', authData.user.id)
+        created = { ...created, email: coded.member_code }
+      }
+      // The temporary password is returned once, to the staff member who
+      // created the account, and never stored or shown again.
+      return NextResponse.json({ user: { ...created, ...coded }, member_code: coded?.member_code ?? null, temp_password: password })
+    }
     return NextResponse.json({ user: created })
 
   } catch (err) {

@@ -93,12 +93,17 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
   const [showNameErrors, setShowNameErrors] = useState(false)
   const [password, setPassword]       = useState('')
   const [createdAccount, setCreatedAccount] = useState<{ name: string; email: string } | null>(null)
+  // A direct account either uses the student's email, or has none: the
+  // platform issues a member ID + temporary password (shown once, below).
+  const [byId, setById]               = useState(false)
+  const [createdById, setCreatedById] = useState<{ name: string; code: string; password: string } | null>(null)
 
   function pickMode(next: 'private' | 'public' | 'account') {
     setIsPublic(next === 'public')
     setDirect(next === 'account')
     setNewLink(null)
     setCreatedAccount(null)
+    setCreatedById(null)
     setFormError('')
   }
 
@@ -176,6 +181,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     e.preventDefault()
     setFormError('')
     setCreatedAccount(null)
+    setCreatedById(null)
     if (!checkNameParts(nameParts).ok) {
       setShowNameErrors(true)
       setFormError(tName('incomplete'))
@@ -190,8 +196,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
     const body: Record<string, unknown> = {
       role: 'student',
-      email: email.trim(),
-      password,
+      ...(byId ? { login_mode: 'member_id' } : { email: email.trim(), password }),
       name_parts: nameParts,
     }
     if (groupId) body.group_id = groupId
@@ -211,7 +216,8 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
       return
     }
 
-    setCreatedAccount({ name: data.user?.full_name ?? '', email: data.user?.email ?? email.trim() })
+    if (byId) setCreatedById({ name: data.user?.full_name ?? '', code: data.member_code ?? '', password: data.temp_password ?? '' })
+    else setCreatedAccount({ name: data.user?.full_name ?? '', email: data.user?.email ?? email.trim() })
     setNameParts(EMPTY_NAME_PARTS)
     setShowNameErrors(false)
     setEmail('')
@@ -346,8 +352,39 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           </div>
 
           {direct && (
+            <div className="flex rounded-lg border border-slate-700 overflow-hidden text-xs">
+              {([false, true] as const).map(v => (
+                <button key={String(v)} type="button" aria-pressed={byId === v}
+                  onClick={() => { setById(v); setCreatedById(null); setCreatedAccount(null); setFormError('') }}
+                  className={`flex-1 py-2 transition-colors ${byId === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                  {v ? t('accountById') : t('accountByEmail')}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {direct && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 text-emerald-300 text-sm">
-              {t('accountNote')}
+              {byId ? t('accountByIdNote') : t('accountNote')}
+            </div>
+          )}
+
+          {createdById && (
+            <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
+              <p className="text-emerald-300 text-sm">{t('accountByIdCreated', { name: createdById.name })}</p>
+              {[
+                { label: t('memberIdLabel'), value: createdById.code },
+                { label: t('tempPasswordLabel'), value: createdById.password },
+              ].map(row => (
+                <div key={row.label} className="flex items-center gap-2 bg-slate-950 rounded-lg px-3 py-2">
+                  <span className="text-slate-400 text-xs w-28 shrink-0">{row.label}</span>
+                  <code dir="ltr" className="text-white font-mono text-sm flex-1">{row.value}</code>
+                  <button type="button" aria-label={t('copy')} onClick={() => navigator.clipboard.writeText(row.value)} className="text-slate-400 hover:text-white shrink-0">
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <p className="text-amber-300 text-xs">{t('tempPasswordOnce')}</p>
             </div>
           )}
 
@@ -401,8 +438,8 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               </div>
             )}
 
-            {/* Email — for private invitations and direct accounts */}
-            {!isPublic && (
+            {/* Email — for private invitations and direct accounts by email */}
+            {!isPublic && !(direct && byId) && (
               <div className="col-span-2">
                 <label htmlFor="invite-email" className="block text-sm text-slate-400 mb-1">{t('emailLabel')}</label>
                 <input
@@ -418,7 +455,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               </div>
             )}
 
-            {direct && (
+            {direct && !byId && (
               <div className="col-span-2">
                 <label htmlFor="direct-password" className="block text-sm text-slate-400 mb-1">{t('passwordLabel')}</label>
                 <input

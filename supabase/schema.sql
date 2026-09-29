@@ -2044,3 +2044,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.tenant_storage_bytes(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.tenant_storage_bytes(uuid) TO authenticated, service_role;
+
+-- Member codes (see member_code_migration.sql): tenants.code TEXT NOT NULL UNIQUE (^[A-Z0-9]{2,6}$, not EQ),
+-- users.member_code TEXT NOT NULL UNIQUE issued once by trigger users_assign_member_code,
+-- counter table member_code_counters(tenant_id PK, last_n) with no grants.

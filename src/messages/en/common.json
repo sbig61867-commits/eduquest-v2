@@ -211,5 +211,20 @@
     "correctFor": "Current name: {name}",
     "saved": "Name updated",
     "failed": "Could not update the name"
+  },
+  "account": {
+    "title": "My account",
+    "open": "My account details",
+    "welcomeTitle": "Welcome to EduQuest",
+    "welcomeBody": "Your registration is complete. These are your account details and your ID; you can always find them by clicking your name at the top of the page.",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "institution": "Institution",
+    "memberId": "Your ID",
+    "memberIdHint": "You can sign in with it instead of your email, with your password.",
+    "copy": "Copy ID",
+    "copied": "Copied",
+    "close": "Continue"
   }
 }
