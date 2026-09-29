@@ -35,15 +35,17 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      BACKUP_PUBLIC_KEY: ${{ secrets.BACKUP_PUBLIC_KEY }}
-      BACKUP_KV_ACCOUNT_ID: ${{ secrets.BACKUP_KV_ACCOUNT_ID }}
-      BACKUP_KV_NAMESPACE_ID: ${{ secrets.BACKUP_KV_NAMESPACE_ID }}
-      BACKUP_KV_API_TOKEN: ${{ secrets.BACKUP_KV_API_TOKEN }}
+    # Secrets are passed per step, only to the steps that use them, so the
+    # third-party actions below (checkout, setup-node, setup-cli) never see them.
     steps:
       - name: Check configuration
         id: config
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PUBLIC_KEY: ${{ secrets.BACKUP_PUBLIC_KEY }}
+          BACKUP_KV_ACCOUNT_ID: ${{ secrets.BACKUP_KV_ACCOUNT_ID }}
+          BACKUP_KV_NAMESPACE_ID: ${{ secrets.BACKUP_KV_NAMESPACE_ID }}
+          BACKUP_KV_API_TOKEN: ${{ secrets.BACKUP_KV_API_TOKEN }}
         run: |
           set=0; missing=""
           for v in SUPABASE_DB_URL BACKUP_PUBLIC_KEY BACKUP_KV_ACCOUNT_ID BACKUP_KV_NAMESPACE_ID BACKUP_KV_API_TOKEN; do
@@ -74,6 +76,8 @@ jobs:
 
       - name: Dump the database (Supabase's documented commands)
         if: steps.config.outputs.ready == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           # The repository is public, so its logs are too. GitHub masks the whole
           # secret; also mask the password on its own, encoded and decoded, in
@@ -92,7 +96,11 @@ jobs:
       - name: Compress, encrypt, upload, verify, prune
         if: steps.config.outputs.ready == 'true'
         env:
-          REASON: ${{ github.event_name == 'schedule' && 'schedule' || inputs.reason }}
+          REASON: ${{ github.event_name == 'schedule' && 'schedule' || inputs.reason || 'manual' }}
+          BACKUP_PUBLIC_KEY: ${{ secrets.BACKUP_PUBLIC_KEY }}
+          BACKUP_KV_ACCOUNT_ID: ${{ secrets.BACKUP_KV_ACCOUNT_ID }}
+          BACKUP_KV_NAMESPACE_ID: ${{ secrets.BACKUP_KV_NAMESPACE_ID }}
+          BACKUP_KV_API_TOKEN: ${{ secrets.BACKUP_KV_API_TOKEN }}
         run: node scripts/backup/backup.mjs --dir "$RUNNER_TEMP/dump" --reason "$REASON"
 
       - name: Delete the plain dump

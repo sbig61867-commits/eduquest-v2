@@ -14,8 +14,10 @@ supabase db dump (roles, schema, data) → pack → brotli → AES-256-GCM (key 
 - Not included: files in Storage buckets, proctoring evidence (never backed up by
   policy, `src/lib/evidence-keys.ts`), and Supabase-managed settings (see
   "After a restore").
-- Budget: one backup may be up to 400 MB encrypted, and free KV holds 1 GB for the
-  whole account. Past that, move backups to R2 (S3 API).
+- Budget: free KV holds 1 GB for the whole account, proctoring evidence included.
+  All backups together are kept under 600 MB (older copies are dropped first) and
+  one backup may be up to 200 MB encrypted, so backups never crowd out evidence.
+  Past that, move backups to R2 (S3 API).
 
 ## One-time setup (owner)
 

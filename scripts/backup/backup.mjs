@@ -38,7 +38,14 @@ export async function runBackup({ dir, reason = 'manual', publicKeyPem, kv, keep
   await downloadBackup(kv, stored, retry)
   log(`Verified ${manifest.id} (sha256 ${manifest.sha256.slice(0, 16)}…)`)
 
-  const doomed = planPrune(groupBackups(await kv.list(prefix), prefix), keep, manifest.id)
+  const groups = groupBackups(await kv.list(prefix), prefix)
+  // Sizes keep all copies together inside KV's shared 1 GB (see BUDGET_BYTES).
+  const sizes = { [manifest.id]: manifest.encryptedBytes }
+  for (const g of groups) {
+    if (!g.complete || g.id === manifest.id) continue
+    try { sizes[g.id] = (await readManifest(kv, g.id, prefix, { attempts: 1 })).encryptedBytes ?? 0 } catch { /* unreadable: counted as 0, still limited by keep */ }
+  }
+  const doomed = planPrune(groups, keep, manifest.id, { sizes })
   for (const g of doomed) {
     for (const key of g.keys) await kv.delete(key)
     log(`Removed ${g.complete ? 'old' : 'unfinished'} backup ${g.id}`)

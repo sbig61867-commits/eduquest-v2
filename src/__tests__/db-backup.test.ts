@@ -103,6 +103,13 @@ describe('keeping copies', () => {
     expect(doomed).toEqual([ids[1], ids[0]])
   })
 
+  it('drops older copies once the total would pass the KV budget', () => {
+    const sizes = { [ids[3]]: 300, [ids[2]]: 200, [ids[1]]: 200, [ids[0]]: 50 }
+    const doomed = planPrune(groupBackups(names), 8, ids[3], { sizes, budget: 600 }).map(g => g.id)
+    // 300 + 200 fit; the next 200 would make 700, so it and everything older go.
+    expect(doomed).toEqual([ids[1], ids[0]])
+  })
+
   it('removes unfinished uploads but never the copy just written', () => {
     const unfinished = ['backup/2026-01-20T00-00-00Z/part-000', 'backup/2026-03-01T00-00-00Z/part-000']
     const doomed = planPrune(groupBackups([...names, ...unfinished]), 8, '2026-03-01T00-00-00Z').map(g => g.id)

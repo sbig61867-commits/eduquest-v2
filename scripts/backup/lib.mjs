@@ -21,8 +21,14 @@ export const DEFAULT_PREFIX = 'backup/'
 export const DEFAULT_KEEP = 8
 /** KV caps one value at 25 MiB; stay well under it. */
 export const PART_BYTES = 20 * 1024 * 1024
-/** Free KV holds 1 GB for the whole account (proctoring evidence included). */
-export const MAX_ENCRYPTED_BYTES = 400 * 1024 * 1024
+/**
+ * Free KV holds 1 GB for the WHOLE account, proctoring evidence included, so
+ * all backups together stay under this budget — a full KV would also stop
+ * evidence snapshots. One backup may use a third of it, so the budget plus
+ * the copy being uploaded never passes ~800 MB.
+ */
+export const BUDGET_BYTES = 600 * 1024 * 1024
+export const MAX_ENCRYPTED_BYTES = BUDGET_BYTES / 3
 export const MANIFEST_NAME = 'manifest.json'
 
 const MAGIC = Buffer.from('EQBK\x01', 'latin1')
@@ -287,17 +293,22 @@ export function groupBackups(keyNames, prefix = DEFAULT_PREFIX) {
 }
 
 /**
- * What to delete: complete backups beyond the newest `keep`, and unfinished
- * leftovers of failed runs. Never the backup just written (`currentId`).
+ * What to delete: complete backups beyond the newest `keep` or past the byte
+ * `budget` (sizes by id, from the manifests), and unfinished leftovers of
+ * failed runs. Never the backup just written (`currentId`).
  */
-export function planPrune(groups, keep = DEFAULT_KEEP, currentId) {
+export function planPrune(groups, keep = DEFAULT_KEEP, currentId, { sizes = {}, budget = BUDGET_BYTES } = {}) {
   const doomed = []
   let kept = 0
+  let used = 0
+  let full = false
   for (const g of groups) {
-    if (g.id === currentId) { if (g.complete) kept++; continue }
+    const size = sizes[g.id] ?? 0
+    if (g.id === currentId) { if (g.complete) { kept++; used += size } continue }
     if (!g.complete) { doomed.push(g); continue }
-    if (kept < keep) kept++
-    else doomed.push(g)
+    // Newest first: once a copy does not fit, every older one goes too.
+    if (!full && kept < keep && used + size <= budget) { kept++; used += size }
+    else { full = true; doomed.push(g) }
   }
   return doomed
 }
