@@ -324,6 +324,13 @@
   "teacherLimit": "Your institution has reached the teacher limit for its current plan. Contact the platform team to raise it.",
   "sebRequired": "This exam must be opened in Safe Exam Browser with the configuration your teacher shared.",
   "sebKeyInvalid": "The Safe Exam Browser Config Key must be the 64-character key from the SEB Config Tool.",
-  "sebNeedsMigration": "Requiring Safe Exam Browser needs a database update that has not been applied yet.",
-  "teacherGroupRequired": "Choose one of your groups to add the student to"
+  "sebNeedsMigration": "Requiring Safe Exam Browser needs a database update that has not been applied yet.",
+  "teacherGroupRequired": "Choose one of your groups to add the student to",
+  "memberCodeInvalid": "Invalid ID format. Example: QOU-S48203917",
+  "memberCodeNotReady": "User IDs need a database update (member_code_migration.sql).",
+  "memberNotFound": "No account has this ID.",
+  "invalidLogin": "Incorrect ID or password.",
+  "passwordUnchanged": "Choose a password different from the temporary one.",
+  "passwordChangeFailed": "Could not change the password.",
+  "memberIdStudentsOnly": "Accounts by ID are for students only."
 }

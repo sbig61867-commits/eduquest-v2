@@ -30,6 +30,7 @@ interface User {
   is_active: boolean
   created_at: string
   tenant_id: string | null
+  member_code?: string
 }
 
 interface Tenant {
@@ -89,6 +90,7 @@ function UserRow({ u, onToggle, onDelete }: {
             <p className="text-slate-500 text-xs flex items-center gap-1">
               <Mail className="w-3 h-3" />{u.email}
             </p>
+            {u.member_code && <p className="text-slate-500 text-xs font-mono" dir="ltr">{u.member_code}</p>}
           </div>
         </div>
       </td>
@@ -426,6 +428,77 @@ function UniversityView({ tenant, tenants, onBack, initialCounts }: {
   )
 }
 
+// ── Member lookup (owner) ─────────────────────────────────────────────────────
+
+interface LookupResult {
+  member: {
+    id: string; member_code: string; full_name: string; email: string; role: string
+    is_active: boolean; is_university_student?: boolean; name_complete?: boolean
+    locale?: string | null; created_at: string
+    tenants: { name: string; code: string; institution_type: string; is_active: boolean } | null
+  }
+  groups: string[]
+  courses: string[]
+}
+
+function MemberLookup() {
+  const t = useTranslations('superAdmin.users')
+  const locale = useLocale() as Locale
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<LookupResult | null>(null)
+  const [error, setError] = useState('')
+
+  async function lookup(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true); setError(''); setResult(null)
+    const res = await fetch(`/api/admin/member-lookup?code=${encodeURIComponent(code.trim())}`)
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) setResult(data); else setError(data.error ?? t('loadFailed'))
+    setBusy(false)
+  }
+
+  const m = result?.member
+  const row = (label: string, value: React.ReactNode) => (
+    <div className="flex justify-between gap-4 py-1.5 text-sm">
+      <span className="text-slate-400">{label}</span>
+      <span className="text-white text-end">{value}</span>
+    </div>
+  )
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('lookupTitle')}</h3>
+      <form onSubmit={lookup} className="flex gap-2">
+        <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} dir="ltr"
+          placeholder={t('lookupPlaceholder')} maxLength={16}
+          className="flex-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+        <Button type="submit" disabled={busy || !code.trim()}><Search className="w-4 h-4" /> {t('lookupAction')}</Button>
+      </form>
+      {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
+      {m && (
+        <div className="divide-y divide-slate-800">
+          <div className="flex items-center gap-3 pb-3">
+            <Avatar name={m.full_name} color={roleColors[m.role]} />
+            <div>
+              <p className="text-white font-medium">{m.full_name}</p>
+              <p className="text-slate-500 text-xs flex items-center gap-1"><Mail className="w-3 h-3" />{m.email}</p>
+            </div>
+          </div>
+          {row(t('memberCode'), <span className="font-mono" dir="ltr">{m.member_code}</span>)}
+          {row(t('lookupInstitution'), m.tenants ? `${m.tenants.name} (${m.tenants.code})` : t('platformAdmins'))}
+          {row(t('lookupRole'), getRoleLabel(m.role as Role, m.tenants?.institution_type, locale))}
+          {row(t('lookupStatus'), <Badge variant={m.is_active ? 'green' : 'red'}>{m.is_active ? t('active') : t('disabled')}</Badge>)}
+          {row(t('lookupCreated'), formatDate(m.created_at, locale))}
+          {m.role === 'student' && m.name_complete === false && row(t('lookupStatus'), t('lookupNameIncomplete'))}
+          {m.role === 'student' && row(t('lookupGroups'), new Intl.ListFormat(locale).format(result!.groups) || t('lookupNone'))}
+          {m.role === 'student' && row(t('lookupCourses'), new Intl.ListFormat(locale).format(result!.courses) || t('lookupNone'))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) {
@@ -492,6 +565,8 @@ export function SuperUsersClient({ tenants, superAdmins, tenantCounts }: Props) 
           <UserPlus className="w-4 h-4" /> {t('addUser')}
         </Button>
       </div>
+
+      <MemberLookup />
 
       {localSuperAdmins.length > 0 && (
         <div className="space-y-3">

@@ -8,6 +8,7 @@ import { getRoleDashboardPath } from '@/lib/utils'
 import { checkNameParts, EMPTY_NAME_PARTS, JOIN_NAME_COOKIE, type NameParts } from '@/lib/person-name'
 import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 import type { Role } from '@/types'
+import { googleSignInEnabled } from '@/lib/google-sign-in'
 
 interface Props {
   token: string
@@ -120,7 +121,8 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
         .from('users').select('role').eq('id', session.user.id).single()
 
       const role: Role = (profile?.role as Role) ?? 'student'
-      router.push(getRoleDashboardPath(role))
+      // ?welcome=1: the header greets the new account with its details and ID.
+      router.push(`${getRoleDashboardPath(role)}?welcome=1`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setError(t('networkError'))
@@ -262,6 +264,7 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
         </button>
       </form>
 
+      {googleSignInEnabled() && (<>
       <div className="flex items-center gap-3 my-6">
         <div className="flex-1 h-px bg-slate-800" />
         <span className="text-xs text-slate-500">{t('or')}</span>
@@ -278,6 +281,7 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
         {googleLoading ? t('googleLoading') : t('google')}
       </button>
       {isStudent && <p className="text-xs text-slate-500 text-center mt-2">{t('googleNameHint')}</p>}
+      </>)}
     </div>
   )
 }

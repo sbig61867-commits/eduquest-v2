@@ -562,13 +562,21 @@
     "seatFull": "{role}: your institution has reached its limit of {limit}. New invitations for this role are paused until the platform raises the limit or a place becomes free.",
     "accountTab": "Create the account",
     "accountDesc": "Direct account (you set the password)",
-    "accountNote": "The student's account is created now with a temporary password; give them their email and password to sign in. Only the student will see the full four-part name.",
+    "accountNote": "The student's account is created now with a temporary password; give them their email and password to sign in. Only the student will see the full four-part name. They must change the password at first sign-in.",
     "passwordLabel": "Temporary password",
     "passwordHint": "At least 8 characters",
     "accountGroupRequired": "Choose one of your groups to add the student to",
     "createAccount": "Create the student account",
     "accountCreated": "{name}'s account is ready ({email}). Give the student their email and the temporary password to sign in.",
-    "accountFailed": "Could not create the account"
+    "accountFailed": "Could not create the account",
+    "accountByEmail": "With the student's email",
+    "accountById": "With an ID (no email)",
+    "accountByIdNote": "The platform issues the student a personal ID and a temporary password. Give them both: they sign in with them and must change the password straight away. The full four-part name is visible to the student only.",
+    "accountByIdCreated": "{name}'s account is ready. Give the student this ID and temporary password:",
+    "memberIdLabel": "ID",
+    "tempPasswordLabel": "Temporary password",
+    "tempPasswordOnce": "Copy the password now: it will not be shown again. The student must change it at first sign-in.",
+    "copy": "Copy"
   },
   "banner": {
     "tabs": {

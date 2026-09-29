@@ -314,7 +314,11 @@
     "limitsSave": "حفظ الحدود",
     "limitsSaved": "حُفظت الحدود وأصبحت سارية",
     "limitsSaveFailed": "تعذّر حفظ الحدود",
-    "limitsInvalid": "أدخل عدداً صحيحاً (0 أو أكثر)، أو اترك الحقل فارغاً."
+    "limitsInvalid": "أدخل عدداً صحيحاً (0 أو أكثر)، أو اترك الحقل فارغاً.",
+    "codeLabel": "رمز المؤسسة",
+    "codeInvalid": "الرمز من 2 إلى 6 أحرف إنجليزية كبيرة أو أرقام (EQ محجوز للمنصة).",
+    "codeTaken": "هذا الرمز مستخدم لمؤسسة أخرى.",
+    "codeSaved": "حُفظ الرمز — يظهر في معرّفات الحسابات الجديدة، والمعرّفات القديمة لا تتغير."
   },
   "users": {
     "title": "كل المستخدمين",
@@ -367,7 +371,19 @@
       "chooseInstitution": "— اختر المؤسسة —",
       "create": "إنشاء مستخدم",
       "createFailed": "فشل إنشاء المستخدم"
-    }
+    },
+    "lookupTitle": "البحث بمعرّف المستخدم",
+    "lookupPlaceholder": "مثال: QOU-S48203917",
+    "lookupAction": "بحث",
+    "memberCode": "المعرّف",
+    "lookupInstitution": "المؤسسة",
+    "lookupRole": "الدور",
+    "lookupStatus": "الحالة",
+    "lookupCreated": "تاريخ الإنشاء",
+    "lookupGroups": "المجموعات",
+    "lookupCourses": "المساقات",
+    "lookupNone": "لا يوجد",
+    "lookupNameIncomplete": "الاسم غير مكتمل"
   },
   "settings": {
     "title": "إعدادات المنصة",

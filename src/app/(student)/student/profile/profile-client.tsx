@@ -10,6 +10,7 @@ interface Profile {
   id: string
   full_name: string
   email: string
+  member_code?: string
   role: string
   is_active: boolean
   created_at: string
@@ -118,16 +119,32 @@ export function StudentProfileClient({ profile, fourPartName = null, groups, aff
             {t('nameLocked', { institution: profile.tenants?.name ?? t('institution') })}
           </p>
         </div>
-        <div className="space-y-1.5">
-          <label htmlFor="profile-email" className="block text-sm font-medium text-slate-300">{t('email')}</label>
-          <input
-            id="profile-email"
-            value={profile.email}
-            disabled
-            className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed"
-          />
-          <p className="text-xs text-slate-500">{t('emailLocked')}</p>
-        </div>
+        {profile.member_code && (
+          <div className="space-y-1.5">
+            <label htmlFor="profile-member-code" className="block text-sm font-medium text-slate-300">{t('memberId')}</label>
+            <input
+              id="profile-member-code"
+              value={profile.member_code}
+              readOnly
+              dir="ltr"
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-white font-mono text-sm cursor-default"
+            />
+            <p className="text-xs text-slate-500">{t('memberIdHint')}</p>
+          </div>
+        )}
+        {/* An account created by ID has no email: its email field holds the ID. */}
+        {profile.email !== profile.member_code && (
+          <div className="space-y-1.5">
+            <label htmlFor="profile-email" className="block text-sm font-medium text-slate-300">{t('email')}</label>
+            <input
+              id="profile-email"
+              value={profile.email}
+              disabled
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-500">{t('emailLocked')}</p>
+          </div>
+        )}
       </div>
 
       {/* My Groups */}

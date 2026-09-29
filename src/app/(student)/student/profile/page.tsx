@@ -19,7 +19,7 @@ export default async function StudentProfilePage() {
   const [{ data: profile }, ownName] = await Promise.all([
     supabase
       .from('users')
-      .select('id, full_name, email, role, is_active, is_university_student, created_at, tenants(name, slug)')
+      .select('*, tenants(name, slug)') // '*' so member_code arrives once member_code_migration.sql is applied
       .eq('id', user.id)
       .single(),
     // The four parts: readable by this student alone (everyone else sees

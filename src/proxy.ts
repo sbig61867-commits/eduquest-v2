@@ -18,7 +18,7 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // scripts/copy-human-models.mjs); the proxy matcher only skips images.
 // /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
 // and is gated by CRON_SECRET inside the route instead.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
@@ -31,6 +31,12 @@ const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
 
 function isMutatingApiRequest(request: NextRequest, pathname: string): boolean {
   return pathname.startsWith('/api/') && MUTATING_METHODS.has(request.method)
+}
+
+const CHANGE_PASSWORD_PATH = '/change-password'
+
+function mustChangePassword(user: { app_metadata?: Record<string, unknown> }): boolean {
+  return user.app_metadata?.must_change_password === true
 }
 
 const ROLE_ROUTES: Record<string, Role[]> = {
@@ -199,6 +205,9 @@ export async function proxy(request: NextRequest) {
       if (isActive === false) {
         return localized ? rewriteLocalized(request, supabaseResponse, localized.locale, localized.path) : supabaseResponse
       }
+      if (mustChangePassword(user)) {
+        return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
+      }
       if (role && ROLE_DASHBOARDS[role]) {
         return NextResponse.redirect(new URL(ROLE_DASHBOARDS[role], request.url))
       }
@@ -261,6 +270,17 @@ export async function proxy(request: NextRequest) {
   if (role !== 'super_admin' && !tenantId) {
     return NextResponse.redirect(new URL('/login?error=university_removed', request.url))
   }
+
+  // A temporary password set by staff must be replaced before anything else.
+  // The flag lives in app_metadata (service-role only), so it rides in the JWT
+  // and costs no query; /api/auth/change-password clears it.
+  if (mustChangePassword(user) && pathname !== CHANGE_PASSWORD_PATH && pathname !== '/api/auth/change-password') {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Password change required' }, { status: 403 })
+    }
+    return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
+  }
+  if (pathname === CHANGE_PASSWORD_PATH) return supabaseResponse
 
   // RBAC check
   for (const [routePrefix, allowedRoles] of Object.entries(ROLE_ROUTES)) {

@@ -12,7 +12,7 @@ import { toast } from '@/components/ui/toast'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
-import { Search, UserPlus, Mail, Power, GraduationCap, Lock, PenLine } from 'lucide-react'
+import { Search, UserPlus, Mail, Power, GraduationCap, Lock, PenLine, Copy } from 'lucide-react'
 import type { ScopeBlock } from '@/lib/account-scope'
 import { checkNameParts, EMPTY_NAME_PARTS, type NameParts } from '@/lib/person-name'
 import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
@@ -45,7 +45,11 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
   const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<'invite' | 'account'>('invite')
+  const [mode, setMode] = useState<'invite' | 'account' | 'byId'>('invite')
+  // A student account without an email: member ID + temporary password,
+  // shown once in the dialog (src/app/api/admin/create-user/route.ts).
+  const tInv = useTranslations('staff.invitations')
+  const [issued, setIssued] = useState<{ name: string; code: string; password: string } | null>(null)
   const [form, setForm] = useState({ full_name: '', email: '', password: '' })
   const [nameParts, setNameParts] = useState<NameParts>(EMPTY_NAME_PARTS)
   const [showNameErrors, setShowNameErrors] = useState(false)
@@ -61,6 +65,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
 
   function close() {
     setOpen(false)
+    setIssued(null)
     setForm({ full_name: '', email: '', password: '' })
     setNameParts(EMPTY_NAME_PARTS)
     setShowNameErrors(false)
@@ -68,8 +73,8 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
   }
 
   async function submit() {
-    if (!form.email.trim()) return toast.error(t('emailRequired'))
-    if (mode === 'account' && isStudent && !checkNameParts(nameParts).ok) {
+    if (mode !== 'byId' && !form.email.trim()) return toast.error(t('emailRequired'))
+    if (mode !== 'invite' && isStudent && !checkNameParts(nameParts).ok) {
       setShowNameErrors(true)
       return toast.error(tName('incomplete'))
     }
@@ -88,9 +93,8 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...form,
+            ...(mode === 'byId' ? { login_mode: 'member_id' } : { ...form, email: form.email.trim() }),
             ...(isStudent ? { full_name: undefined, name_parts: nameParts } : { full_name: form.full_name.trim() }),
-            email: form.email.trim(),
             role,
             ...(showAffiliation ? { is_university_student: isUniversityStudent } : {}),
           }),
@@ -103,6 +107,14 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
     } else {
       toast.success(t(`${role}.created`))
       if (data.user) setPeople(prev => [data.user as PersonRow, ...prev])
+      if (mode === 'byId') {
+        // Keep the dialog open: the temporary password is shown only here.
+        setIssued({ name: data.user?.full_name ?? '', code: data.member_code ?? '', password: data.temp_password ?? '' })
+        setNameParts(EMPTY_NAME_PARTS)
+        setShowNameErrors(false)
+        router.refresh()
+        return
+      }
     }
     close()
     router.refresh()
@@ -232,22 +244,40 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
       <Modal open={open} onClose={close} title={t(`${role}.add`)}>
         <div className="space-y-4">
           <div className="flex gap-2">
-            {(['invite', 'account'] as const).map(m => (
+            {(isStudent ? ['invite', 'account', 'byId'] as const : ['invite', 'account'] as const).map(m => (
               <button
                 key={m}
-                onClick={() => setMode(m)}
+                onClick={() => { setMode(m); setIssued(null) }}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-colors ${
                   mode === m ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
                 }`}
-              >{m === 'invite' ? t('modeInvite') : t('modeAccount')}</button>
+              >{m === 'invite' ? t('modeInvite') : m === 'byId' ? tInv('accountById') : t('modeAccount')}</button>
             ))}
           </div>
           <p className="text-slate-500 text-xs">
             {mode === 'invite'
               ? t('inviteHint')
-              : t('accountHint')}
+              : mode === 'byId' ? tInv('accountByIdNote') : t('accountHint')}
           </p>
-          {mode === 'account' && (isStudent ? (
+          {issued && (
+            <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
+              <p className="text-emerald-300 text-sm">{tInv('accountByIdCreated', { name: issued.name })}</p>
+              {[
+                { label: tInv('memberIdLabel'), value: issued.code },
+                { label: tInv('tempPasswordLabel'), value: issued.password },
+              ].map(row => (
+                <div key={row.label} className="flex items-center gap-2 bg-slate-950 rounded-lg px-3 py-2">
+                  <span className="text-slate-400 text-xs w-28 shrink-0">{row.label}</span>
+                  <code dir="ltr" className="text-white font-mono text-sm flex-1">{row.value}</code>
+                  <button type="button" aria-label={tInv('copy')} onClick={() => navigator.clipboard.writeText(row.value)} className="text-slate-400 hover:text-white shrink-0">
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <p className="text-amber-300 text-xs">{tInv('tempPasswordOnce')}</p>
+            </div>
+          )}
+          {mode !== 'invite' && (isStudent ? (
             <FourPartNameFields
               idPrefix="new-student-name"
               value={nameParts}
@@ -259,8 +289,10 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
             <Input label={t('fullName')} value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
           ))}
-          <Input label={t('email')} type="email" dir="ltr" value={form.email}
-            onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          {mode !== 'byId' && (
+            <Input label={t('email')} type="email" dir="ltr" value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          )}
           {mode === 'account' && (
             <Input label={t('tempPassword')} type="password" dir="ltr" value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />

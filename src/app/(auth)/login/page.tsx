@@ -9,6 +9,8 @@ import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
 import type enAuth from '@/messages/en/auth.json'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
+import { googleSignInEnabled } from '@/lib/google-sign-in'
+import { isMemberCode, normalizeMemberCode } from '@/lib/member-code'
 
 // Sign-in shares the public surface's look (`.eq-public`, light and dark —
 // src/app/globals.css): a form on one side and, on large screens, a showcase
@@ -152,6 +154,21 @@ function LoginForm() {
     setLoading(true)
     setError('')
 
+    // A member ID (QOU-S48203917) is resolved and signed in on the server;
+    // anything else is an email, signed in directly.
+    if (isMemberCode(email)) {
+      const res = await fetch('/api/auth/login-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: normalizeMemberCode(email), password }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(body.error ?? t('errors.default')); setLoading(false); return }
+      // A full load, so the browser client picks up the cookies the server set.
+      window.location.replace(body.mustChangePassword ? '/change-password' : body.role ? getRoleDashboardPath(body.role as Role) : '/login')
+      return
+    }
+
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError) {
@@ -169,6 +186,10 @@ function LoginForm() {
         const { data: profile } = await supabase
           .from('users').select('role').eq('id', data.user.id).single()
         role = profile?.role as Role | undefined
+      }
+      if (data.user.app_metadata?.must_change_password === true) {
+        router.replace('/change-password')
+        return
       }
       if (role) {
         // Leave the button in its loading state until the dashboard replaces
@@ -215,17 +236,18 @@ function LoginForm() {
 
             <form onSubmit={handleLogin} className="mt-4 space-y-5">
               <div>
-                <label htmlFor="login-email" className="block text-sm font-medium text-slate-300 mb-2">{t('email')}</label>
+                <label htmlFor="login-email" className="block text-sm font-medium text-slate-300 mb-2">{t('emailOrId')}</label>
                 <input
                   id="login-email"
-                  type="email"
-                  autoComplete="email"
+                  type="text"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoComplete="username"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
                   dir="ltr"
                   className={INPUT}
-                  placeholder="you@school.edu"
                 />
               </div>
               <div>
@@ -269,6 +291,7 @@ function LoginForm() {
               </button>
             </form>
 
+            {googleSignInEnabled() && (<>
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-slate-800" />
               <span className="text-xs text-slate-500">{t('or')}</span>
@@ -284,6 +307,7 @@ function LoginForm() {
               <GoogleIcon />
               {googleLoading ? t('googleLoading') : t('google')}
             </button>
+            </>)}
 
             <p className="mt-8 text-slate-500 text-sm leading-relaxed border-s-2 border-slate-700 ps-3">{t('invitationNote')}</p>
           </div>

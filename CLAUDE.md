@@ -215,7 +215,32 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-09-29 (all four applied after the first green backup, run 36563522418).
+- `member_code_migration.sql` (2026-09-29, **written, NOT dry-run or applied**) — permanent unique account ID
+  `users.member_code` = `<tenants.code>-<role letter><8 random digits>` (not a counter — IDs must not be guessable) (e.g. `QOU-S48203917`; A admin · M centre manager ·
+  T teacher · S student · P owner with prefix `EQ`). Issued once by trigger `users_assign_member_code` (BEFORE INSERT;
+  on UPDATE it restores the old value, so no RLS change); digits from `gen_random_uuid()`, retried until unused,
+  unique index as the final guard. `tenants.code` (2–6 `A-Z0-9`, unique, not `EQ`) backfilled
+  `T001…`, auto-assigned when left empty, renamed on the card in `/super-admin/tenants` (old IDs keep their prefix).
+  Owner lookup: `GET /api/admin/member-lookup?code=` (super_admin) + «البحث بمعرّف المستخدم» on `/super-admin/users`.
+  Until applied the lookup answers 409 `memberCodeNotReady` and the code field/labels stay hidden.
+
+## Sign-in (2026-09-29)
+
+- **Google sign-in is hidden** (awaiting Google verification): `src/lib/google-sign-in.ts`, shown only with
+  `NEXT_PUBLIC_GOOGLE_SIGNIN=on` (rebuild). `/auth/callback` is unchanged.
+- **Sign-in by member ID**: the login field takes an email or an ID (`QOU-S48203917`, `src/lib/member-code.ts`);
+  an ID goes to `POST /api/auth/login-id` (public prefix in the proxy, rate-limited per IP and per ID), which
+  resolves it to the auth email with the service role and signs in server-side. Unknown ID = wrong password.
+- **Student account by ID (no email)**: `create-user` with `login_mode: 'member_id'` (students only, needs
+  `member_code_migration.sql` → else 409 `memberCodeNotReady`). Auth email = `<uuid>@no-email.invalid`
+  (`src/lib/member-login.ts`); `public.users.email` is then set to the member code, so every screen shows the ID
+  and `/api/mail/send` skips it. Returns `member_code` + a generated `temp_password` once. UI: «بمعرّف (بدون إيميل)»
+  on the invitations screen (direct account) and the centre people dialog.
+- **Forced password change**: every account `create-user` makes gets `app_metadata.must_change_password = true`
+  (service-role only). `src/proxy.ts` sends such a user to `/change-password` (APIs answer 403) until
+  `POST /api/auth/change-password` sets the new password (must differ from the temporary one) and clears the flag;
+  the page then calls `refreshSession()` so the JWT drops it. Invitation/Google accounts chose their own password
+  and never carry the flag.
 
 ## Centre manager panel
 

@@ -11,7 +11,8 @@ import { toTenantSettings } from '@/lib/structure-mode'
 // same round-trip when they exist, and are simply absent when they don't —
 // this used to be a second, separate tenants query on every load.
 const PROFILE_SELECT =
-  'id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, is_university_student, created_at, tenants(*)'
+  // '*' so member_code (member_code_migration.sql) arrives once it exists, without breaking before.
+  '*, tenants(*)'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setTenant, setLoading, reset } = useAuthStore()

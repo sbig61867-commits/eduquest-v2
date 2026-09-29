@@ -173,6 +173,19 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
     router.refresh()
   }
 
+  // Prefix of the institution's member codes. Existing codes keep their old
+  // prefix — a member code never changes once issued.
+  async function changeCode(tenant: Tenant, raw: string) {
+    const code = raw.trim().toUpperCase()
+    if (code === (tenant.code ?? '')) return
+    if (!/^[A-Z0-9]{2,6}$/.test(code) || code === 'EQ') { toast.error(t('codeInvalid')); return }
+    const { data, error: err } = await supabase
+      .from('tenants').update({ code }).eq('id', tenant.id).select().single()
+    if (err) { toast.error(err.code === '23505' ? t('codeTaken') : err.message); return }
+    setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
+    toast.success(t('codeSaved'))
+  }
+
   // The academic structure is opt-in per institution; the original ('flat')
   // structure stays the default. Switching back never deletes anything.
   async function changeHasCenter(tenant: Tenant, has_center: boolean) {
@@ -260,6 +273,18 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
               </div>
               <h3 className="text-white font-semibold text-lg mb-1">{tenant.name}</h3>
               <p className="text-slate-500 text-sm mb-1 font-mono">{tenant.slug}</p>
+              {tenant.code !== undefined && (
+                <label className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+                  {t('codeLabel')}
+                  <input
+                    defaultValue={tenant.code}
+                    maxLength={6}
+                    onBlur={e => changeCode(tenant, e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                    className="w-24 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-mono uppercase px-2 py-1"
+                  />
+                </label>
+              )}
               <select
                 aria-label={t('typeLabel')}
                 value={tenant.institution_type ?? 'university'}
