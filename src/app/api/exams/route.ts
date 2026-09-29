@@ -1,3 +1,4 @@
+import { normalizeSebKey } from '@/lib/seb'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -61,11 +62,17 @@ export async function POST(request: Request) {
   let body: {
     title?: string; group_id?: string; course_id?: string; kind?: 'exam' | 'homework'
     duration_minutes?: number; proctoring_enabled?: boolean; questions?: Question[]; due_date?: string | null
+    /** Optional SEB Config Key (64 hex); requires seb_config_key_migration.sql. */
+    seb_config_key?: string | null
   }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const { title, group_id, course_id, duration_minutes, proctoring_enabled, questions, due_date } = body
+  // SEB is for proctored exams only; a malformed key is refused, not ignored.
+  const sebRaw = typeof body.seb_config_key === 'string' ? body.seb_config_key.trim() : ''
+  const sebKey = sebRaw ? normalizeSebKey(sebRaw) : null
+  if (sebRaw && !sebKey) return NextResponse.json({ ...(await apiErr('sebKeyInvalid')) }, { status: 400 })
   const kind = body.kind ?? 'exam'
   // An exam belongs to exactly one group OR one course (DB CHECK
   // exam_must_belong_to_group_or_course). Group homework is created from its
@@ -113,12 +120,16 @@ export async function POST(request: Request) {
       proctoring_enabled: kind === 'exam' ? (proctoring_enabled ?? false) : false,
       ends_at: dueAt ? dueAt.toISOString() : null,
       questions: questions ?? [],
+      // Only sent when set, so creating exams keeps working before the migration.
+      ...(sebKey && kind === 'exam' && proctoring_enabled ? { seb_config_key: sebKey } : {}),
     })
     .select('*, groups(name), courses(title)')
     .single()
 
   if (error) {
     console.error('[api/exams POST]', error)
+    // 42703 = undefined column: the SEB migration is not applied yet.
+    if (sebKey && error.code === '42703') return NextResponse.json({ ...(await apiErr('sebNeedsMigration')) }, { status: 409 })
     return NextResponse.json({ ...(await apiErr('examCreateFailed')) }, { status: 500 })
   }
 

@@ -12,6 +12,8 @@ import { toast } from '@/components/ui/toast'
 import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload, GraduationCap, UserRoundPen, MessageSquareText } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
+import { SimilarityPanel } from '@/components/teacher/similarity-panel'
+import type { SimilarPair } from '@/lib/answer-similarity'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import type { Question } from '@/types'
 import { useTranslations, useLocale } from 'next-intl'
@@ -36,6 +38,8 @@ interface ExamResults {
   counts_toward_grade?: boolean
   instructions?: string | null
   attachment_urls?: string[]
+  /** Collusion hints between submitted students (src/lib/answer-similarity.ts). */
+  similarity?: SimilarPair[]
 }
 
 const isAutoQ = (q: Question) => q.type === 'mcq' || q.type === 'true_false'
@@ -62,6 +66,8 @@ interface Props {
 interface ExamForm {
   title: string; target: 'group' | 'course'; group_id: string; course_id: string; kind: Kind
   duration_minutes: number; proctoring_enabled: boolean; due_date: string
+  /** Optional Safe Exam Browser Config Key (proctored exams). */
+  seb_config_key?: string
 }
 
 export function ExamsClient({ initialExams, groups, courses = [], proctoringDefault = false, openFor, openResultsFor }: Props) {
@@ -212,6 +218,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
         ...(toCourse ? { course_id: form.course_id, kind: form.kind } : { group_id: form.group_id }),
         duration_minutes: form.duration_minutes,
         proctoring_enabled: form.proctoring_enabled,
+        seb_config_key: form.kind === 'exam' && form.proctoring_enabled ? (form.seb_config_key ?? '').trim() || null : null,
         // datetime-local is the teacher's local time; send an absolute instant.
         due_date: toCourse && form.kind === 'homework' && form.due_date ? new Date(form.due_date).toISOString() : null,
         questions,
@@ -485,6 +492,13 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
                 <span className="text-slate-300 text-sm flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-400" />{t('exams.modal.proctoringLabel')}</span>
               </label>
             )}
+            {form.kind === 'exam' && form.proctoring_enabled && (
+              <div className="space-y-1">
+                <Input label={t('exams.modal.sebLabel')} value={form.seb_config_key ?? ''} dir="ltr"
+                  onChange={e => setForm(p => ({ ...p, seb_config_key: e.target.value }))} placeholder={t('exams.modal.sebPlaceholder')} />
+                <p className="text-slate-500 text-xs">{t('exams.modal.sebHint')}</p>
+              </div>
+            )}
 
             {questions.length > 0 && (
               <div className="space-y-2">
@@ -585,6 +599,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
                 )}
               </div>
             )}
+            <SimilarityPanel pairs={results.similarity ?? []} />
             {results.results.length === 0 ? (
               <p className="text-slate-500 text-sm py-6 text-center">{t('exams.results.noStudents')}</p>
             ) : (

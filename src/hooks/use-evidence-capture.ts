@@ -92,6 +92,8 @@ export function useEvidenceCapture(
       case 'suspicious_activity':   // phone / book / laptop
       case 'multiple_faces':        // another person
       case 'fullscreen_exit':       // immediate on first exit
+      case 'face_mismatch':         // a different person than at the start
+      case 'spoof_detected':        // a photo / screen held up
         doCapture(type)
         break
 

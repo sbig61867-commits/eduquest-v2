@@ -20,6 +20,9 @@ import { WATCHING_ATTRIBUTE, parseWatching } from '@/lib/live-channel'
 // processing twice (choppy, noisy sound) and doubled the CPU load.
 //
 // livekit-client (~480 KB) is imported only AFTER a token is granted.
+const TOKEN_ATTEMPTS = 4
+const TOKEN_RETRY_MS = 1_000 // waits 1 s, 2 s, 3 s between attempts
+
 export function useLivePublish(
   examId: string,
   active: boolean,
@@ -36,22 +39,29 @@ export function useLivePublish(
     const end = () => { if (!cancelled) onEndedRef.current?.() }
 
     ;(async () => {
-      // Retry the token fetch up to 3 times (network blips are common).
+      // Retry the token fetch (network blips are common). A 409 is retried
+      // too: the teacher updates its LiveKit `watching` attribute and then
+      // signals the student at once, so the student's first request can reach
+      // the server a moment before LiveKit reports the new attribute (seen on
+      // the first real phone test). Only a 409 that persists means "not
+      // watched" and ends the attempt.
       let token: string | null = null
       let url: string | null = null
       let teacher: string | null = null
       let self: string | null = null
-      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+      let notWatched = false
+      for (let attempt = 0; attempt < TOKEN_ATTEMPTS && !cancelled; attempt++) {
         try {
-          if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt))
+          if (attempt > 0) await new Promise(r => setTimeout(r, TOKEN_RETRY_MS * attempt))
+          if (cancelled) return
           const res = await fetch('/api/proctor/live-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ examId, role: 'student' }),
           })
-          if (res.status === 503) return          // LiveKit not configured
-          if (res.status === 409) { end(); return } // teacher is not watching this student
-          if (!res.ok) continue                    // transient error, retry
+          if (res.status === 503) return           // LiveKit not configured
+          notWatched = res.status === 409          // not (yet) watched
+          if (!res.ok) continue                     // transient error or 409, retry
           const json = await res.json()
           token = json.token; url = json.url; teacher = json.teacher ?? null; self = json.identity ?? null
           break
@@ -59,7 +69,8 @@ export function useLivePublish(
           // network error — retry
         }
       }
-      if (!token || !url || cancelled) return
+      if (cancelled) return
+      if (!token || !url) { if (notWatched) end(); return }
 
       const stream = streamRef.current
       if (!stream) return

@@ -32,7 +32,11 @@ export function useFaceDetection(
   enabled: boolean,
   onViolation: OnViolation,
   onUnavailable?: OnUnavailable,
+  /** Called after every analysed frame — feeds the monitoring coverage. */
+  onFrame?: () => void,
 ) {
+  const onFrameRef = useRef(onFrame)
+  useEffect(() => { onFrameRef.current = onFrame }, [onFrame])
   const detectorRef = useRef<FaceDetectorInstance | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Latest callback without re-initialising the model when its identity changes.
@@ -48,6 +52,7 @@ export function useFaceDetection(
       const result = detectorRef.current.detectForVideo(video, performance.now())
       const faces = result.detections ?? []
       const faceCount = faces.length
+      onFrameRef.current?.()
 
       if (faceCount === 0) {
         onViolation('face_not_detected', 'No face visible in camera')

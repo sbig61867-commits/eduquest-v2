@@ -23,10 +23,27 @@ export const EVIDENCE_ROOT = 'evidence'
 
 export const SEVERE_EVIDENCE_TYPES = [
   'suspicious_activity', 'multiple_faces', 'face_not_detected', 'tab_switch', 'fullscreen_exit',
+  'face_mismatch', 'spoof_detected',
 ] as const
-export type EvidenceType = (typeof SEVERE_EVIDENCE_TYPES)[number]
+/** A clip the exam's teacher asked for ("the last 30 seconds"), not tied to a violation. */
+export const ON_REQUEST = 'on_request'
+/** The student's slow turn of the camera around the room at the start (one per attempt). */
+export const ROOM_SCAN = 'room_scan'
+export type EvidenceType = (typeof SEVERE_EVIDENCE_TYPES)[number] | typeof ON_REQUEST | typeof ROOM_SCAN
 
-export type EvidenceExt = 'webp' | 'jpg'
+export type EvidenceExt = 'webp' | 'jpg' | 'webm' | 'mp4'
+
+// ── Evidence clips (short videos) ──
+// The student's device keeps the last few 10-second segments of its own
+// camera + microphone IN MEMORY only. A segment is uploaded only for a severe
+// violation or when the exam's teacher asks for the last 30 seconds; the rest
+// is overwritten. Same store, same 30-hour expiry, same teacher-only access
+// as snapshots — never Supabase.
+export const CLIP_SEGMENT_MS = 10_000
+/** ~10 s at ~180 kbps is ~230 KB; anything far above is not one of our clips. */
+export const CLIP_MAX_BYTES = 900 * 1024
+/** Separate cap from snapshots, per student per exam (the client mirrors it). */
+export const CLIP_MAX_PER_STUDENT = 6
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -34,8 +51,18 @@ export function isUuid(v: unknown): v is string {
   return typeof v === 'string' && UUID.test(v)
 }
 
-export function isEvidenceType(v: unknown): v is EvidenceType {
+/** A severe violation type — what the student's device may attach evidence to. */
+export function isEvidenceType(v: unknown): v is Exclude<EvidenceType, typeof ON_REQUEST | typeof ROOM_SCAN> {
   return typeof v === 'string' && (SEVERE_EVIDENCE_TYPES as readonly string[]).includes(v)
+}
+
+/** Any type an evidence key may carry (severe violations + teacher requests). */
+export function isEvidenceKeyType(v: unknown): v is EvidenceType {
+  return v === ON_REQUEST || v === ROOM_SCAN || isEvidenceType(v)
+}
+
+export function isClipExt(ext: EvidenceExt): boolean {
+  return ext === 'webm' || ext === 'mp4'
 }
 
 export function examPrefix(examId: string): string {
@@ -60,8 +87,8 @@ export interface ParsedEvidenceKey {
 
 /** Parses a key produced by evidenceKey(); anything else returns null. */
 export function parseEvidenceKey(key: string): ParsedEvidenceKey | null {
-  const m = /^evidence\/([^/]+)\/([^/]+)\/(\d{10,16})-([a-z_]+)\.(webp|jpg)$/.exec(key)
-  if (!m || !isUuid(m[1]) || !isUuid(m[2]) || !isEvidenceType(m[4])) return null
+  const m = /^evidence\/([^/]+)\/([^/]+)\/(\d{10,16})-([a-z_]+)\.(webp|jpg|webm|mp4)$/.exec(key)
+  if (!m || !isUuid(m[1]) || !isUuid(m[2]) || !isEvidenceKeyType(m[4])) return null
   return { key, examId: m[1], studentId: m[2], capturedAt: Number(m[3]), type: m[4] }
 }
 
@@ -80,7 +107,8 @@ export function linkSeconds(capturedAt: number, now: number = Date.now()): numbe
 }
 
 export function extOf(key: string): EvidenceExt {
-  return key.endsWith('.jpg') ? 'jpg' : 'webp'
+  const ext = key.slice(key.lastIndexOf('.') + 1)
+  return ext === 'jpg' || ext === 'webm' || ext === 'mp4' ? ext : 'webp'
 }
 
 /**
@@ -98,6 +126,15 @@ export function evidenceKeysFromEvents(events: unknown): ParsedEvidenceKey[] {
     if (parsed) seen.set(key, parsed)
   }
   return [...seen.values()]
+}
+
+/** Detects a clip's container from its first bytes (never trust the client's label). */
+export function sniffEvidenceVideo(bytes: Uint8Array): 'webm' | 'mp4' | null {
+  // WebM / Matroska: EBML header 1A 45 DF A3
+  if (bytes.length > 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return 'webm'
+  // MP4 (Safari's MediaRecorder): 'ftyp' box at offset 4
+  if (bytes.length > 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) return 'mp4'
+  return null
 }
 
 /** Detects the image format from its first bytes (never trust the client's label). */

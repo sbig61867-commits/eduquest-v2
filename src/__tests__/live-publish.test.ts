@@ -79,15 +79,28 @@ describe('useLivePublish', () => {
     expect(connect).not.toHaveBeenCalled()
   })
 
-  it('stops when the server says the teacher is not watching (409)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 409 })))
+  it('retries a 409 once the teacher has had time to announce the watch', async () => {
+    // First request races the teacher's LiveKit attribute update; the retry wins.
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 409 }))
+      .mockImplementation(async () => tokenResponse()))
     const onEnded = vi.fn()
     const { stream } = fakeStream()
     renderHook(() => useLivePublish('exam-1', true, { current: stream }, onEnded))
-    await waitFor(() => expect(onEnded).toHaveBeenCalled())
-    expect(connect).not.toHaveBeenCalled()
-    expect(fetch).toHaveBeenCalledTimes(1) // no retries
+    await waitFor(() => expect(publishTrack).toHaveBeenCalledTimes(2), { timeout: 4000 })
+    expect(onEnded).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
+
+  it('gives up when the server keeps saying the teacher is not watching (409)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(null, { status: 409 })))
+    const onEnded = vi.fn()
+    const { stream } = fakeStream()
+    renderHook(() => useLivePublish('exam-1', true, { current: stream }, onEnded))
+    await waitFor(() => expect(onEnded).toHaveBeenCalled(), { timeout: 9000 })
+    expect(connect).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledTimes(4)
+  }, 12_000)
 
   it('leaves as soon as the teacher leaves or stops watching this student', async () => {
     const onEnded = vi.fn()

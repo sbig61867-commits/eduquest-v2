@@ -63,3 +63,6 @@ public/capture-admin/
 /dist/
 .vinext/
 .wrangler/
+
+# Copied from node_modules/@vladmandic/human by scripts/copy-human-models.mjs
+public/models/human/

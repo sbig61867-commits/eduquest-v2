@@ -43,3 +43,19 @@ describe('proxy edge cache for /<locale>/ marketing pages', () => {
     expect(res.headers.get('Vercel-CDN-Cache-Control')).toBeNull()
   })
 })
+
+describe('proxy public paths for proctoring', () => {
+  beforeEach(() => { session.claims = null })
+
+  it('serves the on-device models and the phone camera page without a session', async () => {
+    for (const path of ['/models/human/blazeface.json', '/models/human/faceres.bin', '/cam/abc.def']) {
+      const res = await proxy(new NextRequest(`https://eduquest.test${path}`))
+      expect(res.headers.get('location')).toBeNull()
+    }
+  })
+
+  it('still sends a signed-out visitor away from the student area', async () => {
+    const res = await proxy(new NextRequest('https://eduquest.test/student/exams'))
+    expect(res.headers.get('location')).toContain('/login')
+  })
+})

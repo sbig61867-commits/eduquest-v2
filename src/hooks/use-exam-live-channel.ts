@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { WATCH_EVENT, liveTopic, watchPayloadIncludes, type StudentPresence } from '@/lib/live-channel'
+import { CLIP_EVENT, THUMBS_EVENT, THUMBS_TIMEOUT_MS, WATCH_EVENT, liveTopic, watchPayloadIncludes, type StudentPresence } from '@/lib/live-channel'
 
 // The student's side of the per-exam live channel (see src/lib/live-channel.ts).
 // It announces the student to the teacher's page and returns whether the
@@ -18,8 +18,15 @@ export function useExamLiveChannel(
   userId: string,
   active: boolean,
   counts: StudentPresence,
-): { watched: boolean; stopWatching: () => void } {
+  /** The teacher asked this student for the last `seconds` of evidence clips. */
+  onClipRequest?: (seconds: number) => void,
+): { watched: boolean; stopWatching: () => void; thumbsOn: boolean } {
+  const onClipRequestRef = useRef(onClipRequest)
+  useEffect(() => { onClipRequestRef.current = onClipRequest }, [onClipRequest])
   const [watched, setWatched] = useState(false)
+  // Thumbnail wall: on while the teacher keeps saying so (see live-channel.ts).
+  const [thumbsOn, setThumbsOn] = useState(false)
+  const thumbsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const subscribedRef = useRef(false)
   const countsRef = useRef(counts)
@@ -45,6 +52,18 @@ export function useExamLiveChannel(
         .on('broadcast', { event: WATCH_EVENT }, ({ payload }) => {
           setWatched(watchPayloadIncludes(payload, userId))
         })
+        .on('broadcast', { event: THUMBS_EVENT }, ({ payload }) => {
+          const on = (payload as { on?: unknown } | null)?.on === true
+          setThumbsOn(on)
+          if (thumbsTimerRef.current) clearTimeout(thumbsTimerRef.current)
+          if (on) thumbsTimerRef.current = setTimeout(() => setThumbsOn(false), THUMBS_TIMEOUT_MS)
+        })
+        // Only the exam's teacher can broadcast here (RLS), so this is trusted.
+        .on('broadcast', { event: CLIP_EVENT }, ({ payload }) => {
+          if (!watchPayloadIncludes(payload, userId)) return
+          const seconds = Number((payload as { seconds?: unknown }).seconds)
+          onClipRequestRef.current?.(Number.isFinite(seconds) ? Math.min(Math.max(seconds, 10), 30) : 30)
+        })
         .subscribe(status => {
           subscribedRef.current = status === 'SUBSCRIBED'
           if (status === 'SUBSCRIBED') {
@@ -58,6 +77,7 @@ export function useExamLiveChannel(
       cancelled = true
       subscribedRef.current = false
       if (pendingRef.current) { clearTimeout(pendingRef.current); pendingRef.current = null }
+      if (thumbsTimerRef.current) { clearTimeout(thumbsTimerRef.current); thumbsTimerRef.current = null }
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
@@ -78,5 +98,5 @@ export function useExamLiveChannel(
   }, [counts.v, counts.ev])
 
   const stopWatching = useCallback(() => setWatched(false), [])
-  return { watched, stopWatching }
+  return { watched, stopWatching, thumbsOn }
 }

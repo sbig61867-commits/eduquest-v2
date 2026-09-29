@@ -23,7 +23,7 @@ import type { EvidenceExt } from './evidence-keys'
 
 export type EvidenceBackend = 'kv' | 's3'
 
-const CONTENT_TYPE: Record<EvidenceExt, string> = { webp: 'image/webp', jpg: 'image/jpeg' }
+const CONTENT_TYPE: Record<EvidenceExt, string> = { webp: 'image/webp', jpg: 'image/jpeg', webm: 'video/webm', mp4: 'video/mp4' }
 
 // ── Workers KV ───────────────────────────────────────────────────────────────
 

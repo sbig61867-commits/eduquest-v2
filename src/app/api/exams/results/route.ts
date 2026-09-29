@@ -1,3 +1,5 @@
+import { isViolation } from '@/lib/proctoring-events'
+import { findSimilarPairs, type SimilarityQuestion } from '@/lib/answer-similarity'
 import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -73,10 +75,10 @@ export async function GET(request: Request) {
     // An attempt that was started but not handed in is not a submission.
     const found = subByStudent.get(r.student_id)
     const s = found?.status === 'submitted' ? found : undefined
-    // detector_unavailable = a detector failed to load on the student's
-    // device (partial monitoring) — recorded for the teacher, never a violation.
+    // Only violations count; signals (pasting) and monitoring info (a
+    // detector that failed to load, coverage) never flag an attempt.
     const events = ((s?.proctoring_events as Array<{ type?: string }> | null) ?? [])
-      .filter(e => e?.type !== 'detector_unavailable')
+      .filter(isViolation)
     return {
       student_id: r.student_id,
       submission_id: s?.id ?? null,
@@ -113,5 +115,10 @@ export async function GET(request: Request) {
     instructions: exam.instructions ?? null,
     attachment_urls: await signExamFiles(Array.isArray(exam.attachments) ? exam.attachments : [], admin),
     results,
+    // Collusion hints between submitted students (computed here, stored nowhere).
+    similarity: exam.assigned_student_id ? [] : findSimilarPairs(
+      (exam.questions ?? []) as SimilarityQuestion[],
+      results.filter(r => r.submitted).map(r => ({ studentId: r.student_id, name: r.name, answers: r.answers })),
+    ),
   })
 }

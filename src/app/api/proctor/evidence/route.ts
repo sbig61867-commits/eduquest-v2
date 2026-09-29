@@ -7,7 +7,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import {
   EVIDENCE_MAX_BYTES, EVIDENCE_MAX_PER_STUDENT, EVIDENCE_TTL_HOURS,
   evidenceKey, evidenceKeysFromEvents, expiresAt, isEvidenceType, isExpired, isUuid, linkSeconds,
-  sniffEvidenceImage,
+  sniffEvidenceImage, isClipExt, extOf,
 } from '@/lib/evidence-keys'
 import { evidenceViewUrl, isEvidenceStoreConfigured, putEvidence } from '@/lib/evidence-store'
 
@@ -73,7 +73,8 @@ export async function POST(request: Request) {
     .from('exam_submissions').select('status, proctoring_events')
     .eq('exam_id', examId).eq('student_id', user.id).maybeSingle()
   if (!attempt || attempt.status !== 'in_progress') return NextResponse.json({ stored: false, reason: 'not_in_progress' })
-  if (evidenceKeysFromEvents(attempt.proctoring_events).length >= EVIDENCE_MAX_PER_STUDENT) {
+  // Snapshots only: clips have their own cap (evidence/clip/route.ts).
+  if (evidenceKeysFromEvents(attempt.proctoring_events).filter(k => !isClipExt(extOf(k.key))).length >= EVIDENCE_MAX_PER_STUDENT) {
     return NextResponse.json({ stored: false, reason: 'limit_reached' })
   }
 
@@ -107,6 +108,8 @@ export interface EvidenceItem {
   capturedAt: string
   expiresAt: string
   url: string
+  /** A snapshot, or a short video clip (src/lib/evidence-keys.ts). */
+  media: 'image' | 'video'
 }
 
 // GET /api/proctor/evidence?examId=…  → the exam teacher's live snapshot feed
@@ -154,6 +157,7 @@ export async function GET(request: Request) {
       capturedAt: new Date(k.capturedAt).toISOString(),
       expiresAt: new Date(expiresAt(k.capturedAt)).toISOString(),
       url,
+      media: isClipExt(extOf(k.key)) ? 'video' : 'image',
     })
   }
 

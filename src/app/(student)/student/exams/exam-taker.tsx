@@ -14,6 +14,16 @@ import { useProctorRecorder } from '@/hooks/use-proctor-recorder'
 import { useEvidenceCapture } from '@/hooks/use-evidence-capture'
 import { useExamLiveChannel } from '@/hooks/use-exam-live-channel'
 import { canRequestFullscreen, enterFullscreen } from '@/lib/fullscreen'
+import { orderForStudent, shouldShuffle } from '@/lib/exam-shuffle'
+import { formatMonitoringSummary } from '@/lib/proctoring-events'
+import { environmentFlags, readEnvironmentFacts } from '@/lib/device-environment'
+import { useMonitoringCoverage } from '@/hooks/use-monitoring-coverage'
+import { useFaceIdentity } from '@/hooks/use-face-identity'
+import { useClipRecorder } from '@/hooks/use-clip-recorder'
+import { useThumbnailSender } from '@/hooks/use-thumbnail-sender'
+import { SecondCameraPanel } from '@/components/student/second-camera-panel'
+import { readSebProof } from '@/lib/seb-client'
+import { SpeechDetector } from '@/lib/speech-detector'
 
 interface Props {
   exam: Exam
@@ -32,6 +42,14 @@ interface Props {
 // 'True'/'False' and graded in the DB, so only the visible label changes.
 const TRUE_FALSE_VALUES = ['True', 'False'] as const
 
+// The room scan lasts one clip segment.
+const ROOM_SCAN_MS = 10_000
+const FACE_TYPES = new Set(['face_not_detected', 'looking_away', 'multiple_faces', 'face_mismatch', 'spoof_detected'])
+
+// More characters than this appearing in one input event, without a paste,
+// means text was dropped or injected rather than typed.
+const BULK_INSERT_CHARS = 60
+
 export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinish, finishLabel }: Props) {
   const t = useTranslations('student.taker')
   const locale = useLocale()
@@ -45,6 +63,12 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const untimed = exam.type
     ? exam.type === 'homework'
     : (exam.duration_minutes <= 0 || exam.duration_minutes >= 43200)
+  // Per-student order of questions and multiple-choice options (display only;
+  // answers stay keyed by question id and option text — src/lib/exam-shuffle.ts).
+  const questions = useMemo(
+    () => (shouldShuffle(exam) ? orderForStudent(exam.questions, exam.id, userId) : exam.questions),
+    [exam, userId],
+  )
   const [started, setStarted] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [current, setCurrent] = useState(0)
@@ -64,6 +88,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const analyzerRef = useRef<AnalyserNode | null>(null)
   const audioIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const handleSubmitRef = useRef<() => void>(() => {})
+  const submittingRef = useRef(false)
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'active' | 'error'>('idle')
   const [consentGiven, setConsentGiven] = useState(false)
   // Full screen could not be entered when the exam started (see enterFullscreen):
@@ -143,15 +168,35 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const [evidenceStored, setEvidenceStored] = useState(0)
   const onEvidenceStored = useCallback(() => setEvidenceStored(n => n + 1), [])
   const { onViolation: maybeCaptureEvidence } = useEvidenceCapture(exam.id, videoRef, proctoringActive, onEvidenceStored)
+  // Short evidence clips from an in-memory ring of 10 s segments (never
+  // uploaded unless a severe violation happens or the teacher asks).
+  const { onViolation: clipOnViolation, sendRecent: sendRecentClips, requestRoomScan } = useClipRecorder(exam.id, streamRef, proctoringActive, onEvidenceStored)
+
+  // ── Room scan: for the first seconds the student turns the camera slowly
+  //    around the room; that first clip segment is kept as evidence. The face
+  //    naturally leaves the frame meanwhile, so face checks are paused. ──
+  const [roomScanning, setRoomScanning] = useState(false)
+  const roomScanUntilRef = useRef(0)
+  useEffect(() => {
+    if (!proctoringActive) return
+    roomScanUntilRef.current = Date.now() + ROOM_SCAN_MS
+    requestRoomScan()
+    const on = setTimeout(() => setRoomScanning(true), 0)
+    const off = setTimeout(() => setRoomScanning(false), ROOM_SCAN_MS)
+    return () => { clearTimeout(on); clearTimeout(off) }
+  }, [proctoringActive, requestRoomScan])
 
   // Define addViolation BEFORE hook calls that reference it. It updates the UI
   // alert, buffers the event for the DB recorder, and asks the evidence layer
   // whether this violation is severe enough to snapshot.
   const addViolation = useCallback((type: string, details?: string) => {
+    // The camera is pointed around the room on purpose during the scan.
+    if (Date.now() < roomScanUntilRef.current && FACE_TYPES.has(type)) return
     const event: ProctoringEvent = { type: type as ProctoringEvent['type'], timestamp: new Date().toISOString(), details }
     setViolations(prev => [...prev, event])
     recordEvent(type, details)
     maybeCaptureEvidence(type)
+    clipOnViolation(type)
     const messages: Record<string, string> = {
       tab_switch: '⚠️ Tab switch detected!',
       fullscreen_exit: '⚠️ Please return to fullscreen mode!',
@@ -159,12 +204,37 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       camera_stopped: '⚠️ Camera/microphone disconnected — please reconnect immediately!',
       multiple_faces: '⚠️ Multiple faces detected!',
       audio_detected: '⚠️ Loud audio detected!',
+      speech_detected: '⚠️ Talking detected!',
+      face_mismatch: '⚠️ Please stay in front of the camera yourself!',
+      spoof_detected: '⚠️ Show your real face to the camera!',
       looking_away: '⚠️ Please look at the screen!',
       suspicious_activity: '⚠️ Suspicious activity detected!',
     }
     setViolationAlert(messages[type] ?? '⚠️ Proctoring alert!')
     setTimeout(() => setViolationAlert(''), 4000)
-  }, [recordEvent, maybeCaptureEvidence])
+  }, [recordEvent, maybeCaptureEvidence, clipOnViolation])
+
+  // ── Writing signals (not violations): pasted text and a large block of text
+  //    appearing at once in a written answer. In the age of AI chat tools
+  //    these are among the strongest hints a teacher can get, and they cost
+  //    nothing. Silent: the student sees no warning. The question number is
+  //    the teacher's own (original) numbering, not the shuffled one. ──
+  const lastPasteRef = useRef(0)
+  const questionNumber = useCallback(
+    (id: string) => exam.questions.findIndex(q => q.id === id) + 1,
+    [exam.questions],
+  )
+  const onWrittenPaste = useCallback((id: string, chars: number) => {
+    lastPasteRef.current = Date.now()
+    if (chars > 0) recordEvent('paste_detected', `Q${questionNumber(id)}: ${chars} chars`)
+  }, [recordEvent, questionNumber])
+  const onWrittenChange = useCallback((id: string, value: string) => {
+    const grew = value.length - (answersRef.current[id] ?? '').length
+    if (grew >= BULK_INSERT_CHARS && Date.now() - lastPasteRef.current > 1_000) {
+      recordEvent('bulk_insert', `Q${questionNumber(id)}: +${grew} chars`)
+    }
+    setAnswers(a => ({ ...a, [id]: value }))
+  }, [recordEvent, questionNumber])
 
   // ── Live layer, on demand and silent: the student joins the exam's live
   //    channel (who is in the exam + violation counts for the teacher, no
@@ -172,7 +242,10 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   //    watches this student. Nothing on this screen says whether that is
   //    happening; the consent text says it may happen at any time. ──
   const liveCounts = useMemo(() => ({ v: violations.length, ev: evidenceStored }), [violations.length, evidenceStored])
-  const { watched, stopWatching } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts)
+  const { watched, stopWatching, thumbsOn } = useExamLiveChannel(exam.id, userId, proctoringActive, liveCounts, sendRecentClips)
+  // Teacher's thumbnail wall: a tiny picture every few seconds, not while
+  // this student is already being watched in video.
+  useThumbnailSender(exam.id, userId, videoRef, proctoringActive && thumbsOn && !watched)
   useLivePublish(exam.id, proctoringActive && watched, streamRef, stopWatching)
 
   // A detector that fails to load on this device is NOT the student's fault,
@@ -188,7 +261,25 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   // 2026-09-13. The server only receives batched event records and, for
   // severe violations, a capped number of evidence snapshots.
   // MediaPipe: face detection + gaze direction
-  useFaceDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
+  // ── Monitoring coverage: how much of the attempt the camera detectors
+  //    really watched; a stall of 30 s+ is recorded as a monitoring gap. ──
+  const onMonitoringGap = useCallback((seconds: number) => {
+    recordEvent('monitoring_gap', `no camera analysis for ${seconds}s`)
+  }, [recordEvent])
+  const coverage = useMonitoringCoverage(proctoringActive, onMonitoringGap)
+
+  // ── Device environment (virtual machine, second screen, automation):
+  //    recorded once per attempt as info for the teacher, never a violation. ──
+  const environmentReportedRef = useRef(false)
+  useEffect(() => {
+    if (!proctoringActive || environmentReportedRef.current) return
+    environmentReportedRef.current = true
+    for (const flag of environmentFlags(readEnvironmentFacts())) recordEvent('environment_flag', flag)
+  }, [proctoringActive, recordEvent])
+
+  useFaceDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable, coverage.onFrame)
+  // Identity continuity + photo/screen spoof, capable devices only (Human, MIT).
+  useFaceIdentity(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
   // TensorFlow COCO-SSD: phone, book, extra person detection
   useObjectDetection(videoRef, proctoringActive, addViolation, onDetectorUnavailable)
 
@@ -212,7 +303,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   // Fullscreen enforcement
   useEffect(() => {
     if (!started || !exam.proctoring_enabled) return
-    const handler = () => { if (!document.fullscreenElement) addViolation('fullscreen_exit') }
+    const handler = () => { if (!document.fullscreenElement && !submittingRef.current) addViolation('fullscreen_exit') }
     document.addEventListener('fullscreenchange', handler)
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [started, exam.proctoring_enabled, addViolation])
@@ -267,40 +358,43 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
     return () => clearInterval(interval)
   }, [started, submitted, untimed])
 
-  // Start audio monitoring via Web Audio API.
-  // Tuned against false positives: a violation needs GENUINELY loud audio
-  // (threshold 48, not 30 — normal typing/breathing/room hum stays below),
-  // SUSTAINED across 2 consecutive samples (~4s, so a cough or chair squeak
-  // doesn't trigger), and a 20s cooldown so one conversation logs once, not
-  // once per 3 seconds.
+  // Audio monitoring via the Web Audio API, on the device, no download:
+  //  • speech (src/lib/speech-detector.ts): voice-band energy with a syllable
+  //    rhythm — someone talking, not a fan or a chair;
+  //  • very loud sound sustained ~4 s (the former check, kept for noise that
+  //    is not speech), with a 20 s cooldown.
   const startAudioMonitor = useCallback((stream: MediaStream) => {
     const ctx = new AudioContext()
     const analyzer = ctx.createAnalyser()
-    analyzer.fftSize = 256
+    analyzer.fftSize = 1024
+    analyzer.smoothingTimeConstant = 0.3
     const src = ctx.createMediaStreamSource(stream)
     src.connect(analyzer)
     audioCtxRef.current = ctx
     analyzerRef.current = analyzer
     const data = new Uint8Array(analyzer.frequencyBinCount)
+    const speech = new SpeechDetector({ sampleRate: ctx.sampleRate, binCount: analyzer.frequencyBinCount })
     const LOUD_THRESHOLD = 48
+    const LOUD_FRAMES = 40
     const COOLDOWN_MS = 20_000
     let loudStreak = 0
-    let lastViolationAt = 0
+    let lastLoudAt = 0
     audioIntervalRef.current = setInterval(() => {
       analyzer.getByteFrequencyData(data)
+      const now = Date.now()
+      if (speech.feed(data, now)) addViolation('speech_detected', 'voice with syllable rhythm for 1.5 s+')
       const avg = data.reduce((a, b) => a + b, 0) / data.length
       if (avg > LOUD_THRESHOLD) {
         loudStreak += 1
-        const now = Date.now()
-        if (loudStreak >= 2 && now - lastViolationAt > COOLDOWN_MS) {
-          lastViolationAt = now
+        if (loudStreak >= LOUD_FRAMES && now - lastLoudAt > COOLDOWN_MS) {
+          lastLoudAt = now
           loudStreak = 0
           addViolation('audio_detected', `Sustained audio level: ${Math.round(avg)}`)
         }
       } else {
         loudStreak = 0
       }
-    }, 2000)
+    }, 100)
   }, [addViolation])
 
   async function startExam() {
@@ -355,7 +449,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       const res = await fetch('/api/exam/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ examId: exam.id }),
+        // Safe Exam Browser's proof, when the page runs inside SEB (else null).
+        body: JSON.stringify({ examId: exam.id, seb: await readSebProof() }),
       })
 
       if (!res.ok) {
@@ -401,6 +496,13 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       audioCtxRef.current = null
     }
 
+    // Leaving full screen below is part of submitting, not a violation.
+    submittingRef.current = true
+
+    // How much of the attempt was actually monitored (written once).
+    const monitored = exam.proctoring_enabled ? coverage.summary() : null
+    if (monitored) recordEvent('monitoring_summary', formatMonitoringSummary(monitored))
+
     // Persist any buffered local proctoring events BEFORE submit — the
     // append RPC only writes while the attempt is 'in_progress'. This is the
     // recorder's final flush (no AI).
@@ -424,6 +526,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       })
 
       if (!res.ok) {
+        submittingRef.current = false
         setSubmitting(false)
         toast.error(t('submitFailed'))
         return
@@ -436,10 +539,12 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       setFinalScore(data.published ? { score: data.score, maxScore: data.maxScore } : null)
       try { localStorage.removeItem(draftKey) } catch {}
       setSubmitted(true)
+      submittingRef.current = false
       setSubmitting(false)
     } catch {
       // fetch() itself threw (offline/DNS/CORS) — answers are untouched in
       // state, so the student can just press Submit again once reconnected.
+      submittingRef.current = false
       setSubmitting(false)
       toast.error(t('networkError'))
     }
@@ -449,8 +554,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   useLayoutEffect(() => { handleSubmitRef.current = handleSubmit })
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-  const question: Question = exam.questions[current]
-  const progress = ((current + 1) / exam.questions.length) * 100
+  const question: Question = questions[current]
+  const progress = ((current + 1) / questions.length) * 100
 
   if (submitted) {
     return (
@@ -479,7 +584,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">{exam.title}</h2>
             <p className="text-slate-400">
-              {t('questionCount', { count: exam.questions.length })} · {untimed
+              {t('questionCount', { count: questions.length })} · {untimed
                 ? (exam.ends_at ? t('homeworkDue', { date: new Date(exam.ends_at).toLocaleString(locale) }) : t('homeworkNoDue'))
                 : t('minutes', { count: exam.duration_minutes })}
             </p>
@@ -576,6 +681,15 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
         </div>
       </div>
 
+      {roomScanning && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3 text-blue-300 text-sm font-medium">
+          {t('roomScan')}
+        </div>
+      )}
+
+      {/* Optional phone side camera (desk + screen) */}
+      {exam.proctoring_enabled && cameraStatus === 'active' && <SecondCameraPanel examId={exam.id} />}
+
       {/* Violation alert */}
       {violationAlert && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm font-medium animate-pulse">
@@ -602,7 +716,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
 
       {/* Progress */}
       <div className="flex items-center gap-3">
-        <span className="text-slate-400 text-sm shrink-0">{t('questionOf', { n: current + 1, total: exam.questions.length })}</span>
+        <span className="text-slate-400 text-sm shrink-0">{t('questionOf', { n: current + 1, total: questions.length })}</span>
         <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
         </div>
@@ -645,7 +759,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
             ))}
 
             {(question.type === 'short_answer' || question.type === 'essay') && (
-              <textarea value={answers[question.id] ?? ''} onChange={e => setAnswers(a => ({ ...a, [question.id]: e.target.value }))} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder={t('answerPlaceholder')} />
+              <textarea value={answers[question.id] ?? ''} onChange={e => onWrittenChange(question.id, e.target.value)} onPaste={e => onWrittenPaste(question.id, e.clipboardData.getData('text').length)} rows={4} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder={t('answerPlaceholder')} />
             )}
             {individual && (question.type === 'short_answer' || question.type === 'essay') && (
               <AnswerPhoto
@@ -670,13 +784,13 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <ChevronLeft className="w-4 h-4" /> {t('prev')}
         </Button>
         <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
-          {exam.questions.map((_, i) => (
-            <button key={i} onClick={() => setCurrent(i)} className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${i === current ? 'bg-blue-600 text-white' : answers[exam.questions[i].id] ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-600/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+          {questions.map((_, i) => (
+            <button key={i} onClick={() => setCurrent(i)} className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${i === current ? 'bg-blue-600 text-white' : answers[questions[i].id] ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-600/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
               {i + 1}
             </button>
           ))}
         </div>
-        {current < exam.questions.length - 1 ? (
+        {current < questions.length - 1 ? (
           <Button onClick={() => setCurrent(c => c + 1)}>{t('next')} <ChevronRight className="w-4 h-4" /></Button>
         ) : (
           <Button variant="primary" onClick={handleSubmit} loading={submitting} className="bg-emerald-600 hover:bg-emerald-500">
