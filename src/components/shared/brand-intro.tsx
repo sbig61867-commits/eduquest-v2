@@ -2,18 +2,23 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { BrandMark, TASSEL_REST, tasselGeometry } from './brand-mark'
+import { BrandMark } from './brand-mark'
+import { INTRO_DONE_KEY } from '@/lib/brand-intro-key'
 
 /**
- * Full-screen logo intro, played once after each sign-in before the first
- * dashboard shows, ending with the mark flying into its place in the sidebar.
+ * Short logo intro, played once after each sign-in before the first dashboard
+ * shows, ending with the mark flying into its place in the sidebar.
  *
- * Sequence (t = 0 when the component starts it, globals.css `.eq-intro-run`):
- * tile pops · particles spiral in from every side and condense into the E ·
- * the E turns solid and extrudes · the leather cap drops on · the E lifts its
- * head · the tassel swings on a damped pendulum until it hangs still · the
- * wordmark is revealed · the mark flies to [data-brand-anchor]. After that the
- * mark never moves (owner's rule).
+ * Sequence (globals.css `.eq-intro-run`, ~1.8 s in all): the tile pops · the E
+ * rises from its baseline and extrudes · the leather cap drops on with a small
+ * bounce · the E lifts its head · the wordmark slides in · the mark flies to
+ * [data-brand-anchor]. After that the mark never moves (owner's rule).
+ *
+ * Deliberately light (owner, 2026-09-29: the particle version stuttered on
+ * phones and read as a glitch): CSS keyframes only, and only `transform` /
+ * `opacity`, which the browser runs on the compositor — no per-frame
+ * JavaScript, no particles, no animated gradients or clip-paths. The whole
+ * overlay is gone ~1.8 s after the dashboard is ready (it was 4.6 s).
  *
  * "Once per sign-in" = the INTRO_DONE_KEY localStorage flag: set when the
  * intro starts, cleared by signOutAndLeave() and by the sign-in page. New
@@ -24,25 +29,15 @@ import { BrandMark, TASSEL_REST, tasselGeometry } from './brand-mark'
  * form runs the layout effect. Either sets <html data-eq-intro>, which shows
  * the overlay (globals.css). If this component never hydrates, CSS fades the
  * overlay out by itself, so it can never trap anyone. Skipped entirely under
- * prefers-reduced-motion.
+ * prefers-reduced-motion. Tap anywhere or press Esc to skip.
  */
-export const INTRO_DONE_KEY = 'eq_intro_done'
+export { INTRO_DONE_KEY }
 const ATTR = 'data-eq-intro'
-const HOLD_MS = 3900
-const FLIGHT_MS = 750
-const TASSEL_KICKS: [number, number][] = [[2450, 5.5], [2650, -3]] // [ms, rad/s]
+const HOLD_MS = 1350
+const FLIGHT_MS = 450
 
 const INTRO_BOOT =
   `try{if(!localStorage.getItem('${INTRO_DONE_KEY}')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.setAttribute('${ATTR}','')}catch(e){}`
-
-// Where the particles land: a fixed grid over the E (spine + three arms), so
-// the server-rendered markup hydrates as-is. Every 7th is gold.
-const PARTICLES: [number, number][] = []
-for (const [x0, y0, w, h] of [[18, 25, 8, 30], [26, 25, 17, 7], [26, 36.5, 12, 6.5], [26, 48, 17, 7]]) {
-  for (let x = x0 + 1; x < x0 + w; x += 2.3) {
-    for (let y = y0 + 1; y < y0 + h; y += 2.3) PARTICLES.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10])
-  }
-}
 
 export function BrandIntro() {
   const t = useTranslations('common.brandIntro')
@@ -91,63 +86,11 @@ export function BrandIntro() {
     try { localStorage.setItem(INTRO_DONE_KEY, '1') } catch { /* ignore */ }
     root.classList.add('eq-intro-run')
 
-    // Particles: each spirals in from a random point around the mark.
-    const particles = [...root.querySelectorAll<SVGElement>('.eq-bm-particle')]
-    for (const p of particles) {
-      const a = Math.random() * Math.PI * 2
-      const r = 40 + Math.random() * 25
-      const spin = (Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 360)
-      p.animate([
-        { transform: `translate(${Math.cos(a) * r}px, ${Math.sin(a) * r}px) rotate(${spin}deg) scale(.4)`, opacity: 0 },
-        { opacity: 1, offset: 0.25 },
-        { transform: 'none', opacity: 1 },
-      ], { duration: 1100, delay: 300 + Math.random() * 300, easing: 'cubic-bezier(.3,0,.2,1)', fill: 'both' })
-      p.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, delay: 1750, fill: 'forwards' })
-    }
-
-    // Tassel: a damped pendulum, kicked when the cap lands and when the head lifts.
-    const tassel = root.querySelector('.eq-bm-tassel')
-    const cord = tassel?.querySelector('.eq-bm-cord')
-    const knot = tassel?.querySelector('.eq-bm-knot')
-    const fringe = tassel ? [...tassel.querySelectorAll('.eq-bm-fringe')] : []
-    let theta = TASSEL_REST - 0.9
-    let omega = 0
-    let raf = 0
-    let last = 0
-    const draw = () => {
-      const geo = tasselGeometry(theta, omega)
-      cord?.setAttribute('d', geo.cord)
-      knot?.setAttribute('cx', String(geo.knot.cx))
-      knot?.setAttribute('cy', String(geo.knot.cy))
-      fringe.forEach((l, i) => {
-        const s = geo.fringe[i]
-        l.setAttribute('x1', String(s.x1)); l.setAttribute('y1', String(s.y1))
-        l.setAttribute('x2', String(s.x2)); l.setAttribute('y2', String(s.y2))
-      })
-    }
-    const step = (now: number) => {
-      const dt = Math.min(0.03, (now - last) / 1000)
-      last = now
-      omega += (-55 * Math.sin(theta - TASSEL_REST) - 2.6 * omega) * dt
-      theta += omega * dt
-      if (Math.abs(omega) < 0.02 && Math.abs(theta - TASSEL_REST) < 0.004) {
-        theta = TASSEL_REST; omega = 0; draw(); raf = 0; return
-      }
-      draw()
-      raf = requestAnimationFrame(step)
-    }
-    draw()
-    const timers = TASSEL_KICKS.map(([ms, kick]) => setTimeout(() => {
-      omega += kick
-      if (!raf) { last = performance.now(); raf = requestAnimationFrame(step) }
-    }, ms))
-
-    timers.push(setTimeout(finish, HOLD_MS))
+    const timer = setTimeout(finish, HOLD_MS)
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') finish() }
     document.addEventListener('keydown', onKey)
     return () => {
-      timers.forEach(clearTimeout)
-      cancelAnimationFrame(raf)
+      clearTimeout(timer)
       document.removeEventListener('keydown', onKey)
     }
   }, [finish])
@@ -159,12 +102,7 @@ export function BrandIntro() {
         <div className="eq-intro-bg bg-slate-950" />
         <div className="eq-intro-stage">
           <div ref={markRef} className="eq-intro-mark">
-            <BrandMark size={128}>
-              {PARTICLES.map(([x, y], i) => (
-                <rect key={i} className="eq-bm-particle" x={x - 0.9} y={y - 0.9} width="1.8" height="1.8" rx=".4"
-                  fill={i % 7 ? '#e0f2fe' : '#fde68a'} />
-              ))}
-            </BrandMark>
+            <BrandMark size={112} />
           </div>
           <p dir="ltr" className="eq-intro-word eq-wordmark">EduQuest</p>
         </div>

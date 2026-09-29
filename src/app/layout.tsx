@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, IBM_Plex_Sans_Arabic } from 'next/font/google'
+import { IBM_Plex_Sans_Arabic } from 'next/font/google'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { AuthProvider } from '@/components/shared/auth-provider'
 import { Toaster } from '@/components/ui/toast'
@@ -9,8 +9,9 @@ import { siteUrl } from '@/i18n/public-routes'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import './globals.css'
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
-
+// Geist used to be loaded here too, preloaded on every page, yet nothing ever
+// rendered with it (its variable was --font-geist while globals.css asked for
+// --font-geist-sans): a wasted font download per page. Removed 2026-09-29.
 // Arabic glyphs only (subset 'arabic' ships a unicode-range limited to the
 // Arabic block). Listed first in the body font stack, it renders Arabic text
 // while Latin characters fall through to Arial unchanged — so the existing
@@ -47,7 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang={locale}
       dir={dirFor(locale)}
-      className={`${geist.variable} ${plexArabic.variable} h-full`}
+      className={`${plexArabic.variable} h-full`}
       suppressHydrationWarning
       translate="no"
     >
