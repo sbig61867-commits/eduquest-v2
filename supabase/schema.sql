@@ -512,6 +512,12 @@ CREATE POLICY "users_update" ON users FOR UPDATE
       -- (student_name_lock_migration.sql). Other roles edit their own name.
       AND (role <> 'student' OR full_name IS NOT DISTINCT FROM
                       (SELECT u.full_name FROM users u WHERE u.id = auth.uid()))
+      -- email / avatar_url are shown to staff and used by /api/mail/send; only
+      -- service-role routes write them (audit_2026_09_29_migration.sql).
+      AND email IS NOT DISTINCT FROM
+                      (SELECT u.email FROM users u WHERE u.id = auth.uid())
+      AND avatar_url IS NOT DISTINCT FROM
+                      (SELECT u.avatar_url FROM users u WHERE u.id = auth.uid())
     )
   );
 

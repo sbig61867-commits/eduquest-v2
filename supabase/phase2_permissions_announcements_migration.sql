@@ -146,6 +146,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('announcement-images','announcement-images', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
+-- No SELECT policy: the bucket is public, so image URLs open without one, and
+-- the policy that used to be here also let anyone LIST every institution's
+-- image paths (dropped by audit_2026_09_29_migration.sql — do not restore).
 DROP POLICY IF EXISTS "announcement_images_public_read" ON storage.objects;
-CREATE POLICY "announcement_images_public_read" ON storage.objects FOR SELECT
-  USING (bucket_id = 'announcement-images');
