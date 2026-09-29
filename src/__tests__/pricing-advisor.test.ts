@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PLATFORM_CAPACITY, pricing, recommendPlan, type PlanId } from '@/lib/pricing/plans'
+import { HOSTED_INSTITUTIONS, LIMIT_KEYS, PLATFORM_CAPACITY, pricing, recommendPlan, type PlanId } from '@/lib/pricing/plans'
+import { MAX_WATCHED } from '@/lib/live-channel'
 import { pricingText as ar } from '@/content/pricing/ar'
 import { pricingText as en } from '@/content/pricing/en'
 
@@ -13,11 +14,11 @@ describe('pricing plan advisor', () => {
 
   it('suggests the institution plan up to its ceiling', () => {
     expect(recommendPlan(51, false)).toEqual({ id: 'institution', reason: 'institution' })
-    expect(recommendPlan(250, false)).toEqual({ id: 'institution', reason: 'institution' })
+    expect(recommendPlan(150, false)).toEqual({ id: 'institution', reason: 'institution' })
   })
 
   it('suggests the full institution plan beyond every ceiling', () => {
-    expect(recommendPlan(251, false)).toEqual({ id: 'university', reason: 'scale' })
+    expect(recommendPlan(151, false)).toEqual({ id: 'university', reason: 'scale' })
   })
 
   it('suggests the full institution plan for several faculties at any size', () => {
@@ -26,17 +27,26 @@ describe('pricing plan advisor', () => {
 })
 
 describe('plan limits against platform capacity', () => {
-  // The mix the current infrastructure is sized for (see PLATFORM_CAPACITY):
-  // two paying institutions and four trials running at the same time.
-  const mix: [PlanId, number][] = [['institution', 2], ['pilot', 4]]
-  const total = (key: keyof typeof PLATFORM_CAPACITY) =>
-    mix.reduce((sum, [id, n]) => sum + (plan(id).limits[key] ?? 0) * n, 0)
+  // The current infrastructure is split into HOSTED_INSTITUTIONS equal shares
+  // (see PLATFORM_CAPACITY): every hosted institution on the institution plan.
+  const keys = Object.keys(PLATFORM_CAPACITY) as (keyof typeof PLATFORM_CAPACITY)[]
 
-  for (const key of Object.keys(PLATFORM_CAPACITY) as (keyof typeof PLATFORM_CAPACITY)[]) {
-    it(`${key}: the sized mix stays within capacity`, () => {
-      expect(total(key)).toBeLessThanOrEqual(PLATFORM_CAPACITY[key])
+  for (const key of keys) {
+    it(`${key}: ${HOSTED_INSTITUTIONS} institutions stay within capacity`, () => {
+      expect((plan('institution').limits[key] ?? 0) * HOSTED_INSTITUTIONS).toBeLessThanOrEqual(PLATFORM_CAPACITY[key])
     })
   }
+
+  it('a trial fits inside one institution share', () => {
+    for (const key of LIMIT_KEYS) {
+      expect(plan('pilot').limits[key]!, key).toBeLessThanOrEqual(plan('institution').limits[key]!)
+    }
+  })
+
+  it('live walls: concurrent students plus one teacher per full wall fit LiveKit\'s 100 connections', () => {
+    const connections = (n: number) => n + Math.ceil(n / MAX_WATCHED)
+    expect(connections(plan('institution').limits.liveConcurrent!) * HOSTED_INSTITUTIONS).toBeLessThanOrEqual(100)
+  })
 
   it('no fixed plan alone takes more than a third of any capacity', () => {
     for (const p of pricing.plans) {

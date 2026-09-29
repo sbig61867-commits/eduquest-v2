@@ -12,8 +12,11 @@ import { toast } from '@/components/ui/toast'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
-import { Search, UserPlus, Mail, Power, GraduationCap, Lock } from 'lucide-react'
+import { Search, UserPlus, Mail, Power, GraduationCap, Lock, PenLine } from 'lucide-react'
 import type { ScopeBlock } from '@/lib/account-scope'
+import { checkNameParts, EMPTY_NAME_PARTS, type NameParts } from '@/lib/person-name'
+import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
+import { StudentNameEditor, type NamedStudent } from '@/components/shared/student-name-editor'
 
 export interface PersonRow {
   id: string
@@ -25,6 +28,8 @@ export interface PersonRow {
   is_university_student?: boolean
   /** Set when the account is shared with / owned by the institution: only its admin may (de)activate it. */
   locked?: ScopeBlock | null
+  /** Students only: a four-part name is on file (staff never see its middle names). Null = unknown. */
+  name_complete?: boolean | null
 }
 
 export function PeopleClient({ role, initialPeople, canSetAffiliation = false }: {
@@ -42,9 +47,14 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'invite' | 'account'>('invite')
   const [form, setForm] = useState({ full_name: '', email: '', password: '' })
+  const [nameParts, setNameParts] = useState<NameParts>(EMPTY_NAME_PARTS)
+  const [showNameErrors, setShowNameErrors] = useState(false)
+  const [naming, setNaming] = useState<NamedStudent | null>(null)
+  const tName = useTranslations('common.studentName')
   const [isUniversityStudent, setIsUniversityStudent] = useState(false)
   const [busy, setBusy] = useState('')
   const showAffiliation = role === 'student' && canSetAffiliation
+  const isStudent = role === 'student'
 
   const q = search.trim().toLowerCase()
   const filtered = people.filter(p => !q || p.full_name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))
@@ -52,11 +62,17 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
   function close() {
     setOpen(false)
     setForm({ full_name: '', email: '', password: '' })
+    setNameParts(EMPTY_NAME_PARTS)
+    setShowNameErrors(false)
     setIsUniversityStudent(false)
   }
 
   async function submit() {
     if (!form.email.trim()) return toast.error(t('emailRequired'))
+    if (mode === 'account' && isStudent && !checkNameParts(nameParts).ok) {
+      setShowNameErrors(true)
+      return toast.error(tName('incomplete'))
+    }
     setBusy('submit')
     const res = mode === 'invite'
       ? await fetch('/api/invitations', {
@@ -73,7 +89,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...form,
-            full_name: form.full_name.trim(),
+            ...(isStudent ? { full_name: undefined, name_parts: nameParts } : { full_name: form.full_name.trim() }),
             email: form.email.trim(),
             role,
             ...(showAffiliation ? { is_university_student: isUniversityStudent } : {}),
@@ -161,7 +177,14 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
             )}
             {filtered.map(p => (
               <tr key={p.id} className="hover:bg-slate-800/50">
-                <td className="px-5 py-4 text-white text-sm font-medium">{p.full_name}</td>
+                <td className="px-5 py-4 text-white text-sm font-medium">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {p.full_name}
+                    {isStudent && p.name_complete === false && (
+                      <span title={tName('notFourPartHint')}><Badge variant="yellow">{tName('notFourPart')}</Badge></span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-5 py-4 hidden md:table-cell text-slate-400 text-sm">
                   <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{p.email}</span>
                 </td>
@@ -182,6 +205,11 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
                       <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggleAffiliation(p)}>
                         <GraduationCap className="w-3.5 h-3.5" />
                         {p.is_university_student === false ? t('makeInstitution', { label: terms.institutionStudent }) : t('makeCentreOnly')}
+                      </Button>
+                    )}
+                    {isStudent && !p.locked && (
+                      <Button variant="ghost" size="sm" onClick={() => setNaming(p)}>
+                        <PenLine className="w-3.5 h-3.5" /> {tName('correct')}
                       </Button>
                     )}
                     {p.locked ? (
@@ -219,10 +247,18 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
               ? t('inviteHint')
               : t('accountHint')}
           </p>
-          {mode === 'account' && (
+          {mode === 'account' && (isStudent ? (
+            <FourPartNameFields
+              idPrefix="new-student-name"
+              value={nameParts}
+              onChange={setNameParts}
+              showErrors={showNameErrors}
+              hint={tName('hintStaff')}
+            />
+          ) : (
             <Input label={t('fullName')} value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
-          )}
+          ))}
           <Input label={t('email')} type="email" dir="ltr" value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           {mode === 'account' && (
@@ -251,6 +287,15 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
           </div>
         </div>
       </Modal>
+
+      <StudentNameEditor
+        student={naming}
+        onClose={() => setNaming(null)}
+        onSaved={(id, fullName, isComplete) => {
+          setPeople(prev => prev.map(x => (x.id === id ? { ...x, full_name: fullName, name_complete: isComplete } : x)))
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

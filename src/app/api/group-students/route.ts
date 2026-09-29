@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { staffCan } from '@/lib/staff-auth'
+import { enrolStudentInGroup, groupHasRoom, type EnrolmentGroup } from '@/lib/group-enrolment'
 
 function adminClient() {
   return createAdminClient(
@@ -107,33 +108,16 @@ export async function POST(request: Request) {
   }
 
   // Group rule: seat cap (max_students NULL = no cap; column absent pre-migration).
-  const { max_students: maxStudents, course_id: courseId } = group as { max_students?: number | null; course_id?: string | null }
-  if (maxStudents) {
-    const { count } = await adminClient()
-      .from('group_students').select('student_id', { count: 'exact', head: true }).eq('group_id', group_id)
-    const { data: already } = await adminClient()
-      .from('group_students').select('student_id').eq('group_id', group_id).eq('student_id', student_id).maybeSingle()
-    if (!already && (count ?? 0) >= maxStudents) {
-      return NextResponse.json({ ...(await apiErr('groupFull', { max: maxStudents })) }, { status: 409 })
-    }
+  const admin = adminClient()
+  const target = group as EnrolmentGroup
+  if (!(await groupHasRoom(admin, target, student_id))) {
+    return NextResponse.json({ ...(await apiErr('groupFull', { max: target.max_students ?? 0 })) }, { status: 409 })
   }
 
-  const { error: dbErr } = await adminClient()
-    .from('group_students')
-    .upsert({ group_id, student_id }, { onConflict: 'group_id,student_id', ignoreDuplicates: true })
-
+  const { error: dbErr } = await enrolStudentInGroup(admin, target, student_id)
   if (dbErr) {
     console.error('[group-students POST]', dbErr)
     return NextResponse.json({ ...(await apiErr('enrollFailed')) }, { status: 500 })
-  }
-
-  // A group that is a section of a course also enrols the student in that course.
-  // The reverse never happens: joining a course by its link adds no group.
-  if (courseId) {
-    const { error: enrolErr } = await adminClient()
-      .from('course_enrollments')
-      .upsert({ course_id: courseId, student_id, tenant_id: group.tenant_id }, { onConflict: 'course_id,student_id', ignoreDuplicates: true })
-    if (enrolErr) console.error('[group-students POST] course enrolment', enrolErr)
   }
 
   return NextResponse.json({ student: { id: student.id, full_name: student.full_name, email: student.email } }, { status: 201 })

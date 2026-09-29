@@ -43,7 +43,8 @@ export interface PlanLimits {
   liveMinutes: number | null
   /** Students in live-proctored examinations at the same moment. */
   liveConcurrent: number | null
-  /** Uploaded files in Supabase Storage (images, answer photos, attachments), in MB.
+  /** Uploaded files in Supabase Storage (images, answer photos, attachments), in MB
+   *  (enforced: tenants.storage_limit_mb, src/lib/storage-quota.ts).
    *  Proctoring snapshots are NOT counted: they live outside Supabase for 30 hours only. */
   storageMb: number | null
 }
@@ -69,7 +70,7 @@ export interface PricingConfig {
 
 /**
  * What the CURRENT infrastructure can carry for all institutions together,
- * with ~20% headroom. Reviewed 2026-09-26 against the providers' published
+ * with ~20% headroom. Re-verified 2026-09-28 against the providers' published
  * free tiers and the platform's own caps:
  *
  *   Supabase Free   500 MB database · 1 GB storage · 5 GB egress / month.
@@ -79,20 +80,35 @@ export interface PricingConfig {
  *                   snapshots are kept outside Supabase, src/lib/evidence-keys.ts)
  *                   ⇒ each resource alone
  *                   tops out near 800–1,000 students. No automatic backups.
+ *                   Realtime: 200 concurrent connections — every student in a
+ *                   proctored exam joins the exam's live channel, so ~190
+ *                   students platform-wide can appear on teachers' live pages
+ *                   at one moment. Past that the exam goes on; the student is
+ *                   just missing from the live list (use-exam-live-channel.ts).
  *   LiveKit Build   5,000 participant-minutes / month · 100 concurrent
  *                   connections, a HARD cap: overlapping live-proctored
- *                   exams across all institutions share it.
+ *                   exams across all institutions share it · 50 GB downstream
+ *                   (not binding: 4,000 minutes at ≤900 kbps is under 30 GB).
  *   AI (free legs)  Groq gpt-oss-120b 1,000 requests and 200K tokens / day,
  *                   plus the other free providers in src/lib/ai/chat.ts ⇒ a
  *                   safe budget of ~6,000 metered requests / month.
+ *   Workers KV      1,000 writes / day ⇒ at most ~1,000 proctoring snapshots
+ *                   a day platform-wide (≤10 per student per exam).
  *   Vercel Hobby    free, but restricted to NON-COMMERCIAL use: charging for
- *                   a plan requires Vercel Pro first.
+ *                   a plan requires Vercel Pro first. Hobby also caps active
+ *                   CPU at 4 hours / month — unmeasured at real load.
  *
- * Plan limits below are sized so that a realistic mix (two paying
- * institutions + four concurrent trials) stays inside these numbers — see
+ * Sizing: the capacity is split into HOSTED_INSTITUTIONS equal shares. One
+ * `institution` plan is one share; a `pilot` runs inside a share (a trial is
+ * an institution that has not paid yet) so its limits never exceed the
+ * institution plan's; a `university` takes several shares by agreement,
+ * which lowers the number of institutions hosted. See
  * src/__tests__/pricing-advisor.test.ts. Raise them only after upgrading the
- * infrastructure (Supabase Pro: 8 GB · 100 GB · 250 GB; LiveKit Ship: 150K min).
+ * infrastructure (Supabase Pro: 8 GB · 100 GB · 250 GB · 500 realtime;
+ * LiveKit Ship: 150K min · 1,000 concurrent).
  */
+export const HOSTED_INSTITUTIONS = 5
+
 export const PLATFORM_CAPACITY: Record<Exclude<LimitKey, 'staff'>, number> = {
   students: 800,
   aiRequests: 6_000,
@@ -108,11 +124,16 @@ export const pricing: PricingConfig = {
   plans: [
     {
       id: 'pilot', priceMonthly: 0, priceYearly: 0,
-      limits: { students: 50, staff: 5, aiRequests: 150, liveMinutes: 500, liveConcurrent: 7, storageMb: 50 },
+      // liveConcurrent 9 = one teacher's full live wall (MAX_WATCHED).
+      limits: { students: 50, staff: 5, aiRequests: 150, liveMinutes: 250, liveConcurrent: 9, storageMb: 50 },
     },
     {
-      id: 'institution', highlight: true, priceMonthly: 149, priceYearly: 1490,
-      limits: { students: 250, staff: 25, aiRequests: 1_500, liveMinutes: 1_000, liveConcurrent: 30, storageMb: 250 },
+      // One share of PLATFORM_CAPACITY / HOSTED_INSTITUTIONS; the same
+      // ~$0.59 per student per month as the former 250-student plan at $149.
+      // liveConcurrent 18 = two full live walls; with their two teachers,
+      // five institutions at once make exactly LiveKit's 100 connections.
+      id: 'institution', highlight: true, priceMonthly: 89, priceYearly: 890,
+      limits: { students: 150, staff: 15, aiRequests: 1_000, liveMinutes: 750, liveConcurrent: 18, storageMb: 150 },
     },
     {
       id: 'university', priceMonthly: null, priceYearly: null, multiUnit: true,

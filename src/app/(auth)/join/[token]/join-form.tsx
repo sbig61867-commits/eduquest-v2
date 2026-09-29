@@ -5,30 +5,55 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
+import { checkNameParts, EMPTY_NAME_PARTS, JOIN_NAME_COOKIE, type NameParts } from '@/lib/person-name'
+import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 import type { Role } from '@/types'
 
 interface Props {
   token: string
   invitedEmail: string  // empty string for public invitations
   isPublic: boolean
+  /** The invited role: a student registers with a four-part name. */
+  role: string
+  /** Set when a Google sign-up came back without a valid four-part name. */
+  nameRequired?: boolean
 }
 
-export function JoinForm({ token, invitedEmail, isPublic }: Props) {
+export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = false }: Props) {
+  const isStudent = role === 'student'
   const [email, setEmail]                   = useState(isPublic ? '' : invitedEmail)
   const [fullName, setFullName]             = useState('')
+  const [nameParts, setNameParts]           = useState<NameParts>(EMPTY_NAME_PARTS)
+  const [showNameErrors, setShowNameErrors] = useState(nameRequired)
   const [password, setPassword]             = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError]                   = useState('')
+  const t = useTranslations('auth.join')
+  const tName = useTranslations('common.studentName')
+  const [error, setError]                   = useState(nameRequired ? t('googleNameRequired') : '')
   const [debugInfo, setDebugInfo]           = useState<string | null>(null)
   const [loading, setLoading]               = useState(false)
   const [googleLoading, setGoogleLoading]   = useState(false)
   const router = useRouter()
   const supabase = createClient()
-  const t = useTranslations('auth.join')
   const isDev = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEV_MODE === 'true'
+
+  /** A student's four parts must be valid before either way of signing up. */
+  function studentNameReady(): boolean {
+    if (!isStudent || checkNameParts(nameParts).ok) return true
+    setShowNameErrors(true)
+    setError(tName('incomplete'))
+    return false
+  }
 
   async function handleGoogleSignIn() {
     setError('')
+    if (!studentNameReady()) return
+    if (isStudent) {
+      // Google supplies its own (often two-part) name; the four parts ride
+      // along to /auth/callback, which validates them again before provisioning.
+      const secure = window.location.protocol === 'https:' ? '; secure' : ''
+      document.cookie = `${JOIN_NAME_COOKIE}=${encodeURIComponent(JSON.stringify(nameParts))}; path=/auth/callback; max-age=600; samesite=lax${secure}`
+    }
     setGoogleLoading(true)
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -47,6 +72,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
     e.preventDefault()
     setError('')
 
+    if (!studentNameReady()) return
     if (password !== confirmPassword) {
       setError(t('passwordMismatch'))
       return
@@ -62,7 +88,9 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
       const res = await fetch('/api/auth/accept-invitation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, email: email.trim(), password, fullName }),
+        body: JSON.stringify(isStudent
+          ? { token, email: email.trim(), password, nameParts }
+          : { token, email: email.trim(), password, fullName }),
       })
 
       let data: Record<string, unknown> = {}
@@ -160,18 +188,31 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="join-name" className="block text-sm font-medium text-slate-300 mb-2">{t('fullName')}</label>
-          <input
-            id="join-name"
-            type="text"
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
-            required
-            minLength={2}
-            autoComplete="name"
-            placeholder={t('fullNamePlaceholder')}
-            className={input}
-          />
+          {isStudent ? (
+            <FourPartNameFields
+              idPrefix="join-name"
+              value={nameParts}
+              onChange={setNameParts}
+              showErrors={showNameErrors}
+              hint={tName('hintSelf')}
+              inputClassName={input}
+            />
+          ) : (
+            <>
+              <label htmlFor="join-name" className="block text-sm font-medium text-slate-300 mb-2">{t('fullName')}</label>
+              <input
+                id="join-name"
+                type="text"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                required
+                minLength={2}
+                autoComplete="name"
+                placeholder={t('fullNamePlaceholder')}
+                className={input}
+              />
+            </>
+          )}
         </div>
 
         <div>
@@ -236,6 +277,7 @@ export function JoinForm({ token, invitedEmail, isPublic }: Props) {
         <GoogleIcon />
         {googleLoading ? t('googleLoading') : t('google')}
       </button>
+      {isStudent && <p className="text-xs text-slate-500 text-center mt-2">{t('googleNameHint')}</p>}
     </div>
   )
 }

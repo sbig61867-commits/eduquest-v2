@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkStorageQuota } from '@/lib/storage-quota'
 
 // Uploads an announcement image to the public `announcement-images` bucket.
 // The upload itself runs through the service-role client (bypassing storage
@@ -81,6 +82,9 @@ export async function POST(request: Request) {
   }
 
   const admin = adminClient()
+  // The institution's file allowance (owner's plan limit, src/lib/storage-quota.ts).
+  const quota = await checkStorageQuota(admin, profile.tenant_id, bytes.length)
+  if (!quota.allowed) return NextResponse.json({ ...(await apiErr('storageLimit')) }, { status: 413 })
   // Tenant-scoped path keeps one institution's uploads out of another's folder.
   const path = `${profile.tenant_id}/${crypto.randomUUID()}.${ext}`
 

@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
 import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
+import { checkNameParts, type NameParts } from '@/lib/person-name'
+import { saveStudentName } from '@/lib/student-names'
 
 function getAdminClient() {
   return createAdminClient(
@@ -24,20 +26,17 @@ export async function POST(request: Request) {
     )
   }
 
-  let body: { token?: string; email?: string; password?: string; fullName?: string }
+  let body: { token?: string; email?: string; password?: string; fullName?: string; nameParts?: unknown }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  const { token, email, password, fullName } = body
+  const { token, email, password } = body
 
-  if (!token || !email || !password || !fullName) {
+  if (!token || !email || !password) {
     return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
-  }
-  if (fullName.trim().length < 2) {
-    return NextResponse.json({ ...(await apiErr('fullNameTooShort')) }, { status: 400 })
   }
 
   const cleanEmail = email.trim().toLowerCase()
@@ -65,6 +64,25 @@ export async function POST(request: Request) {
       { ...(await apiErr('invitationMaxUses')) },
       { status: 410 }
     )
+  }
+
+  // ── Step 1a: the name. A student registers with their real four-part name
+  // (src/lib/person-name.ts); other roles keep the single full-name field.
+  // A student's `full_name` is only first + family name; the four parts are
+  // stored privately in step 3b (src/lib/student-names.ts).
+  let fullName: string
+  let studentParts: NameParts | null = null
+  if (inv.role === 'student') {
+    const name = checkNameParts(body.nameParts)
+    if (!name.ok) {
+      return NextResponse.json({ ...(await apiErr('studentNameInvalid')), fields: name.errors }, { status: 400 })
+    }
+    fullName = name.shortName
+    studentParts = name.parts
+  } else {
+    fullName = typeof body.fullName === 'string' ? body.fullName.trim() : ''
+    if (!fullName) return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
+    if (fullName.length < 2) return NextResponse.json({ ...(await apiErr('fullNameTooShort')) }, { status: 400 })
   }
 
   // ── Step 1b: the institution must not be suspended ────────────
@@ -102,7 +120,7 @@ export async function POST(request: Request) {
     email: cleanEmail,
     password,
     email_confirm: true,
-    user_metadata: { full_name: fullName.trim() },
+    user_metadata: { full_name: fullName },
   })
 
   if (authError) {
@@ -137,6 +155,9 @@ export async function POST(request: Request) {
         .eq('id', userId)
       if (affErr) throw new Error(`student affiliation: ${affErr.message}`)
     }
+    // The four parts, private to the student; `fullName` becomes what the
+    // profile row now holds, so accept_invitation writes the same value.
+    if (studentParts) fullName = await saveStudentName(admin, userId, studentParts)
 
     // ── Steps 4-7, atomically: the earlier SELECT (above) was only a
     // fail-fast/email-match check and is NOT race-safe on its own — two
@@ -149,7 +170,7 @@ export async function POST(request: Request) {
     const { error: rpcErr } = await admin.rpc('accept_invitation', {
       p_token: token,
       p_user_id: userId,
-      p_full_name: fullName.trim(),
+      p_full_name: fullName,
     })
 
     if (rpcErr) {

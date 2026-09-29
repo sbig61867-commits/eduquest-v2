@@ -559,7 +559,16 @@
     "statusExpired": "Expired",
     "groupLabel": "Group",
     "groupOptional": "Group (optional)",
-    "seatFull": "{role}: your institution has reached its limit of {limit}. New invitations for this role are paused until the platform raises the limit or a place becomes free."
+    "seatFull": "{role}: your institution has reached its limit of {limit}. New invitations for this role are paused until the platform raises the limit or a place becomes free.",
+    "accountTab": "Create the account",
+    "accountDesc": "Direct account (you set the password)",
+    "accountNote": "The student's account is created now with a temporary password; give them their email and password to sign in. Only the student will see the full four-part name.",
+    "passwordLabel": "Temporary password",
+    "passwordHint": "At least 8 characters",
+    "accountGroupRequired": "Choose one of your groups to add the student to",
+    "createAccount": "Create the student account",
+    "accountCreated": "{name}'s account is ready ({email}). Give the student their email and the temporary password to sign in.",
+    "accountFailed": "Could not create the account"
   },
   "banner": {
     "tabs": {

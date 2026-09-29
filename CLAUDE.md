@@ -162,13 +162,60 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - `live_proctoring_channel_migration.sql` — `exam_live_role(topic)` (SECURITY DEFINER, pinned `search_path`, `anon` revoked) + RLS on `realtime.messages` (it had none): the exam's teacher reads/presence/broadcasts on `exam-live:<exam>`, a student with an `in_progress` attempt reads + presence only (cannot send the watch signal); every other private topic stays closed. ✅ 2026-09-27 — dry-run first in a rolled-back transaction (9/9: teacher full, live student read+presence only, student not in the exam / university_admin / foreign exam / other topic / injection / uppercase all NULL, anon 42501), then applied; verified 2 policies, anon EXECUTE false, `search_path` pinned.
 - `accept_invitation_group_rules_migration.sql` — joining a group by invitation now honours `groups.max_students` (group row locked `FOR UPDATE`, raises `GROUP_FULL`, mapped to 409 `invitationGroupFull` by `api/auth/accept-invitation`; the whole RPC rolls back so the invitation use is not consumed) and enrols the student in the group's linked `course_id`. Built on the `fix_admin_user_escalation_migration.sql` definition — **keep its suspended-tenant check.** ✅ 2026-09-28. Incident: a first draft built on the pre-F3 definition was applied earlier the same day and dropped the suspended-tenant check for a few hours (no tenants existed in prod, so nothing was exposed); the corrected version was applied via Supabase MCP after a rolled-back functional test (10/10: seat cap, linked-course enrolment, use_count untouched on refusal, `NULL` cap, suspended tenant refused, grants) and `supabase/tests/admin_user_escalation_check.sql` passes 10/10 live (A-S01 blocked). Live `prosrc` md5 matches the file. Lesson: before applying a function, re-read the live definition AND check `origin/main` for a newer migration of it.
 
+- `student_name_lock_migration.sql` — **owner's rules 2026-09-28: a student registers with their real four-part
+  name; ONLY the student sees all four parts — teachers, the institution admin and the centre manager see first +
+  family name and must not be able to obtain the middle names at all; the student cannot change the name, only
+  the institution corrects it.** (1) `student_names` (four part columns, one row per student): SELECT policy =
+  own row or super_admin, all writes revoked — written only through `src/lib/student-names.ts` `saveStudentName()`
+  (service role), which also sets `users.full_name` = first + family name, so every screen/report/export/email
+  shows the short name with no change of its own. (2) `users.name_complete` — staff flag ("name incomplete")
+  without reading the name. (3) `users_update` pins `full_name` for the `student` role and `name_complete` for all
+  (`current_full_name()` / `current_name_complete()`, pinned `search_path`, `anon` revoked); every other pinned
+  column copied unchanged from the live policy. Code side: `src/lib/person-name.ts` holds the rules (four parts
+  first/father/grandfather/family, letters only, ≥2 letters each, one script — Arabic or Latin; `shortName` /
+  `fullName`), `components/shared/four-part-name-fields.tsx` the inputs. Enforced server-side in
+  `api/auth/accept-invitation` (`nameParts`), `auth/callback` (Google: the parts ride in the short-lived
+  `eq_join_name` cookie scoped to `/auth/callback`; without valid parts the fresh login is removed and the visitor
+  is sent back to `/join/<token>?error=name_required` — Google's display name is never used for a student) and
+  `api/admin/create-user` (`name_parts` when `role = student`). Staff correct a name through
+  `PATCH /api/admin/student-name` (`manage_students`, same tenant, a centre manager only for centre-only trainees):
+  they cannot read the middle names, so the dialog starts empty and all four parts are typed from the institution's
+  records. `/student/profile` shows the student their own four parts (`loadOwnStudentName`), read-only.
+  **Before the migration** `saveStudentName` finds no table and keeps the whole four-part name in `full_name`
+  (nothing lost, no privacy yet), the flags are hidden, and a student could still rename themselves through
+  PostgREST. Existing students keep their old single-field name and start flagged. Other roles keep the single
+  name field. Dry-run 2026-09-28 in a forced-rollback transaction with `supabase/tests/student_name_lock_check.sql`:
+  before, N-A01/N-A02 VULNERABLE; after, 14/14 attacks blocked (student renames self / another / via role change,
+  rewrites or plants `student_names` rows, clears the flag; another student, teacher, university_admin and anon
+  read the four parts), 9/9 legitimate paths work. ✅ 2026-09-29 — gap scan first (no function callable by
+  anon/authenticated writes `users`; the only `auth.users` trigger is `handle_new_user`, INSERT-only with
+  `ON CONFLICT DO NOTHING`, so a student editing their own auth metadata cannot reach `full_name`; no view exposes
+  `full_name`; `student_names` not in the realtime publication; no other app path writes a student's `full_name`),
+  live policy re-read unchanged, then applied via Supabase MCP. Re-verified live: `student_name_lock_check.sql`
+  14/14 blocked + 9/9 work, `admin_user_escalation_check.sql` 6/6 + 4/4, `locale_rls_check.sql` 9/9 + 2/2; grants
+  (RLS on, 1 policy, anon SELECT / authenticated INSERT-UPDATE-DELETE false, service_role INSERT true, anon cannot
+  execute the pin helpers). Rollback: `supabase/student_name_lock_rollback.sql` (restores the exact prior policy;
+  read its warning first — it drops the middle names).
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-09-26.
+- `tenant_storage_limit_migration.sql` — per-institution file storage cap (owner's plan limits, 2026-09-29).
+  `tenants.storage_limit_mb` (NULL = no cap ⇒ no behaviour change) + `tenant_storage_bytes(tenant)` (sums the
+  tenant's objects in `exam-files` + `announcement-images`; every path starts with the tenant id). Allowed for the
+  service role (`auth.role()`, never `auth.uid()`) and super_admin, 42501 for anyone else, `anon` revoked, pinned
+  `search_path`. Checked before every upload by `src/lib/storage-quota.ts` (`api/exams/files`, `api/exam/answer-file`,
+  `api/announcements/upload` → 413 `storageLimit`), set on «حدود الباقة» in `/super-admin/tenants` (field hidden
+  until the column exists; fails open before the migration). Photos of answers/attachments are shrunk on the device
+  first (`DOCUMENT_PHOTO` in `src/lib/prepare-image.ts`: 1600 px WebP). Dry-run 2026-09-29 in a forced-rollback
+  transaction: 6/6 (service role + super_admin read, university_admin blocked, anon no EXECUTE, negative limit
+  rejected, search_path pinned), nothing left behind.
+- `course_source_text_migration.sql` (June) — **found never applied 2026-09-29**: `courses.source_text` is missing on
+  the live DB while `api/courses/create-full` writes it and `generate-item-content` reads it, so creating a course
+  from a file fails in production. One additive `ADD COLUMN IF NOT EXISTS`.
 
 ## Centre manager panel
 
-Each university has exactly one continuing-education centre, so `center_manager` is tenant-scoped (no `centers` table). **Naming rule:** the two admin accounts never share a label — `university_admin` is named after the institution (`getTerms().institutionAdmin`: «مدير الجامعة», «مدير مركز التدريب» …) and `center_manager` is «مدير المركز» / "Centre Manager" (a training-centre tenant is therefore «مركز التدريب», never a bare «المركز»). Enforced by `src/__tests__/role-label-separation.test.ts`. **Who configures whom (owner's rule, 2026-09-28):** the owner (super_admin) grants each institution admin (`university_admin`, whatever the `institution_type` — a university or an independent training centre) its capabilities; inside that grant the admin runs its own institution freely — creates/invites/(de)activates/deletes its centre managers and sets their capabilities — but can never grant a capability it does not hold (`ungrantableCapabilities` in `/api/admin/permissions`, `canManageAccountOf` for accounts). Do NOT gate this on `institution_type` (tried in PR #15, reverted). Its pages under `src/app/(center)/center/*` gate per capability via `src/lib/center-access.ts`; route handlers use `src/lib/staff-auth.ts` (`staffCan`, `canManageAccountRole` — a centre manager can only ever create/invite/(de)activate `teacher`/`student`). Capabilities added 2026-09-13: `manage_courses` (create a course, assign it to a teacher, enrol students via `/api/course-enrollments`) and `manage_attendance` (`/api/attendance`, also open to a group's own teacher). Staff-created groups/courses always carry a real `teacher_id`. Because `university_admin` defaults ON, admins can now also edit/delete any course in their tenant through `/api/courses`.
+Each university has exactly one continuing-education centre, so `center_manager` is tenant-scoped (no `centers` table). **Naming rule:** the two admin accounts never share a label — `university_admin` is named after the institution (`getTerms().institutionAdmin`: «مدير الجامعة», «مدير مركز التدريب» …) and `center_manager` is «مدير المركز» / "Centre Manager" (a training-centre tenant is therefore «مركز التدريب», never a bare «المركز»). Enforced by `src/__tests__/role-label-separation.test.ts`. **Who configures whom (owner's rule, 2026-09-28):** the owner (super_admin) grants each institution admin (`university_admin`, whatever the `institution_type` — a university or an independent training centre) its capabilities; inside that grant the admin runs its own institution freely — creates/invites/(de)activates/deletes its centre managers and sets their capabilities — but can never grant a capability it does not hold (`ungrantableCapabilities` in `/api/admin/permissions`, `canManageAccountOf` for accounts). Do NOT gate this on `institution_type` (tried in PR #15, reverted). **Adding a student (owner's rule, 2026-09-29):** by invitation link OR by creating the account directly (four-part name + temporary password), for the centre manager (`components/center/people-client.tsx`), the institution admin of every institution type, and teachers (the «حساب مباشر» option on the shared invitations screen, `components/shared/invitations-client.tsx`). All go through `/api/admin/create-user`; a teacher may create **students only, into one of their own groups** (`group_id` required, `addOwnGroupsOnly` / `teacherGroupRequired`), staff may add an optional group. Group seat cap + linked-course enrolment are the shared rules in `src/lib/group-enrolment.ts` (also used by `/api/group-students`); a failure after the auth account exists deletes it again. Its pages under `src/app/(center)/center/*` gate per capability via `src/lib/center-access.ts`; route handlers use `src/lib/staff-auth.ts` (`staffCan`, `canManageAccountRole` — a centre manager can only ever create/invite/(de)activate `teacher`/`student`). Capabilities added 2026-09-13: `manage_courses` (create a course, assign it to a teacher, enrol students via `/api/course-enrollments`) and `manage_attendance` (`/api/attendance`, also open to a group's own teacher). Staff-created groups/courses always carry a real `teacher_id`. Because `university_admin` defaults ON, admins can now also edit/delete any course in their tenant through `/api/courses`.
 
 Course analytics (`/center/analytics`, `view_reports`) reads `get_course_analytics` + `get_tenant_engagement` and
 shows strengths/weaknesses/suggestions from the rule-based `courseInsights()` — no AI on page load. AI phrasing is

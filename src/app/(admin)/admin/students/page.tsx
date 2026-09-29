@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { StudentsClient } from './students-client'
 import { canSetAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
+import { loadNameCompleteFlags } from '@/lib/student-names'
 
 export default async function StudentsPage() {
   const supabase = await createClient()
@@ -13,7 +14,7 @@ export default async function StudentsPage() {
 
   if (!user.tenant_id) redirect('/login')
 
-  const [{ data: students }, { data: profile }, settings] = await Promise.all([
+  const [{ data: students }, { data: profile }, settings, nameComplete] = await Promise.all([
     supabase
       .from('users')
       .select('id, email, full_name, avatar_url, role, is_active, created_at, tenant_id, can_create_courses, is_university_student')
@@ -22,11 +23,13 @@ export default async function StudentsPage() {
       .order('created_at', { ascending: false }),
     supabase.from('users').select('role, permissions').eq('id', user.id).single(),
     getTenantSettings(supabase, user.tenant_id),
+    loadNameCompleteFlags(supabase, user.tenant_id),
   ])
 
   return (
     <StudentsClient
       initialStudents={students ?? []}
+      nameComplete={nameComplete ? Object.fromEntries(nameComplete) : null}
       canSetAffiliation={settings.has_center && canSetAffiliation(profile ?? { role: user.role, permissions: null })}
       hasCenter={settings.has_center}
     />

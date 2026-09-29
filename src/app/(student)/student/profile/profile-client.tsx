@@ -2,14 +2,9 @@
 
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { User, Building2, Users, CheckCircle2, GraduationCap, School } from 'lucide-react'
+import { User, Building2, Users, GraduationCap, School, Lock } from 'lucide-react'
 import type { StudentTrack } from '@/lib/student-track'
 import { formatDate } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth-store'
 
 interface Profile {
   id: string
@@ -38,54 +33,27 @@ export interface Affiliation {
 
 interface Props {
   profile: Profile | null
+  /** The student's own four-part name (only they can read it); null for older accounts. */
+  fourPartName?: string | null
   groups: Group[]
   affiliation?: Affiliation
 }
 
-export function StudentProfileClient({ profile, groups, affiliation }: Props) {
+export function StudentProfileClient({ profile, fourPartName = null, groups, affiliation }: Props) {
   const t = useTranslations('student.profile')
   const locale = useLocale() as Locale
-  const [fullName, setFullName] = useState(profile?.full_name ?? '')
-  const [loading, setLoading] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
-  const { setUser } = useAuthStore()
-  const supabase = createClient()
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    if (!profile) return
-    setLoading(true)
-    setError('')
-    setSaved(false)
-
-    const { data, error: err } = await supabase
-      .from('users')
-      .update({ full_name: fullName.trim() })
-      .eq('id', profile.id)
-      .select('id, full_name, email, role, is_active, tenant_id, avatar_url, can_create_courses, is_university_student, created_at')
-      .single()
-
-    if (err) {
-      setError(err.message)
-    } else {
-      setUser(data)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    }
-    setLoading(false)
-  }
 
   if (!profile) return <div className="text-slate-400">{t('notFound')}</div>
+  const ownName = fourPartName ?? profile.full_name
 
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
-          {profile.full_name[0]?.toUpperCase()}
+          {ownName[0]?.toUpperCase()}
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">{profile.full_name}</h2>
+          <h2 className="text-2xl font-bold text-white">{ownName}</h2>
           <p className="text-slate-400 text-sm">{profile.email}</p>
         </div>
       </div>
@@ -132,37 +100,35 @@ export function StudentProfileClient({ profile, groups, affiliation }: Props) {
         </div>
       )}
 
-      {/* Edit name */}
-      <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold">{t('edit')}</h3>
-
-        {error && (
-          <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
-        )}
-        {saved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> {t('saved')}
-          </div>
-        )}
-
-        <Input
-          label={t('fullName')}
-          value={fullName}
-          onChange={e => setFullName(e.target.value)}
-          required
-          placeholder={t('fullNamePlaceholder')}
-        />
+      {/* Name and email: both fixed. The four-part name is the institution's
+          record of the student; only its staff can correct it
+          (/api/admin/student-name, users_update pins full_name for students). */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <h3 className="text-white font-semibold">{t('details')}</h3>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">{t('email')}</label>
+          <label htmlFor="profile-name" className="block text-sm font-medium text-slate-300">{t('fullName')}</label>
           <input
+            id="profile-name"
+            value={ownName}
+            readOnly
+            className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-white text-sm cursor-default"
+          />
+          <p className="text-xs text-slate-500 flex items-start gap-1.5">
+            <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            {t('nameLocked', { institution: profile.tenants?.name ?? t('institution') })}
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="profile-email" className="block text-sm font-medium text-slate-300">{t('email')}</label>
+          <input
+            id="profile-email"
             value={profile.email}
             disabled
             className="w-full px-4 py-2.5 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 text-sm cursor-not-allowed"
           />
           <p className="text-xs text-slate-500">{t('emailLocked')}</p>
         </div>
-        <Button type="submit" loading={loading}>{t('save')}</Button>
-      </form>
+      </div>
 
       {/* My Groups */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">

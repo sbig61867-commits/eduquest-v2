@@ -1,6 +1,7 @@
 {
   "academicDisabled": "The academic structure is not enabled for your institution",
   "accountExists": "An account with this email already exists. Try signing in.",
+  "addOwnGroupsOnly": "You can only add students to your own groups",
   "affiliationUpdateFailed": "Could not update the student's classification",
   "aiGenerationFailed": "AI generation failed. Please try again.",
   "aiNoValidSuggestions": "The assistant returned no valid suggestions, please try again",
@@ -242,8 +243,11 @@
   "slotUpdateFailed": "Could not update the slot",
   "staffInviteMustBePrivate": "Staff invitations (institution admin / centre manager) must always target a specific email, for security.",
   "statusUpdateFailed": "Could not update the status",
+  "storageLimit": "Your institution has used all the file storage in its current plan. Contact the platform team to raise it.",
   "studentAlreadyInTarget": "The student is already in the new group",
   "studentLimit": "Your institution has reached the student limit for its current plan. Contact the platform team to upgrade.",
+  "studentNameInvalid": "Enter the student's four-part name: first, father's, grandfather's and family name, letters only, at least 2 letters each, all in one language.",
+  "studentNameUpdateFailed": "Could not update the student's name",
   "studentNotFound": "Student not found",
   "studentNotInSourceGroup": "The student is not in the current group",
   "studentNotInTenant": "Student not found in this institution",
@@ -317,5 +321,6 @@
   "sharedTeacher": "This teacher also teaches institution groups — only the institution admin can activate or deactivate them. To remove them from the centre, unassign them from your courses.",
   "unassignedTeacher": "This teacher is not assigned to any centre course yet — only the institution admin can activate or deactivate them.",
   "announcementEventFailed": "Could not record this right now — try again later.",
-  "teacherLimit": "Your institution has reached the teacher limit for its current plan. Contact the platform team to raise it."
+  "teacherLimit": "Your institution has reached the teacher limit for its current plan. Contact the platform team to raise it.",
+  "teacherGroupRequired": "Choose one of your groups to add the student to"
 }
