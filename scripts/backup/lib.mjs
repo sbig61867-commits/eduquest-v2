@@ -312,3 +312,30 @@ export function planPrune(groups, keep = DEFAULT_KEEP, currentId, { sizes = {}, 
   }
   return doomed
 }
+
+// ── database link ────────────────────────────────────────────────────────────
+
+/**
+ * Repairs a pasted Postgres link: trims spaces/line breaks, drops wrapping
+ * quotes and the [ ] of Supabase's "[YOUR-PASSWORD]" placeholder, and
+ * percent-encodes the password (Supabase shows it raw, but @ # / ? : must be
+ * encoded inside a link). The password runs to the LAST @, so a raw @ in it
+ * survives. Returns the link and every form of the password to mask in logs.
+ * @param {string} raw
+ * @returns {{ url: string, masks: string[] }}
+ */
+export function normalizeDbUrl(raw) {
+  let s = String(raw).trim().replace(/^SUPABASE_DB_URL\s*=\s*/, '').replace(/^["']|["']$/g, '').trim()
+  const m = /^(postgres(?:ql)?):\/\/([^:/@\s]+):([\s\S]*)@([^@/\s]+)(\/[^\s]*)?$/.exec(s)
+  if (!m) throw new Error('SUPABASE_DB_URL is not a postgresql://user:password@host:port/database link')
+  let [, scheme, user, pw, host, path] = m
+  pw = pw.trim()
+  if (/^\[.*\]$/.test(pw)) pw = pw.slice(1, -1)
+  if (!pw || pw === 'YOUR-PASSWORD') throw new Error('SUPABASE_DB_URL has no password (the [YOUR-PASSWORD] placeholder is still there)')
+  let decoded = pw
+  if (/%[0-9A-Fa-f]{2}/.test(pw)) { try { decoded = decodeURIComponent(pw) } catch { decoded = pw } }
+  const encoded = encodeURIComponent(decoded)
+  const url = `${scheme}://${user}:${encoded}@${host}${path || '/postgres'}`
+  const masks = [...new Set([pw, decoded, encoded, url, s])].filter(v => v && !/[\r\n]/.test(v))
+  return { url, masks }
+}
