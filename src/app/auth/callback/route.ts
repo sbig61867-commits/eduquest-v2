@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getRoleDashboardPath } from '@/lib/utils'
 import { rateLimit } from '@/lib/rate-limit'
 import { seatRoleFromDbError } from '@/lib/seat-limit'
+import { checkNameParts, JOIN_NAME_COOKIE, type NameCheck } from '@/lib/person-name'
+import { saveStudentName } from '@/lib/student-names'
 import type { Role } from '@/types'
 
 interface ProfileRow {
@@ -40,6 +43,13 @@ function getAdminClient() {
 // been removed later) and must never be deleted — every FK into users is
 // ON DELETE CASCADE.
 const FRESH_ACCOUNT_WINDOW_MS = 2 * 60 * 1000
+
+/** The four name parts the join form stored for this round trip, validated again here. */
+function readJoinName(raw: string | undefined): NameCheck {
+  if (!raw) return checkNameParts(null)
+  try { return checkNameParts(JSON.parse(raw)) } catch { /* still URI-encoded */ }
+  try { return checkNameParts(JSON.parse(decodeURIComponent(raw))) } catch { return checkNameParts(null) }
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -84,6 +94,9 @@ export async function GET(request: Request) {
   // permanent auth.users + public.users row behind (the exact DB/MAU bloat
   // this gate exists to prevent).
   const destination = (role: Role) => (next !== '/' ? next : getRoleDashboardPath(role))
+  // Where (d) sends a rejected sign-in; a student invitation missing its
+  // four-part name goes back to its join form instead.
+  let rejectTo = '/login?error=invitation_required'
 
   // (a) super_admin — ALWAYS allowed. Checked first and unconditionally:
   // super_admin legitimately has tenant_id = NULL, so if this check ran after
@@ -103,6 +116,10 @@ export async function GET(request: Request) {
   // Google-verified email, using the same rules as the password-based flow
   // in api/auth/accept-invitation.
   if (inviteToken) {
+    const cookieStore = await cookies()
+    const joinNameCookie = cookieStore.get(JOIN_NAME_COOKIE)?.value
+    if (joinNameCookie) cookieStore.delete({ name: JOIN_NAME_COOKIE, path: '/auth/callback' })
+
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
     const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 5, windowSecs: 3600 })
 
@@ -121,9 +138,17 @@ export async function GET(request: Request) {
       const emailMatches = !!inv && (inv.is_public || (!!inv.email && inv.email.toLowerCase() === googleEmail))
       const withinUses = !!inv && (!inv.is_public || inv.max_uses == null || inv.use_count < inv.max_uses)
 
-      if (inv && emailMatches && withinUses) {
+      // A student's name is the four parts typed on the join form, never
+      // Google's display name (often two parts, sometimes a nickname or empty).
+      // Without a valid one nothing is provisioned: (d) removes this fresh
+      // login and the join form asks for the name.
+      const usable = !!inv && emailMatches && withinUses
+      const studentName = inv && usable && inv.role === 'student' ? readJoinName(joinNameCookie) : null
+      if (studentName && !studentName.ok) {
+        rejectTo = `/join/${encodeURIComponent(inviteToken)}?error=name_required`
+      } else if (inv && usable) {
         const meta = (user.user_metadata ?? {}) as Record<string, unknown>
-        const fullName =
+        let fullName =
           (typeof meta.full_name === 'string' && meta.full_name) ||
           (typeof meta.name === 'string' && meta.name) ||
           user.email ||
@@ -138,27 +163,43 @@ export async function GET(request: Request) {
             .eq('id', user.id)
         }
 
-        const { error: rpcErr } = await admin.rpc('accept_invitation', {
-          p_token: inviteToken,
-          p_user_id: user.id,
-          p_full_name: fullName,
-        })
-
-        if (!rpcErr) {
-          return NextResponse.redirect(`${origin}${getRoleDashboardPath(inv.role)}`)
-        }
-        // The institution is at its plan limit for this role (DB trigger;
-        // the RPC rolled back, so nothing was provisioned). Remove the login
-        // only when this very sign-in created it — same rule as (d) below —
-        // and tell the visitor why instead of a generic "invitation required".
-        if (seatRoleFromDbError(rpcErr.message)) {
-          if (Date.now() - new Date(profile.created_at).getTime() < FRESH_ACCOUNT_WINDOW_MS) {
-            await admin.auth.admin.deleteUser(user.id).catch(e =>
-              console.error('[auth/callback] cleanup deleteUser failed for', user.id, e)
-            )
+        // The four parts go to the student's private row; the profile keeps
+        // first + family name (src/lib/student-names.ts). If that fails,
+        // nothing is provisioned and (d) cleans up.
+        let nameStored = true
+        if (studentName && studentName.ok) {
+          try {
+            fullName = await saveStudentName(admin, user.id, studentName.parts)
+          } catch (e) {
+            console.error('[auth/callback] saving the student name failed for', user.id, e)
+            nameStored = false
+            rejectTo = '/login?error=auth_callback_failed'
           }
-          await supabase.auth.signOut().catch(() => {})
-          return NextResponse.redirect(`${origin}/login?error=institution_full`)
+        }
+
+        if (nameStored) {
+          const { error: rpcErr } = await admin.rpc('accept_invitation', {
+            p_token: inviteToken,
+            p_user_id: user.id,
+            p_full_name: fullName,
+          })
+
+          if (!rpcErr) {
+            return NextResponse.redirect(`${origin}${getRoleDashboardPath(inv.role)}`)
+          }
+          // The institution is at its plan limit for this role (DB trigger;
+          // the RPC rolled back, so nothing was provisioned). Remove the login
+          // only when this very sign-in created it — same rule as (d) below —
+          // and tell the visitor why instead of a generic "invitation required".
+          if (seatRoleFromDbError(rpcErr.message)) {
+            if (Date.now() - new Date(profile.created_at).getTime() < FRESH_ACCOUNT_WINDOW_MS) {
+              await admin.auth.admin.deleteUser(user.id).catch(e =>
+                console.error('[auth/callback] cleanup deleteUser failed for', user.id, e)
+              )
+            }
+            await supabase.auth.signOut().catch(() => {})
+            return NextResponse.redirect(`${origin}/login?error=institution_full`)
+          }
         }
         // Fall through to (d): the invitation was consumed/expired between
         // our fail-fast check and the atomic RPC, or something else failed.
@@ -201,5 +242,5 @@ export async function GET(request: Request) {
   )
 
   await supabase.auth.signOut().catch(() => {})
-  return NextResponse.redirect(`${origin}/login?error=invitation_required`)
+  return NextResponse.redirect(`${origin}${rejectTo}`)
 }

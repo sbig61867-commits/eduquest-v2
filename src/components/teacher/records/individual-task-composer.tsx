@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toast'
 import { extractFilesText } from '@/lib/ai/extract-client'
-import { prepareImageForUpload } from '@/lib/prepare-image'
+import { DOCUMENT_PHOTO, prepareImageForUpload } from '@/lib/prepare-image'
 import { weaknessNote, writtenAnswersText, type TaskSuggestion } from '@/lib/individual-task'
 import { selectClass } from '@/components/teacher/records/ui'
 
@@ -63,7 +63,7 @@ export function IndividualTaskComposer({ open, onClose, groupId, student, source
   const imageRef = useRef<HTMLInputElement>(null)
 
   async function uploadImage(file: File): Promise<Attachment | null> {
-    const ready = await prepareImageForUpload(file)
+    const ready = await prepareImageForUpload(file, DOCUMENT_PHOTO)
     const fd = new FormData()
     fd.append('file', ready)
     const res = await fetch('/api/exams/files', { method: 'POST', body: fd })

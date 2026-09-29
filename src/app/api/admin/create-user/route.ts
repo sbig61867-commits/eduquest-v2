@@ -7,6 +7,9 @@ import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from
 import { canManageAccountOf } from '@/lib/staff-auth'
 import { resolveStudentAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
+import { checkNameParts, type NameParts } from '@/lib/person-name'
+import { saveStudentName } from '@/lib/student-names'
+import { enrolStudentInGroup, groupHasRoom, type EnrolmentGroup } from '@/lib/group-enrolment'
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -36,11 +39,14 @@ export async function POST(request: Request) {
     const { data: callerProfile } = await supabase
       .from('users').select('role, tenant_id, permissions').eq('id', caller.id).single()
 
-    if (!callerProfile || !['university_admin', 'super_admin', 'center_manager'].includes(callerProfile.role)) {
+    // A teacher may create student accounts too, but only into their own
+    // groups (the same reach as their invitation links) — checked below.
+    if (!callerProfile || !['university_admin', 'super_admin', 'center_manager', 'teacher'].includes(callerProfile.role)) {
       return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     }
+    const isTeacher = callerProfile.role === 'teacher'
 
-    // 20 user creations per admin per hour
+    // 20 user creations per caller per hour
     const rl = await rateLimit(`create-user:${caller.id}`, { limit: 20, windowSecs: 3600 })
     if (!rl.allowed) {
       return NextResponse.json(
@@ -50,10 +56,26 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { full_name, email, password, role } = body
+    const { email, password, role } = body
 
-    if (!full_name?.trim() || !email?.trim() || !password || !role) {
+    if (!email?.trim() || !password || !role) {
       return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
+    }
+    // A student gets their real four-part name (src/lib/person-name.ts), kept
+    // private to them; their profile row carries first + family name only
+    // (src/lib/student-names.ts). Other roles keep the single full-name field.
+    let full_name: string
+    let studentParts: NameParts | null = null
+    if (role === 'student') {
+      const name = checkNameParts(body.name_parts)
+      if (!name.ok) {
+        return NextResponse.json({ ...(await apiErr('studentNameInvalid')), fields: name.errors }, { status: 400 })
+      }
+      full_name = name.shortName
+      studentParts = name.parts
+    } else {
+      full_name = typeof body.full_name === 'string' ? body.full_name.trim() : ''
+      if (!full_name) return NextResponse.json({ ...(await apiErr('missingFields')) }, { status: 400 })
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ ...(await apiErr('invalidEmail')) }, { status: 400 })
@@ -66,13 +88,22 @@ export async function POST(request: Request) {
       super_admin: ['university_admin', 'teacher', 'student'],
       university_admin: ['teacher', 'student'],
       center_manager: ['teacher', 'student'],
+      teacher: ['student'],
     }
     if (!ALLOWED[callerProfile.role]?.includes(role)) {
       return NextResponse.json({ error: `Your role cannot create a ${role} account` }, { status: 403 })
     }
-    // Every staff role additionally needs the matching per-user capability.
-    if (!canManageAccountOf(callerProfile, role)) {
+    // Every staff role additionally needs the matching per-user capability; a
+    // teacher holds none and is bounded by their own groups instead.
+    if (!isTeacher && !canManageAccountOf(callerProfile, role)) {
       return NextResponse.json({ ...(await apiErr('cannotCreateRole')) }, { status: 403 })
+    }
+    const groupId = typeof body.group_id === 'string' && body.group_id ? body.group_id : null
+    if (groupId && role !== 'student') {
+      return NextResponse.json({ ...(await apiErr('groupOnlyForStudents')) }, { status: 400 })
+    }
+    if (isTeacher && !groupId) {
+      return NextResponse.json({ ...(await apiErr('teacherGroupRequired')) }, { status: 400 })
     }
 
     const tenant_id = callerProfile.role === 'super_admin'
@@ -102,13 +133,31 @@ export async function POST(request: Request) {
       }
     }
 
+    // The group the new student joins (optional for staff, required for a
+    // teacher): same rules as an invitation into a group — in this tenant, the
+    // teacher's own, and not at its seat cap. Read through the caller's session.
+    let group: EnrolmentGroup | null = null
+    if (groupId) {
+      const { data: row } = await supabase.from('groups').select('*').eq('id', groupId).maybeSingle()
+      if (!row || row.tenant_id !== tenant_id) {
+        return NextResponse.json({ ...(await apiErr('groupNotInTenant')) }, { status: 400 })
+      }
+      if (isTeacher && row.teacher_id !== caller.id) {
+        return NextResponse.json({ ...(await apiErr('addOwnGroupsOnly')) }, { status: 403 })
+      }
+      group = row as EnrolmentGroup
+      if (!(await groupHasRoom(adminClient, group))) {
+        return NextResponse.json({ ...(await apiErr('groupFull', { max: group.max_students ?? 0 })) }, { status: 409 })
+      }
+    }
+
     // Step 1: create the auth identity (trigger will insert a placeholder profile)
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: email.trim(),
       password,
       email_confirm: true,
       // No role/tenant_id in metadata — trigger now always defaults to 'student'/NULL
-      user_metadata: { full_name: full_name.trim() },
+      user_metadata: { full_name },
     })
 
     if (authError) {
@@ -131,7 +180,7 @@ export async function POST(request: Request) {
       .upsert({
         id: authData.user.id,
         email: email.trim(),
-        full_name: full_name.trim(),
+        full_name,
         role,
         tenant_id,
         is_active: true,
@@ -156,7 +205,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...(await apiErr('userProfileCreateFailed')) }, { status: 500 })
     }
 
-    return NextResponse.json({ user: profile })
+    // Step 3 (students): the private four-part name, then the group. Any
+    // failure removes the account again, so nothing half-made is left behind.
+    let created = profile
+    try {
+      if (studentParts) {
+        const stored = await saveStudentName(adminClient, authData.user.id, studentParts)
+        // The short name is stored only once the parts were saved privately.
+        created = { ...profile, full_name: stored, name_complete: stored === full_name }
+      }
+      if (group) {
+        const { error: enrolErr } = await enrolStudentInGroup(adminClient, group, authData.user.id)
+        if (enrolErr) throw new Error(`group enrolment: ${enrolErr.message}`)
+      }
+    } catch (e) {
+      console.error('[create-user] after profile:', e)
+      await adminClient.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json({ ...(await apiErr('userProfileCreateFailed')) }, { status: 500 })
+    }
+
+    return NextResponse.json({ user: created })
 
   } catch (err) {
     console.error('[create-user] unexpected error:', err)

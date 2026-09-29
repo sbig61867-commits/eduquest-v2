@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkStorageQuota } from '@/lib/storage-quota'
 import {
   EXAM_FILES_BUCKET, MAX_FILE_BYTES, examFilesAdmin, extFor, signExamFiles, sniffImageType, taskAttachmentPath,
 } from '@/lib/exam-files'
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
   if (!type || !ext) return NextResponse.json({ ...(await apiErr('imageContentInvalid')) }, { status: 400 })
 
   const admin = examFilesAdmin()
+  // The institution's file allowance (owner's plan limit, src/lib/storage-quota.ts).
+  const quota = await checkStorageQuota(admin, profile.tenant_id, bytes.length)
+  if (!quota.allowed) return NextResponse.json({ ...(await apiErr('storageLimit')) }, { status: 413 })
   const path = taskAttachmentPath(profile.tenant_id, user.id, crypto.randomUUID(), ext)
   const { error } = await admin.storage.from(EXAM_FILES_BUCKET).upload(path, bytes, { contentType: type, upsert: false })
   if (error) {

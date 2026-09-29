@@ -17,6 +17,8 @@ export interface Tenant {
   /** Plan caps on ACTIVE students / teachers; NULL = no cap (src/lib/seat-limit.ts). */
   student_limit?: number | null
   teacher_limit?: number | null
+  /** MB of files (task/answer photos, announcement images); NULL = no cap. src/lib/storage-quota.ts */
+  storage_limit_mb?: number | null
 }
 
 export interface User {

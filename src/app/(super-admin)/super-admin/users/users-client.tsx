@@ -17,6 +17,8 @@ import { formatDate, getRoleLabel } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
+import { checkNameParts, EMPTY_NAME_PARTS, type NameParts } from '@/lib/person-name'
+import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -175,19 +177,32 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [nameParts, setNameParts] = useState<NameParts>(EMPTY_NAME_PARTS)
+  const [showNameErrors, setShowNameErrors] = useState(false)
+  const tName = useTranslations('common.studentName')
+  const isStudent = form.role === 'student'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true); setError('')
+    setError('')
+    // A student is created with the four-part name, like every other path.
+    if (isStudent && !checkNameParts(nameParts).ok) {
+      setShowNameErrors(true)
+      setError(tName('incomplete'))
+      return
+    }
+    setLoading(true)
     const res = await fetch('/api/admin/create-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(isStudent ? { ...form, full_name: undefined, name_parts: nameParts } : form),
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? t('createFailed')); setLoading(false); return }
     onCreated(data.user)
     setForm({ full_name: '', email: '', password: '', role: 'university_admin', tenant_id: defaultTenantId ?? tenants[0]?.id ?? '' })
+    setNameParts(EMPTY_NAME_PARTS)
+    setShowNameErrors(false)
     onClose()
     setLoading(false)
   }
@@ -198,7 +213,17 @@ function AddUserModal({ open, onClose, tenants, defaultTenantId, onCreated }: {
         {error && (
           <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
         )}
-        <Input label={t('fullName')} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder={t('fullNamePlaceholder')} />
+        {isStudent ? (
+          <FourPartNameFields
+            idPrefix="add-user-name"
+            value={nameParts}
+            onChange={setNameParts}
+            showErrors={showNameErrors}
+            hint={tName('hintStaff')}
+          />
+        ) : (
+          <Input label={t('fullName')} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required placeholder={t('fullNamePlaceholder')} />
+        )}
         <Input label={t('email')} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required placeholder="user@school.edu" />
         <Input label={t('password')} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required placeholder={t('passwordPlaceholder')} />
         <div className="space-y-1.5">

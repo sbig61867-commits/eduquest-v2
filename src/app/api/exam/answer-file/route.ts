@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { isOnExamRoster } from '@/lib/exam-roster'
+import { checkStorageQuota } from '@/lib/storage-quota'
 import {
   EXAM_FILES_BUCKET, MAX_FILE_BYTES, answerFilePath, examFilesAdmin, extFor, isSafeQuestionId, isUuid,
   signExamFiles, sniffImageType,
@@ -69,6 +70,9 @@ export async function POST(request: Request) {
   const ext = type ? extFor(type) : null
   if (!type || !ext) return NextResponse.json({ ...(await apiErr('imageContentInvalid')) }, { status: 400 })
 
+  // The institution's file allowance (owner's plan limit, src/lib/storage-quota.ts).
+  const quota = await checkStorageQuota(admin, exam.tenant_id, bytes.length)
+  if (!quota.allowed) return NextResponse.json({ ...(await apiErr('storageLimit')) }, { status: 413 })
   const path = answerFilePath(exam.tenant_id, examId, user.id, questionId, ext)
   const { error } = await admin.storage.from(EXAM_FILES_BUCKET).upload(path, bytes, { contentType: type, upsert: true })
   if (error) {

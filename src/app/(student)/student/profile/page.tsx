@@ -8,17 +8,24 @@ import { StudentProfileClient, type Affiliation } from './profile-client'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { getStudentTrack } from '@/lib/student-track'
 import { getTerms } from '@/lib/terminology'
+import { loadOwnStudentName } from '@/lib/student-names'
+import { fourPartName } from '@/lib/person-name'
 
 export default async function StudentProfilePage() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('id, full_name, email, role, is_active, is_university_student, created_at, tenants(name, slug)')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, ownName] = await Promise.all([
+    supabase
+      .from('users')
+      .select('id, full_name, email, role, is_active, is_university_student, created_at, tenants(name, slug)')
+      .eq('id', user.id)
+      .single(),
+    // The four parts: readable by this student alone (everyone else sees
+    // users.full_name = first + family name).
+    loadOwnStudentName(supabase, user.id),
+  ])
 
   const { data: groups } = await supabase
     .from('group_students')
@@ -65,6 +72,7 @@ export default async function StudentProfilePage() {
   return (
     <StudentProfileClient
       profile={profile as unknown as Parameters<typeof StudentProfileClient>[0]['profile']}
+      fourPartName={ownName ? fourPartName(ownName) : null}
       groups={myGroups}
       affiliation={affiliation}
     />

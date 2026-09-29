@@ -27,15 +27,35 @@ function encode(canvas: HTMLCanvasElement, type: string, quality: number): Promi
   return new Promise(resolve => canvas.toBlob(resolve, type, quality))
 }
 
-export async function prepareImageForUpload(file: File): Promise<File> {
+/**
+ * Photos of handwritten answers and task attachments. File storage is small
+ * (Supabase free: 1 GB for the whole platform, a share per institution —
+ * src/lib/pricing/plans.ts) and a phone photo is 2–4 MB; 1600 px on the long
+ * side keeps handwriting legible at roughly a tenth of the size.
+ */
+export const DOCUMENT_PHOTO = { maxSide: 1600, alwaysReencode: true, quality: 0.8 } as const
+
+interface PrepareOptions {
+  /** Longest side in pixels after scaling (never upscales). */
+  maxSide?: number
+  /** Re-encode even a file that already fits, so every upload is shrunk. */
+  alwaysReencode?: boolean
+  /** First WebP/JPEG quality tried. */
+  quality?: number
+}
+
+export async function prepareImageForUpload(file: File, opts: PrepareOptions = {}): Promise<File> {
+  const maxSide = opts.maxSide ?? MAX_SIDE
+  const firstQuality = opts.quality ?? 0.9
   // Fits already: keep the author's original bytes (the display scales it
-  // down without distortion, whatever its dimensions).
-  if (ALREADY_OK.has(file.type) && file.size <= LIMIT) return file
+  // down without distortion, whatever its dimensions). A GIF is never
+  // re-encoded: it would lose its animation.
+  if (ALREADY_OK.has(file.type) && file.size <= LIMIT && (!opts.alwaysReencode || file.type === 'image/gif')) return file
   // An animated GIF would lose its animation on a canvas; better to refuse.
   if (file.type === 'image/gif') throw new ImagePrepError('tooLarge')
 
   const img = await load(file)
-  let scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight))
+  let scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight))
   // WebP keeps transparency; JPEG is the fallback where WebP can't be encoded.
   for (let attempt = 0; attempt < 6; attempt++) {
     const canvas = document.createElement('canvas')
@@ -44,7 +64,7 @@ export async function prepareImageForUpload(file: File): Promise<File> {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new ImagePrepError('unreadable')
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-    const quality = attempt < 3 ? 0.9 - attempt * 0.1 : 0.72
+    const quality = attempt < 3 ? firstQuality - attempt * 0.1 : Math.min(0.72, firstQuality - 0.2)
     let blob = await encode(canvas, 'image/webp', quality)
     if (!blob || blob.type !== 'image/webp') blob = await encode(canvas, 'image/jpeg', quality)
     if (blob && blob.size <= LIMIT) {
