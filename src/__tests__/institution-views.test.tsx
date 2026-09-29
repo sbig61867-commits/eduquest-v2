@@ -61,16 +61,19 @@ const ADMIN_NAV: NavItem[] = [
 beforeEach(() => useAuthStore.setState({ user: null, tenant: null, isLoading: false }))
 
 describe('university admin — existing tenant (flat, has centre)', () => {
-  it('sees the original menu: no Academic, Centre Staff present, University Admin title', () => {
+  it('sees the original menu: no Academic, Centre Staff present; the top is the brand over the institution', () => {
     signIn(user({}), tenant({}))
     render(<Sidebar items={ADMIN_NAV} title="University Admin" titleTerm="institutionAdmin" />)
     expect(screen.queryByText('Academic')).toBeNull()
     expect(screen.getByText('Centre Staff')).toBeInTheDocument()
     expect(screen.getByText('المجموعات')).toBeInTheDocument()
-    expect(screen.getByText('مدير الجامعة')).toBeInTheDocument()
+    expect(screen.getByText('EduQuest')).toBeInTheDocument()
+    expect(screen.getByText('QOU')).toBeInTheDocument()
+    // The role lives in the header only (not repeated in the sidebar).
+    expect(screen.queryByText('مدير الجامعة')).toBeNull()
   })
 
-  it('header shows University Admin · QOU', () => {
+  it('header shows the role: University Admin', () => {
     signIn(user({}), tenant({}))
     render(<Header title="Admin Panel" />)
     expect(screen.getByText(/مدير الجامعة/)).toBeInTheDocument()
@@ -80,11 +83,13 @@ describe('university admin — existing tenant (flat, has centre)', () => {
 describe('school admin — no centre', () => {
   it('menu uses school wording and hides centre staff', () => {
     signIn(user({}), tenant({ institution_type: 'school', has_center: false }))
-    render(<Sidebar items={ADMIN_NAV} title="University Admin" titleTerm="institutionAdmin" />)
-    expect(screen.getByText('مدير المدرسة')).toBeInTheDocument()
+    const { unmount } = render(<Sidebar items={ADMIN_NAV} title="University Admin" titleTerm="institutionAdmin" />)
     expect(screen.getByText('الفصول')).toBeInTheDocument()
     expect(screen.queryByText('Centre Staff')).toBeNull()
     expect(screen.queryByText('Academic')).toBeNull()
+    unmount()
+    render(<Header title="Admin Panel" />)
+    expect(screen.getByText('مدير المدرسة')).toBeInTheDocument()
   })
 
   it('students list shows no university/centre badges', () => {
@@ -106,12 +111,9 @@ describe('admin — tenant switched to the academic structure', () => {
 describe('students', () => {
   const profile = { id: 's1', full_name: 'Sara', email: 's@x', role: 'student', is_active: true, created_at: '2026-09-01T00:00:00Z', tenants: { name: 'QOU', slug: 'qou' } }
 
-  it('centre trainee: Centre Trainee title/header and the centre card, never faculties', () => {
+  it('centre trainee: Centre Trainee in the header', () => {
     signIn(user({ role: 'student', is_university_student: false }), tenant({}))
-    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
-    expect(screen.getByText('متدرب المركز')).toBeInTheDocument()
-    unmount()
-    render(<Header title="بوابة الطالب" />)
+    render(<Header title="Student portal" />)
     expect(screen.getByText(/متدرب المركز/)).toBeInTheDocument()
   })
 
@@ -125,7 +127,7 @@ describe('students', () => {
 
   it('university student: Student title and faculty › department on profile', () => {
     signIn(user({ role: 'student', is_university_student: true }), tenant({ structure_mode: 'academic' }))
-    const { unmount } = render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
+    const { unmount } = render(<Header title="Student portal" />)
     expect(screen.getByText('طالب')).toBeInTheDocument()
     unmount()
     render(<StudentProfileClient profile={profile} groups={[]}
@@ -136,8 +138,22 @@ describe('students', () => {
 
   it('trainee flag is ignored in a tenant without a centre', () => {
     signIn(user({ role: 'student', is_university_student: false }), tenant({ has_center: false, institution_type: 'school' }))
-    render(<Sidebar items={[]} title="طالب" centreTraineeTitle="متدرب المركز" />)
+    render(<Header title="Student portal" />)
     expect(screen.getByText('طالب')).toBeInTheDocument()
+    expect(screen.queryByText(/متدرب المركز/)).toBeNull()
+  })
+})
+
+describe('centre manager title follows the institution type', () => {
+  it('a university shows «مدير مركز التعليم المستمر», a training centre «مساعد مدير المركز»', () => {
+    signIn(user({ role: 'center_manager' }), tenant({}))
+    const { unmount } = render(<Header title="Centre" />)
+    expect(screen.getByText('مدير مركز التعليم المستمر')).toBeInTheDocument()
+    unmount()
+    signIn(user({ role: 'center_manager' }), tenant({ institution_type: 'training_center' }))
+    render(<Header title="Centre" />)
+    expect(screen.getByText('مساعد مدير المركز')).toBeInTheDocument()
+    expect(screen.queryByText('مدير مركز التدريب')).toBeNull()
   })
 })
 

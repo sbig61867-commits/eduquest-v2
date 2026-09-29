@@ -9,7 +9,7 @@ import type { RoleLabels } from './types'
 export const institutionTerms: Record<InstitutionType, Terms> = {
   university: {
     institutionTypeLabel: 'University',
-    institution: 'University', institutionAdmin: 'University Admin',
+    institution: 'University', institutionAdmin: 'University Admin', centerManager: 'Continuing Education Director',
     group: 'Group', groups: 'Groups',
     unitL1: 'Faculty', unitsL1: 'Faculties', unitL2: 'Department', unitsL2: 'Departments',
     term: 'Semester', terms: 'Semesters',
@@ -17,7 +17,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   school: {
     institutionTypeLabel: 'School',
-    institution: 'School', institutionAdmin: 'School Admin',
+    institution: 'School', institutionAdmin: 'School Admin', centerManager: 'Activities Centre Manager',
     group: 'Class', groups: 'Classes',
     unitL1: 'Stage', unitsL1: 'Stages', unitL2: 'Grade', unitsL2: 'Grades',
     term: 'Term', terms: 'Terms',
@@ -25,7 +25,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   institute: {
     institutionTypeLabel: 'Institute',
-    institution: 'Institute', institutionAdmin: 'Institute Admin',
+    institution: 'Institute', institutionAdmin: 'Institute Admin', centerManager: 'Continuing Education Director',
     group: 'Section', groups: 'Sections',
     unitL1: 'Division', unitsL1: 'Divisions', unitL2: 'Program', unitsL2: 'Programs',
     term: 'Term', terms: 'Terms',
@@ -33,7 +33,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   training_center: {
     institutionTypeLabel: 'Training Centre',
-    institution: 'Training Centre', institutionAdmin: 'Training Centre Director',
+    institution: 'Training Centre', institutionAdmin: 'Training Centre Director', centerManager: 'Assistant Centre Manager',
     group: 'Cohort', groups: 'Cohorts',
     unitL1: 'Track', unitsL1: 'Tracks', unitL2: 'Program', unitsL2: 'Programs',
     term: 'Course Run', terms: 'Course Runs',
@@ -41,7 +41,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   company: {
     institutionTypeLabel: 'Company',
-    institution: 'Organization', institutionAdmin: 'Training Manager',
+    institution: 'Organization', institutionAdmin: 'Training Manager', centerManager: 'Training Coordinator',
     group: 'Team', groups: 'Teams',
     unitL1: 'Division', unitsL1: 'Divisions', unitL2: 'Unit', unitsL2: 'Units',
     term: 'Period', terms: 'Periods',

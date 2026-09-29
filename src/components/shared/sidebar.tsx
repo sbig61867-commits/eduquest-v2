@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { AdaptiveName } from './adaptive-name'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
@@ -10,7 +11,6 @@ import { signOutAndLeave } from '@/lib/sign-out'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { getTerms, type Terms } from '@/lib/terminology'
-import { getStudentTrack } from '@/lib/student-track'
 import {
   LogOut, ChevronLeft,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
@@ -63,14 +63,15 @@ interface SidebarProps {
   centreTraineeTitle?: string
 }
 
-export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: SidebarProps) {
+// title / titleTerm / centreTraineeTitle are still accepted from the layouts,
+// but the role now shows only in the header: the sidebar top is the platform
+// brand with the institution beneath it.
+export function Sidebar({ items }: SidebarProps) {
   const t = useTranslations('common.actions')
   const locale = useLocale() as Locale
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useUIStore()
   const { tenant } = useAuthStore()
-  const isCentreTrainee = useAuthStore(s =>
-    s.user?.role === 'student' && getStudentTrack(s.user.is_university_student, s.tenant?.has_center) === 'centre')
   const terms = getTerms(tenant?.institution_type, locale)
   const [signingOut, setSigningOut] = useState(false)
 
@@ -118,8 +119,10 @@ export function Sidebar({ items, title, titleTerm, centreTraineeTitle }: Sidebar
                 <span className="text-white text-sm font-bold">E</span>
               </div>
               <div className="min-w-0">
-                <p className="text-white text-sm font-semibold truncate">{tenant?.name ?? 'EduQuest'}</p>
-                <p className="text-slate-400 text-xs truncate">{isCentreTrainee && centreTraineeTitle ? centreTraineeTitle : titleTerm ? terms[titleTerm] : title}</p>
+                <p className="text-white text-sm font-bold tracking-tight leading-none">EduQuest</p>
+                {tenant?.name && (
+                  <p className="text-slate-400 text-xs mt-1"><AdaptiveName name={tenant.name} max={26} /></p>
+                )}
               </div>
             </div>
           )}

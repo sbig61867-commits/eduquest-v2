@@ -26,7 +26,7 @@ export default async function CenterLayout({ children }: { children: React.React
     <ScopedIntlProvider namespaces={['common', 'terms', 'center', 'staff']}>
       <div className="min-h-screen bg-slate-950">
         <TenantWatcher />
-        <Sidebar items={navItems} title={t('sidebarTitle')} />
+        <Sidebar items={navItems} title={t('sidebarTitle')} titleTerm="centerManager" />
         <ContentShell>
           <Header title={t('headerTitle')} />
           <main className="p-4 lg:p-6 !pt-20">{children}</main>

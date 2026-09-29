@@ -47,6 +47,7 @@ export interface Terms {
   institutionTypeLabel: string
   institution: string        // e.g. "University" (see src/content/terminology)
   institutionAdmin: string   // role label for university_admin
+  centerManager: string      // role label for center_manager — never contains institutionAdmin
   group: string
   groups: string
   unitL1: string             // top level of the academic structure

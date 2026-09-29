@@ -36,6 +36,7 @@ export function getRoleLabel(
   locale: Locale = DEFAULT_LOCALE,
 ): string {
   if (role === 'university_admin') return getTerms(institutionType, locale).institutionAdmin
+  if (role === 'center_manager') return getTerms(institutionType, locale).centerManager
   return ROLE_LABELS[locale][role]
 }
 
