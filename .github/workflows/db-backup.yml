@@ -1,0 +1,100 @@
+# Encrypted database backup to Cloudflare Workers KV — Supabase's free plan
+# keeps none. Twice a month (owner's choice, 2026-09-28) plus a manual button
+# (Actions → Database backup → Run workflow), which is also run before any
+# change to the live database. The dump uses Supabase's own documented
+# commands; scripts/backup/backup.mjs compresses and encrypts it with the
+# owner's public key, uploads it, reads it back, and keeps the newest 8.
+# Restore: scripts/backup/README.md.
+#
+# Repository secrets required (none set = the job does nothing):
+#   SUPABASE_DB_URL          Session pooler connection string (IPv4), with the DB password
+#   BACKUP_PUBLIC_KEY        from `node scripts/backup/keygen.mjs`
+#   BACKUP_KV_ACCOUNT_ID     Cloudflare account id
+#   BACKUP_KV_NAMESPACE_ID   KV namespace for backups
+#   BACKUP_KV_API_TOKEN      token with Workers KV Storage: Edit
+name: Database backup
+
+on:
+  schedule:
+    - cron: '17 1 1,15 * *'   # 01:17 UTC on the 1st and the 15th
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why (e.g. "before migration X")
+        required: false
+        default: manual
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PUBLIC_KEY: ${{ secrets.BACKUP_PUBLIC_KEY }}
+      BACKUP_KV_ACCOUNT_ID: ${{ secrets.BACKUP_KV_ACCOUNT_ID }}
+      BACKUP_KV_NAMESPACE_ID: ${{ secrets.BACKUP_KV_NAMESPACE_ID }}
+      BACKUP_KV_API_TOKEN: ${{ secrets.BACKUP_KV_API_TOKEN }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          set=0; missing=""
+          for v in SUPABASE_DB_URL BACKUP_PUBLIC_KEY BACKUP_KV_ACCOUNT_ID BACKUP_KV_NAMESPACE_ID BACKUP_KV_API_TOKEN; do
+            if [ -n "${!v}" ]; then set=$((set+1)); else missing="$missing $v"; fi
+          done
+          if [ "$set" -eq 0 ]; then
+            echo "Backups are not configured yet; nothing to do."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$missing" ]; then
+            echo "::error::Backup secrets missing:$missing"
+            exit 1
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.config.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.config.outputs.ready == 'true'
+        with:
+          node-version: 24
+
+      - uses: supabase/setup-cli@v1
+        if: steps.config.outputs.ready == 'true'
+        with:
+          version: latest
+
+      - name: Dump the database (Supabase's documented commands)
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          # The repository is public, so its logs are too. GitHub masks the whole
+          # secret; also mask the password on its own, encoded and decoded, in
+          # case an error message prints it separately.
+          for pw in $(node -e 'try{const p=new URL(process.env.SUPABASE_DB_URL).password;console.log(p);console.log(decodeURIComponent(p))}catch{}'); do
+            echo "::add-mask::$pw"
+          done
+          mkdir -p "$RUNNER_TEMP/dump"
+          cd "$RUNNER_TEMP/dump"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f data.sql --use-copy --data-only \
+            -x "storage.buckets_vectors" -x "storage.vector_indexes"
+          ls -l
+
+      - name: Compress, encrypt, upload, verify, prune
+        if: steps.config.outputs.ready == 'true'
+        env:
+          REASON: ${{ github.event_name == 'schedule' && 'schedule' || inputs.reason }}
+        run: node scripts/backup/backup.mjs --dir "$RUNNER_TEMP/dump" --reason "$REASON"
+
+      - name: Delete the plain dump
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/dump"
