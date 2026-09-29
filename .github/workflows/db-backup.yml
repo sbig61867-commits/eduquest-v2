@@ -79,17 +79,16 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          # The repository is public, so its logs are too. GitHub masks the whole
-          # secret; also mask the password on its own, encoded and decoded, in
-          # case an error message prints it separately.
-          for pw in $(node -e 'try{const p=new URL(process.env.SUPABASE_DB_URL).password;console.log(p);console.log(decodeURIComponent(p))}catch{}'); do
-            echo "::add-mask::$pw"
-          done
+          # The pasted link is repaired first (stray brackets, quotes, spaces;
+          # the password percent-encoded), and the password is masked in every
+          # form: the repository is public, so its logs are too.
+          node scripts/backup/db-url.mjs "$RUNNER_TEMP/db.url"
+          DB_URL="$(cat "$RUNNER_TEMP/db.url")"; rm -f "$RUNNER_TEMP/db.url"
           mkdir -p "$RUNNER_TEMP/dump"
           cd "$RUNNER_TEMP/dump"
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f roles.sql --role-only
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f data.sql --use-copy --data-only \
+          supabase db dump --db-url "$DB_URL" -f roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f schema.sql
+          supabase db dump --db-url "$DB_URL" -f data.sql --use-copy --data-only \
             -x "storage.buckets_vectors" -x "storage.vector_indexes"
           ls -l
 
