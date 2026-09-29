@@ -6,7 +6,8 @@
  *       → edit group name → navigate away → navigate back → confirm edit persisted
  *       → delete group → navigate away → navigate back → confirm group gone
  *
- * Uses teacher.test@eduquest.local / TestPass!2026 (seeded test account, tenant QOU).
+ * Signs in with E2E_TEACHER_EMAIL / E2E_TEACHER_PASSWORD (a real teacher test
+ * account); skipped when they are not set. Never commit credentials here.
  * Tests run sequentially (1 worker). Each test logs in independently.
  *
  * UI notes (confirmed from live screenshot):
@@ -18,8 +19,8 @@
  */
 import { test, expect, type Page } from '@playwright/test'
 
-const TEACHER_EMAIL = 'teacher.test@eduquest.local'
-const TEACHER_PASS  = 'TestPass!2026'
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL ?? ''
+const TEACHER_PASS  = process.env.E2E_TEACHER_PASSWORD ?? ''
 const GROUPS_URL    = '/teacher/groups'
 const DASHBOARD_URL = '/teacher/dashboard'
 
@@ -34,6 +35,7 @@ async function login(page: Page) {
 }
 
 test.describe('Groups — router cache invalidation', () => {
+  test.skip(!TEACHER_EMAIL || !TEACHER_PASS, 'set E2E_TEACHER_EMAIL / E2E_TEACHER_PASSWORD')
   // stamp is evaluated once per run — shared across all tests in the suite
   const stamp      = Date.now()
   const groupName  = `E2E-Test-${stamp}`

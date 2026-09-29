@@ -10,8 +10,9 @@
  */
 import { test, expect, type Page } from '@playwright/test'
 
-const STUDENT_EMAIL = 'student.test@eduquest.local'
-const STUDENT_PASS  = 'TestPass!2026'
+// A real student test account, from the environment — never committed.
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL ?? ''
+const STUDENT_PASS  = process.env.E2E_STUDENT_PASSWORD ?? ''
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ test.describe('Login page', () => {
 // ── 4. Role isolation ──────────────────────────────────────────────────────
 
 test.describe('Role isolation — student cannot reach teacher routes', () => {
+  test.skip(!STUDENT_EMAIL || !STUDENT_PASS, 'set E2E_STUDENT_EMAIL / E2E_STUDENT_PASSWORD')
   test.beforeEach(async ({ page }) => {
     await loginAs(page, STUDENT_EMAIL, STUDENT_PASS)
     await page.waitForURL(/\/student\/dashboard/, { timeout: 60_000 })
