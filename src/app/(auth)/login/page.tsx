@@ -9,7 +9,7 @@ import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
 import type enAuth from '@/messages/en/auth.json'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
-import { INTRO_DONE_KEY } from '@/components/shared/brand-intro'
+import { INTRO_DONE_KEY } from '@/lib/brand-intro-key'
 import { googleSignInEnabled } from '@/lib/google-sign-in'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-code'
 
@@ -290,8 +290,12 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-accent font-semibold rounded-xl transition-colors shadow-lg shadow-blue-600/25"
+                aria-busy={loading}
+                // While signing in the button stays at full colour with a
+                // spinner: the old dimmed state read as a frozen page.
+                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:cursor-wait text-on-accent font-semibold rounded-xl transition-colors shadow-lg shadow-blue-600/25"
               >
+                {loading && <span aria-hidden="true" className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />}
                 {loading ? t('submitLoading') : t('submit')}
               </button>
             </form>

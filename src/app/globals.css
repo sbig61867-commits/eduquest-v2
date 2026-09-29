@@ -171,22 +171,24 @@ body {
 
 /* Sign-in logo intro (src/components/shared/brand-intro.tsx). Hidden unless
    <html data-eq-intro> is set. The component adds .eq-intro-run to start the
-   sequence (t = 0 below), and flies the mark into the sidebar at ~3.9 s.
+   sequence (t = 0 below), and flies the mark into the sidebar at 1.35 s.
    eq-intro-out clears the screen by itself if the component never runs.
+   Light on purpose: only transform/opacity keyframes (compositor-only, smooth
+   on phones) — no particles, no per-frame JS, no clip-path or gradient motion.
    The mark moves ONLY here — everywhere else it is still (owner's rule). */
 .eq-intro, .eq-intro-skip { display: none; }
 html[data-eq-intro] body { overflow: hidden; }
 html[data-eq-intro] .eq-intro {
   display: block; position: fixed; inset: 0; z-index: 100; cursor: pointer;
-  animation: eq-intro-out 400ms 4.4s forwards;
+  animation: eq-intro-out 300ms 2.2s forwards;
 }
 html[data-eq-intro] .eq-intro-skip {
   display: block; position: fixed; bottom: 1.5rem; inset-inline-end: 1.5rem; z-index: 101;
-  padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.8rem; transition: opacity 300ms;
-  animation: eq-intro-out 400ms 4.4s forwards;
+  padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.8rem; transition: opacity 250ms;
+  animation: eq-intro-out 300ms 2.2s forwards;
 }
 html[data-eq-intro] .eq-intro-run, html[data-eq-intro] .eq-intro-run ~ .eq-intro-skip { animation: none; }
-.eq-intro-bg { position: absolute; inset: 0; transition: opacity 750ms ease; }
+.eq-intro-bg { position: absolute; inset: 0; transition: opacity 450ms ease; }
 .eq-intro-stage {
   position: relative; height: 100%; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 1.25rem;
@@ -197,32 +199,32 @@ html[data-eq-intro] .eq-intro-run, html[data-eq-intro] .eq-intro-run ~ .eq-intro
 .eq-intro:not(.eq-intro-run) .eq-intro-stage { opacity: 0; }
 .eq-intro-word {
   font-size: clamp(2rem, 6vw, 3.25rem); font-weight: 700; letter-spacing: -0.02em;
-  clip-path: inset(0 100% 0 0); transition: opacity 300ms;
+  opacity: 0; transition: opacity 250ms;
 }
-.eq-intro .eq-bm-particle { opacity: 0; transform-box: fill-box; transform-origin: center; }
-.eq-intro-run .eq-bm-tile { transform-box: fill-box; transform-origin: center; animation: eq-intro-pop 400ms cubic-bezier(.3,1.5,.5,1) both; }
-.eq-intro-run .eq-bm-face { animation: eq-intro-fade 350ms 1.7s both; }
-.eq-intro-run .eq-bm-depth { animation: eq-intro-extrude 350ms 1.7s ease-out both; }
-.eq-intro-run .eq-bm-cap { transform-box: fill-box; transform-origin: 50% 100%; animation: eq-intro-drop 700ms 1.85s cubic-bezier(.4,0,.3,1) both; }
-.eq-intro-run .eq-bm-head { transform-box: view-box; transform-origin: 18px 55px; animation: eq-intro-lift 500ms 2.55s cubic-bezier(.3,1.4,.5,1) both; }
-.eq-intro-run .eq-intro-word {
-  animation: eq-intro-reveal 600ms 2.7s cubic-bezier(.2,.7,.2,1) forwards, eq-wordmark-flow 2s 2.7s 1 linear both;
-}
+/* t = 0 tile pops · 0.12 s E rises from its baseline · 0.4 s it extrudes ·
+   0.42 s cap drops with a small bounce · 0.85 s head lifts · 0.7 s wordmark. */
+.eq-intro-run .eq-bm-tile { transform-box: fill-box; transform-origin: center; animation: eq-intro-pop 350ms cubic-bezier(.3,1.5,.5,1) both; }
+.eq-intro-run .eq-bm-face { transform-box: fill-box; transform-origin: 50% 100%; animation: eq-intro-rise 380ms 120ms cubic-bezier(.2,.8,.2,1) both; }
+.eq-intro-run .eq-bm-depth { animation: eq-intro-extrude 250ms 400ms ease-out both; }
+.eq-intro-run .eq-bm-cap { transform-box: fill-box; transform-origin: 50% 100%; animation: eq-intro-drop 550ms 420ms cubic-bezier(.4,0,.3,1) both; }
+.eq-intro-run .eq-bm-head { transform-box: view-box; transform-origin: 18px 55px; animation: eq-intro-lift 380ms 850ms cubic-bezier(.3,1.4,.5,1) both; }
+.eq-intro-run .eq-intro-word { animation: eq-intro-slide 450ms 700ms cubic-bezier(.2,.7,.2,1) both; }
 .eq-intro-leaving { cursor: default; }
-.eq-intro-leaving .eq-intro-bg, .eq-intro-leaving .eq-intro-word { opacity: 0; }
+.eq-intro-leaving .eq-intro-bg { opacity: 0; }
+.eq-intro-leaving .eq-intro-word { animation: none; opacity: 0; }
 .eq-intro-leaving ~ .eq-intro-skip { opacity: 0; pointer-events: none; }
-@keyframes eq-intro-pop     { from { transform: scale(0); } 70% { transform: scale(1.1); } to { transform: scale(1); } }
-@keyframes eq-intro-fade    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes eq-intro-pop     { from { transform: scale(0); } 70% { transform: scale(1.08); } to { transform: scale(1); } }
+@keyframes eq-intro-rise    { from { transform: scaleY(0); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
 @keyframes eq-intro-extrude { from { transform: translate(0, 0); opacity: 0; } to { transform: translate(2.4px, 2.4px); opacity: 1; } }
 @keyframes eq-intro-drop {
-  0%   { transform: translateY(-60px) rotate(-30deg); opacity: 0; }
-  15%  { opacity: 1; }
-  65%  { transform: translateY(1.5px) rotate(4deg); }
-  82%  { transform: translateY(-2px) rotate(-1deg); }
+  0%   { transform: translateY(-40px) rotate(-20deg); opacity: 0; }
+  20%  { opacity: 1; }
+  65%  { transform: translateY(1.5px) rotate(3deg); }
+  82%  { transform: translateY(-1.5px) rotate(-1deg); }
   100% { transform: none; }
 }
 @keyframes eq-intro-lift   { from { transform: rotate(0); } 60% { transform: rotate(-13deg); } to { transform: rotate(-10deg); } }
-@keyframes eq-intro-reveal { to { clip-path: inset(0 0 0 0); } }
+@keyframes eq-intro-slide  { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes eq-intro-out    { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 
 /* The EduQuest wordmark: blue gradient letters (colour flows only during the
@@ -239,4 +241,3 @@ html[data-eq-intro] .eq-intro-run, html[data-eq-intro] .eq-intro-run ~ .eq-intro
     background-image: linear-gradient(90deg, #1e3a8a, #2563eb, #6366f1, #0284c7, #1e3a8a);
   }
 }
-@keyframes eq-wordmark-flow { from { background-position: 300% 0; } to { background-position: 0% 0; } }

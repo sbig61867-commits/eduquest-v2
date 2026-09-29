@@ -8,10 +8,9 @@ import { useId } from 'react'
  * gradient tile with a soft sheen.
  *
  * Still everywhere. It moves only inside the sign-in intro (brand-intro.tsx:
- * particles gather into the E, the cap drops, the E lifts its head, the tassel
- * swings) — owner's rule. The part classes (eq-bm-*) are the intro's hooks in
- * globals.css; `children` render inside the tilted head (the intro's
- * particles). Brand colours are fixed, not theme tokens: the tile is its own
+ * the E rises, the cap drops, the E lifts its head) — owner's rule. The part
+ * classes (eq-bm-*) are the intro's hooks in globals.css; `children` render
+ * inside the tilted head. Brand colours are fixed, not theme tokens: the tile is its own
  * background. Gradient ids come from useId — several marks share a page.
  */
 
