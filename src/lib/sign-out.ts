@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
+import { INTRO_DONE_KEY } from '@/components/shared/brand-intro'
 
 function within<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
   return Promise.race([promise, new Promise<undefined>(resolve => setTimeout(resolve, ms))])
@@ -27,5 +28,7 @@ export async function signOutAndLeave(target = '/login'): Promise<void> {
     await within(createClient().auth.signOut({ scope: 'local' }), 1500)
   } catch { /* ignore */ }
   useAuthStore.getState().reset()
+  // The next sign-in on this device plays the logo intro again.
+  try { localStorage.removeItem(INTRO_DONE_KEY) } catch { /* ignore */ }
   window.location.replace(target)
 }

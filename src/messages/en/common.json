@@ -16,6 +16,9 @@
     "empty": "Nothing here yet",
     "error": "Something went wrong"
   },
+  "brandIntro": {
+    "skip": "Skip"
+  },
   "locale": {
     "switchLabel": "Language",
     "en": "English",

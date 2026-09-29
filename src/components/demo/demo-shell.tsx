@@ -14,6 +14,7 @@ import { writeLocaleCookie } from '@/components/shared/locale-switcher'
 import { LocaleToggle } from '@/components/public/locale-toggle'
 import { ThemeToggle } from '@/components/public/theme-toggle'
 import { localizedPath } from '@/i18n/public-routes'
+import { BrandMark } from '@/components/shared/brand-mark'
 
 // Frame of the /demo tour: the same public look as the marketing pages
 // (`.eq-public` from app/demo/layout.tsx, light and dark). On large screens a
@@ -46,9 +47,9 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
     <div className="min-h-screen bg-slate-950 lg:flex">
       <aside className="lg:w-72 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen flex flex-col bg-slate-900/70 border-b lg:border-b-0 lg:border-e border-slate-800">
         <div className="p-4 lg:p-5 flex lg:block items-center justify-between gap-3">
-          <Link href={localizedPath(locale, '/')} dir="ltr" className="flex items-center gap-2.5">
-            <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
-            <span className="text-white font-bold text-lg">EduQuest</span>
+          <Link href={localizedPath(locale, '/')} dir="ltr" className="eq-brand flex items-center gap-2.5">
+            <BrandMark size={36} />
+            <span className="eq-wordmark font-bold text-lg">EduQuest</span>
           </Link>
           <div className="lg:mt-5 min-w-0 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
             <p className="text-white text-sm font-semibold truncate">{tenant.name}</p>

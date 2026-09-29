@@ -9,6 +9,7 @@ import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
 import type enAuth from '@/messages/en/auth.json'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
+import { INTRO_DONE_KEY } from '@/components/shared/brand-intro'
 import { googleSignInEnabled } from '@/lib/google-sign-in'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-code'
 
@@ -130,6 +131,10 @@ function LoginForm() {
   const router = useRouter()
   const supabase = createClient()
   const hour = useLocalHour()
+
+  // Reaching the sign-in page (expired session included) re-arms the logo
+  // intro for the next sign-in.
+  useEffect(() => { try { localStorage.removeItem(INTRO_DONE_KEY) } catch { /* ignore */ } }, [])
 
   const errorMsg = searchParams.get('error')
   const greeting =
