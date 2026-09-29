@@ -5,12 +5,14 @@ import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
 import { getRoleLabel } from '@/lib/utils'
-import { Mail, Link, Plus, X, Copy, Check, Clock, UserCheck, Ban, RefreshCw, Users } from 'lucide-react'
+import { Mail, Link, Plus, X, Copy, Check, Clock, UserCheck, Ban, RefreshCw, Users, UserPlus } from 'lucide-react'
 import type { Invitation } from '@/types'
 import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
 import type { SeatRole, SeatStatus } from '@/lib/seat-limit'
+import { checkNameParts, EMPTY_NAME_PARTS, type NameParts } from '@/lib/person-name'
+import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 
 interface Props {
   callerRole: 'super_admin' | 'university_admin' | 'teacher'
@@ -83,11 +85,29 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
   const fullRoles = seats ? (Object.keys(seats) as SeatRole[]).filter(r => !seats[r].allowed) : []
   const roleFull = (fullRoles as string[]).includes(role)
 
+  // Third way to add a student: create the account directly (four-part name +
+  // temporary password) through /api/admin/create-user instead of a link.
+  const tName = useTranslations('common.studentName')
+  const [direct, setDirect]           = useState(false)
+  const [nameParts, setNameParts]     = useState<NameParts>(EMPTY_NAME_PARTS)
+  const [showNameErrors, setShowNameErrors] = useState(false)
+  const [password, setPassword]       = useState('')
+  const [createdAccount, setCreatedAccount] = useState<{ name: string; email: string } | null>(null)
+
+  function pickMode(next: 'private' | 'public' | 'account') {
+    setIsPublic(next === 'public')
+    setDirect(next === 'account')
+    setNewLink(null)
+    setCreatedAccount(null)
+    setFormError('')
+  }
+
   // When role changes to university_admin, force private
   const handleRoleChange = (newRole: string) => {
     setRole(newRole)
     setGroupId('')
     if (PRIVATE_ONLY_ROLES.has(newRole)) setIsPublic(false)
+    if (newRole !== 'student') setDirect(false)
   }
 
   const load = useCallback(async () => {
@@ -150,6 +170,53 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     setCreating(false)
     setLoading(true)
     void load()
+  }
+
+  async function createAccount(e: React.FormEvent) {
+    e.preventDefault()
+    setFormError('')
+    setCreatedAccount(null)
+    if (!checkNameParts(nameParts).ok) {
+      setShowNameErrors(true)
+      setFormError(tName('incomplete'))
+      return
+    }
+    // A teacher adds students into one of their own groups only.
+    if (callerRole === 'teacher' && !groupId) {
+      setFormError(t('accountGroupRequired'))
+      return
+    }
+    setCreating(true)
+
+    const body: Record<string, unknown> = {
+      role: 'student',
+      email: email.trim(),
+      password,
+      name_parts: nameParts,
+    }
+    if (groupId) body.group_id = groupId
+    if (callerRole === 'super_admin' && tenantId) body.tenant_id = tenantId
+    if (callerRole !== 'teacher') body.is_university_student = isUniversityStudent
+
+    const res = await fetch('/api/admin/create-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    setCreating(false)
+
+    if (!res.ok) {
+      setFormError(data.error ?? t('accountFailed'))
+      return
+    }
+
+    setCreatedAccount({ name: data.user?.full_name ?? '', email: data.user?.email ?? email.trim() })
+    setNameParts(EMPTY_NAME_PARTS)
+    setShowNameErrors(false)
+    setEmail('')
+    setPassword('')
+    setGroupId('')
   }
 
   async function revoke(id: string) {
@@ -220,9 +287,11 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold flex items-center gap-2">
-              {isPublic
-                ? <><Link className="w-4 h-4 text-purple-400" /> {t('publicTab')}</>
-                : <><Mail className="w-4 h-4 text-blue-400" /> {t('privateTab')}</>
+              {direct
+                ? <><UserPlus className="w-4 h-4 text-emerald-400" /> {t('accountTab')}</>
+                : isPublic
+                  ? <><Link className="w-4 h-4 text-purple-400" /> {t('publicTab')}</>
+                  : <><Mail className="w-4 h-4 text-blue-400" /> {t('privateTab')}</>
               }
             </h2>
             <button onClick={() => setShowForm(false)} className="text-slate-500 hover:text-white">
@@ -234,9 +303,9 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           <div className="flex rounded-lg border border-slate-700 overflow-hidden text-sm">
             <button
               type="button"
-              onClick={() => setIsPublic(false)}
+              onClick={() => pickMode('private')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
-                !isPublic
+                !isPublic && !direct
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
@@ -246,7 +315,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             </button>
             <button
               type="button"
-              onClick={() => canBePublic && setIsPublic(true)}
+              onClick={() => canBePublic && pickMode('public')}
               disabled={!canBePublic}
               title={!canBePublic ? 'Institution Admin invitations must be email-specific' : undefined}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
@@ -260,7 +329,33 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               <Link className="w-3.5 h-3.5" />
               {t('publicDesc')}
             </button>
+            {role === 'student' && (
+              <button
+                type="button"
+                onClick={() => pickMode('account')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                  direct
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                {t('accountDesc')}
+              </button>
+            )}
           </div>
+
+          {direct && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 text-emerald-300 text-sm">
+              {t('accountNote')}
+            </div>
+          )}
+
+          {createdAccount && (
+            <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 text-emerald-300 text-sm">
+              {t('accountCreated', createdAccount)}
+            </div>
+          )}
 
           {isPublic && (
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg px-4 py-3 text-purple-300 text-sm">
@@ -291,26 +386,60 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             </div>
           )}
 
-          <form onSubmit={createInvitation} className="grid grid-cols-2 gap-4">
+          <form onSubmit={direct ? createAccount : createInvitation} className="grid grid-cols-2 gap-4">
 
-            {/* Email — only for private invitations */}
+            {/* Direct account: the student's four-part name, typed by staff */}
+            {direct && (
+              <div className="col-span-2">
+                <FourPartNameFields
+                  idPrefix="direct-student-name"
+                  value={nameParts}
+                  onChange={setNameParts}
+                  showErrors={showNameErrors}
+                  hint={tName('hintStaff')}
+                />
+              </div>
+            )}
+
+            {/* Email — for private invitations and direct accounts */}
             {!isPublic && (
               <div className="col-span-2">
-                <label className="block text-sm text-slate-400 mb-1">{t('emailLabel')}</label>
+                <label htmlFor="invite-email" className="block text-sm text-slate-400 mb-1">{t('emailLabel')}</label>
                 <input
+                  id="invite-email"
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
+                  dir="ltr"
                   placeholder="invitee@school.edu"
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
             )}
 
+            {direct && (
+              <div className="col-span-2">
+                <label htmlFor="direct-password" className="block text-sm text-slate-400 mb-1">{t('passwordLabel')}</label>
+                <input
+                  id="direct-password"
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  dir="ltr"
+                  autoComplete="new-password"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-1">{t('passwordHint')}</p>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm text-slate-400 mb-1">{t('roleLabel')}</label>
+              <label htmlFor="invite-role" className="block text-sm text-slate-400 mb-1">{t('roleLabel')}</label>
               <select
+                id="invite-role"
                 value={role}
                 onChange={e => handleRoleChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -339,10 +468,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
 
             {role === 'student' && groups.length > 0 && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1">{isPublic ? t('groupLabel') : t('groupOptional')}</label>
+                <label htmlFor="invite-group" className="block text-sm text-slate-400 mb-1">
+                  {isPublic || (direct && callerRole === 'teacher') ? t('groupLabel') : t('groupOptional')}
+                </label>
                 <select
+                  id="invite-group"
                   value={groupId}
                   onChange={e => setGroupId(e.target.value)}
+                  required={direct && callerRole === 'teacher'}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="">{t('pickGroup')}</option>
@@ -372,17 +505,19 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
               </div>
             )}
 
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">{t('expiryLabel')}</label>
-              <input
-                type="number"
-                value={expiresHours}
-                onChange={e => setExpiresHours(Number(e.target.value))}
-                min={1}
-                max={720}
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
-            </div>
+            {!direct && (
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">{t('expiryLabel')}</label>
+                <input
+                  type="number"
+                  value={expiresHours}
+                  onChange={e => setExpiresHours(Number(e.target.value))}
+                  min={1}
+                  max={720}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+            )}
 
             {/* Max uses — only for public links */}
             {isPublic && (
@@ -411,12 +546,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
                 type="submit"
                 disabled={creating || roleFull}
                 className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-60 ${
-                  isPublic
-                    ? 'bg-purple-600 hover:bg-purple-500'
-                    : 'bg-blue-600 hover:bg-blue-500'
+                  direct
+                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    : isPublic
+                      ? 'bg-purple-600 hover:bg-purple-500'
+                      : 'bg-blue-600 hover:bg-blue-500'
                 }`}
               >
-                {creating ? t('creating') : isPublic ? t('createPublic') : t('createPrivate')}
+                {creating ? t('creating') : direct ? t('createAccount') : isPublic ? t('createPublic') : t('createPrivate')}
               </button>
             </div>
           </form>

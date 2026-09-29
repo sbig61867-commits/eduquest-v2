@@ -11,6 +11,7 @@ import { checkSeatLimit, isSeatRole } from '@/lib/seat-limit'
 
 interface Props {
   params: Promise<{ token: string }>
+  searchParams: Promise<{ error?: string }>
 }
 
 type InvitationResult =
@@ -82,8 +83,11 @@ function Page({ glow, children }: { glow: string; children: React.ReactNode }) {
   )
 }
 
-export default async function JoinPage({ params }: Props) {
+export default async function JoinPage({ params, searchParams }: Props) {
   const { token } = await params
+  // /auth/callback sends a student's Google sign-up back here when it arrived
+  // without a valid four-part name.
+  const nameRequired = (await searchParams).error === 'name_required'
   const [invitation, closed, t, locale] = await Promise.all([getInvitation(token), closedReason(token), getTranslations('auth'), getLocale()])
 
   if (!invitation || closed) {
@@ -169,7 +173,13 @@ export default async function JoinPage({ params }: Props) {
 
         {/* Registration */}
         <div>
-          <JoinForm token={token} invitedEmail={invitation.email ?? ''} isPublic={invitation.is_public} />
+          <JoinForm
+            token={token}
+            invitedEmail={invitation.email ?? ''}
+            isPublic={invitation.is_public}
+            role={invitation.role}
+            nameRequired={nameRequired && invitation.role === 'student'}
+          />
           <p className="mt-6 text-center text-slate-500 text-sm">
             {t('join.hasAccount')}{' '}
             <a href="/login" className="text-blue-400 hover:text-blue-300 underline underline-offset-4">{t('join.signIn')}</a>

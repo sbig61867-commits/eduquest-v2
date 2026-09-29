@@ -7,11 +7,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { UserPlus, Search, Trash2, ToggleLeft, Mail, GraduationCap } from 'lucide-react'
+import { UserPlus, Search, Trash2, ToggleLeft, Mail, GraduationCap, PenLine } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { User } from '@/types'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
+import { StudentNameEditor, type NamedStudent } from '@/components/shared/student-name-editor'
 
 interface Props {
   initialStudents: User[]
@@ -19,14 +20,19 @@ interface Props {
   canSetAffiliation?: boolean
   /** Without a centre there is no university/centre split to show. */
   hasCenter?: boolean
+  /** Student id → has a four-part name on file; null before the migration (no flags). */
+  nameComplete?: Record<string, boolean> | null
 }
 
-export function StudentsClient({ initialStudents, canSetAffiliation = false, hasCenter = true }: Props) {
+export function StudentsClient({ initialStudents, canSetAffiliation = false, hasCenter = true, nameComplete = null }: Props) {
   const t = useTranslations('admin.people')
+  const tName = useTranslations('common.studentName')
   const locale = useLocale() as Locale
   const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
   const [students, setStudents] = useState(initialStudents)
+  const [complete, setComplete] = useState(nameComplete)
   const [search, setSearch] = useState('')
+  const [naming, setNaming] = useState<NamedStudent | null>(null)
   const router = useRouter()
 
   const filtered = students.filter(s =>
@@ -100,6 +106,9 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-bold shrink-0">{student.full_name[0].toUpperCase()}</div>
                     <span className="text-white text-sm font-medium">{student.full_name}</span>
+                    {complete?.[student.id] === false && (
+                      <span title={tName('notFourPartHint')}><Badge variant="yellow">{tName('notFourPart')}</Badge></span>
+                    )}
                   </div>
                 </td>
                 <td className="px-5 py-4 hidden md:table-cell"><span className="text-slate-400 text-sm flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{student.email}</span></td>
@@ -124,6 +133,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
                         onClick={() => toggleAffiliation(student)}
                       ><GraduationCap className="w-4 h-4" /></Button>
                     )}
+                    <Button variant="ghost" size="sm" title={tName('correct')} aria-label={tName('correct')} onClick={() => setNaming(student)}><PenLine className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(student)}><ToggleLeft className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteStudent(student.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                   </div>
@@ -133,6 +143,16 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
           </tbody>
         </table>
       </div>
+
+      <StudentNameEditor
+        student={naming}
+        onClose={() => setNaming(null)}
+        onSaved={(id, fullName, isComplete) => {
+          setStudents(prev => prev.map(s => s.id === id ? { ...s, full_name: fullName } : s))
+          setComplete(prev => (prev ? { ...prev, [id]: isComplete } : prev))
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

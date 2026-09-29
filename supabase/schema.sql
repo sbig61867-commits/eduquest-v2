@@ -45,6 +45,9 @@ CREATE TABLE tenants (
 CREATE TABLE users (
   id                 UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email              TEXT UNIQUE NOT NULL,
+  -- a student's is first + family name only (their four parts live in
+  -- student_names); pinned for the student in users_update
+  -- (student_name_lock_migration.sql)
   full_name          TEXT NOT NULL,
   avatar_url         TEXT,
   role               TEXT NOT NULL CHECK (role IN ('super_admin','university_admin','center_manager','teacher','student')),
@@ -69,7 +72,24 @@ CREATE TABLE users (
   -- TRUE = switched off by its institution's suspension (not individually);
   -- a restore re-activates only these. Pinned in users_update
   -- (fix_admin_user_escalation_migration.sql).
-  suspended_by_tenant BOOLEAN NOT NULL DEFAULT FALSE
+  suspended_by_tenant BOOLEAN NOT NULL DEFAULT FALSE,
+  -- students: TRUE once a four-part name is on file in student_names, so staff
+  -- can flag the rest without reading the name. Pinned in users_update
+  -- (student_name_lock_migration.sql).
+  name_complete BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- A student's four-part name, private to that student (and the owner): staff
+-- and teachers read users.full_name = first + family name only. SELECT policy
+-- only, writes revoked — written by the service-role routes through
+-- src/lib/student-names.ts (student_name_lock_migration.sql).
+CREATE TABLE student_names (
+  user_id          UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  first_name       TEXT NOT NULL CHECK (char_length(first_name)       BETWEEN 1 AND 60),
+  father_name      TEXT NOT NULL CHECK (char_length(father_name)      BETWEEN 1 AND 60),
+  grandfather_name TEXT NOT NULL CHECK (char_length(grandfather_name) BETWEEN 1 AND 60),
+  family_name      TEXT NOT NULL CHECK (char_length(family_name)      BETWEEN 1 AND 60),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE feature_flags (
@@ -485,8 +505,24 @@ CREATE POLICY "users_update" ON users FOR UPDATE
                       (SELECT u.can_create_courses FROM users u WHERE u.id = auth.uid())
       AND suspended_by_tenant IS NOT DISTINCT FROM
                       (SELECT u.suspended_by_tenant FROM users u WHERE u.id = auth.uid())
+      AND name_complete IS NOT DISTINCT FROM
+                      (SELECT u.name_complete FROM users u WHERE u.id = auth.uid())
+      -- A student's name is the institution's record of them: only staff
+      -- correct it, through /api/admin/student-name
+      -- (student_name_lock_migration.sql). Other roles edit their own name.
+      AND (role <> 'student' OR full_name IS NOT DISTINCT FROM
+                      (SELECT u.full_name FROM users u WHERE u.id = auth.uid()))
     )
   );
+
+-- STUDENT_NAMES: the four parts, read by that student alone (and the owner);
+-- every write goes through the service role (student_name_lock_migration.sql).
+ALTER TABLE student_names ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON student_names FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON student_names TO authenticated;
+CREATE POLICY "student_names_select" ON student_names FOR SELECT USING (
+  user_id = auth.uid() OR current_user_role() = 'super_admin'
+);
 
 -- GROUPS: staff scoped to tenant; a student sees only groups they're
 -- actually enrolled in (tightened alongside users_select — see the note
@@ -1947,3 +1983,64 @@ DROP TRIGGER IF EXISTS users_enforce_seat_limit ON public.users;
 CREATE TRIGGER users_enforce_seat_limit
   BEFORE INSERT OR UPDATE OF role, tenant_id, is_active ON public.users
   FOR EACH ROW EXECUTE FUNCTION public.enforce_tenant_seat_limit();
+
+-- ── tenant_storage_limit_migration.sql ──
+-- ============================================================================
+-- Per-institution file storage limit (owner's plan limits, 2026-09-29)
+-- ============================================================================
+-- Supabase free holds 1 GB of files for the WHOLE platform, and it is split
+-- between institutions (src/lib/pricing/plans.ts: 150 MB per institution when
+-- five are hosted). Until now nothing stopped one institution from filling it.
+--
+-- tenants.storage_limit_mb  NULL = no cap (every existing tenant ⇒ no change
+--                           until the owner sets it on /super-admin/tenants).
+-- tenant_storage_bytes(t)   bytes the tenant's files take in the two app
+--                           buckets. Every stored path starts with the tenant
+--                           id (src/lib/exam-files.ts, api/announcements/upload).
+--
+-- Enforced before each upload by src/lib/storage-quota.ts (exam-files: task
+-- attachments + answer photos; announcement-images). Proctoring evidence is
+-- not here: it never touches Supabase.
+--
+-- Written only by super_admin: tenants_manage is super_admin-only, so an
+-- institution admin cannot raise its own limit.
+--
+-- Idempotent. Rollback: DROP FUNCTION public.tenant_storage_bytes(uuid);
+--                       ALTER TABLE public.tenants DROP COLUMN storage_limit_mb;
+-- ============================================================================
+
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER;
+
+ALTER TABLE public.tenants DROP CONSTRAINT IF EXISTS tenants_storage_limit_mb_check;
+ALTER TABLE public.tenants ADD CONSTRAINT tenants_storage_limit_mb_check
+  CHECK (storage_limit_mb IS NULL OR storage_limit_mb >= 0);
+
+COMMENT ON COLUMN public.tenants.storage_limit_mb IS
+  'Max MB of files (exam-files + announcement-images) for this institution. NULL = no cap.';
+
+-- Callable by the service role (upload routes) and by super_admin (the owner's
+-- institution cards). Uses auth.role(), not auth.uid(): under the service-role
+-- client auth.uid() is NULL (see fix_start_exam_attempt_migration.sql).
+CREATE OR REPLACE FUNCTION public.tenant_storage_bytes(p_tenant uuid)
+RETURNS bigint
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF COALESCE(auth.role(), '') <> 'service_role'
+     AND public.current_user_role() IS DISTINCT FROM 'super_admin' THEN
+    RAISE EXCEPTION 'FORBIDDEN' USING ERRCODE = '42501';
+  END IF;
+  RETURN (
+    SELECT COALESCE(SUM((o.metadata->>'size')::bigint), 0)
+    FROM storage.objects o
+    WHERE o.bucket_id IN ('exam-files', 'announcement-images')
+      AND o.name LIKE p_tenant::text || '/%'
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.tenant_storage_bytes(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.tenant_storage_bytes(uuid) TO authenticated, service_role;

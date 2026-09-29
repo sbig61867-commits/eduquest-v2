@@ -11,13 +11,18 @@ import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Building2, Archive, ArchiveRestore, Trash2, UserPlus, Mail, Gauge } from 'lucide-react'
 import type { SeatRole, SeatStatus } from '@/lib/seat-limit'
+import { formatMb, type StorageStatus } from '@/lib/storage-quota'
 import { formatDate } from '@/lib/utils'
 import type { Tenant, InstitutionType, StructureMode } from '@/types'
 import { INSTITUTION_TYPES, getTerms } from '@/lib/terminology'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 
-interface Props { initialTenants: Tenant[]; seats?: Record<string, Record<SeatRole, SeatStatus>> }
+interface Props {
+  initialTenants: Tenant[]
+  seats?: Record<string, Record<SeatRole, SeatStatus>>
+  storage?: Record<string, StorageStatus>
+}
 
 /** '' → null (no limit); otherwise a whole number ≥ 0, or undefined when invalid. */
 function parseSeatLimit(raw: string): number | null | undefined {
@@ -28,7 +33,7 @@ function parseSeatLimit(raw: string): number | null | undefined {
   return Number.isSafeInteger(n) ? n : undefined
 }
 
-export function TenantsClient({ initialTenants, seats = {} }: Props) {
+export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Props) {
   const t = useTranslations('superAdmin.tenants')
   const tc = useTranslations('common.actions')
   const locale = useLocale() as Locale
@@ -47,7 +52,7 @@ export function TenantsClient({ initialTenants, seats = {} }: Props) {
 
   // Plan seat limits modal
   const [limitsTarget, setLimitsTarget] = useState<Tenant | null>(null)
-  const [limitsForm, setLimitsForm] = useState({ student: '', teacher: '' })
+  const [limitsForm, setLimitsForm] = useState({ student: '', teacher: '', storage: '' })
   const [limitsSaving, setLimitsSaving] = useState(false)
 
   const supabase = createClient()
@@ -58,6 +63,7 @@ export function TenantsClient({ initialTenants, seats = {} }: Props) {
     setLimitsForm({
       student: tenant.student_limit?.toString() ?? '',
       teacher: tenant.teacher_limit?.toString() ?? '',
+      storage: tenant.storage_limit_mb?.toString() ?? '',
     })
   }
 
@@ -69,10 +75,15 @@ export function TenantsClient({ initialTenants, seats = {} }: Props) {
     if (!limitsTarget) return
     const student_limit = parseSeatLimit(limitsForm.student)
     const teacher_limit = parseSeatLimit(limitsForm.teacher)
-    if (student_limit === undefined || teacher_limit === undefined) { toast.error(t('limitsInvalid')); return }
+    const storage_limit_mb = parseSeatLimit(limitsForm.storage)
+    if (student_limit === undefined || teacher_limit === undefined || storage_limit_mb === undefined) { toast.error(t('limitsInvalid')); return }
+    // storage_limit_mb only once tenant_storage_limit_migration.sql is applied (the row then carries the key).
+    const update = 'storage_limit_mb' in limitsTarget
+      ? { student_limit, teacher_limit, storage_limit_mb }
+      : { student_limit, teacher_limit }
     setLimitsSaving(true)
     const { data, error: err } = await supabase
-      .from('tenants').update({ student_limit, teacher_limit }).eq('id', limitsTarget.id).select().single()
+      .from('tenants').update(update).eq('id', limitsTarget.id).select().single()
     setLimitsSaving(false)
     if (err) { toast.error(t('limitsSaveFailed')); return }
     setTenants(prev => prev.map(x => x.id === limitsTarget.id ? data : x))
@@ -89,6 +100,17 @@ export function TenantsClient({ initialTenants, seats = {} }: Props) {
     return (
       <span className={s.allowed ? 'text-slate-300' : 'text-amber-400 font-medium'}>
         {t('seatUsage', { label, used, limit: s.limit })}{!s.allowed && ` · ${t('seatFull')}`}
+      </span>
+    )
+  }
+
+  function storageLine(tenantId: string) {
+    const s = storage[tenantId]
+    const used = formatMb(s?.usedBytes ?? 0)
+    if (s?.limitBytes == null) return <span className="text-slate-400">{t('storageUnlimited', { used })}</span>
+    return (
+      <span className={s.allowed ? 'text-slate-300' : 'text-amber-400 font-medium'}>
+        {t('storageUsage', { used, limit: formatMb(s.limitBytes) })}{!s.allowed && ` · ${t('seatFull')}`}
       </span>
     )
   }
@@ -368,10 +390,18 @@ export function TenantsClient({ initialTenants, seats = {} }: Props) {
             onChange={e => setLimitsForm(p => ({ ...p, teacher: e.target.value }))}
             placeholder={t('limitPlaceholder')}
           />
+          {limitsTarget && 'storage_limit_mb' in limitsTarget && (
+            <Input
+              label={t('storageLimit')} inputMode="numeric" value={limitsForm.storage}
+              onChange={e => setLimitsForm(p => ({ ...p, storage: e.target.value }))}
+              placeholder={t('limitPlaceholder')}
+            />
+          )}
           {limitsTarget && (
             <div className="text-xs space-y-0.5">
               <p>{usageLine(limitsTarget.id, 'student')}</p>
               <p>{usageLine(limitsTarget.id, 'teacher')}</p>
+              <p>{storageLine(limitsTarget.id)}</p>
             </div>
           )}
           <div className="flex gap-3 pt-2">

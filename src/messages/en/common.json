@@ -177,5 +177,39 @@
   },
   "theme": {
     "toggle": "Switch between light and dark appearance"
+  },
+  "studentName": {
+    "legend": "Four-part name",
+    "hintSelf": "Your real name as in your official records. Only you see all of it; teachers and staff see your first and family name only. You cannot change it after registering.",
+    "hintStaff": "The student's real name as in the institution's records. The full name is kept for the student alone; you and teachers see the first and family name only.",
+    "correctHint": "The middle names are not shown to you, so enter all four parts from the institution's records.",
+    "parts": {
+      "first": "First name",
+      "father": "Father's name",
+      "grandfather": "Grandfather's name",
+      "family": "Family name"
+    },
+    "placeholders": {
+      "first": "e.g. Ahmad",
+      "father": "e.g. Mahmoud",
+      "grandfather": "e.g. Saleh",
+      "family": "e.g. Al-Khatib"
+    },
+    "errors": {
+      "required": "Required",
+      "tooShort": "{min, plural, one {At least # letter} other {At least # letters}}",
+      "tooLong": "{max, plural, one {Up to # character} other {Up to # characters}}",
+      "invalidChars": "Letters only, no numbers or symbols",
+      "repeated": "Write the real name",
+      "mixedScripts": "Write all four parts in one language (Arabic or English)"
+    },
+    "incomplete": "Complete the four-part name first",
+    "notFourPart": "Name incomplete",
+    "notFourPartHint": "No four-part name is on file for this student yet. Correct it from the institution's records.",
+    "correct": "Correct name",
+    "correctTitle": "Correct the student's name",
+    "correctFor": "Current name: {name}",
+    "saved": "Name updated",
+    "failed": "Could not update the name"
   }
 }

@@ -5,7 +5,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic, Monitor, Camera, Trash2, MessageSquareText } from 'lucide-react'
-import { prepareImageForUpload } from '@/lib/prepare-image'
+import { DOCUMENT_PHOTO, prepareImageForUpload } from '@/lib/prepare-image'
 import type { Exam, Question, ProctoringEvent } from '@/types'
 import { useFaceDetection } from '@/hooks/use-face-detection'
 import { useObjectDetection } from '@/hooks/use-object-detection'
@@ -844,7 +844,7 @@ function AnswerPhoto({ examId, questionId, url, onChange }: {
   async function upload(file: File) {
     setBusy(true)
     try {
-      const ready = await prepareImageForUpload(file)
+      const ready = await prepareImageForUpload(file, DOCUMENT_PHOTO)
       const fd = new FormData()
       fd.append('examId', examId)
       fd.append('questionId', questionId)
