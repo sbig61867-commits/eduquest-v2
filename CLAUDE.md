@@ -212,17 +212,23 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - `course_source_text_migration.sql` (June) — **found never applied 2026-09-29**: `courses.source_text` is missing on
   the live DB while `api/courses/create-full` writes it and `generate-item-content` reads it, so creating a course
   from a file fails in production. One additive `ADD COLUMN IF NOT EXISTS`. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; `courses.source_text` present, so creating a course from a file works again.
-
-## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
-
-- `member_code_migration.sql` (2026-09-29, **written, NOT dry-run or applied**) — permanent unique account ID
+- `member_code_migration.sql` — permanent unique account ID
   `users.member_code` = `<tenants.code>-<role letter><8 random digits>` (not a counter — IDs must not be guessable) (e.g. `QOU-S48203917`; A admin · M centre manager ·
   T teacher · S student · P owner with prefix `EQ`). Issued once by trigger `users_assign_member_code` (BEFORE INSERT;
   on UPDATE it restores the old value, so no RLS change); digits from `gen_random_uuid()`, retried until unused,
   unique index as the final guard. `tenants.code` (2–6 `A-Z0-9`, unique, not `EQ`) backfilled
   `T001…`, auto-assigned when left empty, renamed on the card in `/super-admin/tenants` (old IDs keep their prefix).
   Owner lookup: `GET /api/admin/member-lookup?code=` (super_admin) + «البحث بمعرّف المستخدم» on `/super-admin/users`.
-  Until applied the lookup answers 409 `memberCodeNotReady` and the code field/labels stay hidden.
+  Until applied the lookup answers 409 `memberCodeNotReady` and the code field/labels stay hidden. ✅ 2026-09-29 —
+  green DB backup first (run 36591711423), then a forced-rollback dry run on the live DB (15/15: 3/3 accounts coded
+  in format, immutable on UPDATE / NULL, new tenant auto `T002`, rename upper-cased, `EQ` / bad format / duplicate
+  refused, 2000/2000 random draws distinct, anon + authenticated cannot EXECUTE the trigger functions, `search_path`
+  pinned, `tenants` UPDATE is super_admin-only), confirmed nothing left behind, then applied via Supabase MCP.
+  Verified live: 3/3 coded, institution code `T001`, both triggers present, security advisor shows nothing new.
+
+## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
+
+None as of 2026-09-29.
 
 ## Sign-in (2026-09-29)
 
