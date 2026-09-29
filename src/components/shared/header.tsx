@@ -55,7 +55,7 @@ export function Header({ title }: HeaderProps) {
       'fixed top-0 end-0 start-0 h-16 bg-slate-950/80 backdrop-blur border-b border-slate-800 flex items-center justify-between px-4 lg:px-6 z-30 transition-all duration-300',
       sidebarOpen ? 'lg:start-64' : 'lg:start-16'
     )}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={() => setMobileNavOpen(true)}
           className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
@@ -63,13 +63,11 @@ export function Header({ title }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-white font-semibold text-lg">{title}</h1>
+        <h1 className="text-white font-semibold text-lg truncate">{title}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Hidden on the narrowest phones, where the header has no room; the
-            profile page carries the same switcher for that case. */}
-        <LocaleSwitcher className="hidden sm:flex" />
+      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+        <LocaleSwitcher />
         <NotificationBell />
 
         <div ref={menuRef} className="relative">

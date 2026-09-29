@@ -24,7 +24,7 @@ export function AuthTopBar({ className = '' }: { className?: string }) {
 
   return (
     <div className={`relative flex items-center justify-between gap-3 ${className}`}>
-      <Link href="/" className="flex items-center gap-2.5">
+      <Link href="/" dir="ltr" className="flex items-center gap-2.5">
         <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
         <span className="text-white font-bold text-lg">EduQuest</span>
       </Link>

@@ -69,7 +69,7 @@ export function PublicFooter({ lang }: { lang: Lang }) {
     <footer className="border-t border-slate-800 mt-16 bg-slate-950">
       <div className={`${WRAP} py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]`}>
         <div className="sm:col-span-2 lg:col-span-1 max-w-sm">
-          <Link href={localizedPath(lang, '/')} className="inline-flex items-center gap-2.5">
+          <Link href={localizedPath(lang, '/')} dir="ltr" className="inline-flex items-center gap-2.5">
             <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
             <span className="text-white font-bold text-lg">EduQuest</span>
           </Link>
