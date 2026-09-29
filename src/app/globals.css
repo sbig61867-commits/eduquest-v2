@@ -168,3 +168,71 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .eq-menu-in { animation: none; }
 }
+
+/* Sign-in logo intro (src/components/shared/brand-intro.tsx). Hidden unless
+   <html data-eq-intro> is set; the sequence plays as soon as it shows. The
+   component flies the mark into the sidebar at ~3.3 s; eq-intro-out is the
+   fallback that clears the screen by itself if the component never runs. */
+.eq-intro, .eq-intro-skip { display: none; }
+html[data-eq-intro] body { overflow: hidden; }
+html[data-eq-intro] .eq-intro {
+  display: block; position: fixed; inset: 0; z-index: 100; cursor: pointer;
+  animation: eq-intro-out 400ms 4.4s forwards;
+}
+html[data-eq-intro] .eq-intro-skip {
+  display: block; position: fixed; bottom: 1.5rem; inset-inline-end: 1.5rem; z-index: 101;
+  padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.8rem; transition: opacity 300ms;
+  animation: eq-intro-out 400ms 4.4s forwards;
+}
+.eq-intro-bg { position: absolute; inset: 0; transition: opacity 750ms ease; }
+.eq-intro-stage {
+  position: relative; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1.25rem;
+}
+.eq-intro-mark { position: relative; transform-origin: 0 0; }
+.eq-intro-word {
+  font-size: clamp(2rem, 6vw, 3.25rem); font-weight: 700; letter-spacing: -0.02em;
+  clip-path: inset(0 100% 0 0); animation: eq-intro-reveal 600ms 2.3s cubic-bezier(.2,.7,.2,1) forwards;
+  transition: opacity 300ms;
+}
+.eq-intro-sparks { position: absolute; left: 50%; top: 50%; margin-top: -2.6rem; }
+.eq-intro-sparks span {
+  position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 999px; opacity: 0;
+  animation: eq-intro-gather 750ms var(--d) cubic-bezier(.5,0,.9,.5) both;
+}
+.eq-intro-gold { background: #fbbf24; }
+.eq-intro .eq-brand-mark { animation: eq-intro-spin 800ms 650ms cubic-bezier(.2,.7,.2,1) both; }
+.eq-intro .eq-bm-tile { transform-box: fill-box; transform-origin: center; animation: eq-intro-pop 380ms 650ms cubic-bezier(.3,1.6,.5,1) both; }
+.eq-intro .eq-bm-ring { stroke-dasharray: 126; animation: eq-intro-draw 700ms 800ms ease-in-out both; }
+.eq-intro .eq-bm-spine { transform-box: fill-box; transform-origin: bottom; animation: eq-intro-grow-y 260ms 1.4s cubic-bezier(.3,1.5,.5,1) both; }
+.eq-intro .eq-bm-step { transform-box: fill-box; transform-origin: left; animation: eq-intro-grow-x 300ms cubic-bezier(.3,1.5,.5,1) both; }
+.eq-intro .eq-bm-step1 { animation-delay: 1.55s; }
+.eq-intro .eq-bm-step2 { animation-delay: 1.7s; }
+.eq-intro .eq-bm-step3 { animation-delay: 1.85s; }
+.eq-intro .eq-bm-star { transform-box: fill-box; transform-origin: center; animation: eq-intro-star 450ms 2.15s cubic-bezier(.3,1.8,.5,1) both; }
+.eq-intro-leaving { cursor: default; animation: none !important; }
+.eq-intro-leaving .eq-intro-bg, .eq-intro-leaving .eq-intro-word, .eq-intro-leaving .eq-intro-sparks { opacity: 0; }
+.eq-intro-leaving ~ .eq-intro-skip { opacity: 0; pointer-events: none; }
+@keyframes eq-intro-gather {
+  0%   { opacity: 0; transform: translate(var(--x), var(--y)); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(0, 0); }
+}
+@keyframes eq-intro-pop    { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes eq-intro-spin   { from { transform: rotate(-35deg); } to { transform: rotate(0); } }
+@keyframes eq-intro-draw   { from { stroke-dashoffset: 126; } to { stroke-dashoffset: 0; } }
+@keyframes eq-intro-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes eq-intro-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes eq-intro-star {
+  from { transform: scale(0) rotate(-120deg); }
+  60%  { transform: scale(1.6) rotate(0); }
+  to   { transform: scale(1) rotate(0); }
+}
+@keyframes eq-intro-reveal { to { clip-path: inset(0 0 0 0); } }
+@keyframes eq-intro-out    { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+
+/* The mark's star turns once on hover (sidebar, headers). */
+.eq-brand:hover .eq-bm-star { transform-box: fill-box; transform-origin: center; animation: eq-intro-star 500ms cubic-bezier(.3,1.8,.5,1); }
+@media (prefers-reduced-motion: reduce) {
+  .eq-brand:hover .eq-bm-star { animation: none; }
+}

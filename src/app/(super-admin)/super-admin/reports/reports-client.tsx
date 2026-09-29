@@ -6,6 +6,7 @@ import { BarChart2, Download, Printer, FileText } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { LOCALE_LABEL } from '@/i18n/config'
 import type { ReportChrome } from '@/lib/reports'
+import { BrandMark } from '@/components/shared/brand-mark'
 
 interface Tenant { id: string; name: string }
 interface Person { id: string; full_name: string; email: string; tenant_id: string | null }
@@ -167,9 +168,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             <div className="flex items-start justify-between gap-4">
               {/* Platform identity */}
               <div dir="ltr" className="flex items-center gap-3">
-                <div className="print-color w-14 h-14 rounded-xl bg-blue-700 flex items-center justify-center shrink-0">
-                  <span className="text-white text-3xl font-bold">E</span>
-                </div>
+                <BrandMark size={56} className="print-color" />
                 <div>
                   <p className="text-xl font-bold text-blue-900 leading-tight">EduQuest</p>
                   <p dir="auto" className="text-slate-600 text-xs text-left">{ui.tagline}</p>

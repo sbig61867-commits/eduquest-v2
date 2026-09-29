@@ -16,6 +16,9 @@
     "empty": "لا يوجد شيء بعد",
     "error": "حدث خطأ ما"
   },
+  "brandIntro": {
+    "skip": "تخطٍّ"
+  },
   "locale": {
     "switchLabel": "اللغة",
     "en": "English",

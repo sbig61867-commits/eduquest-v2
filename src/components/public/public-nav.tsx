@@ -10,6 +10,7 @@ import { pricingEnabled } from '@/lib/pricing/plans'
 import { ThemeToggle } from './theme-toggle'
 import { LocaleToggle } from './locale-toggle'
 import { FAQ_SECTION, FEATURE_ANCHORS, ROLE_ANCHORS, ROLES_SECTION, roleAnchorId, setAnchor } from './anchors'
+import { BrandMark } from '@/components/shared/brand-mark'
 
 // Header of the public pages: a mega-menu per section, in the spirit of large
 // product sites. Each trigger opens one wide panel (heading + overview link on
@@ -213,8 +214,8 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
       >
         <nav aria-label={m('navLabel')} className="relative max-w-[88rem] mx-auto px-3 sm:px-8 lg:px-12 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 lg:gap-8 min-w-0">
-            <Link href={localizedPath(lang, '/')} onClick={closeAll} dir="ltr" className="flex items-center gap-2.5 shrink-0 px-1">
-              <span className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg shrink-0">E</span>
+            <Link href={localizedPath(lang, '/')} onClick={closeAll} dir="ltr" className="eq-brand flex items-center gap-2.5 shrink-0 px-1">
+              <BrandMark size={36} />
               <span className="text-white font-bold text-lg hidden sm:inline">EduQuest</span>
             </Link>
 

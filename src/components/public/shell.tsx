@@ -7,6 +7,7 @@ import { pricingEnabled } from '@/lib/pricing/plans'
 import type { Locale } from '@/i18n/config'
 import { currentMarketingPath, localizedPath } from '@/i18n/public-routes'
 import { WRAP } from './ui'
+import { BrandMark } from '@/components/shared/brand-mark'
 
 export type Lang = Locale
 
@@ -69,8 +70,8 @@ export function PublicFooter({ lang }: { lang: Lang }) {
     <footer className="border-t border-slate-800 mt-16 bg-slate-950">
       <div className={`${WRAP} py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]`}>
         <div className="sm:col-span-2 lg:col-span-1 max-w-sm">
-          <Link href={localizedPath(lang, '/')} dir="ltr" className="inline-flex items-center gap-2.5">
-            <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
+          <Link href={localizedPath(lang, '/')} dir="ltr" className="eq-brand inline-flex items-center gap-2.5">
+            <BrandMark size={36} />
             <span className="text-white font-bold text-lg">EduQuest</span>
           </Link>
           <p className="text-slate-400 text-sm mt-4 leading-relaxed">{f('tagline')}</p>

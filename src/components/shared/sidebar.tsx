@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { signOutAndLeave } from '@/lib/sign-out'
+import { BrandMark } from './brand-mark'
+import { BrandIntro } from './brand-intro'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { getTerms, type Terms } from '@/lib/terminology'
@@ -87,6 +89,8 @@ export function Sidebar({ items }: SidebarProps) {
 
   return (
     <>
+      {/* Outside <aside>: its translate transform would contain a fixed overlay. */}
+      <BrandIntro />
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -117,10 +121,9 @@ export function Sidebar({ items }: SidebarProps) {
             // The logo is a fixed mark: [E] EduQuest in both languages. The
             // institution name under it keeps its own direction (dir=auto) but
             // lines up with the wordmark.
-            <div dir="ltr" className="flex items-center gap-2 overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-                <span className="text-white text-sm font-bold">E</span>
-              </div>
+            // data-brand-anchor: where the sign-in intro lands the mark.
+            <div dir="ltr" className="eq-brand flex items-center gap-2 overflow-hidden">
+              <span data-brand-anchor className="shrink-0"><BrandMark size={32} className="block" /></span>
               <div className="min-w-0">
                 <p className="text-white text-sm font-bold tracking-tight leading-none">EduQuest</p>
                 {tenant?.name && (

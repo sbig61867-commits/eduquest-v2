@@ -8,6 +8,7 @@ import type { Locale } from '@/i18n/config'
 import { writeLocaleCookie } from '@/components/shared/locale-switcher'
 import { LocaleToggle } from './locale-toggle'
 import { ThemeToggle } from './theme-toggle'
+import { BrandMark } from '@/components/shared/brand-mark'
 
 // Header of the signed-out pages (sign-in, recovery, invitation): the brand on
 // one side, appearance and language on the other. Language switches in place
@@ -24,8 +25,8 @@ export function AuthTopBar({ className = '' }: { className?: string }) {
 
   return (
     <div className={`relative flex items-center justify-between gap-3 ${className}`}>
-      <Link href="/" dir="ltr" className="flex items-center gap-2.5">
-        <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
+      <Link href="/" dir="ltr" className="eq-brand flex items-center gap-2.5">
+        <BrandMark size={36} />
         <span className="text-white font-bold text-lg">EduQuest</span>
       </Link>
       <div className={`flex items-center gap-2 ${switching ? 'opacity-60' : ''}`}>
