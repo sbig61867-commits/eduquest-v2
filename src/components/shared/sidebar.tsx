@@ -114,14 +114,17 @@ export function Sidebar({ items }: SidebarProps) {
       )}>
         <div className="flex items-center justify-between p-4 border-b border-slate-800 h-16">
           {(sidebarOpen || mobileNavOpen) && (
-            <div className="flex items-center gap-2 overflow-hidden">
+            // The logo is a fixed mark: [E] EduQuest in both languages. The
+            // institution name under it keeps its own direction (dir=auto) but
+            // lines up with the wordmark.
+            <div dir="ltr" className="flex items-center gap-2 overflow-hidden">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
                 <span className="text-white text-sm font-bold">E</span>
               </div>
               <div className="min-w-0">
                 <p className="text-white text-sm font-bold tracking-tight leading-none">EduQuest</p>
                 {tenant?.name && (
-                  <p className="text-slate-400 text-xs mt-1"><AdaptiveName name={tenant.name} max={26} /></p>
+                  <p dir="auto" className="text-slate-400 text-xs mt-1 text-left"><AdaptiveName name={tenant.name} max={26} /></p>
                 )}
               </div>
             </div>

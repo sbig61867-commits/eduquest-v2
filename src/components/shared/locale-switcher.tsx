@@ -1,11 +1,11 @@
 'use client'
 
-import { useLocale, useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { Languages } from 'lucide-react'
 
-import { LOCALES, LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS, type Locale } from '@/i18n/config'
+import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS, type Locale } from '@/i18n/config'
+import { LocaleToggle } from '@/components/public/locale-toggle'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -35,7 +35,6 @@ export function writeLocaleCookie(next: Locale) {
 
 export function LocaleSwitcher({ className = '' }: { className?: string }) {
   const active = useLocale() as Locale
-  const t = useTranslations('common.locale')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const userId = useAuthStore(s => s.user?.id)
@@ -50,33 +49,11 @@ export function LocaleSwitcher({ className = '' }: { className?: string }) {
     }
   }
 
+  // Same compact EN · AR pill as the public pages, so the language switch
+  // looks the same before and after sign-in.
   return (
-    <div
-      className={`flex items-center gap-1 rounded-lg border border-slate-700 p-0.5 ${pending ? 'opacity-60' : ''} ${className}`}
-      role="group"
-      aria-label={t('switchLabel')}
-    >
-      <Languages className="w-3.5 h-3.5 text-slate-500 mx-1 shrink-0" aria-hidden />
-      {LOCALES.map(loc => (
-        <button
-          key={loc}
-          type="button"
-          onClick={() => pick(loc)}
-          aria-pressed={loc === active}
-          disabled={pending}
-          // The label is always written in its OWN language, never translated:
-          // someone stuck in a language they cannot read must still recognise
-          // the way out.
-          lang={loc}
-          className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-            loc === active
-              ? 'bg-blue-600 text-white'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          {t(loc)}
-        </button>
-      ))}
+    <div className={`shrink-0 ${pending ? 'opacity-60 pointer-events-none' : ''} ${className}`}>
+      <LocaleToggle active={active} onPick={pick} />
     </div>
   )
 }

@@ -46,7 +46,7 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
     <div className="min-h-screen bg-slate-950 lg:flex">
       <aside className="lg:w-72 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen flex flex-col bg-slate-900/70 border-b lg:border-b-0 lg:border-e border-slate-800">
         <div className="p-4 lg:p-5 flex lg:block items-center justify-between gap-3">
-          <Link href={localizedPath(locale, '/')} className="flex items-center gap-2.5">
+          <Link href={localizedPath(locale, '/')} dir="ltr" className="flex items-center gap-2.5">
             <span aria-hidden="true" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-on-accent font-bold text-lg">E</span>
             <span className="text-white font-bold text-lg">EduQuest</span>
           </Link>

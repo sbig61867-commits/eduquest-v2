@@ -166,13 +166,13 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
           <div className="border-b-4 border-blue-700 pb-4">
             <div className="flex items-start justify-between gap-4">
               {/* Platform identity */}
-              <div className="flex items-center gap-3">
+              <div dir="ltr" className="flex items-center gap-3">
                 <div className="print-color w-14 h-14 rounded-xl bg-blue-700 flex items-center justify-center shrink-0">
                   <span className="text-white text-3xl font-bold">E</span>
                 </div>
                 <div>
                   <p className="text-xl font-bold text-blue-900 leading-tight">EduQuest</p>
-                  <p className="text-slate-600 text-xs">{ui.tagline}</p>
+                  <p dir="auto" className="text-slate-600 text-xs text-left">{ui.tagline}</p>
                   <p className="text-slate-400 text-[10px] mt-0.5" dir="ltr">eduquest-v2.vercel.app</p>
                 </div>
               </div>
