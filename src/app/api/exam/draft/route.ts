@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { rateLimit } from '@/lib/rate-limit'
 
 function adminClient() {
   return createAdminClient(
@@ -22,6 +23,11 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+
+  // Each save rewrites up to ~10 MB of JSONB; the client autosaves every few
+  // seconds at most, so 240/hour is generous and stops a scripted flood.
+  const limit = await rateLimit(`exam-draft:${user.id}`, { limit: 240, windowSecs: 3600 })
+  if (!limit.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
 
   let body: { examId?: string; answers?: Record<string, string> }
   try { body = await request.json() }

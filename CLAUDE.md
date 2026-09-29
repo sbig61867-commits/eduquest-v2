@@ -225,6 +225,16 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   refused, 2000/2000 random draws distinct, anon + authenticated cannot EXECUTE the trigger functions, `search_path`
   pinned, `tenants` UPDATE is super_admin-only), confirmed nothing left behind, then applied via Supabase MCP.
   Verified live: 3/3 coded, institution code `T001`, both triggers present, security advisor shows nothing new.
+- `audit_2026_09_29_migration.sql` — security audit fixes. (1) `users_update` now also pins `email` and
+  `avatar_url` (`current_email()` / `current_avatar_url()`, pinned `search_path`, `anon` revoked): any user could
+  PATCH their own row to show a fake email to staff (`rector@…`), redirect `/api/mail/send`, or set a tracking
+  avatar. Only service-role routes write them. (2) Dropped storage policy `announcement_images_public_read` — the
+  bucket is public (URLs work without it) but the policy let anyone LIST every tenant's image paths; the
+  `phase2` migration no longer recreates it. Audit also found everything else holding: 11/11 write attacks,
+  10/10 cross-tenant reads, 7/7 parameterised RPCs blocked. ✅ 2026-09-29 — green DB backup (run 36627689836),
+  dry-run 11/11, live policy re-read unchanged, applied via Supabase MCP; `supabase/tests/audit_2026_09_29_check.sql`
+  live: 8/8 attacks blocked, 5/5 legitimate paths (own locale, admin rename, service-role email write, bucket
+  still public), 0 SECURITY DEFINER functions without `pg_temp`.
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
