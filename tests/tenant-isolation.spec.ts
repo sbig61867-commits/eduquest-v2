@@ -31,6 +31,7 @@
  * Admin API — see the cleanup() helper below, which is exactly what to
  * re-run by hand if a run was interrupted.)
  */
+import { randomUUID } from 'node:crypto'
 import { test, expect } from '@playwright/test'
 
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -38,7 +39,9 @@ const ANON_KEY       = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SERVICE_KEY    = process.env.SUPABASE_SERVICE_ROLE_KEY
 const HAS_ADMIN_ACCESS = Boolean(SUPABASE_URL && ANON_KEY && SERVICE_KEY)
 
-const PASSWORD = 'AuditIsolation#2026!'
+// Throwaway accounts, created and deleted by this run: a fresh random password
+// each time, so nothing reusable sits in the repository.
+const PASSWORD = `Iso-${randomUUID()}`
 const TAG = '__audit_isolation_test__'
 
 interface Persona { email: string; id: string; token: string }
