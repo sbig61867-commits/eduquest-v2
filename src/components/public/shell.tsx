@@ -72,7 +72,7 @@ export function PublicFooter({ lang }: { lang: Lang }) {
         <div className="sm:col-span-2 lg:col-span-1 max-w-sm">
           <Link href={localizedPath(lang, '/')} dir="ltr" className="eq-brand inline-flex items-center gap-2.5">
             <BrandMark size={36} />
-            <span className="text-white font-bold text-lg">EduQuest</span>
+            <span className="eq-wordmark font-bold text-lg">EduQuest</span>
           </Link>
           <p className="text-slate-400 text-sm mt-4 leading-relaxed">{f('tagline')}</p>
         </div>

@@ -125,7 +125,7 @@ export function Sidebar({ items }: SidebarProps) {
             <div dir="ltr" className="eq-brand flex items-center gap-2 overflow-hidden">
               <span data-brand-anchor className="shrink-0"><BrandMark size={32} className="block" /></span>
               <div className="min-w-0">
-                <p className="text-white text-sm font-bold tracking-tight leading-none">EduQuest</p>
+                <p className="eq-wordmark text-sm font-bold tracking-tight leading-none">EduQuest</p>
                 {tenant?.name && (
                   <p dir="auto" className="text-slate-400 text-xs mt-1 text-left"><AdaptiveName name={tenant.name} max={26} /></p>
                 )}

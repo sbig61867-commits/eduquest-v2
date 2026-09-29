@@ -216,7 +216,7 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
           <div className="flex items-center gap-2 lg:gap-8 min-w-0">
             <Link href={localizedPath(lang, '/')} onClick={closeAll} dir="ltr" className="eq-brand flex items-center gap-2.5 shrink-0 px-1">
               <BrandMark size={36} />
-              <span className="text-white font-bold text-lg hidden sm:inline">EduQuest</span>
+              <span className="eq-wordmark font-bold text-lg hidden sm:inline">EduQuest</span>
             </Link>
 
             {/* Desktop triggers */}

@@ -27,7 +27,7 @@ export function AuthTopBar({ className = '' }: { className?: string }) {
     <div className={`relative flex items-center justify-between gap-3 ${className}`}>
       <Link href="/" dir="ltr" className="eq-brand flex items-center gap-2.5">
         <BrandMark size={36} />
-        <span className="text-white font-bold text-lg">EduQuest</span>
+        <span className="eq-wordmark font-bold text-lg">EduQuest</span>
       </Link>
       <div className={`flex items-center gap-2 ${switching ? 'opacity-60' : ''}`}>
         <ThemeToggle />
