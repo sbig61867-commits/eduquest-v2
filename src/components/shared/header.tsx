@@ -55,9 +55,6 @@ export function Header({ title }: HeaderProps) {
               {user?.role === 'student' && getStudentTrack(user.is_university_student, tenant?.has_center) === 'centre'
                 ? t('centreTrainee')
                 : user?.role ? getRoleLabel(user.role, tenant?.institution_type, locale) : ''}
-              {tenant?.name && (
-                <span className="text-slate-500"> · {tenant.name}</span>
-              )}
             </p>
           </div>
         </div>

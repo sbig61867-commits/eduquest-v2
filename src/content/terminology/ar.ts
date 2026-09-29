@@ -12,7 +12,7 @@ import type { RoleLabels } from './types'
 export const institutionTerms: Record<InstitutionType, Terms> = {
   university: {
     institutionTypeLabel: 'جامعة',
-    institution: 'الجامعة', institutionAdmin: 'مدير الجامعة',
+    institution: 'الجامعة', institutionAdmin: 'مدير الجامعة', centerManager: 'مدير مركز التعليم المستمر',
     group: 'مجموعة', groups: 'المجموعات',
     unitL1: 'كلية', unitsL1: 'الكليات', unitL2: 'قسم', unitsL2: 'الأقسام',
     term: 'فصل دراسي', terms: 'الفصول الدراسية',
@@ -20,7 +20,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   school: {
     institutionTypeLabel: 'مدرسة',
-    institution: 'المدرسة', institutionAdmin: 'مدير المدرسة',
+    institution: 'المدرسة', institutionAdmin: 'مدير المدرسة', centerManager: 'مدير مركز الأنشطة',
     group: 'فصل', groups: 'الفصول',
     unitL1: 'مرحلة', unitsL1: 'المراحل', unitL2: 'صف', unitsL2: 'الصفوف',
     term: 'فصل', terms: 'الفصول',
@@ -28,7 +28,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   institute: {
     institutionTypeLabel: 'معهد',
-    institution: 'المعهد', institutionAdmin: 'مدير المعهد',
+    institution: 'المعهد', institutionAdmin: 'مدير المعهد', centerManager: 'مدير مركز التعليم المستمر',
     group: 'شعبة', groups: 'الشعب',
     unitL1: 'شعبة رئيسية', unitsL1: 'الشعب الرئيسية', unitL2: 'برنامج', unitsL2: 'البرامج',
     term: 'فصل', terms: 'الفصول',
@@ -36,7 +36,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   training_center: {
     institutionTypeLabel: 'مركز تدريب',
-    institution: 'مركز التدريب', institutionAdmin: 'مدير مركز التدريب',
+    institution: 'مركز التدريب', institutionAdmin: 'مدير مركز التدريب', centerManager: 'مساعد مدير المركز',
     group: 'دفعة', groups: 'الدفعات',
     unitL1: 'مسار', unitsL1: 'المسارات', unitL2: 'برنامج', unitsL2: 'البرامج',
     term: 'دورة', terms: 'الدورات',
@@ -44,7 +44,7 @@ export const institutionTerms: Record<InstitutionType, Terms> = {
   },
   company: {
     institutionTypeLabel: 'شركة',
-    institution: 'المؤسسة', institutionAdmin: 'مدير التدريب',
+    institution: 'المؤسسة', institutionAdmin: 'مدير التدريب', centerManager: 'منسق التدريب',
     group: 'فريق', groups: 'الفرق',
     unitL1: 'إدارة', unitsL1: 'الإدارات', unitL2: 'وحدة', unitsL2: 'الوحدات',
     term: 'فترة', terms: 'الفترات',
