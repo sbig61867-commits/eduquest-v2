@@ -4,6 +4,20 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { isOnExamRoster } from '@/lib/exam-roster'
+import { rateLimit } from '@/lib/rate-limit'
+
+// Browser clocks can be set to anything. Keep a client time only when it is a
+// real date within the recorder's batching window of the server's clock
+// (events are at most a few flushes old); otherwise the caller uses server time.
+const CLIENT_TIME_PAST_MS = 5 * 60_000
+const CLIENT_TIME_FUTURE_MS = 5_000
+function clientTime(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length > 40) return undefined
+  const t = Date.parse(value)
+  const now = Date.now()
+  if (!Number.isFinite(t) || t < now - CLIENT_TIME_PAST_MS || t > now + CLIENT_TIME_FUTURE_MS) return undefined
+  return new Date(t).toISOString()
+}
 
 // Records LOCAL proctoring detections (from the in-browser MediaPipe/TF/audio
 // layers) into the exam submission. NO AI is used here — this endpoint never
@@ -45,6 +59,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('tooManyEvents')) }, { status: 413 })
   }
 
+  // The recorder flushes every ~15 s; 600 batches/hour is generous for a real
+  // exam but stops a student turning the JSONB log into an unbounded write.
+  const limit = await rateLimit(`proctor-events:${user.id}`, { limit: 600, windowSecs: 3600 })
+  if (!limit.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
+
   // Sanitize + whitelist. Anything unknown is dropped silently.
   const nowIso = new Date().toISOString()
   const clean = events
@@ -52,8 +71,8 @@ export async function POST(request: Request) {
     .slice(0, 50)
     .map(e => ({
       type: e.type,
-      timestamp: typeof e.timestamp === 'string' ? e.timestamp : nowIso,
-      first_at: typeof e.first_at === 'string' ? e.first_at : undefined,
+      timestamp: clientTime(e.timestamp) ?? nowIso,
+      first_at: clientTime(e.first_at),
       count: Number.isFinite(e.count) && (e.count as number) > 0 ? Math.min(Math.floor(e.count as number), 10_000) : 1,
       details: typeof e.details === 'string' ? e.details.slice(0, 200) : undefined,
     }))
