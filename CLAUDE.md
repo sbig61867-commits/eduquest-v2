@@ -197,11 +197,8 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   (RLS on, 1 policy, anon SELECT / authenticated INSERT-UPDATE-DELETE false, service_role INSERT true, anon cannot
   execute the pin helpers). Rollback: `supabase/student_name_lock_rollback.sql` (restores the exact prior policy;
   read its warning first — it drops the middle names).
-
-## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
-
-- `live_thumbnails_migration.sql` — thumbnail wall: `exam_topic_role()` for `exam-live:` and `exam-thumbs:`; `exam-thumbs` is teacher-read-only and student-write-only (students send over HTTP with `httpSend`, never see each other). **Apply after** `live_proctoring_channel_migration.sql`. Dry-run 2026-09-27 on the live DB with real inserts into `realtime.messages`, rolled back: 21/21 as expected, nothing left. Until applied the student's first send is refused and stops; the teacher sees «needs a database update».
-- `seb_config_key_migration.sql` — `exams.seb_config_key` (64 hex, CHECK) for the optional Safe Exam Browser requirement (`src/lib/seb.ts`, checked in `/api/exam/start`). Dry-run 2026-09-27, rolled back, run twice: valid accepted, malformed rejected, a student of the exam reads 0 rows, `get_student_exams` has no such column. Until applied, creating an exam with a key answers «needs a database update» (42703); without a key nothing changes.
+- `live_thumbnails_migration.sql` — thumbnail wall: `exam_topic_role()` for `exam-live:` and `exam-thumbs:`; `exam-thumbs` is teacher-read-only and student-write-only (students send over HTTP with `httpSend`, never see each other). **Apply after** `live_proctoring_channel_migration.sql`. Dry-run 2026-09-27 on the live DB with real inserts into `realtime.messages`, rolled back: 21/21 as expected, nothing left. Until applied the student's first send is refused and stops; the teacher sees «needs a database update». ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; live `exam_live_read`/`exam_live_write` re-checked first (unchanged since `live_proctoring_channel_migration.sql`), dry-run again (anon NULL, no anon EXECUTE, 2 policies, `search_path` pinned; no teacher/student in the DB to re-test roles — the 21/21 run above covered them).
+- `seb_config_key_migration.sql` — `exams.seb_config_key` (64 hex, CHECK) for the optional Safe Exam Browser requirement (`src/lib/seb.ts`, checked in `/api/exam/start`). Dry-run 2026-09-27, rolled back, run twice: valid accepted, malformed rejected, a student of the exam reads 0 rows, `get_student_exams` has no such column. Until applied, creating an exam with a key answers «needs a database update» (42703); without a key nothing changes. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; column + CHECK verified live.
 - `tenant_storage_limit_migration.sql` — per-institution file storage cap (owner's plan limits, 2026-09-29).
   `tenants.storage_limit_mb` (NULL = no cap ⇒ no behaviour change) + `tenant_storage_bytes(tenant)` (sums the
   tenant's objects in `exam-files` + `announcement-images`; every path starts with the tenant id). Allowed for the
@@ -211,10 +208,14 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   until the column exists; fails open before the migration). Photos of answers/attachments are shrunk on the device
   first (`DOCUMENT_PHOTO` in `src/lib/prepare-image.ts`: 1600 px WebP). Dry-run 2026-09-29 in a forced-rollback
   transaction: 6/6 (service role + super_admin read, university_admin blocked, anon no EXECUTE, negative limit
-  rejected, search_path pinned), nothing left behind.
+  rejected, search_path pinned), nothing left behind. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; verified live: column present, `tenant_storage_bytes` service_role yes / anon no.
 - `course_source_text_migration.sql` (June) — **found never applied 2026-09-29**: `courses.source_text` is missing on
   the live DB while `api/courses/create-full` writes it and `generate-item-content` reads it, so creating a course
-  from a file fails in production. One additive `ADD COLUMN IF NOT EXISTS`.
+  from a file fails in production. One additive `ADD COLUMN IF NOT EXISTS`. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; `courses.source_text` present, so creating a course from a file works again.
+
+## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
+
+None as of 2026-09-29 (all four applied after the first green backup, run 36563522418).
 
 ## Centre manager panel
 
