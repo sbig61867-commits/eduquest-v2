@@ -58,7 +58,7 @@ export default async function NotificationsPage() {
   // and types come from the RPC. Unpublished homework scores are not "posted".
   const examById = new Map(((rpcExams ?? []) as RpcExamRow[]).map(e => [e.id, e]))
   const visibleGrades = ((recentGrades ?? []) as GradeRow[])
-    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type as string | undefined))
+    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type as string | undefined, examById.get(g.exam_id)?.questions as Array<{ type?: string | null }> | undefined))
     .slice(0, 5)
 
   // Merge and sort all notifications by date
