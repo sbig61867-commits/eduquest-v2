@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { writeLocaleCookie } from '@/components/shared/locale-switcher'
+import { writeLocaleCookie } from '@/lib/locale-cookie'
 import { pricingEnabled } from '@/lib/pricing/plans'
 import type { Locale } from '@/i18n/config'
 import { currentMarketingPath, localizedPath } from '@/i18n/public-routes'

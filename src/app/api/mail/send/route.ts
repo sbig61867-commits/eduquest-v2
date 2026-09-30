@@ -11,6 +11,8 @@ import { buildMime, getAccessToken, sendGmail, type ConnectionRow } from '@/lib/
 // addresses — so a linked mailbox can't be turned into a spam relay.
 
 const MAX_RECIPIENTS = 50
+const SEND_CONCURRENCY = 6
+export const maxDuration = 60
 const DAILY_MESSAGE_CAP = 300
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 
@@ -83,18 +85,28 @@ export async function POST(request: Request) {
   }
 
   const html = `<div dir="auto" style="font-family:sans-serif;line-height:1.7;white-space:pre-wrap">${escapeHtml(text)}</div>`
+  // A few Gmail calls at a time instead of one after another: 50 recipients
+  // used to take ~50 × (Gmail round-trip + a log insert) ≈ 20 s and could hit
+  // the function time limit half-way. The log is written once, at the end.
   const results: { id: string; ok: boolean }[] = []
-  for (const r of recipients) {
-    const sent = await sendGmail(token, buildMime({
+  const log: Record<string, unknown>[] = []
+  for (let i = 0; i < recipients.length; i += SEND_CONCURRENCY) {
+    const batch = recipients.slice(i, i + SEND_CONCURRENCY)
+    const sent = await Promise.all(batch.map(r => sendGmail(token, buildMime({
       fromEmail: conn.email, fromName: sender?.full_name ?? undefined, to: r.email, subject, html,
-    }))
-    results.push({ id: r.id, ok: sent.ok })
-    await admin.from('mail_messages').insert({
-      tenant_id: caller.tenant_id, sender_id: caller.id, connection_id: conn.id, from_email: conn.email,
-      recipient_id: r.id, to_email: r.email, subject,
-      status: sent.ok ? 'sent' : 'failed', error: sent.ok ? null : sent.error.slice(0, 500),
+    }))))
+    batch.forEach((r, k) => {
+      const s = sent[k]
+      results.push({ id: r.id, ok: s.ok })
+      log.push({
+        tenant_id: caller.tenant_id, sender_id: caller.id, connection_id: conn.id, from_email: conn.email,
+        recipient_id: r.id, to_email: r.email, subject,
+        status: s.ok ? 'sent' : 'failed', error: s.ok ? null : s.error.slice(0, 500),
+      })
     })
   }
+  const { error: logErr } = await admin.from('mail_messages').insert(log)
+  if (logErr) console.error('[mail/send] log insert', logErr)
 
   const sentCount = results.filter(r => r.ok).length
   return NextResponse.json({ sent: sentCount, failed: results.length - sentCount, skipped: ids.length - recipients.length })

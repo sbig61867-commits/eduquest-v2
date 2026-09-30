@@ -4,7 +4,8 @@ import { useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 
-import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS, type Locale } from '@/i18n/config'
+import { type Locale } from '@/i18n/config'
+import { writeLocaleCookie } from '@/lib/locale-cookie'
 import { LocaleToggle } from '@/components/public/locale-toggle'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
@@ -26,13 +27,6 @@ import { useAuthStore } from '@/stores/auth-store'
  * cookie on the first request that arrives without one. Saving is
  * best-effort — the switch itself never waits on it or fails because of it.
  */
-// Module scope on purpose: the react-hooks lint rule reads an assignment to
-// `document.cookie` inside a component as mutating an outer binding.
-export function writeLocaleCookie(next: Locale) {
-  const { path, maxAge, sameSite } = LOCALE_COOKIE_OPTIONS
-  document.cookie = `${LOCALE_COOKIE}=${next}; path=${path}; max-age=${maxAge}; samesite=${sameSite}`
-}
-
 export function LocaleSwitcher({ className = '' }: { className?: string }) {
   const active = useLocale() as Locale
   const router = useRouter()

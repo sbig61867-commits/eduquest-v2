@@ -1,11 +1,11 @@
-import * as Sentry from '@sentry/nextjs'
+// Error monitoring off the critical path (perf audit 2026-09-30): the Sentry
+// SDK was the largest script on every page and delayed first paint, public
+// pages included. It now loads once the browser is idle (src/lib/sentry-client.ts);
+// an error boundary that fires earlier loads it on the spot.
+import { loadSentry } from '@/lib/sentry-client'
 
-Sentry.init({
-  dsn: 'https://c20195c54ea2721922589434227cf0b5@o4511721394405376.ingest.de.sentry.io/4511721421471824',
-  enabled: process.env.NODE_ENV === 'production',
-  tracesSampleRate: 0.1,
-  // No session replay: it burns free-tier quota fast and exam pages are
-  // privacy-sensitive (proctoring video must never reach a third party).
-})
-
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+if (typeof window !== 'undefined') {
+  const load = () => { void loadSentry() }
+  if ('requestIdleCallback' in window) window.requestIdleCallback(load, { timeout: 5000 })
+  else setTimeout(load, 3000)
+}

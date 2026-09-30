@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { IBM_Plex_Sans_Arabic } from 'next/font/google'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { AuthProvider } from '@/components/shared/auth-provider'
 import { Toaster } from '@/components/ui/toast'
 import { dirFor, toLocale } from '@/i18n/config'
 import { ScopedIntlProvider } from '@/i18n/provider'
@@ -65,7 +64,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             namespaces belong on a route-group provider — see
             src/app/(admin)/layout.tsx. */}
         <ScopedIntlProvider namespaces={['common', 'auth']}>
-          <AuthProvider>{children}</AuthProvider>
+          {/* No AuthProvider here: it pulls the Supabase client into every public
+              page. Each signed-in route group mounts it (perf audit 2026-09-30). */}
+          {children}
           <Toaster />
         </ScopedIntlProvider>
       </body>

@@ -10,7 +10,7 @@ import {
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { getDemoData } from '@/lib/demo/data'
-import { writeLocaleCookie } from '@/components/shared/locale-switcher'
+import { writeLocaleCookie } from '@/lib/locale-cookie'
 import { LocaleToggle } from '@/components/public/locale-toggle'
 import { ThemeToggle } from '@/components/public/theme-toggle'
 import { localizedPath } from '@/i18n/public-routes'
