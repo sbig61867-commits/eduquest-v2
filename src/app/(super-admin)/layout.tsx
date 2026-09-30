@@ -3,6 +3,7 @@ import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
 import { ScopedIntlProvider } from '@/i18n/provider'
 import { getTranslations } from 'next-intl/server'
+import { AuthProvider } from '@/components/shared/auth-provider'
 
 // `staff` rides along because the invitations page and the permissions editor
 // are the shared staff components, rendered here for the platform owner.
@@ -23,6 +24,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   ]
   return (
     <ScopedIntlProvider namespaces={['common', 'terms', 'superAdmin', 'staff']}>
+      <AuthProvider>
       <div className="min-h-screen bg-slate-950">
         <Sidebar items={navItems} title={t('sidebarTitle')} />
         <ContentShell>
@@ -30,6 +32,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
           <main className="p-4 lg:p-6 !pt-20">{children}</main>
         </ContentShell>
       </div>
+    </AuthProvider>
     </ScopedIntlProvider>
   )
 }

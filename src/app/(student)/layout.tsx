@@ -7,6 +7,7 @@ import { TenantWatcher } from '@/components/shared/tenant-watcher'
 import { StudentQuickAccessPanel } from '@/components/student/quick-access-panel'
 import { AnnouncementPopup } from '@/components/student/announcement-popup'
 import { ScopedIntlProvider } from '@/i18n/provider'
+import { AuthProvider } from '@/components/shared/auth-provider'
 
 // The nav is built per request from the `student` namespace rather than held
 // in a module-level constant: a constant is evaluated once at import time,
@@ -29,6 +30,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
   return (
     <ScopedIntlProvider namespaces={['common', 'student', 'terms']}>
+      <AuthProvider>
       <div className="min-h-screen bg-slate-950">
         <TenantWatcher />
         <Sidebar items={navItems} title={t('roleTitle')} centreTraineeTitle={t('centreTraineeTitle')} />
@@ -39,6 +41,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
         <StudentQuickAccessPanel />
         <AnnouncementPopup />
       </div>
+    </AuthProvider>
     </ScopedIntlProvider>
   )
 }

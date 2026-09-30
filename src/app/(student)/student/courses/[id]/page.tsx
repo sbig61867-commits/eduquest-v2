@@ -67,48 +67,38 @@ export default async function StudentCoursePlayerPage({
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  // Enrolment is the gate — RLS scopes to the tenant, this scopes to the student.
-  const { data: enrolment } = await supabase
-    .from('course_enrollments')
-    .select('course_id')
-    .eq('course_id', id)
-    .eq('student_id', user.id)
-    .maybeSingle()
+  // One round-trip for everything that does not depend on anything else — the
+  // gate, the course, the profile and both possible content shapes — instead
+  // of five in a row (perf audit 2026-09-30). Every read is RLS-scoped, and
+  // nothing is rendered until the enrolment gate below has passed.
+  const [{ data: enrolment }, { data: course }, { data: profile }, { data: levelRows }, { data: flatUnits }] = await Promise.all([
+    // Enrolment is the gate — RLS scopes to the tenant, this scopes to the student.
+    supabase.from('course_enrollments').select('course_id').eq('course_id', id).eq('student_id', user.id).maybeSingle(),
+    supabase.from('courses')
+      .select('id, title, description, language, has_levels, is_published, users!courses_teacher_id_fkey(full_name)')
+      .eq('id', id).eq('is_published', true).maybeSingle(),
+    supabase.from('users').select('tenant_id').eq('id', user.id).single(),
+    supabase.from('course_levels')
+      .select('id, title, order_index, is_published, course_units(id, title, order_index, is_published, unit_items(id, type, title, content, order_index, is_published))')
+      .eq('course_id', id).order('order_index'),
+    supabase.from('course_units')
+      .select('id, title, order_index, is_published, unit_items(id, type, title, content, order_index, is_published)')
+      .eq('course_id', id).is('level_id', null).order('order_index'),
+  ])
 
   if (!enrolment) notFound()
-
-  const { data: course } = await supabase
-    .from('courses')
-    .select('id, title, description, language, has_levels, is_published, users!courses_teacher_id_fkey(full_name)')
-    .eq('id', id)
-    .eq('is_published', true)
-    .maybeSingle()
-
   if (!course) notFound()
 
   let levels: PlayerLevel[] = []
 
   if (course.has_levels) {
-    const { data } = await supabase
-      .from('course_levels')
-      .select('id, title, order_index, is_published, course_units(id, title, order_index, is_published, unit_items(id, type, title, content, order_index, is_published))')
-      .eq('course_id', id)
-      .order('order_index')
-
-    levels = ((data ?? []) as unknown as RawLevel[])
+    levels = ((levelRows ?? []) as unknown as RawLevel[])
       .filter(l => l.is_published)
       .sort(byOrder)
       .map(l => ({ id: l.id, title: l.title, units: toPlayerUnits(l.course_units) }))
       .filter(l => l.units.length > 0)
   } else {
-    const { data } = await supabase
-      .from('course_units')
-      .select('id, title, order_index, is_published, unit_items(id, type, title, content, order_index, is_published)')
-      .eq('course_id', id)
-      .is('level_id', null)
-      .order('order_index')
-
-    const units = toPlayerUnits((data ?? []) as unknown as RawUnit[])
+    const units = toPlayerUnits((flatUnits ?? []) as unknown as RawUnit[])
     if (units.length > 0) levels = [{ id: 'flat', title: '', units }]
   }
 
@@ -153,12 +143,6 @@ export default async function StudentCoursePlayerPage({
     .map(i => i.id)
 
   const teacher = (course.users as unknown as { full_name: string } | null)?.full_name ?? null
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
 
   if (!profile?.tenant_id) notFound()
 

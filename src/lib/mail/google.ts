@@ -168,11 +168,18 @@ export function buildMime(opts: {
 }
 
 export async function sendGmail(accessToken: string, mime: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw: Buffer.from(mime, 'utf8').toString('base64url') }),
-  })
+  // Never throws: /api/mail/send runs several of these at once and must log
+  // every recipient, so a network error is just a failed send.
+  let res: Response
+  try {
+    res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw: Buffer.from(mime, 'utf8').toString('base64url') }),
+    })
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'network error' }
+  }
   if (res.ok) return { ok: true }
   const data = await res.json().catch(() => ({})) as { error?: { message?: string } }
   return { ok: false, error: data.error?.message ?? `HTTP ${res.status}` }

@@ -4,6 +4,7 @@ import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
 import { ScopedIntlProvider } from '@/i18n/provider'
 import { getTranslations } from 'next-intl/server'
+import { AuthProvider } from '@/components/shared/auth-provider'
 
 
 // C1 in practice: this subtree gets `common` + `admin` and nothing else. The
@@ -33,6 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ]
   return (
     <ScopedIntlProvider namespaces={['common', 'terms', 'admin', 'staff']}>
+      <AuthProvider>
       <div className="min-h-screen bg-slate-950">
         <TenantWatcher />
         <Sidebar items={navItems} title={t('sidebarTitle')} titleTerm="institutionAdmin" />
@@ -41,6 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <main className="p-4 lg:p-6 !pt-20">{children}</main>
         </ContentShell>
       </div>
+    </AuthProvider>
     </ScopedIntlProvider>
   )
 }

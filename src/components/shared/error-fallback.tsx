@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import * as Sentry from '@sentry/nextjs'
+import { reportClientError } from '@/lib/sentry-client'
 import { useTranslations } from 'next-intl'
 import { RefreshCw, Home } from 'lucide-react'
 
@@ -22,7 +22,7 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel }: Err
   const t = useTranslations('common.error')
   useEffect(() => {
     console.error('[error-boundary]', error.digest ?? '', error)
-    Sentry.captureException(error)
+    reportClientError(error)
   }, [error])
 
   return (

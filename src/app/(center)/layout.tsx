@@ -4,6 +4,7 @@ import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
 import { ScopedIntlProvider } from '@/i18n/provider'
 import { getTranslations } from 'next-intl/server'
+import { AuthProvider } from '@/components/shared/auth-provider'
 
 // Continuing-education centre manager / admin assistant. What they can
 // actually do is governed per-user by `users.permissions` (see
@@ -24,6 +25,7 @@ export default async function CenterLayout({ children }: { children: React.React
   ]
   return (
     <ScopedIntlProvider namespaces={['common', 'terms', 'center', 'staff']}>
+      <AuthProvider>
       <div className="min-h-screen bg-slate-950">
         <TenantWatcher />
         <Sidebar items={navItems} title={t('sidebarTitle')} titleTerm="centerManager" />
@@ -32,6 +34,7 @@ export default async function CenterLayout({ children }: { children: React.React
           <main className="p-4 lg:p-6 !pt-20">{children}</main>
         </ContentShell>
       </div>
+    </AuthProvider>
     </ScopedIntlProvider>
   )
 }
