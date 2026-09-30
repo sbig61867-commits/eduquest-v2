@@ -81,6 +81,15 @@ next-intl as a message layer only — no `[locale]` segment, no next-intl middle
 ### Public page caching (edge)
 `src/proxy.ts` `withEdgeCache()` adds `Vercel-CDN-Cache-Control` / `CDN-Cache-Control: public, max-age=300, stale-while-revalidate=86400` to `/<locale>/…` marketing pages for **signed-out full page loads only** (Accept includes `text/html`; never RSC/prefetch — Next strips those headers before the proxy, hence the Accept check), and only when the response sets no cookie. So the public HTML must never depend on cookies: the theme is applied in the browser by `THEME_BOOT_SCRIPT` (`src/lib/theme.ts`, inline in the root layout `<head>`), and `eq_locale` is set by the proxy only when it differs and synced client-side by `PublicNav`. A deploy purges the cache. Heavy client libraries are loaded on demand only (TensorFlow, MediaPipe, and `livekit-client` after a live-proctoring token is granted).
 
+### Performance Architecture Contract (binding since 2026-09-30)
+Every read that reaches a screen follows [PERFORMANCE_CONTRACT.md](PERFORMANCE_CONTRACT.md): bounded lists
+(server-side page/search/count), named columns (no `select('*')`), metadata separate from content (exam
+questions only in the attempt flow), no N+1, no needless sequential waves, bounded UI-facing RPCs, RLS stays
+the isolation boundary, reads in `src/lib/data/<resource>.ts`. **No Redis, no application-data cache, no
+streaming/loading UI, no global prefetch change** for now (owner's decisions). `src/__tests__/perf-contract.test.ts`
+is a shrink-only ratchet over `perf-contract-state.ts`; `supabase/tests/scale_baseline_check.sql` measures feed
+sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md).
+
 ### Rate limiting
 `src/lib/rate-limit.ts` `rateLimit(key, {limit, windowSecs})` is backed by the Postgres `check_rate_limit` RPC (survives serverless cold starts; fails **open** if the limiter errors). Apply it in AI/expensive route handlers keyed by `feature:userId`.
 
@@ -251,7 +260,23 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-09-29.
+- `student_exam_list_migration.sql` (Batch 1, PART A — additive, apply BEFORE the code ships) —
+  `get_student_exam_list()`: the student exam list with the exact WHERE of `get_student_exams()` but no
+  questions; instead `question_count`, `has_manual_questions` (same rule as `isAutoGradable`) and
+  `total_points`. Read only through `src/lib/data/student-exams.ts` `loadStudentExamList()` (falls back to
+  the old feed and strips the questions in the app while the function is missing — remove that branch
+  after applying). Questions now reach a student only from `/api/exam/start` (`studentQuestions()`,
+  `src/lib/exam-delivery.ts`). `/api/exam/start` also filters `deleted_at` itself (the RPC already refused
+  it with EXAM_NOT_FOUND, surfaced as a 500) and maps every RPC refusal to its real status. Dry-run
+  2026-09-30 on the live DB, rolled back: `supabase/tests/student_exam_list_check.sql` 24/24 PASS — the
+  list (tenant isolation, archived/deleted/unpublished/other student's task hidden, parity of rows + order
+  with the old feed) and `start_exam_attempt` S0–S9 (start, resume, resume after deletion, deleted,
+  unpublished, before starts_at, other institution incl. forged tenant, other group, other student, after
+  submit); synthetic 50 exams × 40 questions: 1 718 KB → 31 KB, 24 → 6.3 ms.
+- `student_exam_list_lockdown_migration.sql` (Batch 1, PART B — apply only AFTER the new code is live) —
+  revokes `get_student_exams()` from `authenticated` (service_role keeps it). The live dry-run CONFIRMED
+  the old feed hands a student the questions of an exam whose window has not opened. Dry-run: student call
+  → 42501, list still works, grants anon/auth/service_role = f/f/t.
 
 ## Sign-in (2026-09-29)
 

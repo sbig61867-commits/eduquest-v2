@@ -9,10 +9,10 @@ import { formatDate } from '@/lib/utils'
 import { SurveyCard } from '@/components/student/survey-card'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
 import { isScoreVisible } from '@/lib/score-visibility'
+import { loadStudentExamList } from '@/lib/data/student-exams'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
 interface GradeRow { id: string; exam_id: string; score: number; max_score: number | null; grading_status: string | null }
-interface RpcExam { id: string; title: string; type?: string | null; questions?: Array<{ type?: string | null }> | null }
 
 export default async function StudentDashboard() {
   const t = await getTranslations('student.dashboard')
@@ -37,8 +37,8 @@ export default async function StudentDashboard() {
           .in('group_id', groupIds)
           .order('created_at', { ascending: false })
           .limit(5),
-    // Students have no direct exams SELECT; count enrolled exams via the RPC.
-    supabase.rpc('get_student_exams'),
+    // Students have no direct exams SELECT; count enrolled exams via the list.
+    loadStudentExamList(supabase),
     supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''),
     // exam_submissions, not grades: visibility depends on grading_status, and
     // the teacher's manual grade lives here. Over-fetch, then filter to 5.
@@ -47,7 +47,7 @@ export default async function StudentDashboard() {
     // state, the date window and audience targeting server-side.
     supabase.rpc('get_student_announcements'),
   ])
-  const exams = (examRows ?? []).length
+  const exams = examRows.length
   const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
 
   const cards = [
@@ -58,10 +58,10 @@ export default async function StudentDashboard() {
   ]
 
   const lessonList = (recentLessons ?? []) as unknown as LessonRow[]
-  // Students have no exams SELECT, so titles/types come from the RPC feed.
-  const examById = new Map(((examRows ?? []) as RpcExam[]).map(e => [e.id, e]))
+  // Students have no exams SELECT, so titles/types come from the exam list.
+  const examById = new Map(examRows.map(e => [e.id, e]))
   const gradeList = ((grades ?? []) as GradeRow[])
-    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type, examById.get(g.exam_id)?.questions))
+    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type, examById.get(g.exam_id)?.has_manual_questions))
     .slice(0, 5)
 
   return (

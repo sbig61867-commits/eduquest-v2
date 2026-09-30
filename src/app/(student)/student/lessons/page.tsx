@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { BookOpen, ClipboardList, CheckCircle2, CalendarClock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { LessonTabs } from '@/components/shared/lesson-tabs'
+import { loadStudentExamList } from '@/lib/data/student-exams'
 
 export default async function StudentLessonsPage() {
   const t = await getTranslations('student.lessons')
@@ -37,18 +38,15 @@ export default async function StudentLessonsPage() {
   // Homework created inside a lesson lives in the `exams` table with
   // type='homework' and lesson_id set (homework_exam_migration.sql).
   // Students have no direct SELECT on `exams`, so it comes through the
-  // same answer-stripped, enrolment-scoped feed the exams page uses.
-  // Before student_exams_expose_type_migration.sql the feed carries
-  // neither column, in which case this section stays empty and the exams
-  // page remains the only place homework shows up — no crash either way.
+  // same enrolment-scoped, metadata-only list the exams page uses.
   type HomeworkRow = { id: string; title: string; ends_at: string | null; type?: string; lesson_id?: string | null }
   const [{ data: feed }, { data: hwSubmissions }] = await Promise.all([
-    supabase.rpc('get_student_exams'),
+    loadStudentExamList(supabase),
     supabase.from('exam_submissions').select('exam_id').eq('student_id', user.id),
   ])
   const submittedIds = new Set((hwSubmissions ?? []).map(r => r.exam_id))
   const homeworkByLesson = new Map<string, HomeworkRow[]>()
-  for (const row of (feed ?? []) as HomeworkRow[]) {
+  for (const row of feed as HomeworkRow[]) {
     if (row.type !== 'homework' || !row.lesson_id) continue
     const bucket = homeworkByLesson.get(row.lesson_id)
     if (bucket) bucket.push(row)

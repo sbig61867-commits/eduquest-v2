@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import type { Exam } from '@/types'
+import type { StudentExam } from '@/lib/data/student-exams'
 
 // The student's phone granted camera + microphone, yet the exam refused to start
 // with "camera and microphone permission is required": the full-screen request
@@ -32,8 +32,10 @@ const exam = {
   type: 'exam',
   duration_minutes: 10,
   proctoring_enabled: true,
-  questions: [{ id: 'q1', type: 'mcq', text: 'Two plus two', options: ['3', '4'], correct_answer: '4', points: 1 }],
-} as unknown as Exam
+  question_count: 1,
+} as unknown as StudentExam
+// The questions arrive with the start response (Batch 1), not with the exam.
+const served = [{ id: 'q1', type: 'mcq', text: 'Two plus two', options: ['3', '4'], points: 1 }]
 
 const originalRequestFullscreen = document.documentElement.requestFullscreen
 
@@ -64,7 +66,7 @@ describe('starting a proctored exam when full screen is unavailable', () => {
     toastError.mockReset()
     recordEvent.mockReset()
     stubCamera()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ startedAt: new Date().toISOString(), resumed: false }), { status: 200 })))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ startedAt: new Date().toISOString(), resumed: false, questions: served }), { status: 200 })))
   })
   afterEach(() => {
     vi.unstubAllGlobals()

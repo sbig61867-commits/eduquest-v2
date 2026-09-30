@@ -53,8 +53,14 @@ export function shouldShuffle(exam: { type?: string | null }): boolean {
   return exam.type !== 'homework'
 }
 
-/** The questions as this student sees them. Never mutates the input. */
-export function orderForStudent(questions: readonly Question[], examId: string, studentId: string): Question[] {
+/**
+ * The questions as this student sees them. Never mutates the input. Works on
+ * the teacher's full questions and on the answer-key-free ones a student is
+ * served (src/lib/exam-delivery.ts) alike.
+ */
+export function orderForStudent<Q extends Pick<Question, 'type' | 'options'>>(
+  questions: readonly Q[], examId: string, studentId: string,
+): Q[] {
   const random = prng(seedFrom(`${examId}:${studentId}`))
   return shuffled(questions, random).map(q =>
     q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 1

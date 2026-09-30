@@ -1,0 +1,132 @@
+/**
+ * Performance Contract ratchet — the grandfathered backlog (PERFORMANCE_CONTRACT.md).
+ *
+ * Captured 2026-09-30 (Batch 0) from src/__tests__/perf-contract-scan.ts. Each
+ * map is file (relative to src/) → number of sites. The ratchet in
+ * perf-contract.test.ts fails when a file goes ABOVE its number (a new
+ * violation) and also when it goes BELOW (a fix that forgot to lower it here),
+ * so these numbers only ever move down, one reviewed diff at a time.
+ *
+ * Raising a number is possible but must be a deliberate, reviewed decision
+ * with a reason in the PR — never a way to make the test pass.
+ */
+
+/** .select('*…') on a read (row shape = whatever the table grows into). */
+export const STAR_SELECT: Readonly<Record<string, number>> = {
+  'app/(admin)/admin/academic/page.tsx': 1,
+  'app/(admin)/admin/settings/page.tsx': 1,
+  'app/(auth)/change-password/page.tsx': 1,
+  'app/(center)/center/groups/page.tsx': 1,
+  'app/(student)/student/courses/page.tsx': 2,
+  'app/(student)/student/exams/page.tsx': 1,
+  'app/(student)/student/lessons/page.tsx': 1,
+  'app/(student)/student/profile/page.tsx': 1,
+  'app/(super-admin)/super-admin/tenants/page.tsx': 1,
+  'app/(teacher)/teacher/courses/[id]/page.tsx': 3,
+  'app/(teacher)/teacher/courses/page.tsx': 1,
+  'app/(teacher)/teacher/exams/page.tsx': 2,
+  'app/(teacher)/teacher/groups/page.tsx': 1,
+  'app/(teacher)/teacher/lessons/[id]/page.tsx': 2,
+  'app/(teacher)/teacher/lessons/page.tsx': 1,
+  'app/api/admin/create-user/route.ts': 1,
+  'app/api/admin/tenant-users/route.ts': 1,
+  'app/api/appeals/report/route.ts': 1,
+  'app/api/courses/create-full/route.ts': 1,
+  'app/api/exam/answer-file/route.ts': 1,
+  'app/api/exam/submit/route.ts': 1,
+  'app/api/exams/results/route.ts': 2,
+  'app/api/group-students/route.ts': 1,
+  'app/api/homework/route.ts': 1,
+  'app/api/invitations/[id]/route.ts': 1,
+  'app/api/invitations/route.ts': 2,
+  'app/api/mail/send/route.ts': 1,
+  'app/api/proctor/events/route.ts': 1,
+  'app/api/proctor/evidence/clip/route.ts': 1,
+  'app/api/proctor/evidence/route.ts': 1,
+  'app/api/proctor/live-token/route.ts': 1,
+  'lib/announcements-data.ts': 1,
+  'lib/seat-limit.ts': 2,
+  'lib/storage-quota.ts': 1,
+  'lib/structure-mode.ts': 2,
+  'lib/teacher-records.ts': 1,
+}
+
+/** Reads with no limit/range/single/maybeSingle/head count/eq('id'). */
+export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
+  'app/(admin)/admin/academic/page.tsx': 2,
+  'app/(admin)/admin/appeals/page.tsx': 1,
+  'app/(admin)/admin/center-staff/page.tsx': 1,
+  'app/(admin)/admin/courses/page.tsx': 1,
+  'app/(admin)/admin/groups/page.tsx': 4,
+  'app/(admin)/admin/invitations/page.tsx': 1,
+  'app/(admin)/admin/students/page.tsx': 1,
+  'app/(admin)/admin/teachers/page.tsx': 1,
+  'app/(center)/center/attendance/page.tsx': 1,
+  'app/(center)/center/courses/page.tsx': 3,
+  'app/(center)/center/groups/page.tsx': 4,
+  'app/(center)/center/mail/page.tsx': 2,
+  'app/(center)/center/students/page.tsx': 1,
+  'app/(center)/center/teachers/page.tsx': 3,
+  'app/(student)/student/courses/[id]/page.tsx': 4,
+  'app/(student)/student/courses/page.tsx': 4,
+  'app/(student)/student/dashboard/page.tsx': 1,
+  'app/(student)/student/exams/page.tsx': 2,
+  'app/(student)/student/grades/page.tsx': 2,
+  'app/(student)/student/lessons/page.tsx': 3,
+  'app/(student)/student/notifications/page.tsx': 1,
+  'app/(student)/student/profile/page.tsx': 4,
+  'app/(super-admin)/super-admin/invitations/page.tsx': 1,
+  'app/(super-admin)/super-admin/permissions/page.tsx': 1,
+  'app/(super-admin)/super-admin/reports/page.tsx': 4,
+  'app/(super-admin)/super-admin/tenants/page.tsx': 1,
+  'app/(super-admin)/super-admin/users/page.tsx': 3,
+  'app/(teacher)/teacher/attendance/page.tsx': 1,
+  'app/(teacher)/teacher/courses/[id]/page.tsx': 3,
+  'app/(teacher)/teacher/courses/page.tsx': 1,
+  'app/(teacher)/teacher/engagement/page.tsx': 1,
+  'app/(teacher)/teacher/exams/page.tsx': 4,
+  'app/(teacher)/teacher/groups/page.tsx': 2,
+  'app/(teacher)/teacher/invitations/page.tsx': 1,
+  'app/(teacher)/teacher/lessons/[id]/page.tsx': 2,
+  'app/(teacher)/teacher/lessons/page.tsx': 2,
+  'app/(teacher)/teacher/proctoring/live/[examId]/live-monitor.tsx': 1,
+  'app/(teacher)/teacher/proctoring/page.tsx': 3,
+  'app/api/admin/delete-tenant/route.ts': 1,
+  'app/api/admin/member-lookup/route.ts': 2,
+  'app/api/admin/tenant-users/route.ts': 1,
+  'app/api/ai/quota/route.ts': 1,
+  'app/api/announcements/interested/route.ts': 2,
+  'app/api/announcements/route.ts': 1,
+  'app/api/appeals/report/route.ts': 1,
+  'app/api/attendance/route.ts': 3,
+  'app/api/course-enrollments/route.ts': 1,
+  'app/api/exams/results/route.ts': 1,
+  'app/api/grades/export/route.ts': 3,
+  'app/api/group-students/route.ts': 1,
+  'app/api/homework/route.ts': 1,
+  'app/api/homework/submissions/route.ts': 2,
+  'app/api/invitations/route.ts': 1,
+  'app/api/mail/connection/route.ts': 1,
+  'app/api/mail/send/route.ts': 1,
+  'app/api/notifications/route.ts': 2,
+  'app/api/proctor/evidence/route.ts': 2,
+  'app/api/surveys/respond/route.ts': 3,
+  'components/student/quick-access-panel.tsx': 2,
+  'lib/account-scope.ts': 2,
+  'lib/announcements-data.ts': 3,
+  'lib/reports.ts': 20,
+  'lib/requests-data.ts': 3,
+  'lib/schedules-data.ts': 6,
+  'lib/student-names.ts': 1,
+  'lib/teacher-records.ts': 7,
+}
+
+/** Calls to the heavy feeds listed in HEAVY_FEEDS (perf-contract-scan.ts). */
+export const HEAVY_FEED_CALLS: Readonly<Record<string, number>> = {
+  'app/(admin)/admin/dashboard/page.tsx': 2,
+  'app/(admin)/admin/exams/page.tsx': 1,
+  'app/(admin)/admin/lessons/page.tsx': 1,
+  // Pre-migration fallback only (Batch 1): remove with the branch once
+  // student_exam_list_migration.sql is on the live DB.
+  'lib/data/student-exams.ts': 1,
+}

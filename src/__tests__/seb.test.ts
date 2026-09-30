@@ -44,7 +44,7 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     from: () => {
-      const chain = { select: () => chain, eq: () => chain, single: async () => ({ data: { id: 'e1', tenant_id: 't1', seb_config_key: state.seb } }) }
+      const chain = { select: () => chain, eq: () => chain, is: () => chain, single: async () => ({ data: { id: 'e1', tenant_id: 't1', seb_config_key: state.seb } }) }
       return chain
     },
     rpc: async () => { state.rpcCalled = true; return { data: { started_at: new Date().toISOString(), resumed: false }, error: null } },

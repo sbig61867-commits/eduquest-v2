@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { ShieldCheck, AlertTriangle, Clock, ChevronLeft, ChevronRight, Send, Eye, Mic, Monitor, Camera, Trash2, MessageSquareText } from 'lucide-react'
 import { DOCUMENT_PHOTO, prepareImageForUpload } from '@/lib/prepare-image'
-import type { Exam, Question, ProctoringEvent } from '@/types'
+import type { ProctoringEvent } from '@/types'
+import type { StudentExam } from '@/lib/data/student-exams'
+import type { StudentQuestion } from '@/lib/exam-delivery'
 import { useFaceDetection } from '@/hooks/use-face-detection'
 import { useObjectDetection } from '@/hooks/use-object-detection'
 import { useLivePublish } from '@/hooks/use-live-publish'
@@ -26,7 +28,8 @@ import { readSebProof } from '@/lib/seb-client'
 import { SpeechDetector } from '@/lib/speech-detector'
 
 interface Props {
-  exam: Exam
+  /** Metadata only (the list feed); the questions arrive from /api/exam/start. */
+  exam: StudentExam
   userId: string
   tenantId: string
   violationWarningThreshold?: number
@@ -63,11 +66,15 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   const untimed = exam.type
     ? exam.type === 'homework'
     : (exam.duration_minutes <= 0 || exam.duration_minutes >= 43200)
+  // The questions are not part of the exam list (PERFORMANCE_CONTRACT.md P3):
+  // /api/exam/start returns them — answer key stripped — once the roster, the
+  // window and SEB are checked and the attempt exists, and again on a resume.
+  const [servedQuestions, setServedQuestions] = useState<StudentQuestion[]>([])
   // Per-student order of questions and multiple-choice options (display only;
   // answers stay keyed by question id and option text — src/lib/exam-shuffle.ts).
   const questions = useMemo(
-    () => (shouldShuffle(exam) ? orderForStudent(exam.questions, exam.id, userId) : exam.questions),
-    [exam, userId],
+    () => (shouldShuffle(exam) ? orderForStudent(servedQuestions, exam.id, userId) : servedQuestions),
+    [exam, servedQuestions, userId],
   )
   const [started, setStarted] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -221,8 +228,8 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   //    the teacher's own (original) numbering, not the shuffled one. ──
   const lastPasteRef = useRef(0)
   const questionNumber = useCallback(
-    (id: string) => exam.questions.findIndex(q => q.id === id) + 1,
-    [exam.questions],
+    (id: string) => servedQuestions.findIndex(q => q.id === id) + 1,
+    [servedQuestions],
   )
   const onWrittenPaste = useCallback((id: string, chars: number) => {
     lastPasteRef.current = Date.now()
@@ -464,8 +471,9 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       }
 
       // Resume support: compute real remaining time + restore server draft.
-      const { startedAt, resumed, answers_draft, answer_files } = await res.json()
+      const { startedAt, resumed, answers_draft, answer_files, questions: served } = await res.json()
       if (answer_files && typeof answer_files === 'object') setAnswerFiles(answer_files)
+      setServedQuestions(Array.isArray(served) ? served : [])
       if (!untimed) {
         // The attempt ends at whichever comes first: its own duration (from the
         // server's start time, so a resume keeps counting) or the exam window
@@ -560,7 +568,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
   useLayoutEffect(() => { handleSubmitRef.current = handleSubmit })
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-  const question: Question = questions[current]
+  const question: StudentQuestion | undefined = questions[current]
   const progress = ((current + 1) / questions.length) * 100
 
   if (submitted) {
@@ -590,7 +598,7 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">{exam.title}</h2>
             <p className="text-slate-400">
-              {t('questionCount', { count: questions.length })} · {untimed
+              {t('questionCount', { count: exam.question_count })} · {untimed
                 ? (exam.ends_at ? t('homeworkDue', { date: new Date(exam.ends_at).toLocaleString(locale) }) : t('homeworkNoDue'))
                 : t('minutes', { count: exam.duration_minutes })}
             </p>
