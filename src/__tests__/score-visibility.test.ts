@@ -1,11 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { isScoreVisible } from '@/lib/score-visibility'
-import { metaFromLegacyRow } from '@/lib/data/student-exams'
+import { isAutoGradable, isScoreVisible } from '@/lib/score-visibility'
 
-// The exam list no longer carries questions (Batch 1): visibility reads the
-// list's has_manual_questions, computed from the questions with isAutoGradable.
-const manual = (questions: Array<{ type?: string }>) =>
-  metaFromLegacyRow({ questions } as unknown as Parameters<typeof metaFromLegacyRow>[0]).has_manual_questions
+// The exam list carries has_manual_questions (computed in SQL by
+// get_student_exam_list with the same rule as isAutoGradable).
+
+describe('isAutoGradable (the rule has_manual_questions mirrors)', () => {
+  it('mcq, true_false and a pre-types question are automatic; written ones are not', () => {
+    expect(isAutoGradable({ type: 'mcq' })).toBe(true)
+    expect(isAutoGradable({ type: 'true_false' })).toBe(true)
+    expect(isAutoGradable({})).toBe(true)
+    expect(isAutoGradable({ type: 'essay' })).toBe(false)
+    expect(isAutoGradable({ type: 'short_answer' })).toBe(false)
+  })
+})
 
 describe('isScoreVisible', () => {
   it('hides unpublished homework scores', () => {
@@ -19,14 +26,9 @@ describe('isScoreVisible', () => {
   })
 
   it('hides a regular exam with teacher-graded questions until published (audit 2026-09-30)', () => {
-    const essayExam = manual([{ type: 'mcq' }, { type: 'essay' }])
-    expect(essayExam).toBe(true)
-    expect(isScoreVisible('pending', 'exam', essayExam)).toBe(false)
-    expect(isScoreVisible('published', 'exam', essayExam)).toBe(true)
-    expect(isScoreVisible('pending', 'exam', manual([{ type: 'mcq' }, { type: 'true_false' }]))).toBe(true)
-    expect(isScoreVisible('pending', 'exam', manual([{ type: 'short_answer' }]))).toBe(false)
-    // A pre-types question (no type) is auto-graded, as in the DB grader.
-    expect(isScoreVisible('pending', 'exam', manual([{}]))).toBe(true)
+    expect(isScoreVisible('pending', 'exam', true)).toBe(false)
+    expect(isScoreVisible('published', 'exam', true)).toBe(true)
+    expect(isScoreVisible('pending', 'exam', false)).toBe(true)
   })
 
   it('shows an exam of unknown type only once published', () => {

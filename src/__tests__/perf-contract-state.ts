@@ -126,7 +126,4 @@ export const HEAVY_FEED_CALLS: Readonly<Record<string, number>> = {
   'app/(admin)/admin/dashboard/page.tsx': 2,
   'app/(admin)/admin/exams/page.tsx': 1,
   'app/(admin)/admin/lessons/page.tsx': 1,
-  // Pre-migration fallback only (Batch 1): remove with the branch once
-  // student_exam_list_migration.sql is on the live DB.
-  'lib/data/student-exams.ts': 1,
 }

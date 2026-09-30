@@ -258,25 +258,22 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   60 s refused, new start after close still refused), green DB backup (run 36708118181), live body re-read
   unchanged, applied via Supabase MCP; live: 0/12, 2/12, grants service_role only, `search_path` pinned.
 
+- `student_exam_list_migration.sql` (Batch 1, PART A) — `get_student_exam_list()`: the student exam list with
+  the exact WHERE of `get_student_exams()` but no questions; `question_count`, `has_manual_questions` (same rule
+  as `isAutoGradable`) and `total_points` instead. Read only through `src/lib/data/student-exams.ts`
+  `loadStudentExamList()`. Questions reach a student only from `/api/exam/start` (`studentQuestions()`,
+  `src/lib/exam-delivery.ts`), which also filters `deleted_at` and maps `start_exam_attempt` refusals by exact
+  name under SQLSTATE P0001 (anything else stays 500). ✅ 2026-09-30 — green DB backup (run 36763661965),
+  applied via Supabase MCP, then PR #35 (fa0ce3f) deployed; `supabase/tests/student_exam_list_check.sql`
+  24/24 live (list isolation + `start_exam_attempt` S0–S9). Synthetic 50 exams × 40 questions: 1 718 KB →
+  31 KB, 24 → 6.3 ms.
+- `student_exam_list_lockdown_migration.sql` (Batch 1, PART B) — revokes `get_student_exams()` from `anon` /
+  `authenticated` (service_role keeps it; the old feed handed out questions of exams whose window had not
+  opened). ✅ 2026-09-30 — applied after the deploy; live re-check 24/24, student call → 42501, anon REST → 401.
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-- `student_exam_list_migration.sql` (Batch 1, PART A — additive, apply BEFORE the code ships) —
-  `get_student_exam_list()`: the student exam list with the exact WHERE of `get_student_exams()` but no
-  questions; instead `question_count`, `has_manual_questions` (same rule as `isAutoGradable`) and
-  `total_points`. Read only through `src/lib/data/student-exams.ts` `loadStudentExamList()` (falls back to
-  the old feed and strips the questions in the app while the function is missing — remove that branch
-  after applying). Questions now reach a student only from `/api/exam/start` (`studentQuestions()`,
-  `src/lib/exam-delivery.ts`). `/api/exam/start` also filters `deleted_at` itself (the RPC already refused
-  it with EXAM_NOT_FOUND, surfaced as a 500) and maps every RPC refusal to its real status. Dry-run
-  2026-09-30 on the live DB, rolled back: `supabase/tests/student_exam_list_check.sql` 24/24 PASS — the
-  list (tenant isolation, archived/deleted/unpublished/other student's task hidden, parity of rows + order
-  with the old feed) and `start_exam_attempt` S0–S9 (start, resume, resume after deletion, deleted,
-  unpublished, before starts_at, other institution incl. forged tenant, other group, other student, after
-  submit); synthetic 50 exams × 40 questions: 1 718 KB → 31 KB, 24 → 6.3 ms.
-- `student_exam_list_lockdown_migration.sql` (Batch 1, PART B — apply only AFTER the new code is live) —
-  revokes `get_student_exams()` from `authenticated` (service_role keeps it). The live dry-run CONFIRMED
-  the old feed hands a student the questions of an exam whose window has not opened. Dry-run: student call
-  → 42501, list still works, grants anon/auth/service_role = f/f/t.
+None as of 2026-09-30.
 
 ## Sign-in (2026-09-29)
 
