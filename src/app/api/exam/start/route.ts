@@ -1,10 +1,11 @@
-import { apiErr } from '@/lib/api-error'
+import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { isOnExamRoster } from '@/lib/exam-roster'
 import { signFileMap } from '@/lib/exam-files'
 import { normalizeSebKey, verifySebProof, type SebProof } from '@/lib/seb'
+import { studentQuestions } from '@/lib/exam-delivery'
 
 // Students no longer have direct SELECT on exams (answer-leak fix). Reading exam
 // metadata here uses the service-role client; authorization is enforced
@@ -17,6 +18,17 @@ function adminClient() {
   )
 }
 
+// The refusals start_exam_attempt raises by name (supabase/fix_start_exam_attempt_migration.sql,
+// individual_tasks_migration.sql). Matched exactly, never by substring.
+const START_REFUSALS: Record<string, { code: ApiErrorCode; status: number }> = {
+  ALREADY_SUBMITTED: { code: 'examAlreadySubmitted', status: 409 },
+  EXAM_NOT_FOUND:    { code: 'examNotFound',         status: 404 },
+  NOT_ENROLLED:      { code: 'notEnrolledInExam',    status: 403 },
+  TENANT_MISMATCH:   { code: 'notEnrolledInExam',    status: 403 },
+  EXAM_NOT_OPEN:     { code: 'examNotOpen',          status: 403 },
+  EXAM_CLOSED:       { code: 'examEnded',            status: 403 },
+}
+
 /**
  * POST /api/exam/start
  *
@@ -27,6 +39,12 @@ function adminClient() {
  * This replaces the previous client-side upsert, which (a) could not write under
  * RLS and (b) let the client control the start time. Duration is now enforced by
  * the DB against this server timestamp.
+ *
+ * It is also the ONLY way a student receives an exam's questions
+ * (PERFORMANCE_CONTRACT.md P3): the exam list is metadata only, and the
+ * questions — answer key stripped — are returned here, after the roster, the
+ * window and SEB checks and once the attempt exists. A start or a resume
+ * (refresh, second device) returns the same questions.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -40,12 +58,16 @@ export async function POST(request: Request) {
   const { examId } = body
   if (!examId) return NextResponse.json({ ...(await apiErr('missingExamId')) }, { status: 400 })
 
-  // Verify the exam exists and is published, and resolve its tenant + group
+  // Verify the exam exists, is published and is not archived (soft-deleted),
+  // and resolve its tenant + group. start_exam_attempt refuses a deleted exam
+  // too (EXAM_NOT_FOUND); checking here as well means a deleted exam is refused
+  // before anything else runs, with a clear 404 rather than a generic failure.
   const { data: exam } = await adminClient()
     .from('exams')
-    .select('*')   // incl. assigned_student_id when individual_tasks_migration is applied
+    .select('id, tenant_id, group_id, course_id, assigned_student_id, starts_at, ends_at, seb_config_key, questions')
     .eq('id', examId)
     .eq('is_published', true)
+    .is('deleted_at', null)
     .single()
 
   if (!exam) return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
@@ -80,8 +102,14 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    if (error.message?.includes('ALREADY_SUBMITTED')) {
-      return NextResponse.json({ ...(await apiErr('examAlreadySubmitted')) }, { status: 409 })
+    // The database re-checks everything above (R-1). A refusal there — e.g.
+    // the exam was archived or the student removed between the read above and
+    // this call — is reported as what it is. Only the exact messages
+    // start_exam_attempt raises itself (RAISE EXCEPTION → SQLSTATE P0001) are
+    // translated; anything else is an unexpected failure and stays a 500.
+    const refusal = error.code === 'P0001' ? START_REFUSALS[error.message ?? ''] : undefined
+    if (refusal) {
+      return NextResponse.json({ ...(await apiErr(refusal.code)) }, { status: refusal.status })
     }
     console.error('[exam/start] error', error)
     return NextResponse.json({ ...(await apiErr('examStartFailed')) }, { status: 500 })
@@ -106,8 +134,10 @@ export async function POST(request: Request) {
     answerFiles = await signFileMap(sub?.answer_files as Record<string, string> | null)
   }
 
-  // The exam screen restores these answers on resume (refresh / second device).
+  // The exam screen restores these answers on resume (refresh / second device),
+  // and renders these questions — never correct_answer.
   return NextResponse.json({
     startedAt: out.started_at, resumed: out.resumed, answers_draft: out.answers_draft ?? {}, answer_files: answerFiles,
+    questions: studentQuestions(exam.questions),
   })
 }

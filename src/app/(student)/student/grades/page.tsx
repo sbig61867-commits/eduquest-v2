@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation'
 import { BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import type { Question } from '@/types'
+import { loadStudentExamList, type StudentExamMeta } from '@/lib/data/student-exams'
 import { AppealButton, type AppealSummary } from '@/components/student/appeal-panel'
 import { isScoreVisible } from '@/lib/score-visibility'
 
@@ -21,7 +21,6 @@ interface RawSubmission {
   grading_status: string | null
   proctoring_events: Array<{ type?: string }> | null
 }
-interface RpcExam { id: string; title: string; duration_minutes: number; questions: Question[]; type?: string }
 
 export default async function GradesPage() {
   const t = await getTranslations('student.grades')
@@ -31,16 +30,16 @@ export default async function GradesPage() {
   if (!user) redirect('/login')
 
   // Students have no direct SELECT on exams (answers must never leak), so a
-  // joined `exams(title)` comes back null. Titles/questions come from the
-  // get_student_exams RPC instead (answer-stripped, enrollment-scoped).
-  const [{ data: raw }, { data: rpcExams }] = await Promise.all([
+  // joined `exams(title)` comes back null. Titles, types and point totals come
+  // from the student exam list instead (metadata only, enrollment-scoped).
+  const [{ data: raw }, { data: listedExams }] = await Promise.all([
     supabase
       .from('exam_submissions')
       .select('id, exam_id, score, max_score, submitted_at, grading_status, proctoring_events')
       .eq('student_id', user.id)
       .not('score', 'is', null)
       .order('submitted_at', { ascending: false }),
-    supabase.rpc('get_student_exams'),
+    loadStudentExamList(supabase),
   ])
 
   // A student has no RLS read on exam_appeals rows other than their own
@@ -56,23 +55,21 @@ export default async function GradesPage() {
     (appeals ?? []).map(a => [a.submission_id, a as unknown as AppealSummary])
   )
 
-  const examMap = new Map<string, RpcExam>(
-    ((rpcExams ?? []) as RpcExam[]).map(e => [e.id, e])
-  )
+  const examMap = new Map<string, StudentExamMeta>(listedExams.map(e => [e.id, e]))
   // The feed's `type` is authoritative; the duration sentinel is only the
   // fallback for a database without student_exams_expose_type_migration.
-  const isHomework = (e?: RpcExam) => !!e && (e.type ? e.type === 'homework' : (e.duration_minutes <= 0 || e.duration_minutes >= 43200))
+  const isHomework = (e?: StudentExamMeta) => !!e && (e.type ? e.type === 'homework' : (e.duration_minutes <= 0 || e.duration_minutes >= 43200))
 
   // Unpublished homework keeps its auto-score out of sight until the teacher publishes.
   const visible = ((raw ?? []) as RawSubmission[]).filter(sub => {
     const exam = examMap.get(sub.exam_id)
-    return isScoreVisible(sub.grading_status, exam ? (isHomework(exam) ? 'homework' : 'exam') : undefined, exam?.questions)
+    return isScoreVisible(sub.grading_status, exam ? (isHomework(exam) ? 'homework' : 'exam') : undefined, exam?.has_manual_questions)
   })
 
   const submissions = visible.map(sub => {
     const exam = examMap.get(sub.exam_id)
     const max = sub.max_score
-      ?? exam?.questions?.reduce((a, q) => a + (q.points ?? 0), 0)
+      ?? exam?.total_points
       ?? 1
     return {
       ...sub,

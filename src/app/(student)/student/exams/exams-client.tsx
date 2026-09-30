@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ClipboardList, ShieldCheck, Clock, Play, CheckCircle2, RotateCcw, BookOpen, GraduationCap } from 'lucide-react'
-import type { Exam } from '@/types'
+import type { StudentExam } from '@/lib/data/student-exams'
 
 // The exam screen pulls in LiveKit (~480 KB) and the proctoring detectors.
 // Load it only when a student actually opens an exam, not with the list.
@@ -15,7 +15,7 @@ const ExamTaker = dynamic(() => import('./exam-taker').then(m => m.ExamTaker), {
   loading: () => <div className="h-64 rounded-xl bg-slate-800 animate-pulse" />,
 })
 
-type ExamWithContext = Exam & {
+type ExamWithContext = StudentExam & {
   groups?: { name: string } | null
   courses?: { title: string } | null
 }
@@ -70,7 +70,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
   // `?open=<id>` lets the lesson page hand the student straight into the
   // homework attached to that lesson. Only rows already in availableExams
   // are honoured, so the param can't surface anything the feed withheld.
-  const [activeExam, setActiveExam] = useState<Exam | null>(
+  const [activeExam, setActiveExam] = useState<StudentExam | null>(
     () => (openExamId ? availableExams.find(e => e.id === openExamId) ?? null : null)
   )
 
@@ -112,7 +112,7 @@ export function StudentExamsClient({ availableExams, completedExams, submissions
         {exam.instructions && <p className="text-slate-400 text-sm mb-3 line-clamp-2 whitespace-pre-line">{exam.instructions}</p>}
         <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{untimedLabel(exam, t('untimed'), t('minutesShort', { count: exam.duration_minutes }))}</span>
-          <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{t('questionCount', { count: exam.questions.length })}</span>
+          <span className="flex items-center gap-1"><ClipboardList className="w-3.5 h-3.5" />{t('questionCount', { count: exam.question_count })}</span>
           {exam.proctoring_enabled && (
             <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="w-3.5 h-3.5" />{t('proctored')}</span>
           )}

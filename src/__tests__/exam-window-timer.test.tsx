@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import type { Exam } from '@/types'
+import type { StudentExam } from '@/lib/data/student-exams'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -34,7 +34,11 @@ const toSeconds = (mmss: string) => { const [m, s] = mmss.split(':').map(Number)
 describe('B2 — the countdown honours the exam window (ends_at)', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ startedAt: new Date().toISOString(), resumed: false }), { status: 200 }),
+      new Response(JSON.stringify({
+        startedAt: new Date().toISOString(), resumed: false,
+        // The questions arrive with the start response (Batch 1).
+        questions: [{ id: 'q1', type: 'mcq', text: 'Two plus two', options: ['3', '4'], points: 1 }],
+      }), { status: 200 }),
     ))
   })
   afterEach(() => vi.unstubAllGlobals())
@@ -47,8 +51,8 @@ describe('B2 — the countdown honours the exam window (ends_at)', () => {
       duration_minutes: 60,
       proctoring_enabled: false,
       ends_at: new Date(Date.now() + 5 * 60_000).toISOString(),
-      questions: [{ id: 'q1', type: 'mcq', text: 'Two plus two', options: ['3', '4'], correct_answer: '4', points: 1 }],
-    } as unknown as Exam
+      question_count: 1,
+    } as unknown as StudentExam
 
     render(<ExamTaker exam={exam} userId="u1" tenantId="t1" onFinish={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'start' }))

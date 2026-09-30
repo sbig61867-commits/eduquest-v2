@@ -587,8 +587,12 @@ CREATE POLICY "lessons_update" ON lessons FOR UPDATE USING (
 );
 
 -- EXAMS: only super_admin and the owning teacher get direct row access.
--- Students do NOT (questions JSONB embeds correct_answer); they read exams
--- via get_student_exams(), which strips the answers. university_admin does
+-- Students do NOT (questions JSONB embeds correct_answer); they list exams
+-- via get_student_exam_list() — metadata only, no questions
+-- (student_exam_list_migration.sql) — and receive an exam's questions, answer
+-- key stripped, only from /api/exam/start once the attempt exists. The older
+-- get_student_exams() (questions minus the answers) is service_role only after
+-- student_exam_list_lockdown_migration.sql. university_admin does
 -- NOT either (same leak) — the admin reads metadata + counts via
 -- get_admin_exams(). See exam_answer_leak_fix / admin_metadata_only migrations.
 CREATE POLICY "exams_select" ON exams FOR SELECT USING (

@@ -17,7 +17,7 @@ import { Markdown } from '@/components/shared/markdown'
 import { toast } from '@/components/ui/toast'
 import { cn, formatDateTime } from '@/lib/utils'
 import { parseVideoUrl } from '@/lib/video-embed'
-import type { Exam } from '@/types'
+import type { StudentExam } from '@/lib/data/student-exams'
 import type { Locale } from '@/i18n/config'
 
 // The exam screen carries LiveKit and the proctoring detectors; load it only
@@ -38,9 +38,9 @@ export interface PlayerItem {
   videoUrl?: string | null
 }
 
-/** A linked quiz or task as get_student_exams serves it, plus this student's attempt. */
+/** A linked quiz or task as the student exam list serves it (no questions), plus this student's attempt. */
 export interface PlayerAssessment {
-  exam: Exam
+  exam: StudentExam
   submission: { status: string; score: number | null; maxScore: number | null; gradingStatus: string } | null
 }
 
@@ -424,7 +424,7 @@ function AssessmentPanel({ kind, assessment, onStart }: {
 
   const { exam, submission } = assessment
   const isTask = exam.type === 'homework'
-  const questions = exam.questions.length
+  const questions = exam.question_count
   const closed = !!exam.ends_at && new Date(exam.ends_at).getTime() < now
   const handedIn = submission?.status === 'submitted'
   const inProgress = submission?.status === 'in_progress'

@@ -4,7 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { PageTitle } from '@/components/shared/page-title'
 import { getExamPolicies } from '@/lib/settings'
-import type { Exam } from '@/types'
+import { loadStudentExamList, type StudentExamMeta } from '@/lib/data/student-exams'
 import { CoursePlayerClient, type PlayerAssessment, type PlayerLevel, type PlayerUnit } from './course-player-client'
 
 interface RawItem {
@@ -106,29 +106,29 @@ export default async function StudentCoursePlayerPage({
   const itemIds = items.map(i => i.id)
   const linkedExamIds = [...new Set(items.flatMap(i => (i.examId ? [i.examId] : [])))]
 
-  // Quiz and task items run on the exam engine. get_student_exams is the only
-  // way a student reads an exam: it returns published exams of their groups
-  // and courses with correct_answer stripped. Anything it does not return
-  // (unpublished, another course's exam) simply shows as not available.
+  // Quiz and task items run on the exam engine. The student exam list is the
+  // only way a student reads an exam: published exams of their groups and
+  // courses, metadata only (the questions come from /api/exam/start when the
+  // attempt starts). Anything it does not return (unpublished, another
+  // course's exam) simply shows as not available.
   const [{ data: progressRows }, { data: feed }, { data: subs }, policies] = await Promise.all([
     itemIds.length > 0
       ? supabase.from('student_progress').select('unit_item_id').eq('student_id', user.id).in('unit_item_id', itemIds)
       : Promise.resolve({ data: [] as { unit_item_id: string }[] }),
-    linkedExamIds.length > 0 ? supabase.rpc('get_student_exams') : Promise.resolve({ data: [] }),
+    linkedExamIds.length > 0 ? loadStudentExamList(supabase) : Promise.resolve({ data: [] as StudentExamMeta[] }),
     linkedExamIds.length > 0
       ? supabase.from('exam_submissions').select('exam_id, status, score, max_score, grading_status').eq('student_id', user.id).in('exam_id', linkedExamIds)
       : Promise.resolve({ data: [] as { exam_id: string; status: string; score: number | null; max_score: number | null; grading_status: string }[] }),
     getExamPolicies(supabase),
   ])
 
-  type FeedRow = Exam & { course_id: string | null; group_name: string | null; course_title: string | null }
   const subByExam = new Map((subs ?? []).map(sub => [sub.exam_id, sub]))
   const assessments: Record<string, PlayerAssessment> = {}
-  for (const row of (feed ?? []) as FeedRow[]) {
+  for (const row of feed) {
     if (!linkedExamIds.includes(row.id) || row.course_id !== id) continue
     const sub = subByExam.get(row.id)
     assessments[row.id] = {
-      exam: { ...row, questions: row.questions ?? [] },
+      exam: row,
       submission: sub ? { status: sub.status, score: sub.score, maxScore: sub.max_score, gradingStatus: sub.grading_status } : null,
     }
   }

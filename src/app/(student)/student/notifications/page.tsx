@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { isScoreVisible } from '@/lib/score-visibility'
+import { loadStudentExamList, type StudentExamMeta } from '@/lib/data/student-exams'
 
 export default async function NotificationsPage() {
   const t = await getTranslations('student.notifications')
@@ -23,8 +24,8 @@ export default async function NotificationsPage() {
 
   const groupIds = (memberOf ?? []).map(r => r.group_id)
 
-  // Exams come from the SECURITY DEFINER RPC (students have no direct exams
-  // SELECT). It already returns only enrolled, published exams, answers stripped.
+  // Exams come from the student exam list (students have no direct exams
+  // SELECT): enrolled, published exams, metadata only.
   const [{ data: recentLessons }, { data: rpcExams }, { data: recentGrades }] = await Promise.all([
     groupIds.length > 0
       ? supabase
@@ -35,7 +36,7 @@ export default async function NotificationsPage() {
           .order('created_at', { ascending: false })
           .limit(10)
       : Promise.resolve({ data: [] }),
-    supabase.rpc('get_student_exams'),
+    loadStudentExamList(supabase),
     supabase
       .from('exam_submissions')
       .select('id, exam_id, score, submitted_at, grading_status')
@@ -45,20 +46,20 @@ export default async function NotificationsPage() {
       .limit(20),
   ])
 
-  type RpcExamRow = { id: string; title: string; created_at: string; group_name: string | null; [key: string]: unknown }
+  type RpcExamRow = StudentExamMeta
   type LessonRow  = { id: string; title: string; created_at: string; groups: { name: string }[] | { name: string } | null }
   type GradeRow   = { id: string; exam_id: string; score: number; submitted_at: string; grading_status: string | null }
 
   // RPC returns flat group_name; reshape to match the lessons/grades shape and cap at 10.
-  const recentExams = (rpcExams ?? [])
+  const recentExams = rpcExams
     .slice(0, 10)
     .map((e: RpcExamRow) => ({ ...e, groups: e.group_name ? { name: e.group_name } : null }))
 
   // Students have no exams SELECT (a joined exams(title) is null), so titles
   // and types come from the RPC. Unpublished homework scores are not "posted".
-  const examById = new Map(((rpcExams ?? []) as RpcExamRow[]).map(e => [e.id, e]))
+  const examById = new Map(rpcExams.map(e => [e.id, e]))
   const visibleGrades = ((recentGrades ?? []) as GradeRow[])
-    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type as string | undefined, examById.get(g.exam_id)?.questions as Array<{ type?: string | null }> | undefined))
+    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type, examById.get(g.exam_id)?.has_manual_questions))
     .slice(0, 5)
 
   // Merge and sort all notifications by date

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
+import { loadStudentExamList } from '@/lib/data/student-exams'
 import {
   BookOpen, ClipboardList, Layers, ChevronRight,
   PanelRightOpen, PanelRightClose, Loader2,
@@ -62,13 +63,14 @@ export function StudentQuickAccessPanel() {
               .order('created_at', { ascending: false })
               .limit(5)
           : Promise.resolve({ data: [] }),
-        supabase.rpc('get_student_exams'),
+        // Metadata only: this panel shows five titles.
+        loadStudentExamList(supabase),
       ])
 
       setData({
         courses: (coursesRes.data ?? []) as CourseItem[],
         lessons: (lessonsRes.data ?? []) as LessonItem[],
-        exams:   ((examsRes.data ?? []) as ExamItem[]).slice(0, 5),
+        exams:   examsRes.data.slice(0, 5).map((e): ExamItem => ({ id: e.id, title: e.title, due_date: e.ends_at })),
       })
     } finally {
       setLoading(false)
