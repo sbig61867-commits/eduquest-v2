@@ -235,6 +235,19 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   dry-run 11/11, live policy re-read unchanged, applied via Supabase MCP; `supabase/tests/audit_2026_09_29_check.sql`
   live: 8/8 attacks blocked, 5/5 legitimate paths (own locale, admin rename, service-role email write, bucket
   still public), 0 SECURITY DEFINER functions without `pg_temp`.
+- `exam_grading_window_fix_migration.sql` — exam logic audit 2026-09-30, `finalize_exam_submission`. (B1) a blank
+  answer earned an essay's full marks: essays are stored with `correct_answer = ''` and `'' = ''` matched (live:
+  wrong MCQ + blank essays = 10/12, written essays = 2/12). Now only `mcq` / `true_false` (or a pre-types row with no
+  `type`) with a non-empty key score automatically — the teacher results screen's `isAutoQ`; everything else waits
+  for the teacher. (B2) `ends_at` gets the same 30 s grace as the duration, and the exam page counts down to
+  min(duration, ends_at) (a student who started late used to lose the attempt at the close). App side (B3): a
+  regular exam with teacher-graded questions no longer shows its automatic score on submit or on the grades /
+  dashboard / notifications pages until published (`isScoreVisible(status, type, questions)` +
+  `isAutoGradable` in `src/lib/score-visibility.ts`, shared with `/api/exam/submit`). Regression check:
+  `supabase/tests/exam_grading_check.sql`; component/route tests `exam-window-timer`, `exam-submit-provisional-score`.
+  ✅ 2026-09-30 — dry-run 8/8 (incl. legacy no-type auto, short_answer manual, hand-in 10 s after close accepted /
+  60 s refused, new start after close still refused), green DB backup (run 36708118181), live body re-read
+  unchanged, applied via Supabase MCP; live: 0/12, 2/12, grants service_role only, `search_path` pinned.
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 

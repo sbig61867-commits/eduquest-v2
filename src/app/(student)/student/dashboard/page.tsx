@@ -12,7 +12,7 @@ import { isScoreVisible } from '@/lib/score-visibility'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
 interface GradeRow { id: string; exam_id: string; score: number; max_score: number | null; grading_status: string | null }
-interface RpcExam { id: string; title: string; type?: string | null }
+interface RpcExam { id: string; title: string; type?: string | null; questions?: Array<{ type?: string | null }> | null }
 
 export default async function StudentDashboard() {
   const t = await getTranslations('student.dashboard')
@@ -61,7 +61,7 @@ export default async function StudentDashboard() {
   // Students have no exams SELECT, so titles/types come from the RPC feed.
   const examById = new Map(((examRows ?? []) as RpcExam[]).map(e => [e.id, e]))
   const gradeList = ((grades ?? []) as GradeRow[])
-    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type))
+    .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type, examById.get(g.exam_id)?.questions))
     .slice(0, 5)
 
   return (

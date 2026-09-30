@@ -86,9 +86,9 @@ export async function GET() {
     }
     // Titles/types from the RPC (students have no exams SELECT); unpublished
     // homework scores are not announced as "published".
-    const examById = new Map(((rpcExams ?? []) as Array<{ id: string; title: string; type?: string | null }>).map(e => [e.id, e]))
+    const examById = new Map(((rpcExams ?? []) as Array<{ id: string; title: string; type?: string | null; questions?: Array<{ type?: string | null }> | null }>).map(e => [e.id, e]))
     const visibleGrades = ((grades ?? []) as Array<{ id: string; exam_id: string; score: number; max_score: number | null; submitted_at: string; grading_status: string | null }>)
-      .filter(gr => isScoreVisible(gr.grading_status, examById.get(gr.exam_id)?.type))
+      .filter(gr => isScoreVisible(gr.grading_status, examById.get(gr.exam_id)?.type, examById.get(gr.exam_id)?.questions))
       .slice(0, 6)
     for (const gr of visibleGrades) {
       const ex = examById.get(gr.exam_id)

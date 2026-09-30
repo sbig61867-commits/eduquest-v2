@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { isOnExamRoster } from '@/lib/exam-roster'
+import { isAutoGradable } from '@/lib/score-visibility'
 
 // Students no longer have direct SELECT on exams (answer-leak fix). The exam
 // (incl. correct_answer, used for server-side grading) is read with the
@@ -73,16 +74,18 @@ export async function POST(request: Request) {
   // authority. This stays as graceful degradation: if that migration were ever
   // rolled back, the RPC would fall back to trusting p_score and would still
   // receive a correct, server-computed value rather than a forgeable one.
-  const questions: Array<{ id: string; correct_answer: string; points: number }> =
+  const questions: Array<{ id: string; type?: string; correct_answer?: string; points?: number }> =
     exam.questions ?? []
 
+  // Same rule as the DB (exam_grading_window_fix_migration.sql): only an
+  // auto-gradable question with a non-empty key scores here — an essay stored
+  // with correct_answer '' must never match a blank answer.
   let score = 0
-  const maxScore = questions.reduce((s, q) => s + q.points, 0)
+  const maxScore = questions.reduce((s, q) => s + (q.points ?? 0), 0)
   for (const q of questions) {
-    const studentAnswer = answers[q.id]?.trim().toLowerCase() ?? ''
-    if (studentAnswer === q.correct_answer?.trim().toLowerCase()) {
-      score += q.points
-    }
+    const key = q.correct_answer?.trim().toLowerCase() ?? ''
+    if (!isAutoGradable(q) || !key) continue
+    if ((answers[q.id]?.trim().toLowerCase() ?? '') === key) score += q.points ?? 0
   }
 
   // Merge violations already persisted by /api/proctor/events with
@@ -150,10 +153,12 @@ export async function POST(request: Request) {
   // true_false) and the teacher didn't disable it, the result goes live for
   // the student immediately — no manual review step needed. Essay-containing
   // homework always stays 'pending' until the teacher grades and publishes.
-  const fullQuestions: Array<{ type?: string }> = exam.questions ?? []
-  const hasManual = fullQuestions.some(q => q.type === 'essay' || q.type === 'short_answer')
+  // A question the teacher grades by hand means the automatic number is not
+  // the mark yet — for an exam as much as for homework: the student sees it
+  // only once the teacher publishes (results screen → /api/homework/submissions).
+  const hasManual = questions.some(q => !isAutoGradable(q))
   const autoPublish = exam.type === 'homework' && !hasManual && exam.auto_publish !== false
-  let published = exam.type !== 'homework' // regular exams keep existing behavior (score shown)
+  let published = exam.type !== 'homework' && !hasManual
 
   if (autoPublish) {
     const { error: pubError } = await adminClient()

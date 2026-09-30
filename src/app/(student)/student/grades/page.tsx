@@ -66,7 +66,7 @@ export default async function GradesPage() {
   // Unpublished homework keeps its auto-score out of sight until the teacher publishes.
   const visible = ((raw ?? []) as RawSubmission[]).filter(sub => {
     const exam = examMap.get(sub.exam_id)
-    return isScoreVisible(sub.grading_status, exam ? (isHomework(exam) ? 'homework' : 'exam') : undefined)
+    return isScoreVisible(sub.grading_status, exam ? (isHomework(exam) ? 'homework' : 'exam') : undefined, exam?.questions)
   })
 
   const submissions = visible.map(sub => {

@@ -466,9 +466,15 @@ export function ExamTaker({ exam, userId, violationWarningThreshold = 5, onFinis
       // Resume support: compute real remaining time + restore server draft.
       const { startedAt, resumed, answers_draft, answer_files } = await res.json()
       if (answer_files && typeof answer_files === 'object') setAnswerFiles(answer_files)
-      if (resumed && startedAt && !untimed) {
-        const elapsedSecs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
-        const remaining = exam.duration_minutes * 60 - elapsedSecs
+      if (!untimed) {
+        // The attempt ends at whichever comes first: its own duration (from the
+        // server's start time, so a resume keeps counting) or the exam window
+        // closing — the server refuses a hand-in after ends_at, so a countdown
+        // past it would end in a lost attempt (exam logic audit 2026-09-30).
+        const start = startedAt ? new Date(startedAt).getTime() : Date.now()
+        const deadlines = [start + exam.duration_minutes * 60_000]
+        if (exam.ends_at) deadlines.push(new Date(exam.ends_at).getTime())
+        const remaining = Math.floor((Math.min(...deadlines) - Date.now()) / 1000)
         if (remaining <= 0) { handleSubmitRef.current(); return }
         setTimeLeft(remaining)
       }
