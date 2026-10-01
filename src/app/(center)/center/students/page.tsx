@@ -2,32 +2,30 @@ export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
 import { NoPermission } from '@/components/shared/no-permission'
-import { PeopleClient, type PersonRow } from '@/components/center/people-client'
+import { PeopleClient } from '@/components/center/people-client'
 import { studentBlock } from '@/lib/account-scope'
-import { loadNameCompleteFlags } from '@/lib/student-names'
+import { listCenterStudents, parsePage, sanitizeSearch } from '@/lib/data/people'
 
-export default async function CenterStudentsPage() {
+// One page of the institution's students (PERFORMANCE_CONTRACT.md P1): search,
+// page, total and active count come from the database; name_complete rides on
+// the same rows (no second whole read of the student body).
+export default async function CenterStudentsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   const { supabase, tenantId, has } = await loadCenterAccess()
   if (!has('manage_students')) return <NoPermission capability="manage_students" />
 
-  const [{ data }, nameComplete] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, full_name, email, is_active, created_at, is_university_student')
-      .eq('tenant_id', tenantId)
-      .eq('role', 'student')
-      .order('created_at', { ascending: false }),
-    loadNameCompleteFlags(supabase, tenantId),
-  ])
+  const params = await searchParams
+  const search = sanitizeSearch(params.q)
+  const { data: list } = await listCenterStudents(supabase, tenantId, { search, page: parsePage(params.page) })
 
   return (
     <PeopleClient
       role="student"
-      initialPeople={((data ?? []) as PersonRow[]).map(p => ({
+      initialPeople={list.rows.map(p => ({
         ...p,
+        is_university_student: p.is_university_student ?? undefined,
         locked: studentBlock(p.is_university_student),
-        name_complete: nameComplete ? nameComplete.get(p.id) === true : null,
       }))}
+      pagination={{ total: list.total, active: list.active ?? 0, page: list.page, pageCount: list.pageCount, search }}
       canSetAffiliation={has('announce_to_university')}
     />
   )

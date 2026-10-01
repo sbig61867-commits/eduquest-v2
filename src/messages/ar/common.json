@@ -130,6 +130,11 @@
   },
   "unknown": "غير معروف",
   "centreTrainee": "متدرب المركز",
+  "pagination": {
+    "prev": "السابق",
+    "next": "التالي",
+    "pageOf": "صفحة {page} من {pages}"
+  },
   "announcementBanner": {
     "badge": "إعلان",
     "learnMore": "اعرف المزيد",

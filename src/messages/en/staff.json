@@ -71,6 +71,7 @@
     "updateFailed": "Could not update",
     "loadFailed": "Could not load the list",
     "search": "Search for a student…",
+    "typeToSearch": "Type a name to find a student",
     "pick": "Choose a student ({count})",
     "add": "Add",
     "loading": "Loading…",
@@ -78,6 +79,15 @@
     "transfer": "Transfer",
     "remove": "Remove",
     "count": "{count, plural, one {# student} other {# students}}"
+  },
+  "teacherPicker": {
+    "search": "Search for a teacher by name…",
+    "typeToSearch": "Type a name to find a teacher",
+    "noResults": "No active teacher found",
+    "change": "Change",
+    "changeTitle": "Change the teacher of {name}",
+    "chosen": "Chosen: {name}",
+    "none": "No teacher chosen yet"
   },
   "attendance": {
     "status": {

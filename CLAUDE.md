@@ -90,6 +90,27 @@ streaming/loading UI, no global prefetch change** for now (owner's decisions). `
 is a shrink-only ratchet over `perf-contract-state.ts`; `supabase/tests/scale_baseline_check.sql` measures feed
 sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md).
 
+- **Batch 1** (exam delivery) — shipped 2026-09-30, see the two `student_exam_list_*` migrations below.
+- **Batch 2** (large lists + selectors) — no migration. Done and committed locally on branch
+  `perf/batch-2-admin-students` (2026-10-01, **not pushed / not deployed**), each step owner-reviewed:
+  - Lists, server page/search/count (`src/lib/data/people.ts` `listByRole` → `listStudents` / `listTeachers` /
+    `listCenterStudents` / `listCenterTeachers`, 50 per page, `sanitizeSearch`, `?q=&page=` in the URL,
+    `components/shared/list-pagination.tsx`): `/admin/students`, `/admin/teachers`, `/center/students`,
+    `/center/teachers`.
+  - Selectors, on demand (≤ 20 rows per search, nothing preloaded): T1 `/teacher/groups` student picker →
+    `/api/students/search` (own group only); C-T teacher picker on `/center/groups` + `/center/courses` →
+    `/api/teachers/search` + `components/center/teacher-picker.tsx`; C-S RosterModal «add a student» →
+    `/api/roster/candidates` (who may search = who may add: mirrors the membership routes' gates; NAME only,
+    no email; the target's members left out by a PostgREST anti-join).
+  - C-M RosterModal member list → opt-in `?page=` on `GET /api/group-students` / `/api/course-enrollments`
+    (`src/lib/data/rosters.ts` `readRosterPage`, 50 per page, exact total, past-end → last page). Without
+    `page` both routes answer exactly as before — `/teacher/groups` (T1) reads its group's whole roster.
+    The unpaged course read has no caller left in `src/` (kept; removing it is a later decision).
+  - Still to come in Batch 2: super-admin reports student picker (R1), centre mail recipients, owner counts.
+  - Follow-ups (not blockers, owner's decision 2026-10-01): (1) RosterModal re-fetches once more when the
+    server corrects a past-end page; (2) after refining a search the previously picked student stays
+    selected (Add enabled) though no longer listed — pre-existing behaviour.
+
 ### Rate limiting
 `src/lib/rate-limit.ts` `rateLimit(key, {limit, windowSecs})` is backed by the Postgres `check_rate_limit` RPC (survives serverless cold starts; fails **open** if the limiter errors). Apply it in AI/expensive route handlers keyed by `feature:userId`.
 

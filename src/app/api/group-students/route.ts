@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { staffCan } from '@/lib/staff-auth'
 import { enrolStudentInGroup, groupHasRoom, type EnrolmentGroup } from '@/lib/group-enrolment'
+import { readRosterPage, rosterPageParam } from '@/lib/data/rosters'
 
 function adminClient() {
   return createAdminClient(
@@ -59,6 +60,18 @@ export async function GET(request: Request) {
 
   const { error, status } = await resolveGroupOwnership(user.id, groupId)
   if (error) return NextResponse.json({ error }, { status })
+
+  // RosterModal asks for one page (?page=); without it the whole roster comes
+  // back exactly as before (/teacher/groups reads it whole).
+  const page = rosterPageParam(new URL(request.url).searchParams)
+  if (page !== null) {
+    const { data, error: pageErr } = await readRosterPage(adminClient(), 'group', groupId, page)
+    if (pageErr) {
+      console.error('[group-students GET page]', pageErr)
+      return NextResponse.json({ ...(await apiErr('studentsLoadFailed')) }, { status: 500 })
+    }
+    return NextResponse.json(data)
+  }
 
   const { data, error: dbErr } = await adminClient()
     .from('group_students')

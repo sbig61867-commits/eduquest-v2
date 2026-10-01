@@ -2,30 +2,27 @@ export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
 import { NoPermission } from '@/components/shared/no-permission'
-import { PeopleClient, type PersonRow } from '@/components/center/people-client'
-import { teacherBlock, teacherFootprints } from '@/lib/account-scope'
+import { PeopleClient } from '@/components/center/people-client'
+import { teacherBlock } from '@/lib/account-scope'
+import { listCenterTeachers, parsePage, sanitizeSearch } from '@/lib/data/people'
 
-export default async function CenterTeachersPage() {
+// One page of the institution's teachers (PERFORMANCE_CONTRACT.md P1): search,
+// page, total and active count come from the database, and the lock is decided
+// from the groups/courses of this page's teachers only (no whole-institution read).
+export default async function CenterTeachersPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   const { supabase, tenantId, has } = await loadCenterAccess()
   if (!has('manage_teachers')) return <NoPermission capability="manage_teachers" />
 
-  const [{ data }, { data: groups }, { data: courses }] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, full_name, email, is_active, created_at')
-      .eq('tenant_id', tenantId)
-      .eq('role', 'teacher')
-      .order('created_at', { ascending: false }),
-    // Who teaches where: university groups vs centre courses / course sections.
-    supabase.from('groups').select('teacher_id, course_id').eq('tenant_id', tenantId).is('deleted_at', null),
-    supabase.from('courses').select('teacher_id').eq('tenant_id', tenantId).is('deleted_at', null),
-  ])
-  const footprints = teacherFootprints(groups ?? [], courses ?? [])
-  // The route re-checks this server-side; the page only mirrors it.
-  const people = ((data ?? []) as PersonRow[]).map(p => ({
-    ...p,
-    locked: teacherBlock(footprints.get(p.id) ?? { universityGroups: 0, centreItems: 0 }),
-  }))
+  const params = await searchParams
+  const search = sanitizeSearch(params.q)
+  const { data: list } = await listCenterTeachers(supabase, tenantId, { search, page: parsePage(params.page) })
 
-  return <PeopleClient role="teacher" initialPeople={people} />
+  return (
+    <PeopleClient
+      role="teacher"
+      // The route re-checks the lock server-side; the page only mirrors it.
+      initialPeople={list.rows.map(({ footprint, ...p }) => ({ ...p, locked: teacherBlock(footprint) }))}
+      pagination={{ total: list.total, active: list.active ?? 0, page: list.page, pageCount: list.pageCount, search }}
+    />
+  )
 }

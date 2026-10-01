@@ -141,3 +141,285 @@ ones) and in the quick-access panel (called from the browser to show 5 titles).
 - A phone on a mobile network (the owner uses Android; this baseline is desktop).
 - Behaviour under concurrent load.
 - PostgREST Max Rows.
+
+## Batch 2 — admin students list (`/admin/students`)
+
+`supabase/tests/admin_students_list_check.sql`, 20 000 students in institution A + 5 in B, rolled back.
+Server-side page of 50 (`src/lib/data/people.ts` `listStudents`), search in the database, exact
+count from the same query, `name_complete` on the same rows (the second whole read is gone).
+
+| | before | after |
+|---|---|---|
+| Rows sent to the browser | 20 000 | 50 |
+| JSON | 6 404 KB list + 1 386 KB name flags | **16 KB** |
+| DB time | 150 + 33 ms | 34 ms (page + exact count) · last page 16 ms |
+| Supabase calls per navigation | 4 (list, profile, settings, name flags) | 3 (page+count, profile, settings) |
+| Search | in the browser over all rows | database ILIKE: 134 ms for a rare term, 67 ms count for a term matching all 20 000 (no index; trigram index only if measured need) |
+
+Isolation (through RLS as the real role): admin A reads 0 rows of B and finds none of B's names by
+search; admin B sees its 5 and none of A; a student of A sees only their own row; anon reads 0.
+
+## Batch 2 — admin teachers list (`/admin/teachers`)
+
+`supabase/tests/admin_teachers_list_check.sql`, 2 000 teachers + 2 000 students in institution A + 5 teachers
+in B, rolled back (2 000 teachers is a large real institution; never extrapolate times). Same
+`src/lib/data/people.ts` path as students (`listTeachers`), six named columns instead of nine.
+
+| | before | after |
+|---|---|---|
+| Rows sent to the browser | 2 000 | 50 |
+| JSON | 581 KB | **10 KB** |
+| DB time | 23 ms | 9 ms (page + exact count) · last page 4 ms |
+| Supabase calls per navigation | 1 | 1 (2 only for a page past the end) |
+| Search | in the browser over all rows | database ILIKE, 18 ms ("Number 199", 11 matches) |
+
+Isolation: admin A reads 0 rows of B and finds none of B's teachers by search; admin B sees its 5 and
+none of A; a student in no group sees 0 teachers; anon 0; a teachers search never returns a student.
+Fixed in the shared helper: a page past the end now counts with the SAME search (it counted the whole
+role, so `/admin/students?q=Test Student&page=5` asked for a page that did not exist and failed).
+
+## Batch 2 — centre students list (`/center/students`)
+
+`supabase/tests/center_students_list_check.sql`, 20 000 students in institution A (every 3rd a centre
+trainee, every 7th disabled, every 5th with an incomplete name) + 5 in B, read through RLS **as the centre
+manager**, rolled back. `listCenterStudents` (same helper): one page with `name_complete` on the rows, exact
+count, and an active count with the same search run beside the page. `loadNameCompleteFlags` (the second
+whole read) is deleted — it had no other caller.
+
+| | before | after |
+|---|---|---|
+| Rows sent to the browser | 20 000 | 50 |
+| JSON | 4 225 KB list + 1 371 KB name flags | **11 KB** |
+| DB time | 89–99 + 31–32 ms | 44 ms (page + exact count + active count) · last page 16–17 ms |
+| Supabase reads of the student body per navigation | 2 whole reads | 1 page + 1 head count (parallel) |
+| Search | in the browser over all rows | database ILIKE, 121 ms incl. both counts ("Number 1999") |
+| Summary «N · M active» | counted in the browser | counts from the database, for the current search |
+
+Accuracy: active count 17 143 and 4 000 incomplete-name flags equal the generator exactly; the search
+never returns the teacher. Isolation: manager A reads 0 rows of B and finds none of B's names by search,
+reads 0 four-part names (`student_names`); manager B sees its 5 and none of A; a student sees only
+themselves; anon 0. `/center/teachers` shares `PeopleClient` and is unchanged: it passes no `pagination`,
+so it keeps the whole-list local search (its own batch comes later).
+
+## Batch 2 — centre teachers list (`/center/teachers`)
+
+`supabase/tests/center_teachers_list_check.sql`: 2 000 teachers (every 7th disabled) owning ~3 000 groups
+(every 10th archived), 666 centre courses and 333 course-linked groups, + institution B, read **as the
+centre manager**, rolled back. `listCenterTeachers`: one page + exact count + active count (parallel), then
+the groups and courses of **that page's teachers only** (`.in('teacher_id', ids)`, one call per table). The
+lock rule (`account-scope.ts` `teacherBlock`) is unchanged.
+
+| | before | after |
+|---|---|---|
+| Rows read | 2 000 teachers + every live group + every live course | 50 teachers + their own groups/courses |
+| JSON | 361 KB + 223 KB groups + 37 KB courses | **8 KB** + 5 KB + <1 KB |
+| DB time | 164 ms | 20 ms (page + counts + footprints) · last page 10 ms |
+| Round trips | 1 wave of 3 whole reads | 2 waves: page ‖ active count, then groups ‖ courses |
+
+**L1 — lock equivalence:** the lock computed page by page equals the lock from the whole institution for
+all 2 000 teachers (200 centre-only, 1 400 shared, 400 unassigned). Isolation: manager A reads 0 users
+and 0 groups of B; manager B sees its 5 teachers and nothing of A; a student in no group lists no teacher;
+anon 0. `PeopleClient` is now paginated for both centre lists — the browser-side whole-list mode is gone.
+Ratchet: `center/teachers/page.tsx` 3 → 0, `lib/data/people.ts` 1 → 3 — net −1, approved by the owner
+2026-10-01. The two added reads (groups, courses) are restricted to the current page's teachers (at most
+50) and are used only on the server to decide each teacher's lock state; they are never sent to the
+browser. They are **not hard-row-limited**: they return every live group/course those teachers own (a
+`.limit()` could cut a teacher's rows and flip the lock). An aggregate RPC is the later option; not in
+Batch 2.
+
+## Batch 2 — selectors, T1: `/teacher/groups` «إدارة الطلاب» student selector
+
+Inventory + baseline of every selector: `supabase/tests/pickers_baseline_check.sql` (T1 2 185 KB, centre
+groups/courses 1 639 KB, super-admin reports 4 346 KB, schedules/group selectors ~66 KB at 1 000 groups).
+T1 check: `supabase/tests/teacher_student_search_check.sql` (20 000 students A + 5 000 B, rolled back, as
+the teacher). The page no longer reads any student; the modal asks `GET /api/students/search?q=&group_id=`
+(teacher only, own group, own institution; empty `q` → 400) → `searchStudents()` in `src/lib/data/people.ts`:
+active students, sanitized name/email ILIKE, members excluded by a PostgREST anti-join (no member list is
+read or sent), `.limit(20)`, three fields.
+
+| | before | after |
+|---|---|---|
+| Student rows sent with the page | 17 778 (every active student) | **0** |
+| Payload | 1 977 KB JSON on every visit | 0 on the page · ≤ 2 KB per search (20 rows) |
+| DB time | 105 ms on every visit | 0 on the page · 58–62 ms per search (no trigram index; add one only if measured need) |
+| Rows the browser renders | 17 778 → 142 225 DOM nodes, **1 691 ms** (median of 3) | ≤ 20 → 161 DOM nodes, **2 ms** |
+| Requests while typing | 0 (all filtering in the browser) | 1 per 300 ms pause (component test: typing `s→sa→sar→sara` = 1 request) |
+
+Render cost is raw DOM (same markup, real Chromium in the browser pane, desktop) — React's own work comes
+on top, and a phone is slower. Checks: members excluded (27/27 never offered), disabled students and staff
+never offered, teacher A finds none of B's students nor sees B's memberships, teacher sees their own group's
+membership (so the exclusion really applies), a student running the same query sees only their own row,
+anon 0; the teacher's read scope is unchanged (17 778 = the same set the page used to send). Live (local
+server, existing data): anonymous → 307 /login; centre manager → 403 for search, empty `q` and injection.
+Not browser-tested end to end: production has no teacher account or group, and none is added just for a
+browser test (owner's decision, 2026-10-01) — route/component tests, the SQL check and the isolation checks
+cover the behaviour. **Deferred, by the owner's decision:** a trigram index on `users.full_name`/`email` and
+rate limiting on `/api/students/search` — added only if a measurement shows the need.
+
+## Batch 2 — selectors, C-T: teacher selector of `/center/groups` (C1) and `/center/courses` (C2)
+
+Inventory/baseline: `supabase/tests/center_rosters_baseline_check.sql`. C-T check:
+`supabase/tests/center_teacher_picker_check.sql` (20 000 students, 500 teachers — 445 active — 1 000 groups,
+200 courses, rolled back, read as the centre manager). Owner's choice (b): the teachers are searched on demand.
+The pages no longer read the teaching staff: each row's teacher comes through the FK embed
+(`teacher:users!…_teacher_id_fkey(full_name, role, is_active)`, shown as the name of an ACTIVE teacher, else
+«—» exactly as before — `activeTeacherName()`), «is there an active teacher» is a head-only count, and one
+«تغيير» per row opens ONE picker → `GET /api/teachers/search?for=groups|courses&q=` → `searchTeachers()`
+(active teachers, NAME only — no email, as the pages never sent one — `.limit(20)`, id + name). The route
+mirrors the save's gate: `for=groups` ⇒ `manage_groups`, `for=courses` ⇒ `manage_courses`, staff only
+(`getCaller` + `staffCan`); the institution comes from the caller's profile.
+
+| | before | after |
+|---|---|---|
+| Teacher rows read per page load | 445 (every active teacher) | **0** (head count, 3 ms vs 23 ms) |
+| Teacher data reaching the browser | 38 KB per page | C1 46 KB (a name on each of 1 000 rows, **+7 KB net**) · C2 9 KB (**−29 KB**) |
+| DOM per row (real components, exact) | C1 476 · C2 473 nodes | C1 33 · C2 30 nodes |
+| DOM at 1 000 groups / 200 courses | C1 476 019 · C2 94 619 nodes | C1 33 019 · C2 6 019 nodes (−93 % / −94 %) |
+| Render, Chromium, real row markup | C2 200 rows **6 001 ms** (median of 3) · C1 250 rows 4 269 ms, 500 rows 7 379 ms, 1 000 rows over the measuring tool's limit (twice) | C2 **159 ms** · C1 1 000 rows **870 ms** (the groups table itself — outside C-T) |
+| DB time, whole page | C1 1 091 ms · C2 80 ms | C1 1 098 ms · C2 78 ms (C1 is dominated by the group-member count, see below) |
+| Teacher search | — | ≤ 20 rows, 1 KB, 4 ms; one request per 300 ms pause (component test) |
+
+DOM node counts come from rendering the old (git HEAD) and new React components (exact, linear in rows);
+render times from inserting those exact rows in the browser pane (desktop Chromium; React's own work comes
+on top, a phone is slower). Checks: students named like teachers, disabled teachers and the other institution's
+teachers are never offered; a student in no group lists no teacher; anon 0; 110 groups whose teacher is
+disabled are still listed and show «—». Fact: RLS lets a centre manager WITHOUT the capability read every
+teacher (500) — the route, not RLS, enforces the capability, exactly like the pages and the saves. Live
+(local server, existing data): both pages render, show «add an active teacher first» with the create button
+disabled (0 teachers), and contain no `<select>`/`<option>`; the search answers 200 with `[]`, 400 for an
+empty query / missing or unknown screen; injection probes against the database return 0 without error.
+Final checks (2026-10-01, on mains power): tsc and lint clean, build OK, full suite **837/837** twice idle and
+once during a concurrent build; 31 new C-T tests (route 11, data 7, picker + both screens 12, pages 8 — 93
+with the related suites). The centre manager's production permissions, found re-granted 12/12 during the
+test, were restored to `{}` and verified; no production data was added.
+
+## Batch 2 — selectors, C-S: student selector inside `RosterModal` (`/center/groups`, `/center/courses`)
+
+Check: `supabase/tests/center_student_picker_check.sql` (20 000 students, a group of 300 and a course of 3 000
+members, institution B, read as the centre manager, rolled back). The pages no longer read or send the student
+body; `RosterModal` asks `GET /api/roster/candidates?group_id=…|course_id=…&q=…` → `searchStudents(…, {group}
+| {course}, { nameOnly: true })`: active students by NAME (no email — the pages never sent one), the target's
+members left out by a PostgREST anti-join (no id list, no URL growth), `.limit(20)`, id + name. Owner's
+decision (a): who may search = who may add — the route mirrors step for step `/api/group-students`
+`resolveGroupOwnership` and `/api/course-enrollments` `authorize` (incl. a group's/course's own teacher). T1's
+call (`searchStudents(db, t, q, groupId)`) and route are unchanged.
+
+| | before | after |
+|---|---|---|
+| Students read with each page (C1 and C2) | 17 778 (78 ms) | **0** |
+| `students` prop reaching the browser | **1 573 KB** on every load, modal opened or not | **0** |
+| One search | — (filtered 17 778 names in the browser, 5–31 ms per key) | ≤ 20 rows, ~1 KB, 54–55 ms, one request per 300 ms pause |
+| RosterModal DOM (real components, exact) | 224 nodes / 201 options, open or typed | 24 nodes / 1 option until typed · 44 / 21 with 20 results |
+| Reach | first 200 alphabetically; the rest only by typing | any student by typing |
+
+Checks: each target leaves out ITS members only (a course's 3 000 members are offered for a group they are not
+in); disabled students and staff never offered; manager A sees none of B's students, memberships or enrolments;
+a student lists no other student; anon 0. Parity: 17 role/target scenarios give the same status from the new
+route and from the membership routes' gate (unit), and live on the local server (centre manager `{}`): group
+403 = 403, course 404 = 404; malformed target / both targets / empty query → 400; anonymous → 307 /login.
+
+**Verified end to end (2026-10-01, later the same day)** on the local build against the production database,
+with test accounts and data the OWNER created (1 teacher, 1 group of 16, 2 courses, 1 lesson) and signed in
+himself — the assistant created and changed nothing and never pressed «إضافة»:
+- centre manager (capabilities on): both pages carry no student name/email; RosterModal opens with the members
+  and «type to search» and sends no search; typing sends one request for the right target; a broad search
+  returns exactly 20, `id, full_name` only, none of them members; «Test Student» in the group returns 0 — all 12
+  are members (checked in the DB); «محمد محمود» is excluded in the group (member) and offered in the course.
+- parity, live: group 200=200, both courses 200=200, unknown group/course 404=404 (centre manager AND teacher);
+  student 403=403 on the group and both courses; malformed target / both / bad uuid / injected id / empty or
+  wildcard query → 400; injection in `q` → 200 with 0 rows.
+- teacher (owns the group and both courses): 200 on own targets, T1 `/api/students/search` 200 with email (as
+  designed), `/api/teachers/search` 403, `/center/*` redirected to `/teacher/dashboard`.
+- student: every candidates/membership/search call 403 with no student data; `/center/*` redirected.
+- DB unchanged afterwards (16 memberships, 0 enrolments); server log clean.
+Still not verified live: adding a found student (would write real data) and isolation between two institutions
+(production has one; covered by the rolled-back SQL checks). Network note: on this laptop every call to the hosted
+Supabase took 1–2 s (even `/api/session/check` ≈ 1.4 s); the new route and the existing membership route have the
+same 4 sequential round trips and the same latency — environmental, not the query (≈ 55 ms in the DB).
+
+**Earlier in the day (before the owner's data existed) it was not verified end to end:** opening RosterModal in
+the browser on real groups/courses, adding a found student, authorized 200 responses with real rows, and a
+teacher using the route on their own course.
+Production has no teacher, group or course; the owner forbade adding test teachers/groups to production; there
+is no isolated environment (no Docker for a local Supabase stack; the project has only its production branch —
+a preview branch costs $0.01344/h and needs the owner's approval); and signing test accounts in on a hosted
+Supabase is not something the assistant may do. Covered instead by the component tests (both modes, add path,
+stale answers), the route tests with the real gate code, the parity tests and the rolled-back SQL checks on the
+real database and RLS.
+
+**Separate finding — pre-existing, not Batch 2:** `tests/security-auth.spec.ts` «Login page» (3 tests) expects
+`input[type="email"]` and a Google button, but since 2026-09-29 (`f9972fc`) the field is `type="text"` (email or
+member ID) and Google sign-in is hidden unless `NEXT_PUBLIC_GOOGLE_SIGNIN=on`. The rest of the suite (12) passes
+against the local build; 2 role-isolation tests skip without E2E credentials. `tests/tenant-isolation.spec.ts`
+was not run: it creates real tenants and accounts in production.
+
+**Separate finding — outside C-T, not fixed (owner's decision 2026-10-01):** the `/center/groups` list reads
+`groups(*, group_students(count))`; under RLS that count costs **≈ 1 011 ms** at 1 000 groups / 19 281
+memberships (12 ms without RLS, 51 ms without the count) — the RLS policies (`group_students_select` →
+`groups_select`, whose `current_user_role()` / `current_tenant_id()` calls are not wrapped in `(SELECT …)`)
+are evaluated per membership row. A fix needs a migration and is a separate decision.
+
+**Not a platform fix:** `maxWorkers: 4` in `vitest.config.ts` (shipped in the same batch) only changes how
+the *test suite* runs on the 8 GB dev machine — memory pressure from ~11 parallel jsdom workers made render
+tests cross the 5 s timeout. It has no effect on the app, its bundles, or any number in this file.
+
+## Batch 2 — C-M: member list inside `RosterModal` (`/center/groups`, `/center/courses`)
+
+Check: `supabase/tests/roster_members_page_check.sql` (a course of 3 000 enrolments, a group of 300 and one of 19,
+read as the owner — the membership routes read with the service-role client after their own gate; rolled back).
+`RosterModal` now asks `GET /api/group-students|/api/course-enrollments?…&page=N` → `readRosterPage()`
+(`src/lib/data/rosters.ts`): 50 members ordered newest first (`joined_at` / `enrolled_at` DESC, `student_id` as
+tie-break), `count: 'exact'`, a page past the end answered with the last page. `?page=` is **opt-in**: without
+it both routes run the same query and return the same body as before, so `/teacher/groups` (T1, which reads the
+whole roster of a teacher's own group) is unchanged. Authorization runs first on both paths; POST/DELETE untouched.
+After an add/remove the modal re-reads the current page and reports the server's total to the page (`onChanged`).
+
+| | before | after |
+|---|---|---|
+| Course of 3 000 — one open of the modal | 3 000 rows, **712 KB**, 23 ms | 50 rows, **9 KB**, total 3 000, 10 ms (last page 1 ms) |
+| Group of 300 | 300 rows, 56 KB, 3 ms | 50 rows, 9 KB, 2 ms |
+| Member list DOM, 3 000 members (real components, jsdom) | **30 023 nodes** | **527 nodes** |
+| Render (earlier browser harness) | 3 000 rows ≈ 351 ms | 50 rows ≈ 9 ms |
+| Count shown | length of the loaded list | the server's exact total |
+
+Checks: the 60 pages cover the 3 000 enrolments exactly once (stable order); a 19-member group fits on one page
+(no controls); nothing left behind; the owner's data unchanged (16 memberships, 0 enrolments, centre manager `{}`).
+Unit: route parity without `page` (same query — no range, no count — same body), the paged body, 403 before any
+roster read for a centre manager without the capability; component: 120 members → 50 rows + «1 / 3», next/prev,
+removing the only member of the last page lands on the new last page and reports 50, a member is never offered.
+Live on the local build (student session): paged and unpaged reads of the owner's group and course both 403, no
+student data — parity.
+
+**Verified live as the teacher (2026-10-01, mains power, production build on localhost:3000; the owner signed
+in himself; GET only — nothing added, removed or changed):** the owner's group (16 members): `page=1` → 200,
+`{students, total: 16, page: 1, pageCount: 1}`, rows `id, full_name, email` only, 2 058 B; `page=2`, `page=999` →
+the last page (page 1, same 16); `page=abc`, `page=-3` → page 1. The order equals the database's `joined_at DESC,
+student_id` exactly (16/16). Without `page` the body is `{students}` (2 024 B) with the same 16 ids — T1 unchanged;
+opening «Manage Students» on `/teacher/groups` sent `GET /api/group-students?group_id=…` with NO `page`, 200,
+«Enrolled (16)». Both courses (0 enrolments): paged 200 `{total: 0, page: 1, pageCount: 1}` (`page=5` → page 1),
+unpaged 200 `{students: []}`. Unknown group / course → 404 = 404 paged and unpaged. Database fingerprint
+(users 125, memberships 16, enrolments 0, md5 of memberships and users, centre manager `{}`) identical before
+and after; server log clean. Full suite 913/913 ×2 and the production build passed on mains power.
+Not shown live: several real pages — the owner's data has at most 16 members and no test data may be added;
+multi-page behaviour is proven by the 3 000-row SQL check and the component tests.
+
+Note: `/api/course-enrollments`'s unpaged read now has no caller in `src/` (RosterModal was its only client); it
+is kept unchanged on purpose (scope) and stays in the `UNBOUNDED_READS` ratchet — removing it is a later decision.
+
+**Follow-ups recorded after the final C-S/C-M review (owner: not blockers, do not fix now, 2026-10-01):**
+1. When the server answers a past-end page with the last page (e.g. the only member of the last page removed),
+   RosterModal sets the corrected page and fetches that same page once more — one redundant request.
+2. After a student is picked and the search text is then refined, the pick stays set and «Add» stays enabled
+   although that student is no longer listed (the student is still a valid candidate). Pre-existing behaviour,
+   unchanged by C-S/C-M.
+
+## Separate open point — browser HTTP 400 during account switching (not part of Batch 2)
+
+Status: **open, deliberately not investigated now** (owner's decision, 2026-10-01).
+During the local browser tests of `/center/students` and `/center/teachers` the console showed
+`Failed to load resource: 400` lines (3, then 5 more). Every occurrence fell in a window where the owner was
+signing out / in to switch between the admin and centre-manager accounts (two `/auth/signout` calls in the
+second window). None came from the list pages: those pages had no 4xx/5xx resource, every `/api/*` call
+returned 200, and the server log had no errors. The failing URLs had left the browser's request buffer, so
+the source is not known (most likely Supabase Auth answering a wrong password or a stale refresh token).
+Re-check only if it appears outside account switching.

@@ -59,14 +59,10 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(admin)/admin/courses/page.tsx': 1,
   'app/(admin)/admin/groups/page.tsx': 4,
   'app/(admin)/admin/invitations/page.tsx': 1,
-  'app/(admin)/admin/students/page.tsx': 1,
-  'app/(admin)/admin/teachers/page.tsx': 1,
   'app/(center)/center/attendance/page.tsx': 1,
-  'app/(center)/center/courses/page.tsx': 3,
-  'app/(center)/center/groups/page.tsx': 4,
+  'app/(center)/center/courses/page.tsx': 1,
+  'app/(center)/center/groups/page.tsx': 2,
   'app/(center)/center/mail/page.tsx': 2,
-  'app/(center)/center/students/page.tsx': 1,
-  'app/(center)/center/teachers/page.tsx': 3,
   'app/(student)/student/courses/[id]/page.tsx': 4,
   'app/(student)/student/courses/page.tsx': 4,
   'app/(student)/student/dashboard/page.tsx': 1,
@@ -85,7 +81,7 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(teacher)/teacher/courses/page.tsx': 1,
   'app/(teacher)/teacher/engagement/page.tsx': 1,
   'app/(teacher)/teacher/exams/page.tsx': 4,
-  'app/(teacher)/teacher/groups/page.tsx': 2,
+  'app/(teacher)/teacher/groups/page.tsx': 1,
   'app/(teacher)/teacher/invitations/page.tsx': 1,
   'app/(teacher)/teacher/lessons/[id]/page.tsx': 2,
   'app/(teacher)/teacher/lessons/page.tsx': 2,
@@ -114,10 +110,21 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'components/student/quick-access-panel.tsx': 2,
   'lib/account-scope.ts': 2,
   'lib/announcements-data.ts': 3,
+  // 1 — listByRole (listStudents / listTeachers / listCenterStudents / listCenterTeachers):
+  //     bounded by .range() on the same builder, built over two statements
+  //     (conditional search) — the scanner's known blind spot. Counts are head-only.
+  // 2 — listCenterTeachers footprints (groups, courses): restricted to the current
+  //     page's teachers (.in('teacher_id', ids), at most 50 teachers) and used only
+  //     server-side to decide each teacher's lock state — never sent to the browser
+  //     (only the lock flag is). NOT hard-row-limited: the row count is however many
+  //     live groups/courses those ≤ 50 teachers own. A .limit() could cut a teacher's
+  //     rows and flip the lock. Moved here from center/teachers/page.tsx, which read
+  //     all three tables whole (3 → 0 there). Allowance raised 1 → 3 with the owner's
+  //     approval (2026-10-01); an aggregate RPC is the later option, not now.
+  'lib/data/people.ts': 3,
   'lib/reports.ts': 20,
   'lib/requests-data.ts': 3,
   'lib/schedules-data.ts': 6,
-  'lib/student-names.ts': 1,
   'lib/teacher-records.ts': 7,
 }
 

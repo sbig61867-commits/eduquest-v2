@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
@@ -17,6 +17,7 @@ import type { ScopeBlock } from '@/lib/account-scope'
 import { checkNameParts, EMPTY_NAME_PARTS, type NameParts } from '@/lib/person-name'
 import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 import { StudentNameEditor, type NamedStudent } from '@/components/shared/student-name-editor'
+import { ListPagination } from '@/components/shared/list-pagination'
 
 export interface PersonRow {
   id: string
@@ -32,18 +33,53 @@ export interface PersonRow {
   name_complete?: boolean | null
 }
 
-export function PeopleClient({ role, initialPeople, canSetAffiliation = false }: {
+/**
+ * A server-paginated list (PERFORMANCE_CONTRACT.md P1): `initialPeople` is one
+ * page already searched by the server, and the counts are the database's.
+ */
+export interface PeoplePagination {
+  /** Members matching the search in the whole institution. */
+  total: number
+  /** Active members matching the same search. */
+  active: number
+  page: number
+  pageCount: number
+  /** The search the server applied (?q=). */
+  search: string
+}
+
+// Typing waits this long before asking the server for the matching page.
+const SEARCH_DELAY_MS = 350
+
+export function PeopleClient({ role, initialPeople, canSetAffiliation = false, pagination }: {
   role: 'teacher' | 'student'
   initialPeople: PersonRow[]
   /** Holds `announce_to_university`: may classify a student as a university student. */
   canSetAffiliation?: boolean
+  pagination: PeoplePagination
 }) {
   const t = useTranslations('staff.people')
   const locale = useLocale() as Locale
   const router = useRouter()
   const [people, setPeople] = useState(initialPeople)
+  // A new page from the server (navigation, search, router.refresh()) replaces
+  // the local copy, which only holds feedback after an action.
+  const [shown, setShown] = useState(initialPeople)
+  if (shown !== initialPeople) { setShown(initialPeople); setPeople(initialPeople) }
   const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(pagination.search)
+  const serverSearch = pagination.search
+
+  // Search runs in the database — the typed text goes to the URL (?q=) and the
+  // server renders the first matching page. Nothing is filtered here.
+  useEffect(() => {
+    if (search.trim() === serverSearch) return
+    const timer = setTimeout(() => {
+      const q = search.trim()
+      router.replace(q ? `?q=${encodeURIComponent(q)}` : '?')
+    }, SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [search, serverSearch, router])
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'invite' | 'account' | 'byId'>('invite')
   // A student account without an email: member ID + temporary password,
@@ -59,9 +95,6 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
   const [busy, setBusy] = useState('')
   const showAffiliation = role === 'student' && canSetAffiliation
   const isStudent = role === 'student'
-
-  const q = search.trim().toLowerCase()
-  const filtered = people.filter(p => !q || p.full_name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))
 
   function close() {
     setOpen(false)
@@ -156,7 +189,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
         <div>
           <h2 className="text-2xl font-bold text-white">{t(`${role}.title`)}</h2>
           <p className="text-slate-400 mt-1">
-            {t(`${role}.summary`, { count: people.length, active: people.filter(p => p.is_active).length })}
+            {t(`${role}.summary`, { count: pagination.total, active: pagination.active })}
           </p>
         </div>
         <Button onClick={() => setOpen(true)}><UserPlus className="w-4 h-4" /> {t(`${role}.add`)}</Button>
@@ -184,10 +217,10 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {filtered.length === 0 && (
+            {people.length === 0 && (
               <tr><td colSpan={5} className="text-center text-slate-500 py-10">{t('empty')}</td></tr>
             )}
-            {filtered.map(p => (
+            {people.map(p => (
               <tr key={p.id} className="hover:bg-slate-800/50">
                 <td className="px-5 py-4 text-white text-sm font-medium">
                   <div className="flex flex-wrap items-center gap-2">
@@ -240,6 +273,8 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false }:
           </tbody>
         </table>
       </div>
+
+      {pagination.pageCount > 1 && <ListPagination page={pagination.page} pageCount={pagination.pageCount} />}
 
       <Modal open={open} onClose={close} title={t(`${role}.add`)}>
         <div className="space-y-4">

@@ -168,6 +168,7 @@
   "missingExamOrRole": "Missing exam ID or role",
   "missingFields": "Required fields are missing",
   "missingGroupId": "Missing group ID",
+  "searchQueryRequired": "Type a name or email to search",
   "missingGroupOrOpen": "Missing group ID or open state",
   "missingGroupOrStudent": "Missing group or student ID",
   "missingId": "Missing ID",

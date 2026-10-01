@@ -168,6 +168,7 @@
   "missingExamOrRole": "معرّف الاختبار أو الدور مفقود",
   "missingFields": "حقول مطلوبة ناقصة",
   "missingGroupId": "معرّف المجموعة مفقود",
+  "searchQueryRequired": "اكتب اسمًا أو بريدًا للبحث",
   "missingGroupOrOpen": "معرّف المجموعة أو حالة الفتح مفقودة",
   "missingGroupOrStudent": "معرّف المجموعة أو الطالب مفقود",
   "missingId": "المعرّف مفقود",

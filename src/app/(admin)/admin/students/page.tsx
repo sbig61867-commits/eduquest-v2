@@ -5,31 +5,33 @@ import { redirect } from 'next/navigation'
 import { StudentsClient } from './students-client'
 import { canSetAffiliation } from '@/lib/student-affiliation'
 import { getTenantSettings } from '@/lib/structure-mode'
-import { loadNameCompleteFlags } from '@/lib/student-names'
+import { listStudents, parsePage, sanitizeSearch } from '@/lib/data/people'
 
-export default async function StudentsPage() {
+// One page of the institution's students (PERFORMANCE_CONTRACT.md P1): search,
+// page and total come from the database, never from filtering the whole
+// student body in the browser. name_complete rides on the same rows.
+export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
   if (!user.tenant_id) redirect('/login')
 
-  const [{ data: students }, { data: profile }, settings, nameComplete] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, email, full_name, avatar_url, role, is_active, created_at, tenant_id, can_create_courses, is_university_student')
-      .eq('role', 'student')
-      .eq('tenant_id', user.tenant_id)
-      .order('created_at', { ascending: false }),
+  const params = await searchParams
+  const search = sanitizeSearch(params.q)
+  const [{ data: list }, { data: profile }, settings] = await Promise.all([
+    listStudents(supabase, user.tenant_id, { search, page: parsePage(params.page) }),
     supabase.from('users').select('role, permissions').eq('id', user.id).single(),
     getTenantSettings(supabase, user.tenant_id),
-    loadNameCompleteFlags(supabase, user.tenant_id),
   ])
 
   return (
     <StudentsClient
-      initialStudents={students ?? []}
-      nameComplete={nameComplete ? Object.fromEntries(nameComplete) : null}
+      initialStudents={list.rows}
+      total={list.total}
+      page={list.page}
+      pageCount={list.pageCount}
+      search={search}
       canSetAffiliation={settings.has_center && canSetAffiliation(profile ?? { role: user.role, permissions: null })}
       hasCenter={settings.has_center}
     />
