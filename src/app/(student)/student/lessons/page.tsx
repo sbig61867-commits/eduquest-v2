@@ -7,10 +7,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, CheckCircle2, CalendarClock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { LessonTabs } from '@/components/shared/lesson-tabs'
+import { LessonDetails } from '@/components/student/lesson-details'
+import { ListPagination } from '@/components/shared/list-pagination'
+import { loadStudentLessons } from '@/lib/data/student-lessons'
 import { loadStudentExamList } from '@/lib/data/student-exams'
 
-export default async function StudentLessonsPage() {
+export default async function StudentLessonsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const t = await getTranslations('student.lessons')
   const locale = (await getLocale()) as Locale
   const supabase = await createClient()
@@ -25,15 +27,11 @@ export default async function StudentLessonsPage() {
 
   const groupIds = (groupRows ?? []).map(r => r.group_id)
 
-  // groups!inner + is_active filter: lessons of archived groups are hidden.
-  const lessons = groupIds.length === 0 ? [] : await supabase
-    .from('lessons')
-    .select('*, groups!inner(name, is_active)')
-    .eq('is_published', true)
-    .eq('groups.is_active', true)
-    .in('group_id', groupIds)
-    .order('created_at', { ascending: false })
-    .then(r => r.data ?? [])
+  // One page of 50 lesson titles (newest first) — no bodies; a lesson's body is
+  // read when the student opens it (LessonDetails). Archived groups stay hidden.
+  const { data: lessonPage, error: lessonsErr } = await loadStudentLessons(supabase, groupIds, (await searchParams).page)
+  if (lessonsErr) console.error('[student/lessons]', lessonsErr)
+  const lessons = lessonPage.rows
 
   // Homework created inside a lesson lives in the `exams` table with
   // type='homework' and lesson_id set (homework_exam_migration.sql).
@@ -55,9 +53,8 @@ export default async function StudentLessonsPage() {
 
   // A student enrolled in several subjects must see each one in its own
   // section — a single merged list blurs two different courses together.
-  type StudentLesson = { id: string; title: string; created_at: string; content: string; groups: { name: string } | null }
-  const bySubject = new Map<string, StudentLesson[]>()
-  for (const lesson of lessons as StudentLesson[]) {
+  const bySubject = new Map<string, typeof lessons>()
+  for (const lesson of lessons) {
     const subject = lesson.groups?.name ?? t('otherSubject')
     const bucket = bySubject.get(subject)
     if (bucket) bucket.push(lesson)
@@ -74,7 +71,7 @@ export default async function StudentLessonsPage() {
               correct without this call site knowing the rules. The old
               "label: count" phrasing here was a workaround for not having
               them. */}
-          {t('count', { count: lessons.length })}
+          {t('count', { count: lessonPage.total })}
           {bySubject.size > 1 && ` · ${t('subjectCount', { count: bySubject.size })}`}
         </p>
       </div>
@@ -95,7 +92,7 @@ export default async function StudentLessonsPage() {
           </header>
           <div className="p-5 space-y-3">
           {subjectLessons.map((lesson) => (
-            <details key={lesson.id} className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-colors">
+            <LessonDetails key={lesson.id} lessonId={lesson.id} summary={
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
@@ -109,8 +106,7 @@ export default async function StudentLessonsPage() {
                 </div>
                 <span className="text-slate-500 text-sm group-open:rotate-180 transition-transform">▼</span>
               </summary>
-              <div className="px-5 pb-5 border-t border-slate-800 pt-4 space-y-4">
-                <LessonTabs content={lesson.content ?? ''} />
+            }>
                 {(homeworkByLesson.get(lesson.id) ?? []).length > 0 && (
                   <div className="space-y-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
@@ -143,13 +139,13 @@ export default async function StudentLessonsPage() {
                     })}
                   </div>
                 )}
-              </div>
-            </details>
+            </LessonDetails>
           ))}
           </div>
         </section>
         ))
       )}
+      {lessonPage.pageCount > 1 && <ListPagination page={lessonPage.page} pageCount={lessonPage.pageCount} />}
     </div>
   )
 }

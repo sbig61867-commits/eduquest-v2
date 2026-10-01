@@ -10,7 +10,12 @@ import { useTranslations } from 'next-intl'
  * server renders exactly one page; every other query parameter (the search)
  * is kept. Plain links: no loading state, no animation.
  */
-export function ListPagination({ page, pageCount }: { page: number; pageCount: number }) {
+export function ListPagination({ page, pageCount, param = 'page' }: {
+  page: number
+  pageCount: number
+  /** The query parameter holding this list's page — for a screen with two lists. */
+  param?: string
+}) {
   const t = useTranslations('common.pagination')
   const pathname = usePathname()
   const params = useSearchParams()
@@ -18,8 +23,8 @@ export function ListPagination({ page, pageCount }: { page: number; pageCount: n
 
   const hrefFor = (target: number) => {
     const next = new URLSearchParams(params.toString())
-    if (target <= 1) next.delete('page')
-    else next.set('page', String(target))
+    if (target <= 1) next.delete(param)
+    else next.set(param, String(target))
     const qs = next.toString()
     return qs ? `${pathname}?${qs}` : pathname
   }

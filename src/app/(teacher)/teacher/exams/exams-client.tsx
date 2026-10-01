@@ -16,6 +16,8 @@ import { SimilarityPanel } from '@/components/teacher/similarity-panel'
 import type { SimilarPair } from '@/lib/answer-similarity'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import type { Question } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import { toTeacherExamRow, type TeacherExamRow } from '@/lib/data/teacher-exams'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 
@@ -46,12 +48,9 @@ const isAutoQ = (q: Question) => q.type === 'mcq' || q.type === 'true_false'
 const isAutoCorrect = (q: Question, ans?: string) =>
   (ans ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()
 
-interface Exam {
-  id: string; title: string; duration_minutes: number; questions: Question[]; is_published: boolean; proctoring_enabled: boolean; created_at: string
-  type?: 'exam' | 'homework'; ends_at?: string | null
-  groups: { name: string } | null; courses?: { title: string } | null
-  assigned_student_id?: string | null; assignee?: { full_name: string | null } | null
-}
+// The list carries the question COUNT only; the questions are read when the
+// viewer is opened (the teacher's own session — RLS, as for the list).
+type Exam = TeacherExamRow
 interface Group { id: string; name: string }
 interface Course { id: string; title: string }
 type Kind = 'exam' | 'homework'
@@ -145,7 +144,12 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
   const [bulkPts, setBulkPts] = useState(1)
   const [results, setResults] = useState<ExamResults | null>(null)
   const [resultsLoading, setResultsLoading] = useState(false)
-  const [viewQuestions, setViewQuestions] = useState<Exam | null>(null)
+  const [viewQuestions, setViewQuestions] = useState<{ title: string; questions: Question[] } | null>(null)
+  async function openQuestions(exam: Exam) {
+    const { data, error } = await createClient().from('exams').select('questions').eq('id', exam.id).single()
+    if (error || !data) { toast.error(error?.message ?? t('exams.questionsViewer.loadFailed')); return }
+    setViewQuestions({ title: exam.title, questions: (data.questions as Question[] | null) ?? [] })
+  }
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [manualPts, setManualPts] = useState<Record<string, Record<string, number>>>({})
   const [gradeBusy, setGradeBusy] = useState('')
@@ -226,7 +230,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
     })
     const data = await res.json()
     if (res.ok) {
-      setExams(prev => [data, ...prev])
+      setExams(prev => [toTeacherExamRow(data), ...prev])
       // Arrived from the course builder: go back there to link it to an item.
       if (openFor && toCourse) {
         toast.success(t('exams.modal.createdForCourse'))
@@ -249,7 +253,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
       body: JSON.stringify({ id: exam.id, is_published: !exam.is_published }),
     })
     const data = await res.json()
-    if (res.ok) { setExams(prev => prev.map(e => e.id === exam.id ? data : e)); router.refresh() }
+    if (res.ok) { setExams(prev => prev.map(e => e.id === exam.id ? toTeacherExamRow(data) : e)); router.refresh() }
   }
 
   async function deleteExam(id: string) {
@@ -314,12 +318,12 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
                       ? <><GraduationCap className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.courses.title}</span></>
                       : <><Users className="w-3.5 h-3.5" /> <span className="text-slate-300">{exam.groups?.name ?? '—'}</span></>}
                     · {exam.type === 'homework'
-                      ? t('exams.taskMetaLine', { questions: exam.questions.length, due: exam.ends_at ? t('exams.dueOn', { date: formatDateTime(exam.ends_at, locale) }) : t('exams.noDue') })
-                      : t('exams.metaLine', { minutes: exam.duration_minutes, questions: exam.questions.length, date: formatDate(exam.created_at, locale) })}
+                      ? t('exams.taskMetaLine', { questions: exam.question_count, due: exam.ends_at ? t('exams.dueOn', { date: formatDateTime(exam.ends_at, locale) }) : t('exams.noDue') })
+                      : t('exams.metaLine', { minutes: exam.duration_minutes, questions: exam.question_count, date: formatDate(exam.created_at, locale) })}
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => setViewQuestions(exam)} title={t('exams.viewQuestionsTitle')}><FileQuestion className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => openQuestions(exam)} title={t('exams.viewQuestionsTitle')}><FileQuestion className="w-4 h-4" /></Button>
                   <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> {t('exams.resultsBtn')}</Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>

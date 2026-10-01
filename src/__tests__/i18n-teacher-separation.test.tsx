@@ -25,12 +25,12 @@ const MESSAGES = { ar, en } as Record<'ar' | 'en', unknown>
 // come from a hardcoded UI string.
 const lessons = [
   {
-    id: 'l1', title: 'Kinematics', content: 'Displacement and velocity.',
+    id: 'l1', title: 'Kinematics', excerpt: 'Displacement and velocity.',
     is_published: true, created_at: '2026-09-01T00:00:00Z',
     groups: { name: 'Physics 101' },
   },
   {
-    id: 'l2', title: 'Thermodynamics', content: null,
+    id: 'l2', title: 'Thermodynamics', excerpt: '',
     is_published: false, created_at: '2026-09-02T00:00:00Z',
     groups: { name: 'Physics 101' },
   },
@@ -39,7 +39,7 @@ const lessons = [
 function renderIn(locale: 'ar' | 'en') {
   return render(
     <NextIntlClientProvider locale={locale} messages={MESSAGES[locale] as never}>
-      <LessonsClient initialLessons={lessons} groups={[{ id: 'g1', name: 'Physics 101' }]} />
+      <LessonsClient initialLessons={lessons} groups={[{ id: 'g1', name: 'Physics 101' }]} pagination={{ page: 1, pageCount: 1, total: 2 }} />
     </NextIntlClientProvider>
   )
 }

@@ -538,6 +538,122 @@ authenticated true); `/super-admin/users` as the owner shows 1/1/1 and 1/1/121 =
 edge log shows `rpc/get_tenant_role_counts` 200 with no users read. The pre-migration fallback was then removed
 (any RPC error → no counts, never a users read).
 
+## Batch 3 — P-01: teacher proctoring (`/teacher/proctoring`)
+
+Check: `supabase/tests/teacher_proctoring_page_check.sql` (one teacher, 20 proctored exams × 40 questions, 200
+students, 4 000 submissions with 30 info events each, every 4th with violations, every 7th with a paste signal;
+a second teacher's exam for isolation; read as the teacher through RLS; rolled back, nothing left behind).
+The page read EVERY proctored submission with the exam's `questions` embedded in each row (used only to add up
+the maximum score). Now `loadProctoringPage()` (`src/lib/data/proctoring.ts`): one page of 20, newest first,
+`max_score` from the row (written by `finalize_exam_submission` as the sum of the question points — the same
+number), no questions; total and flagged are head counts in the database, flagged = at least one VIOLATION
+event (one JSONB containment test per `VIOLATION_TYPES` entry — exactly the page's `eventKind` rule; verified
+to parse in PostgREST). `?page=`, past-end → last page, Previous / Next (`ListPagination`). RLS unchanged.
+
+| | before | after |
+|---|---|---|
+| Read per page load (4 000 submissions) | 4 000 rows, **66 861 KB**, 1 639 ms | 20 rows, **69 KB** + 2 counts, 266 ms |
+| Totals shown | length of the full list | database counts (total 4 000, flagged 1 000) |
+
+Checks (SQL): flagged by containment = flagged by the page's rule (1 000 = 1 000); `max_score` = the old sum
+(80) for every row; teacher A reads none of teacher B's submissions. Unit (6): the filter covers exactly the
+violation types (no signal / info), the read has no `questions` and has `max_score`, both counts and the page are
+scoped to the teacher's proctored exams, ordering / range / clamping, the page shows the database totals and
+Previous / Next. Ratchet: `teacher/proctoring/page.tsx` 3 → 2. Full suite 981/981 on mains power.
+Behaviour note: an attempt still in progress has no `max_score` yet, so its line reads «0 / 1» instead of the old
+«0 / <points>» (score is 0 either way).
+
+**Separate finding — pre-existing, not fixed:** `exam_submissions.is_flagged` is never written (no code path, no
+database function), yet `lib/reports.ts`, `lib/teacher-records.ts` and `get_center_dashboard` read it — their
+«flagged» counts are therefore always 0. P-01 does not use it.
+
+## Batch 3 — P-03: teacher lessons (`/teacher/lessons`)
+
+Check: `supabase/tests/teacher_lessons_page_check.sql` (one teacher, 300 lessons of 5–20 KB, a second teacher
+for isolation; read as the teacher through RLS; rolled back). The page read every lesson with every column
+(`select('*')`, bodies included) and sent it all to the browser, which showed only a 150-character excerpt and
+used the body only when «Edit» was opened. Now `loadTeacherLessons()` (`src/lib/data/teacher-lessons.ts`): one
+page of 50 (named columns, exact count, past-end → last page), the excerpt is computed on the server with the
+same rule (`lessonExcerpt`: markdown marks removed, 150 chars) and the browser gets only the excerpt; «Edit»
+reads that one lesson's `content` through the teacher's own session (RLS) — no new route, no service role.
+
+| | before | after |
+|---|---|---|
+| Sent to the browser per page load (300 lessons) | **3 913 KB** (every body) | **16 KB** (50 excerpts) |
+| Read by the server | 3 913 KB, 42 ms | 631 KB (one page of 50 incl. bodies) |
+| «Edit» | (body already on the page) | one lesson body on demand (≈ 6 KB here) |
+
+Checks: teacher A reads none of teacher B's lessons. Unit (6): excerpt identical to the old rule; the read is
+one page with named columns and an exact count, rows carry only the excerpt; past-end → last page; the client
+shows the excerpt and the database total, Previous / Next only with > 1 page, «Edit» reads that lesson's
+content and fills the editor, a failed read does not open it. Two existing tests updated to the new props
+(`i18n-teacher-separation`, `mutations-extended`). Ratchet: `teacher/lessons/page.tsx` star 1 → 0, unbounded 2 → 1.
+
+## Batch 3 — P-05: student lessons (`/student/lessons`)
+
+Check: `supabase/tests/student_lessons_page_check.sql` (a student in 3 active groups + 1 disabled, 300 published
+lessons of 5–20 KB, 20 drafts, 10 lessons in the disabled group, 10 in a group the student is not in; read as
+the student through RLS; rolled back). The page read every published lesson with every column and rendered
+EVERY body through `LessonTabs` inside collapsed `<details>`. Now `loadStudentLessons()`
+(`src/lib/data/student-lessons.ts`): one page of 50 titles (no body; exact count; past-end → last page; same
+published + active-group filters), and `components/student/lesson-details.tsx` reads one lesson's body the first
+time it is opened — the student's own session (RLS) plus the same active-group filter; a failed read shows a
+message and is retried on the next opening. Homework per lesson is unchanged.
+
+| | before | after |
+|---|---|---|
+| Read per page load (300 lessons) | 300 rows, **3 920 KB**, 36 ms | 50 rows, **10 KB**, 8 ms |
+| Rendered markup (real `LessonTabs`, jsdom) | **107 733 nodes** (every body, 3.6 s in jsdom) | titles only; ≈ 172 nodes per opened lesson |
+| Opening a lesson | (already on the page) | one body on demand (≈ 8 KB here) |
+
+Checks (SQL): a group the student is not in → 0 lessons; unpublished → 0; a disabled group's lessons excluded
+by the active-group filter (list and open). Unit (4): the read has no `content`, keeps the published + active-
+group + own-groups filters, pages / clamps; nothing is read until a lesson is opened, then that lesson once with
+the active-group filter; a refused read shows `loadFailed` and is retried. Messages `loading` / `loadFailed`
+(en + ar). Ratchet: `student/lessons/page.tsx` star 1 → 0, unbounded 3 → 2.
+Behaviour notes: the lesson count in the header is the database total; the «N subjects» line counts the
+subjects on the current page (identical whenever everything fits on one page).
+Full suite after P-01 + P-03 + P-05: 991/991 on mains power.
+
+## Batch 3 — P-02 + P-04: admin content feeds and teacher exams
+
+`supabase/content_feeds_migration.sql` (four new functions, nothing else changed) + code. Verified ONLY as a
+dry run on the live database: the migration's twelve statements executed inside one `DO` block together with
+`supabase/tests/content_feeds_check.sql`, which ends in `RAISE EXCEPTION` — functions and synthetic data rolled
+back together; afterwards 0 new functions, 0 leftovers, 60 public functions as before. Synthetic institution A:
+2 000 lessons (1 400 published), 2 000 exams (1 500 timed + 500 homework, 50 of them homework only by the
+duration rule), 40 questions each, 4 000 submissions; teacher T with 100 of the exams; institution B for isolation.
+
+| Screen | before | after |
+|---|---|---|
+| Admin dashboard (counts + 5 newest lessons) | `get_admin_lessons` + `get_admin_exams` = **876 KB**, 33 ms | counts + 5 lessons = **988 B**, 10 ms |
+| `/admin/exams` | 2 000 rows, **519 KB**, 17 ms | 50 exams + 50 homework, **26 KB**, 6 ms |
+| `/admin/lessons` | every lesson (part of the 876 KB above) | 50 per page + counted summary |
+| `/teacher/exams` (100 exams × 40 questions) | 100 rows with every question, **1 377 KB**, 24 ms | 100 rows + `question_count`, **27 KB**, 15 ms |
+
+Checks (dry run, 21/21 PASS): counts equal the old feeds + the page's `isHomework` rule (2000 / 1400 / 1500 / 500
+/ 4000); lessons page 1 = the first 50 of the old feed; 30 exam pages cover the 1 500 exams exactly once;
+homework includes duration-rule homework; limit clamped 1..100, offset ≥ 0; admin A sees nothing of B; admin B
+counts only B; centre manager / teacher / student get 0 rows from all four admin calls; `question_count` = number
+of questions; a student still reads 0 exam rows (no new read path); anon no EXECUTE / authenticated EXECUTE on
+all four; `search_path` pinned on all four; the three admin feeds DEFINER, `question_count` INVOKER.
+Code: dashboard / `/admin/lessons` / `/admin/exams` read `loadAdminContentCounts` + `loadAdminLessonsPage` /
+`loadAdminExamsPage` (`src/lib/data/admin-content.ts`; `?page=` and `?hwpage=` — `ListPagination` gained an
+optional `param`); `/teacher/exams` selects `TEACHER_EXAM_COLUMNS` (named columns + `question_count`), the
+questions viewer reads that exam's `questions` on demand through the teacher's session. Unit: 11 tests
+(`content-feeds.test.tsx`). Ratchet: heavy-feed calls 4 → **0** (the map is now empty), `teacher/exams/page.tsx`
+star 2 → 0. Full suite 1 001/1 001 on mains power.
+Deploy order: apply the migration BEFORE the code (additive; `get_admin_lessons` / `get_admin_exams` are left
+untouched for the code currently in production).
+
+**Applied 2026-10-01 (owner's approval):** green DB backup first (run 36913850532, read back and verified); the
+migration applied exactly as the file (text stored by Supabase: md5 `9879d50f…`, 6 871 bytes = the file with LF
+line endings); live re-check `content_feeds_check.sql` 16/16 (counts, pages, homework rule, clamps, isolation
+both ways, centre manager / teacher / student 0 rows, `question_count`, no new read path, grants, no EXECUTE to
+PUBLIC, search_path, DEFINER / INVOKER) with synthetic data rolled back and nothing left behind; anon REST → 401 on
+all four; fingerprint: the 60 existing functions, policies, indexes, table grants and the data identical before
+and after — only the four new functions added (60 → 64). Code not deployed yet.
+
 ## Separate open point — browser HTTP 400 during account switching (not part of Batch 2)
 
 Status: **open, deliberately not investigated now** (owner's decision, 2026-10-01).

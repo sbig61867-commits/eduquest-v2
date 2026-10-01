@@ -148,7 +148,7 @@ describe('GroupsClient — deleteGroup', () => {
 import { LessonsClient } from '@/app/(teacher)/teacher/lessons/lessons-client'
 
 const LESSON = {
-  id: 'l-1', title: 'Lesson One', content: null,
+  id: 'l-1', title: 'Lesson One', excerpt: '',
   is_published: false, created_at: '2024-01-01T00:00:00Z',
   groups: { name: 'Group A' },
 }
@@ -163,7 +163,7 @@ describe('LessonsClient — deleteLesson', () => {
   it('success → item removed + router.refresh called', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
     const { container } = render(
-      <LessonsClient initialLessons={[LESSON]} groups={[{ id: 'g1', name: 'Group A' }]} />
+      <LessonsClient initialLessons={[LESSON]} groups={[{ id: 'g1', name: 'Group A' }]} pagination={{ page: 1, pageCount: 1, total: 1 }} />
     )
     const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
@@ -179,7 +179,7 @@ describe('LessonsClient — deleteLesson', () => {
       ok: false, json: () => Promise.resolve({ error: 'err' }),
     }))
     const { container } = render(
-      <LessonsClient initialLessons={[LESSON]} groups={[{ id: 'g1', name: 'Group A' }]} />
+      <LessonsClient initialLessons={[LESSON]} groups={[{ id: 'g1', name: 'Group A' }]} pagination={{ page: 1, pageCount: 1, total: 1 }} />
     )
     const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)
@@ -195,7 +195,7 @@ import { ExamsClient } from '@/app/(teacher)/teacher/exams/exams-client'
 
 const EXAM = {
   id: 'ex-1', title: 'Midterm Exam',
-  duration_minutes: 60, questions: [],
+  duration_minutes: 60, question_count: 0,
   is_published: false, proctoring_enabled: false,
   created_at: '2024-01-01T00:00:00Z',
   groups: { name: 'Group A' },

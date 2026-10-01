@@ -240,6 +240,7 @@
       }
     },
     "questionsViewer": {
+      "loadFailed": "تعذّر تحميل الأسئلة",
       "titlePrefix": "أسئلة: {title}",
       "summary": "{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالاً} other {{count} سؤال}} · العلامة الكاملة:"
     },
