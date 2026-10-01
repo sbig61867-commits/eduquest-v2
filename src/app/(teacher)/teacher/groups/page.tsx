@@ -27,19 +27,11 @@ export default async function GroupsPage() {
     .eq('tenant_id', profile.tenant_id)
     .order('created_at', { ascending: false })
 
-  // Fetch all students in the same tenant for the "Manage Students" modal
-  const { data: tenantStudents } = await supabase
-    .from('users')
-    .select('id, full_name, email')
-    .eq('tenant_id', profile.tenant_id)
-    .eq('role', 'student')
-    .eq('is_active', true)
-    .order('full_name')
-
+  // «إدارة الطلاب» finds students on demand through /api/students/search
+  // (≤ 20 per search); the institution's student body is never sent to the page.
   return (
     <GroupsClient
       initialGroups={groups ?? []}
-      tenantStudents={tenantStudents ?? []}
       teacherId={user.id}
       tenantId={profile.tenant_id}
     />

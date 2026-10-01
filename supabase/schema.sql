@@ -2058,3 +2058,39 @@ GRANT EXECUTE ON FUNCTION public.tenant_storage_bytes(uuid) TO authenticated, se
 -- Member codes (see member_code_migration.sql): tenants.code TEXT NOT NULL UNIQUE (^[A-Z0-9]{2,6}$, not EQ),
 -- users.member_code TEXT NOT NULL UNIQUE issued once by trigger users_assign_member_code,
 -- counter table member_code_counters(tenant_id PK, last_n) with no grants.
+
+-- ============================================================
+-- Owner Counts (Batch 2) — supabase/owner_counts_migration.sql
+-- get_tenant_role_counts(): per-institution university_admin / teacher /
+-- student counts (any status) for /super-admin/users. Owner only,
+-- SECURITY INVOKER (RLS still applies).
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.get_tenant_role_counts()
+RETURNS TABLE (tenant_id uuid, admins bigint, teachers bigint, students bigint)
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF (SELECT public.current_user_role()) IS DISTINCT FROM 'super_admin' THEN
+    RAISE EXCEPTION 'FORBIDDEN' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT u.tenant_id,
+         count(*) FILTER (WHERE u.role = 'university_admin'),
+         count(*) FILTER (WHERE u.role = 'teacher'),
+         count(*) FILTER (WHERE u.role = 'student')
+  FROM public.users u
+  WHERE u.tenant_id IS NOT NULL
+    AND u.role IN ('university_admin', 'teacher', 'student')
+  GROUP BY u.tenant_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_tenant_role_counts() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_tenant_role_counts() TO authenticated;
+
+COMMENT ON FUNCTION public.get_tenant_role_counts() IS
+  'Owner only: per-institution counts of university_admin / teacher / student accounts (any status). Batch 2.';

@@ -3,18 +3,27 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TeachersClient } from './teachers-client'
+import { listTeachers, parsePage, sanitizeSearch } from '@/lib/data/people'
 
-export default async function TeachersPage() {
+// One page of the institution's teachers (PERFORMANCE_CONTRACT.md P1): search,
+// page and total come from the database, never from filtering the whole
+// teaching staff in the browser.
+export default async function TeachersPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { data: teachers } = await supabase
-    .from('users')
-    .select('id, email, full_name, avatar_url, role, is_active, created_at, tenant_id, can_create_courses')
-    .eq('role', 'teacher')
-    .eq('tenant_id', user.tenant_id)
-    .order('created_at', { ascending: false })
+  const params = await searchParams
+  const search = sanitizeSearch(params.q)
+  const { data: list } = await listTeachers(supabase, user.tenant_id, { search, page: parsePage(params.page) })
 
-  return <TeachersClient initialTeachers={teachers ?? []} />
+  return (
+    <TeachersClient
+      initialTeachers={list.rows}
+      total={list.total}
+      page={list.page}
+      pageCount={list.pageCount}
+      search={search}
+    />
+  )
 }

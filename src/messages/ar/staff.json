@@ -71,6 +71,7 @@
     "updateFailed": "تعذّر التحديث",
     "loadFailed": "تعذّر تحميل القائمة",
     "search": "ابحث عن طالب…",
+    "typeToSearch": "اكتب اسمًا للعثور على طالب",
     "pick": "اختر طالباً ({count})",
     "add": "إضافة",
     "loading": "جارٍ التحميل…",
@@ -78,6 +79,15 @@
     "transfer": "نقل",
     "remove": "إزالة",
     "count": "{count, plural, one {طالب واحد} two {طالبان} few {{count} طلاب} many {{count} طالباً} other {{count} طالب}}"
+  },
+  "teacherPicker": {
+    "search": "ابحث عن معلم بالاسم…",
+    "typeToSearch": "اكتب اسمًا للعثور على معلم",
+    "noResults": "لم يُعثر على معلم نشط",
+    "change": "تغيير",
+    "changeTitle": "تغيير معلم {name}",
+    "chosen": "المختار: {name}",
+    "none": "لم يُختر معلم بعد"
   },
   "attendance": {
     "status": {

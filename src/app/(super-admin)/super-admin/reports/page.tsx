@@ -12,20 +12,10 @@ export default async function ReportsPage() {
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (profile?.role !== 'super_admin') redirect('/login')
 
-  // RLS grants super_admin cross-tenant SELECT on tenants/users/groups.
-  const [{ data: tenants }, { data: teachers }, { data: groups }, { data: students }] = await Promise.all([
-    supabase.from('tenants').select('id, name').order('name'),
-    supabase.from('users').select('id, full_name, email, tenant_id').eq('role', 'teacher').order('full_name'),
-    supabase.from('groups').select('id, name, tenant_id').order('name'),
-    supabase.from('users').select('id, full_name, email, tenant_id').eq('role', 'student').order('full_name'),
-  ])
+  // RLS grants super_admin cross-tenant SELECT on tenants. Teachers, students and
+  // groups are found on demand inside the chosen institution
+  // (/api/admin/report-targets, ≤ 20 per search) — never preloaded.
+  const { data: tenants } = await supabase.from('tenants').select('id, name').order('name')
 
-  return (
-    <ReportsClient
-      tenants={tenants ?? []}
-      teachers={teachers ?? []}
-      groups={groups ?? []}
-      students={students ?? []}
-    />
-  )
+  return <ReportsClient tenants={tenants ?? []} />
 }

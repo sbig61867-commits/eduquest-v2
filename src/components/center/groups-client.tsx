@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/toast'
 import { confirmDialog } from '@/lib/confirm-dialog'
 import { Plus, Users, Archive, ArchiveRestore, Settings2, BookOpen } from 'lucide-react'
 import { RosterModal, type Option } from './roster-modal'
+import { TeacherPicker, type PickedTeacher } from './teacher-picker'
 
 export interface CenterGroupRow {
   id: string
@@ -18,6 +19,8 @@ export interface CenterGroupRow {
   description: string | null
   is_active: boolean
   teacher_id: string
+  /** Active teacher's name; null ⇒ «—» (disabled / not visible), as before. */
+  teacher_name: string | null
   student_count: number
   course_id: string | null
   image_url: string | null
@@ -31,17 +34,20 @@ const toSettings = (g?: CenterGroupRow): SettingsForm => ({
   max_students: g?.max_students ? String(g.max_students) : '', instructions: g?.instructions ?? '',
 })
 
-export function CenterGroupsClient({ initialGroups, teachers, students, courses = [] }: {
+export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }: {
   initialGroups: CenterGroupRow[]
-  teachers: Option[]
-  students: Option[]
+  /** At least one active teacher exists (a count — the teachers are searched on demand). */
+  hasTeachers: boolean
   courses?: Option[]
 }) {
   const t = useTranslations('staff.groups')
+  const tp = useTranslations('staff.teacherPicker')
   const router = useRouter()
   const [groups, setGroups] = useState(initialGroups)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', teacher_id: '' })
+  const [chosenTeacher, setChosenTeacher] = useState<PickedTeacher | null>(null)
+  const [changingTeacher, setChangingTeacher] = useState<CenterGroupRow | null>(null)
   const [newSettings, setNewSettings] = useState<SettingsForm>(toSettings())
   const [editing, setEditing] = useState<CenterGroupRow | null>(null)
   const [settings, setSettings] = useState<SettingsForm>(toSettings())
@@ -81,12 +87,15 @@ export function CenterGroupsClient({ initialGroups, teachers, students, courses 
     if (!res.ok) return toast.error(data.error ?? t('createFailed'))
     setGroups(prev => [{
       id: data.id, name: data.name, description: data.description, is_active: data.is_active ?? true,
-      teacher_id: data.teacher_id, student_count: 0,
+      teacher_id: data.teacher_id,
+      teacher_name: chosenTeacher && chosenTeacher.id === data.teacher_id ? (chosenTeacher.full_name || null) : null,
+      student_count: 0,
       course_id: data.course_id ?? null, image_url: data.image_url ?? null,
       max_students: data.max_students ?? null, instructions: data.instructions ?? null,
     }, ...prev])
     setCreating(false)
     setForm({ name: '', description: '', teacher_id: '' })
+    setChosenTeacher(null)
     setNewSettings(toSettings())
     toast.success(t('created'))
     router.refresh()
@@ -136,6 +145,16 @@ export function CenterGroupsClient({ initialGroups, teachers, students, courses 
     await patch(g.id, { is_active: !g.is_active })
   }
 
+  // «تغيير المعلم»: the same PATCH /api/groups { id, teacher_id } the old per-row
+  // select sent. Picking the current teacher changes nothing (as before).
+  async function changeTeacher(g: CenterGroupRow, teacher: PickedTeacher) {
+    if (teacher.id === g.teacher_id) { setChangingTeacher(null); return }
+    if (await patch(g.id, { teacher_id: teacher.id })) {
+      setGroups(prev => prev.map(x => (x.id === g.id ? { ...x, teacher_name: teacher.full_name || null } : x)))
+      setChangingTeacher(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -143,11 +162,11 @@ export function CenterGroupsClient({ initialGroups, teachers, students, courses 
           <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
           <p className="text-slate-400 mt-1">{t('summary', { active: groups.filter(g => g.is_active).length, archived: groups.filter(g => !g.is_active).length })}</p>
         </div>
-        <Button onClick={() => setCreating(true)} disabled={teachers.length === 0}>
+        <Button onClick={() => setCreating(true)} disabled={!hasTeachers}>
           <Plus className="w-4 h-4" /> {t('newGroup')}
         </Button>
       </div>
-      {teachers.length === 0 && (
+      {!hasTeachers && (
         <p className="text-amber-400 text-sm">{t('needTeacher')}</p>
       )}
 
@@ -184,15 +203,12 @@ export function CenterGroupsClient({ initialGroups, teachers, students, courses 
                   </div>
                 </td>
                 <td className="px-5 py-4">
-                  <select
-                    value={g.teacher_id}
-                    disabled={busy === g.id}
-                    onChange={e => patch(g.id, { teacher_id: e.target.value })}
-                    className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-white text-sm max-w-[180px]"
-                  >
-                    {!teachers.some(t => t.id === g.teacher_id) && <option value={g.teacher_id}>—</option>}
-                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white text-sm truncate max-w-[160px]">{g.teacher_name ?? '—'}</span>
+                    <Button variant="ghost" size="sm" disabled={busy === g.id} onClick={() => setChangingTeacher(g)}>
+                      {tp('change')}
+                    </Button>
+                  </div>
                 </td>
                 <td className="px-5 py-4 text-slate-300 text-sm">{g.student_count}{g.max_students ? ` / ${g.max_students}` : ''}</td>
                 <td className="px-5 py-4">
@@ -221,17 +237,17 @@ export function CenterGroupsClient({ initialGroups, teachers, students, courses 
         <div className="space-y-4">
           <Input label={t('groupName')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <Input label={t('description')} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-300">{t('teacher')}</span>
-            <select
-              value={form.teacher_id}
-              onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm"
-            >
-              <option value="">{t('pickTeacher')}</option>
-              {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </label>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-slate-300">{t('teacher')}</span>
+            <p className={`text-sm ${chosenTeacher ? 'text-white' : 'text-slate-500'}`}>
+              {chosenTeacher ? tp('chosen', { name: chosenTeacher.full_name || '—' }) : t('pickTeacher')}
+            </p>
+            <TeacherPicker
+              scope="groups"
+              selectedId={form.teacher_id || null}
+              onPick={teacher => { setChosenTeacher(teacher); setForm(f => ({ ...f, teacher_id: teacher.id })) }}
+            />
+          </div>
           <GroupSettingsFields value={newSettings} onChange={setNewSettings} courses={courses} />
           <div className="flex gap-2 justify-end">
             <Button variant="ghost" onClick={() => setCreating(false)}>{t('cancel')}</Button>
@@ -248,10 +264,20 @@ export function CenterGroupsClient({ initialGroups, teachers, students, courses 
         endpoint="/api/group-students"
         idKey="group_id"
         targetId={roster?.id ?? null}
-        students={students}
         onChanged={count => roster && setGroups(prev => prev.map(g => (g.id === roster.id ? { ...g, student_count: count } : g)))}
         onTransfer={member => roster && setTransfer({ group: roster, student: member })}
       />
+
+      <Modal open={!!changingTeacher} onClose={() => setChangingTeacher(null)} title={tp('changeTitle', { name: changingTeacher?.name ?? '' })}>
+        {changingTeacher && (
+          <TeacherPicker
+            key={changingTeacher.id}
+            scope="groups"
+            selectedId={changingTeacher.teacher_id}
+            onPick={teacher => changeTeacher(changingTeacher, teacher)}
+          />
+        )}
+      </Modal>
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title={t('settingsTitle', { name: editing?.name ?? '' })}>
         <div className="space-y-4">

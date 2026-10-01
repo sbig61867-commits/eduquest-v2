@@ -9,7 +9,8 @@ import { Modal } from '@/components/ui/modal'
 import { toast } from '@/components/ui/toast'
 import { confirmDialog } from '@/lib/confirm-dialog'
 import { Plus, Eye, EyeOff, Trash2, GraduationCap } from 'lucide-react'
-import { RosterModal, type Option } from './roster-modal'
+import { RosterModal } from './roster-modal'
+import { TeacherPicker, type PickedTeacher } from './teacher-picker'
 
 export interface CenterCourseRow {
   id: string
@@ -17,20 +18,25 @@ export interface CenterCourseRow {
   description: string | null
   is_published: boolean
   teacher_id: string
+  /** Active teacher's name; null ⇒ «—» (disabled / not visible), as before. */
+  teacher_name: string | null
   units: number
   enrollments: number
 }
 
-export function CenterCoursesClient({ initialCourses, teachers, students }: {
+export function CenterCoursesClient({ initialCourses, hasTeachers }: {
   initialCourses: CenterCourseRow[]
-  teachers: Option[]
-  students: Option[]
+  /** At least one active teacher exists (a count — the teachers are searched on demand). */
+  hasTeachers: boolean
 }) {
   const t = useTranslations('staff.courses')
+  const tp = useTranslations('staff.teacherPicker')
   const router = useRouter()
   const [courses, setCourses] = useState(initialCourses)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', language: '', has_levels: false, teacher_id: '' })
+  const [chosenTeacher, setChosenTeacher] = useState<PickedTeacher | null>(null)
+  const [changingTeacher, setChangingTeacher] = useState<CenterCourseRow | null>(null)
   const [busy, setBusy] = useState('')
   const [roster, setRoster] = useState<CenterCourseRow | null>(null)
 
@@ -62,10 +68,13 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
     if (!res.ok) return toast.error(data.error ?? t('createFailed'))
     setCourses(prev => [{
       id: data.id, title: data.title, description: data.description, is_published: !!data.is_published,
-      teacher_id: data.teacher_id, units: 0, enrollments: 0,
+      teacher_id: data.teacher_id,
+      teacher_name: chosenTeacher && chosenTeacher.id === data.teacher_id ? (chosenTeacher.full_name || null) : null,
+      units: 0, enrollments: 0,
     }, ...prev])
     setCreating(false)
     setForm({ title: '', description: '', language: '', has_levels: false, teacher_id: '' })
+    setChosenTeacher(null)
     toast.success(t('created'))
     router.refresh()
   }
@@ -76,9 +85,13 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
     }
   }
 
-  async function reassign(c: CenterCourseRow, teacherId: string) {
-    if (await send('PATCH', c.id, { teacher_id: teacherId })) {
-      setCourses(prev => prev.map(x => (x.id === c.id ? { ...x, teacher_id: teacherId } : x)))
+  // «تغيير المعلم»: the same PATCH /api/courses { id, teacher_id } the old per-row
+  // select sent. Picking the current teacher changes nothing (as before).
+  async function reassign(c: CenterCourseRow, teacher: PickedTeacher) {
+    if (teacher.id === c.teacher_id) { setChangingTeacher(null); return }
+    if (await send('PATCH', c.id, { teacher_id: teacher.id })) {
+      setCourses(prev => prev.map(x => (x.id === c.id ? { ...x, teacher_id: teacher.id, teacher_name: teacher.full_name || null } : x)))
+      setChangingTeacher(null)
     }
   }
 
@@ -97,11 +110,11 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
           <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
           <p className="text-slate-400 mt-1">{t('summary', { count: courses.length, published: courses.filter(c => c.is_published).length })}</p>
         </div>
-        <Button onClick={() => setCreating(true)} disabled={teachers.length === 0}>
+        <Button onClick={() => setCreating(true)} disabled={!hasTeachers}>
           <Plus className="w-4 h-4" /> {t('newCourse')}
         </Button>
       </div>
-      {teachers.length === 0 && (
+      {!hasTeachers && (
         <p className="text-amber-400 text-sm">{t('needTeacher')}</p>
       )}
 
@@ -129,15 +142,12 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
                   </p>
                 </td>
                 <td className="px-5 py-4">
-                  <select
-                    value={c.teacher_id}
-                    disabled={busy === c.id}
-                    onChange={e => reassign(c, e.target.value)}
-                    className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-white text-sm max-w-[180px]"
-                  >
-                    {!teachers.some(t => t.id === c.teacher_id) && <option value={c.teacher_id}>—</option>}
-                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white text-sm truncate max-w-[160px]">{c.teacher_name ?? '—'}</span>
+                    <Button variant="ghost" size="sm" disabled={busy === c.id} onClick={() => setChangingTeacher(c)}>
+                      {tp('change')}
+                    </Button>
+                  </div>
                 </td>
                 <td className="px-5 py-4 text-slate-300 text-sm">{c.units}</td>
                 <td className="px-5 py-4 text-slate-300 text-sm">{c.enrollments}</td>
@@ -165,17 +175,17 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
           <Input label={t('courseTitle')} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           <Input label={t('description')} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <Input label={t('language')} value={form.language} onChange={e => setForm(f => ({ ...f, language: e.target.value }))} />
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-300">{t('teacher')}</span>
-            <select
-              value={form.teacher_id}
-              onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm"
-            >
-              <option value="">{t('pickTeacher')}</option>
-              {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </label>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-slate-300">{t('teacher')}</span>
+            <p className={`text-sm ${chosenTeacher ? 'text-white' : 'text-slate-500'}`}>
+              {chosenTeacher ? tp('chosen', { name: chosenTeacher.full_name || '—' }) : t('pickTeacher')}
+            </p>
+            <TeacherPicker
+              scope="courses"
+              selectedId={form.teacher_id || null}
+              onPick={teacher => { setChosenTeacher(teacher); setForm(f => ({ ...f, teacher_id: teacher.id })) }}
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" checked={form.has_levels}
               onChange={e => setForm(f => ({ ...f, has_levels: e.target.checked }))} />
@@ -188,6 +198,17 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
         </div>
       </Modal>
 
+      <Modal open={!!changingTeacher} onClose={() => setChangingTeacher(null)} title={tp('changeTitle', { name: changingTeacher?.title ?? '' })}>
+        {changingTeacher && (
+          <TeacherPicker
+            key={changingTeacher.id}
+            scope="courses"
+            selectedId={changingTeacher.teacher_id}
+            onPick={teacher => reassign(changingTeacher, teacher)}
+          />
+        )}
+      </Modal>
+
       <RosterModal
         key={roster?.id ?? 'none'}
         open={!!roster}
@@ -196,7 +217,6 @@ export function CenterCoursesClient({ initialCourses, teachers, students }: {
         endpoint="/api/course-enrollments"
         idKey="course_id"
         targetId={roster?.id ?? null}
-        students={students}
         onChanged={count => roster && setCourses(prev => prev.map(c => (c.id === roster.id ? { ...c, enrollments: count } : c)))}
       />
     </div>

@@ -1,7 +1,7 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -27,12 +27,14 @@ interface Student {
 
 interface Props {
   initialGroups: Group[]
-  tenantStudents: Student[]
   teacherId: string
   tenantId: string
 }
 
-export function GroupsClient({ initialGroups, tenantStudents }: Props) {
+// Typing waits this long before asking the server (one request per pause, not per key).
+const SEARCH_DELAY_MS = 300
+
+export function GroupsClient({ initialGroups }: Props) {
   const router = useRouter()
   const t = useTranslations('teacher')
   const [groups, setGroups] = useState(initialGroups)
@@ -46,6 +48,26 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   const [groupStudents, setGroupStudents] = useState<Student[]>([])
   const [studentSearch, setStudentSearch] = useState('')
   const [loadingStudents, setLoadingStudents] = useState(false)
+  // Students to add come from the server, ≤ 20 per search (/api/students/search).
+  // The institution's student body never reaches the page.
+  const [foundStudents, setFoundStudents] = useState<Student[] | null>(null)
+  const searchSeq = useRef(0)
+
+  const managingGroupId = managingGroup?.id ?? null
+  useEffect(() => {
+    const q = studentSearch.trim()
+    const seq = ++searchSeq.current
+    if (!managingGroupId || !q) return
+    const timer = setTimeout(async () => {
+      const res = await fetch(`/api/students/search?q=${encodeURIComponent(q)}&group_id=${encodeURIComponent(managingGroupId)}`)
+      const json = await res.json().catch(() => ({}))
+      if (seq !== searchSeq.current) return // a newer search superseded this one
+      setFoundStudents(res.ok ? (json.students ?? []) : [])
+    }, SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [studentSearch, managingGroupId])
+  // Nothing typed ⇒ no results shown («اكتب للبحث»), whatever an older search returned.
+  const searchResults = studentSearch.trim() ? foundStudents : null
 
   const [surveyGroup, setSurveyGroup] = useState<Group | null>(null)
   const [surveyData, setSurveyData] = useState<{ id: string; title: string; is_open: boolean; created_at: string } | null>(null)
@@ -97,6 +119,7 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
   async function openManage(group: Group) {
     setManagingGroup(group)
     setStudentSearch('')
+    setFoundStudents(null)
     setLoadingStudents(true)
     const res = await fetch(`/api/group-students?group_id=${group.id}`)
     const json = await res.json()
@@ -194,12 +217,10 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
     ))
   }
 
+  // The server already leaves out the group's members; this keeps a student
+  // added a moment ago (after the search ran) out of the list too.
   const enrolledIds = new Set(groupStudents.map(s => s.id))
-  const availableStudents = tenantStudents.filter(s =>
-    !enrolledIds.has(s.id) &&
-    (s.full_name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-     s.email.toLowerCase().includes(studentSearch.toLowerCase()))
-  )
+  const availableStudents = (searchResults ?? []).filter(s => !enrolledIds.has(s.id))
   const filteredEnrolled = groupStudents.filter(s =>
     s.full_name.toLowerCase().includes(studentSearch.toLowerCase()) ||
     s.email.toLowerCase().includes(studentSearch.toLowerCase())
@@ -328,7 +349,9 @@ export function GroupsClient({ initialGroups, tenantStudents }: Props) {
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               {t('groups.studentsModal.available', { count: availableStudents.length })}
             </p>
-            {availableStudents.length === 0 ? (
+            {searchResults === null ? (
+              <p className="text-slate-500 text-sm py-2">{t('groups.studentsModal.typeToSearch')}</p>
+            ) : availableStudents.length === 0 ? (
               <p className="text-slate-500 text-sm py-2">{t('groups.studentsModal.noneAvailable')}</p>
             ) : (
               <div className="space-y-1 max-h-40 overflow-y-auto">

@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serviceClient, staffCan } from '@/lib/staff-auth'
+import { readRosterPage, rosterPageParam } from '@/lib/data/rosters'
 
 // Enrol / unenrol students in a structured course. Allowed for the course's
 // own teacher, or staff holding manage_courses in the same tenant. Checked
@@ -35,6 +36,17 @@ export async function GET(request: Request) {
   if (!courseId) return NextResponse.json({ ...(await apiErr('missingCourseId')) }, { status: 400 })
   const auth = await authorize(courseId)
   if ('error' in auth) return auth.error
+
+  // RosterModal asks for one page (?page=); without it the whole list comes back as before.
+  const page = rosterPageParam(new URL(request.url).searchParams)
+  if (page !== null) {
+    const { data, error: pageErr } = await readRosterPage(auth.admin, 'course', courseId, page)
+    if (pageErr) {
+      console.error('[course-enrollments GET page]', pageErr)
+      return NextResponse.json({ ...(await apiErr('enrollmentsLoadFailed')) }, { status: 500 })
+    }
+    return NextResponse.json(data)
+  }
 
   const { data, error } = await auth.admin
     .from('course_enrollments')

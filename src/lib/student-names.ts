@@ -60,14 +60,3 @@ export async function loadOwnStudentName(supabase: SupabaseClient, userId: strin
   if (error || !data) return null
   return { first: data.first_name, father: data.father_name, grandfather: data.grandfather_name, family: data.family_name }
 }
-
-/**
- * Which students of a tenant have a four-part name on file (for the staff
- * "name incomplete" flag). Null before the migration, when nothing is known.
- */
-export async function loadNameCompleteFlags(supabase: SupabaseClient, tenantId: string): Promise<Map<string, boolean> | null> {
-  const { data, error } = await supabase
-    .from('users').select('id, name_complete').eq('tenant_id', tenantId).eq('role', 'student')
-  if (error) return null
-  return new Map((data ?? []).map(r => [r.id as string, r.name_complete === true]))
-}

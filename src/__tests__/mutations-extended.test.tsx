@@ -117,7 +117,7 @@ describe('GroupsClient — deleteGroup', () => {
   it('success → item removed + router.refresh called', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
     const { container } = render(
-      <GroupsClient initialGroups={[GROUP]} tenantStudents={[]} teacherId="t1" tenantId="ten1" />
+      <GroupsClient initialGroups={[GROUP]} teacherId="t1" tenantId="ten1" />
     )
     const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     expect(del).toBeTruthy()
@@ -133,7 +133,7 @@ describe('GroupsClient — deleteGroup', () => {
       ok: false, json: () => Promise.resolve({ error: 'DB error' }),
     }))
     const { container } = render(
-      <GroupsClient initialGroups={[GROUP]} tenantStudents={[]} teacherId="t1" tenantId="ten1" />
+      <GroupsClient initialGroups={[GROUP]} teacherId="t1" tenantId="ten1" />
     )
     const del = container.querySelector<HTMLButtonElement>('[class*="hover:text-red-400"]')
     await userEvent.click(del!)

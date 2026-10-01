@@ -34,12 +34,12 @@ const MESSAGES = { ar, en } as Record<'ar' | 'en', unknown>
 const groups = [
   {
     id: 'g1', name: 'Morning Cohort', description: 'Level A1',
-    is_active: true, teacher_id: 't1', student_count: 12,
+    is_active: true, teacher_id: 't1', teacher_name: 'Sara Idris', student_count: 12,
     course_id: null, image_url: null, max_students: null, instructions: null,
   },
   {
     id: 'g2', name: 'Evening Cohort', description: null,
-    is_active: false, teacher_id: 't1', student_count: 4,
+    is_active: false, teacher_id: 't1', teacher_name: null, student_count: 4,
     course_id: null, image_url: null, max_students: null, instructions: null,
   },
 ]
@@ -49,8 +49,7 @@ function renderIn(locale: 'ar' | 'en') {
     <NextIntlClientProvider locale={locale} messages={MESSAGES[locale] as never}>
       <CenterGroupsClient
         initialGroups={groups}
-        teachers={[{ id: 't1', name: 'Sara Idris' }]}
-        students={[]}
+        hasTeachers
         courses={[]}
       />
     </NextIntlClientProvider>

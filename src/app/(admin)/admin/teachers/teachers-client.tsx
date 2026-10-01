@@ -3,31 +3,59 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Search, Trash2, ToggleLeft, UserPlus, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { User } from '@/types'
+import { ListPagination } from '@/components/shared/list-pagination'
 
-interface Props { initialTeachers: User[] }
+// Only what this screen uses — satisfied by a people-page row (src/lib/data/people.ts).
+type TeacherRow = Pick<User, 'id' | 'email' | 'full_name' | 'is_active' | 'created_at'> & {
+  can_create_courses?: boolean | null
+}
 
-export function TeachersClient({ initialTeachers }: Props) {
+interface Props {
+  /** One page of teachers, already searched on the server (src/lib/data/people.ts). */
+  initialTeachers: TeacherRow[]
+  /** Teachers matching the search in the whole institution (from the database). */
+  total?: number
+  page?: number
+  pageCount?: number
+  /** The search the server applied (?q=). */
+  search?: string
+}
+
+// Typing waits this long before asking the server for the matching page.
+const SEARCH_DELAY_MS = 350
+
+export function TeachersClient({ initialTeachers, total, page = 1, pageCount = 1, search = '' }: Props) {
   const t = useTranslations('admin.people')
   const locale = useLocale() as Locale
+  // Local copy for immediate feedback after an action; replaced whenever the
+  // server sends a new page (navigation, search, router.refresh()).
+  const [shown, setShown] = useState(initialTeachers)
   const [teachers, setTeachers] = useState(initialTeachers)
-  const [search, setSearch] = useState('')
+  if (shown !== initialTeachers) { setShown(initialTeachers); setTeachers(initialTeachers) }
+  const [query, setQuery] = useState(search)
   const router = useRouter()
 
-  const filtered = teachers.filter(t =>
-    t.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.toLowerCase())
-  )
+  // Search runs in the database: the typed text goes to the URL (?q=) and the
+  // server renders the first matching page. Nothing is filtered here.
+  useEffect(() => {
+    if (query.trim() === search) return
+    const timer = setTimeout(() => {
+      const q = query.trim()
+      router.replace(q ? `?q=${encodeURIComponent(q)}` : '?')
+    }, SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [query, search, router])
 
   // Through the route (capability + tenant checks, service-role write): the
   // users_update policy no longer lets an admin write other users' rows.
-  async function toggleStatus(teacher: User) {
+  async function toggleStatus(teacher: TeacherRow) {
     const res = await fetch('/api/admin/toggle-user', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -39,7 +67,7 @@ export function TeachersClient({ initialTeachers }: Props) {
     }
   }
 
-  async function toggleCoursePermission(teacher: User) {
+  async function toggleCoursePermission(teacher: TeacherRow) {
     const next = !teacher.can_create_courses
     const res = await fetch('/api/admin/teacher-permissions', {
       method: 'PATCH',
@@ -66,7 +94,7 @@ export function TeachersClient({ initialTeachers }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">{t('teachers.title')}</h2>
-          <p className="text-slate-400 mt-1">{t('teachers.summary', { count: teachers.length })}</p>
+          <p className="text-slate-400 mt-1">{t('teachers.summary', { count: total ?? teachers.length })}</p>
         </div>
         <Button onClick={() => router.push('/admin/invitations')}>
           <UserPlus className="w-4 h-4" /> {t('teachers.invite')}
@@ -76,8 +104,8 @@ export function TeachersClient({ initialTeachers }: Props) {
       <div className="relative">
         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          value={query}
+          onChange={e => setQuery(e.target.value)}
           placeholder={t('teachers.search')}
           className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
@@ -96,10 +124,10 @@ export function TeachersClient({ initialTeachers }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {filtered.length === 0 && (
+            {teachers.length === 0 && (
               <tr><td colSpan={6} className="text-center text-slate-500 py-10">{t('teachers.empty')}</td></tr>
             )}
-            {filtered.map(teacher => (
+            {teachers.map(teacher => (
               <tr key={teacher.id} className="hover:bg-slate-800/50 transition-colors">
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
@@ -151,6 +179,8 @@ export function TeachersClient({ initialTeachers }: Props) {
           </tbody>
         </table>
       </div>
+
+      {pageCount > 1 && <ListPagination page={page} pageCount={pageCount} />}
     </div>
   )
 }

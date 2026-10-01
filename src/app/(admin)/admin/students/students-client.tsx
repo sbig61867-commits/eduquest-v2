@@ -3,7 +3,7 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,34 +13,58 @@ import type { User } from '@/types'
 import { useAuthStore } from '@/stores/auth-store'
 import { getTerms } from '@/lib/terminology'
 import { StudentNameEditor, type NamedStudent } from '@/components/shared/student-name-editor'
+import { ListPagination } from '@/components/shared/list-pagination'
+
+// Only what this screen uses — satisfied by a people-page row (src/lib/data/people.ts).
+type StudentRow = Pick<User, 'id' | 'email' | 'full_name' | 'is_active' | 'created_at'> & {
+  is_university_student?: boolean | null
+  name_complete?: boolean | null
+}
 
 interface Props {
-  initialStudents: User[]
+  /** One page of students, already searched on the server (src/lib/data/people.ts). */
+  initialStudents: StudentRow[]
+  /** Students matching the search in the whole institution (from the database). */
+  total?: number
+  page?: number
+  pageCount?: number
+  /** The search the server applied (?q=). */
+  search?: string
   /** Holds `announce_to_university`: may move a student between the two populations. */
   canSetAffiliation?: boolean
   /** Without a centre there is no university/centre split to show. */
   hasCenter?: boolean
-  /** Student id → has a four-part name on file; null before the migration (no flags). */
-  nameComplete?: Record<string, boolean> | null
 }
 
-export function StudentsClient({ initialStudents, canSetAffiliation = false, hasCenter = true, nameComplete = null }: Props) {
+// Typing waits this long before asking the server for the matching page.
+const SEARCH_DELAY_MS = 350
+
+export function StudentsClient({ initialStudents, total, page = 1, pageCount = 1, search = '', canSetAffiliation = false, hasCenter = true }: Props) {
   const t = useTranslations('admin.people')
   const tName = useTranslations('common.studentName')
   const locale = useLocale() as Locale
   const terms = getTerms(useAuthStore(s => s.tenant?.institution_type), locale)
+  // Local copy for immediate feedback after an action; replaced whenever the
+  // server sends a new page (navigation, search, router.refresh()).
+  const [shown, setShown] = useState(initialStudents)
   const [students, setStudents] = useState(initialStudents)
-  const [complete, setComplete] = useState(nameComplete)
-  const [search, setSearch] = useState('')
+  if (shown !== initialStudents) { setShown(initialStudents); setStudents(initialStudents) }
+  const [query, setQuery] = useState(search)
   const [naming, setNaming] = useState<NamedStudent | null>(null)
   const router = useRouter()
 
-  const filtered = students.filter(s =>
-    s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())
-  )
+  // Search runs in the database: the typed text goes to the URL (?q=) and the
+  // server renders the first matching page. Nothing is filtered here.
+  useEffect(() => {
+    if (query.trim() === search) return
+    const timer = setTimeout(() => {
+      const q = query.trim()
+      router.replace(q ? `?q=${encodeURIComponent(q)}` : '?')
+    }, SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [query, search, router])
 
-  async function toggleStatus(student: User) {
+  async function toggleStatus(student: StudentRow) {
     const res = await fetch('/api/admin/toggle-user', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -51,7 +75,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
 
   // University student vs centre-only trainee — decides which announcements
   // reach them (see src/lib/student-affiliation.ts).
-  async function toggleAffiliation(student: User) {
+  async function toggleAffiliation(student: StudentRow) {
     const next = student.is_university_student === false
     const res = await fetch('/api/admin/student-affiliation', {
       method: 'PATCH',
@@ -75,7 +99,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">{t('students.title')}</h2>
-          <p className="text-slate-400 mt-1">{t('students.summary', { count: students.length })}</p>
+          <p className="text-slate-400 mt-1">{t('students.summary', { count: total ?? students.length })}</p>
         </div>
         <Button onClick={() => router.push('/admin/invitations')}>
           <UserPlus className="w-4 h-4" /> {t('students.invite')}
@@ -84,7 +108,7 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
 
       <div className="relative">
         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('students.search')} className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('students.search')} className="w-full ps-10 pe-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -99,14 +123,14 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {filtered.length === 0 && <tr><td colSpan={5} className="text-center text-slate-500 py-10">{t('students.empty')}</td></tr>}
-            {filtered.map(student => (
+            {students.length === 0 && <tr><td colSpan={5} className="text-center text-slate-500 py-10">{t('students.empty')}</td></tr>}
+            {students.map(student => (
               <tr key={student.id} className="hover:bg-slate-800/50 transition-colors">
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-bold shrink-0">{student.full_name[0].toUpperCase()}</div>
                     <span className="text-white text-sm font-medium">{student.full_name}</span>
-                    {complete?.[student.id] === false && (
+                    {student.name_complete === false && (
                       <span title={tName('notFourPartHint')}><Badge variant="yellow">{tName('notFourPart')}</Badge></span>
                     )}
                   </div>
@@ -144,12 +168,13 @@ export function StudentsClient({ initialStudents, canSetAffiliation = false, has
         </table>
       </div>
 
+      {pageCount > 1 && <ListPagination page={page} pageCount={pageCount} />}
+
       <StudentNameEditor
         student={naming}
         onClose={() => setNaming(null)}
         onSaved={(id, fullName, isComplete) => {
-          setStudents(prev => prev.map(s => s.id === id ? { ...s, full_name: fullName } : s))
-          setComplete(prev => (prev ? { ...prev, [id]: isComplete } : prev))
+          setStudents(prev => prev.map(s => s.id === id ? { ...s, full_name: fullName, name_complete: isComplete } : s))
           router.refresh()
         }}
       />

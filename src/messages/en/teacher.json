@@ -62,6 +62,7 @@
       "noEnrolled": "No enrolled students",
       "available": "Add students (available: {count})",
       "noneAvailable": "All students enrolled or none found",
+      "typeToSearch": "Type a name or email to find students to add",
       "done": "Done"
     },
     "surveyModal": {

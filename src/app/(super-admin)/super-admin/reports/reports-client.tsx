@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BarChart2, Download, Printer, FileText } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -9,8 +9,7 @@ import type { ReportChrome } from '@/lib/reports'
 import { BrandMark } from '@/components/shared/brand-mark'
 
 interface Tenant { id: string; name: string }
-interface Person { id: string; full_name: string; email: string; tenant_id: string | null }
-interface Group { id: string; name: string; tenant_id: string | null }
+interface Target { id: string; label: string; email?: string }
 
 interface ReportTable { heading: string; columns: string[]; rows: (string | number)[][] }
 interface Report { title: string; subtitle: string; university?: string; generatedAt: string; lang?: 'ar' | 'en'; tables: ReportTable[]; chrome: ReportChrome }
@@ -23,11 +22,19 @@ type Lang = 'ar' | 'en'
 // report (`report.chrome`) and only the date-formatting locale lives here.
 const DATE_LOCALE: Record<Lang, string> = { ar: 'ar-u-ca-gregory-nu-latn', en: 'en-GB' }
 
-interface Props { tenants: Tenant[]; teachers: Person[]; groups: Group[]; students: Person[] }
+interface Props { tenants: Tenant[] }
 
 const SCOPES: Scope[] = ['university', 'teacher', 'group', 'student', 'pilot']
 
-export function ReportsClient({ tenants, teachers, groups, students }: Props) {
+// What the report-targets search looks for; 'group' and 'pilot' both pick a group.
+const KIND: Record<Exclude<Scope, 'university'>, 'teacher' | 'student' | 'group'> = {
+  teacher: 'teacher', student: 'student', group: 'group', pilot: 'group',
+}
+
+// Typing waits this long before asking the server (one request per pause, not per key).
+const SEARCH_DELAY_MS = 300
+
+export function ReportsClient({ tenants }: Props) {
   const t = useTranslations('superAdmin.reports')
   const [scope, setScope] = useState<Scope>('university')
   const [lang, setLang] = useState<Lang>('ar')
@@ -36,13 +43,41 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const entities = useMemo(() => {
-    if (scope === 'university') return tenants.map(x => ({ id: x.id, label: x.name }))
-    if (scope === 'teacher') return teachers.map(x => ({ id: x.id, label: `${x.full_name} — ${x.email}` }))
-    if (scope === 'student') return students.map(s => ({ id: s.id, label: `${s.full_name} — ${s.email}` }))
-    // 'group' and 'pilot' both select from the same groups list.
-    return groups.map(g => ({ id: g.id, label: g.name }))
-  }, [scope, tenants, teachers, groups, students])
+  // Teachers, students and groups are found on demand inside one institution
+  // (/api/admin/report-targets, ≤ 20 per search) — the platform's people never
+  // reach the page. A whole-institution report still picks from `tenants`.
+  const [tenantId, setTenantId] = useState('')
+  const [query, setQuery] = useState('')
+  const [found, setFound] = useState<Target[] | null>(null)
+  const searchSeq = useRef(0)
+  const kind = scope === 'university' ? null : KIND[scope]
+
+  useEffect(() => {
+    const q = query.trim()
+    const mine = ++searchSeq.current
+    if (!kind || !tenantId || !q) return
+    const timer = setTimeout(async () => {
+      const params = new URLSearchParams({ kind, tenant_id: tenantId, q })
+      const res = await fetch(`/api/admin/report-targets?${params}`)
+      const data = await res.json().catch(() => ({}))
+      if (mine !== searchSeq.current) return // a newer search superseded this one
+      setFound(res.ok ? (data.results ?? []) : [])
+    }, SEARCH_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [kind, tenantId, query])
+
+  // Nothing typed (or no institution) ⇒ no results, whatever an older search returned.
+  const searched = kind && tenantId && query.trim() ? found : null
+  const entities = scope === 'university'
+    ? tenants.map(x => ({ id: x.id, label: x.name }))
+    : (searched ?? []).map(x => ({ id: x.id, label: x.email ? `${x.label} — ${x.email}` : x.label }))
+
+  // Results and the pick belong to the search they came from: changing the
+  // institution or the text clears both, so nothing from an older search (or
+  // another institution) can be picked, and «View report» never acts on a row
+  // that is not listed.
+  function chooseTenant(id: string) { setTenantId(id); setFound(null); setEntityId(''); setReport(null) }
+  function search(text: string) { setQuery(text); setFound(null); setEntityId('') }
 
   async function generate() {
     if (!entityId) { setError(t('chooseFirst')); return }
@@ -95,7 +130,7 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
             {SCOPES.map(s => (
               <button
                 key={s}
-                onClick={() => { setScope(s); setEntityId(''); setReport(null) }}
+                onClick={() => { setScope(s); setEntityId(''); setReport(null); setQuery(''); setFound(null) }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   scope === s ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 text-slate-400 hover:border-slate-600'
                 }`}
@@ -123,14 +158,45 @@ export function ReportsClient({ tenants, teachers, groups, students }: Props) {
           </div>
         </div>
 
+        {kind && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('institution')}</label>
+              <select
+                value={tenantId}
+                onChange={e => chooseTenant(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">{t('chooseInstitution')}</option>
+                {tenants.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('searchLabel')}</label>
+              <input
+                value={query}
+                onChange={e => search(e.target.value)}
+                disabled={!tenantId}
+                placeholder={kind === 'group' ? t('searchGroups') : t('searchPeople')}
+                className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              />
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">{t('choose', { scope: t(`scopes.${scope}`) })}</label>
           <select
             value={entityId}
             onChange={e => setEntityId(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={!!kind && searched === null}
+            className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="">{t('chooseOption')}</option>
+            <option value="">
+              {kind && searched === null ? t('typeToSearch')
+                : kind && entities.length === 0 ? t('noResults')
+                : t('chooseOption')}
+            </option>
             {entities.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
           </select>
         </div>

@@ -130,6 +130,11 @@
   },
   "unknown": "Unknown",
   "centreTrainee": "Centre trainee",
+  "pagination": {
+    "prev": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {pages}"
+  },
   "announcementBanner": {
     "badge": "Announcement",
     "learnMore": "Learn more",
