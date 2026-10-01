@@ -2094,3 +2094,104 @@ GRANT EXECUTE ON FUNCTION public.get_tenant_role_counts() TO authenticated;
 
 COMMENT ON FUNCTION public.get_tenant_role_counts() IS
   'Owner only: per-institution counts of university_admin / teacher / student accounts (any status). Batch 2.';
+
+-- ============================================================
+-- Content feeds (Batch 3, P-02 + P-04) — supabase/content_feeds_migration.sql
+-- question_count(exams): PostgREST computed field (INVOKER).
+-- get_admin_content_counts / get_admin_lessons_page / get_admin_exams_page:
+-- bounded university_admin metadata feeds (DEFINER, same guard as
+-- get_admin_lessons / get_admin_exams).
+-- ============================================================
+-- ── P-04: computed field ────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.question_count(e public.exams)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+  SELECT CASE WHEN jsonb_typeof(e.questions) = 'array' THEN jsonb_array_length(e.questions) ELSE 0 END;
+$$;
+
+REVOKE ALL ON FUNCTION public.question_count(public.exams) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.question_count(public.exams) TO authenticated;
+
+-- ── P-02: counts ────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.get_admin_content_counts()
+RETURNS TABLE (lessons bigint, published_lessons bigint, exams bigint, homework bigint, submissions bigint)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  WITH me AS (
+    SELECT (SELECT public.current_tenant_id()) AS tenant_id
+    WHERE (SELECT public.current_user_role()) = 'university_admin'
+  )
+  SELECT
+    (SELECT count(*) FROM public.lessons l, me WHERE l.tenant_id = me.tenant_id AND l.deleted_at IS NULL),
+    (SELECT count(*) FROM public.lessons l, me WHERE l.tenant_id = me.tenant_id AND l.deleted_at IS NULL AND l.is_published),
+    (SELECT count(*) FROM public.exams e, me WHERE e.tenant_id = me.tenant_id AND e.deleted_at IS NULL
+       AND NOT (COALESCE(e.type, '') = 'homework' OR COALESCE(e.duration_minutes, 0) <= 0 OR e.duration_minutes >= 43200)),
+    (SELECT count(*) FROM public.exams e, me WHERE e.tenant_id = me.tenant_id AND e.deleted_at IS NULL
+       AND (COALESCE(e.type, '') = 'homework' OR COALESCE(e.duration_minutes, 0) <= 0 OR e.duration_minutes >= 43200)),
+    (SELECT count(*) FROM public.exam_submissions s JOIN public.exams e ON e.id = s.exam_id, me
+       WHERE e.tenant_id = me.tenant_id AND e.deleted_at IS NULL)
+  FROM me;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_admin_content_counts() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_admin_content_counts() TO authenticated;
+
+-- ── P-02: lessons, one page ─────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.get_admin_lessons_page(p_limit integer, p_offset integer)
+RETURNS TABLE (id uuid, title text, is_published boolean, created_at timestamptz,
+               teacher_name text, group_name text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT l.id, l.title, l.is_published, l.created_at, t.full_name, g.name
+  FROM public.lessons l
+  LEFT JOIN public.users t ON t.id = l.teacher_id
+  LEFT JOIN public.groups g ON g.id = l.group_id
+  WHERE l.deleted_at IS NULL
+    AND (SELECT public.current_user_role()) = 'university_admin'
+    AND l.tenant_id = (SELECT public.current_tenant_id())
+  ORDER BY l.created_at DESC, l.id
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 100)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
+$$;
+
+REVOKE ALL ON FUNCTION public.get_admin_lessons_page(integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_admin_lessons_page(integer, integer) TO authenticated;
+
+-- ── P-02: exams or homework, one page ───────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.get_admin_exams_page(p_homework boolean, p_limit integer, p_offset integer)
+RETURNS TABLE (id uuid, title text, type text, duration_minutes integer, is_published boolean,
+               proctoring_enabled boolean, created_at timestamptz, teacher_name text, group_name text,
+               submission_count bigint)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT e.id, e.title, e.type, e.duration_minutes, e.is_published, e.proctoring_enabled, e.created_at,
+         t.full_name, g.name,
+         (SELECT count(*) FROM public.exam_submissions s WHERE s.exam_id = e.id)
+  FROM public.exams e
+  LEFT JOIN public.users t ON t.id = e.teacher_id
+  LEFT JOIN public.groups g ON g.id = e.group_id
+  WHERE e.deleted_at IS NULL
+    AND (SELECT public.current_user_role()) = 'university_admin'
+    AND e.tenant_id = (SELECT public.current_tenant_id())
+    AND (COALESCE(e.type, '') = 'homework' OR COALESCE(e.duration_minutes, 0) <= 0 OR e.duration_minutes >= 43200)
+        = COALESCE(p_homework, false)
+  ORDER BY e.created_at DESC, e.id
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 100)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
+$$;
+
+REVOKE ALL ON FUNCTION public.get_admin_exams_page(boolean, integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_admin_exams_page(boolean, integer, integer) TO authenticated;

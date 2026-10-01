@@ -6,23 +6,14 @@ import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { ClipboardList, ShieldCheck, Eye, EyeOff, Users, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { ListPagination } from '@/components/shared/list-pagination'
+import { loadAdminContentCounts, loadAdminExamsPage, type AdminExamRow } from '@/lib/data/admin-content'
 
 // Institution-wide exam + homework browser for university_admin.
 // Homework and formal exams live in the same `exams` table, separated by
 // `type` (with a sentinel duration for untimed homework), so this page
 // splits them into two sections rather than showing one ambiguous list.
-interface ExamRow {
-  id: string
-  title: string
-  type: string | null
-  duration_minutes: number
-  is_published: boolean
-  proctoring_enabled: boolean
-  created_at: string
-  teacher_name: string | null
-  group_name: string | null
-  submission_count: number
-}
+type ExamRow = AdminExamRow
 
 const isHomework = (e: ExamRow) =>
   e.type === 'homework' || e.duration_minutes <= 0 || e.duration_minutes >= 43200
@@ -93,26 +84,33 @@ function Table({ rows, homework, t, locale }: { rows: ExamRow[]; homework: boole
   )
 }
 
-export default async function AdminExamsPage() {
+export default async function AdminExamsPage({ searchParams }: { searchParams: Promise<{ page?: string; hwpage?: string }> }) {
   const t = await getTranslations('admin.content')
   const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { data: raw } = await supabase.rpc('get_admin_exams')
-
-  const all = (raw ?? []) as unknown as ExamRow[]
-  const homework = all.filter(isHomework)
-  const exams = all.filter(e => !isHomework(e))
-  const submissions = all.reduce((s, e) => s + (e.submission_count ?? 0), 0)
+  // One page of exams (?page=) and one of homework (?hwpage=), split in the
+  // database by the same rule as isHomework; the summary is counted there too.
+  const params = await searchParams
+  const { counts } = await loadAdminContentCounts(supabase)
+  const [{ data: examPage, error: examErr }, { data: hwPage, error: hwErr }] = await Promise.all([
+    loadAdminExamsPage(supabase, false, params.page, counts.exams),
+    loadAdminExamsPage(supabase, true, params.hwpage, counts.homework),
+  ])
+  if (examErr || hwErr) console.error('[admin/exams]', examErr ?? hwErr)
+  const exams = examPage.rows
+  const homework = hwPage.rows
+  const all = [...exams, ...homework]
+  const submissions = counts.submissions
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">{t('exams.title')}</h2>
         <p className="text-slate-400 mt-1">
-          {t('exams.summary', { exams: exams.length, homework: homework.length, submissions })}
+          {t('exams.summary', { exams: counts.exams, homework: counts.homework, submissions })}
         </p>
       </div>
 
@@ -128,12 +126,14 @@ export default async function AdminExamsPage() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">🕒 {t('exams.sectionExams')}</h3>
               <Table rows={exams} homework={false} t={t} locale={locale} />
+              <ListPagination page={examPage.page} pageCount={examPage.pageCount} />
             </div>
           )}
           {homework.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">📋 {t('exams.sectionHomework')}</h3>
               <Table rows={homework} homework t={t} locale={locale} />
+              <ListPagination page={hwPage.page} pageCount={hwPage.pageCount} param="hwpage" />
             </div>
           )}
         </div>

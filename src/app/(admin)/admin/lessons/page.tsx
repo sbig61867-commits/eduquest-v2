@@ -6,39 +6,33 @@ import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { BookOpen, Eye, EyeOff, Users } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { ListPagination } from '@/components/shared/list-pagination'
+import { loadAdminContentCounts, loadAdminLessonsPage } from '@/lib/data/admin-content'
 
 // Institution-wide lesson browser for university_admin. The admin is a
 // pure administrator: RLS no longer grants them direct row access to
 // lessons (that would expose lessons.content). Instead we read the
-// get_admin_lessons() SECURITY DEFINER feed, which returns metadata only
-// (title / teacher / group / status / date) — never the lesson body.
-interface LessonRow {
-  id: string
-  title: string
-  is_published: boolean
-  created_at: string
-  teacher_name: string | null
-  group_name: string | null
-}
-
-export default async function AdminLessonsPage() {
+// get_admin_lessons_page() SECURITY DEFINER feed, which returns metadata only
+// (title / teacher / group / status / date) — never the lesson body — one
+// page at a time, with the totals from get_admin_content_counts().
+export default async function AdminLessonsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const t = await getTranslations('admin.content')
   const locale = (await getLocale()) as Locale
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user?.tenant_id) redirect('/login')
 
-  const { data: raw } = await supabase.rpc('get_admin_lessons')
-
-  const lessons = (raw ?? []) as unknown as LessonRow[]
-  const published = lessons.filter(l => l.is_published).length
+  const { counts } = await loadAdminContentCounts(supabase)
+  const { data: lessonPage, error } = await loadAdminLessonsPage(supabase, (await searchParams).page, counts.lessons)
+  if (error) console.error('[admin/lessons]', error)
+  const lessons = lessonPage.rows
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-white">{t('lessons.title')}</h2>
         <p className="text-slate-400 mt-1">
-          {t('lessons.summary', { count: lessons.length, published })}
+          {t('lessons.summary', { count: counts.lessons, published: counts.publishedLessons })}
         </p>
       </div>
 
@@ -95,6 +89,7 @@ export default async function AdminLessonsPage() {
           </table>
         </div>
       )}
+      {lessonPage.pageCount > 1 && <ListPagination page={lessonPage.page} pageCount={lessonPage.pageCount} />}
     </div>
   )
 }

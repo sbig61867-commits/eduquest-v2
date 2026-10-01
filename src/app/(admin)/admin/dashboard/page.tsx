@@ -10,12 +10,11 @@ import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatDate } from '@/lib/utils'
 import { AiAllowanceCard } from '@/components/shared/ai-allowance-card'
+import { loadAdminContentCounts, loadAdminLessonsPage } from '@/lib/data/admin-content'
 
 // Lesson/exam figures come from the metadata-only admin feeds (the admin
 // has no direct RLS read on lessons/exams — that would expose content and
 // questions). Teacher/student counts stay on `users`, which the admin can read.
-interface AdminLessonMeta { id: string; title: string; created_at: string; is_published: boolean; teacher_name: string | null }
-
 async function getStats(supabase: SupabaseClient, tenantId: string, lessons: number, exams: number) {
   const [{ count: teachers }, { count: students }] = await Promise.all([
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
@@ -33,21 +32,22 @@ export default async function AdminDashboard() {
   const tenantId = user.tenant_id
   if (!tenantId) redirect('/login?error=no_tenant')
 
-  // Metadata-only admin feeds (no content / no questions). Recent lessons
-  // stand in as the activity feed until a dedicated audit table exists.
-  const [{ data: lessonRows }, { data: examRows }] = await Promise.all([
-    supabase.rpc('get_admin_lessons'),
-    supabase.rpc('get_admin_exams'),
+  // Metadata-only admin feeds (no content / no questions): one row of counts
+  // and the 5 newest lessons — never the institution's whole lesson / exam list.
+  // Recent lessons stand in as the activity feed until a dedicated audit table exists.
+  const [{ counts }, { data: recent }] = await Promise.all([
+    loadAdminContentCounts(supabase),
+    loadAdminLessonsPage(supabase, 1, 5, 5),
   ])
-  const allLessons = (lessonRows ?? []) as unknown as AdminLessonMeta[]
   const [stats, settings] = await Promise.all([
-    getStats(supabase, tenantId, allLessons.length, (examRows ?? []).length),
+    // «Exams» counted every exam row, homework included — unchanged.
+    getStats(supabase, tenantId, counts.lessons, counts.exams + counts.homework),
     getTenantSettings(supabase, tenantId),
   ])
   const t = await getTranslations('admin.dashboard')
   const locale = (await getLocale()) as Locale
   const terms = getTerms(settings.institution_type, locale)
-  const activity = allLessons.slice(0, 5)
+  const activity = recent.rows
 
   const cards = [
     { label: t('cards.teachers'), value: stats.teachers, icon: GraduationCap, color: 'text-blue-400', bg: 'bg-blue-500/10' },

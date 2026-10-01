@@ -19,15 +19,12 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/(center)/center/groups/page.tsx': 1,
   'app/(student)/student/courses/page.tsx': 2,
   'app/(student)/student/exams/page.tsx': 1,
-  'app/(student)/student/lessons/page.tsx': 1,
   'app/(student)/student/profile/page.tsx': 1,
   'app/(super-admin)/super-admin/tenants/page.tsx': 1,
   'app/(teacher)/teacher/courses/[id]/page.tsx': 3,
   'app/(teacher)/teacher/courses/page.tsx': 1,
-  'app/(teacher)/teacher/exams/page.tsx': 2,
   'app/(teacher)/teacher/groups/page.tsx': 1,
   'app/(teacher)/teacher/lessons/[id]/page.tsx': 2,
-  'app/(teacher)/teacher/lessons/page.tsx': 1,
   'app/api/admin/create-user/route.ts': 1,
   'app/api/admin/tenant-users/route.ts': 1,
   'app/api/appeals/report/route.ts': 1,
@@ -68,7 +65,7 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(student)/student/dashboard/page.tsx': 1,
   'app/(student)/student/exams/page.tsx': 2,
   'app/(student)/student/grades/page.tsx': 2,
-  'app/(student)/student/lessons/page.tsx': 3,
+  'app/(student)/student/lessons/page.tsx': 2,
   'app/(student)/student/notifications/page.tsx': 1,
   'app/(student)/student/profile/page.tsx': 4,
   'app/(super-admin)/super-admin/invitations/page.tsx': 1,
@@ -84,9 +81,9 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(teacher)/teacher/groups/page.tsx': 1,
   'app/(teacher)/teacher/invitations/page.tsx': 1,
   'app/(teacher)/teacher/lessons/[id]/page.tsx': 2,
-  'app/(teacher)/teacher/lessons/page.tsx': 2,
+  'app/(teacher)/teacher/lessons/page.tsx': 1,
   'app/(teacher)/teacher/proctoring/live/[examId]/live-monitor.tsx': 1,
-  'app/(teacher)/teacher/proctoring/page.tsx': 3,
+  'app/(teacher)/teacher/proctoring/page.tsx': 2,
   'app/api/admin/delete-tenant/route.ts': 1,
   'app/api/admin/member-lookup/route.ts': 2,
   'app/api/admin/tenant-users/route.ts': 1,
@@ -129,8 +126,4 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
 }
 
 /** Calls to the heavy feeds listed in HEAVY_FEEDS (perf-contract-scan.ts). */
-export const HEAVY_FEED_CALLS: Readonly<Record<string, number>> = {
-  'app/(admin)/admin/dashboard/page.tsx': 2,
-  'app/(admin)/admin/exams/page.tsx': 1,
-  'app/(admin)/admin/lessons/page.tsx': 1,
-}
+export const HEAVY_FEED_CALLS: Readonly<Record<string, number>> = {}

@@ -6,11 +6,13 @@ import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users, Radio, ClipboardP
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
-import type { ProctoringEvent, Question } from '@/types'
+import type { ProctoringEvent } from '@/types'
 import { AppealReviewList, type AppealRow } from '@/components/teacher/appeal-review-list'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { coveragePercent, eventKind, parseMonitoringSummary } from '@/lib/proctoring-events'
+import { loadProctoringPage } from '@/lib/data/proctoring'
+import { ListPagination } from '@/components/shared/list-pagination'
 
 type ViolationIconKey = keyof typeof VIOLATION_ICONS
 
@@ -33,32 +35,18 @@ const VIOLATION_ICONS = {
 // Low coverage worth a warning: the detectors watched less than this share.
 const LOW_COVERAGE_PCT = 80
 
-interface ExamRow { title: string; teacher_id: string; proctoring_enabled: boolean; questions: Question[] }
-interface UserRow  { full_name: string; email: string }
-interface SubmissionRow {
-  id: string
-  score: number
-  submitted_at: string
-  proctoring_events: ProctoringEvent[]
-  exams: ExamRow | null
-  users: UserRow | null
-}
-
-export default async function ProctoringReportsPage() {
+export default async function ProctoringReportsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
   const t = await getTranslations('teacher')
   const locale = (await getLocale()) as Locale
 
-  const { data: raw } = await supabase
-    .from('exam_submissions')
-    .select('id, score, submitted_at, proctoring_events, exams!inner(title, teacher_id, proctoring_enabled, questions), users(full_name, email)')
-    .eq('exams.teacher_id', user.id)
-    .eq('exams.proctoring_enabled', true)
-    .order('submitted_at', { ascending: false })
-
-  const submissions = (raw ?? []) as unknown as SubmissionRow[]
+  // One page of 20 (newest first) + the totals from the database — never every
+  // submission with its exam's questions (src/lib/data/proctoring.ts).
+  const { data: proctored, error: proctoredErr } = await loadProctoringPage(supabase, user.id, (await searchParams).page)
+  if (proctoredErr) console.error('[teacher/proctoring]', proctoredErr)
+  const submissions = proctored.rows
 
   const { data: pendingAppeals } = await supabase
     .from('exam_appeals')
@@ -67,9 +55,6 @@ export default async function ProctoringReportsPage() {
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
 
-  const violationCount = (s: SubmissionRow) => (s.proctoring_events ?? []).filter(e => eventKind(e.type) === 'violation').length
-  const flagged = submissions.filter(s => violationCount(s) > 0)
-  const clean   = submissions.filter(s => violationCount(s) === 0)
 
   const { data: liveExams } = await supabase
     .from('exams')
@@ -111,15 +96,15 @@ export default async function ProctoringReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
           <p className="text-slate-400 text-sm mb-1">{t('proctoring.totalSubmissions')}</p>
-          <p className="text-3xl font-bold text-white">{submissions.length}</p>
+          <p className="text-3xl font-bold text-white">{proctored.total}</p>
         </div>
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
           <p className="text-slate-400 text-sm mb-1">{t('proctoring.flagged')}</p>
-          <p className="text-3xl font-bold text-red-400">{flagged.length}</p>
+          <p className="text-3xl font-bold text-red-400">{proctored.flagged}</p>
         </div>
         <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-5">
           <p className="text-slate-400 text-sm mb-1">{t('proctoring.clean')}</p>
-          <p className="text-3xl font-bold text-emerald-400">{clean.length}</p>
+          <p className="text-3xl font-bold text-emerald-400">{proctored.total - proctored.flagged}</p>
         </div>
       </div>
 
@@ -141,7 +126,9 @@ export default async function ProctoringReportsPage() {
             const coverage = summary ? coveragePercent(summary) : null
             const isFlagged = events.length > 0
             const label = (type: string) => (t.has(`proctoring.eventTypes.${type}`) ? t(`proctoring.eventTypes.${type}`) : type)
-            const max = sub.exams?.questions?.reduce((a, q) => a + q.points, 0) || 1
+            // max_score = the sum of the question points, written when the attempt is
+            // submitted (what the page used to add up); an open attempt has none yet.
+            const max = sub.max_score || 1
             const pct = Math.round(((sub.score ?? 0) / max) * 100)
 
             return (
@@ -230,6 +217,7 @@ export default async function ProctoringReportsPage() {
               </div>
             )
           })}
+          {proctored.pageCount > 1 && <ListPagination page={proctored.page} pageCount={proctored.pageCount} />}
         </div>
       )}
     </div>

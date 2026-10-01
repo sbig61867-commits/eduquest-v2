@@ -21,6 +21,8 @@
     "lessonCount": "{count, plural, =0 {No lessons} one {# lesson} other {# lessons}}",
     "emptyTitle": "No lessons available yet.",
     "emptyHint": "Your teacher will publish lessons as the course goes on.",
+    "loading": "Loading the lesson…",
+    "loadFailed": "Could not load the lesson — close it and open it again",
     "otherSubject": "Other",
     "homeworkTitle": "Homework for this lesson",
     "homeworkDue": "Due: {date}",

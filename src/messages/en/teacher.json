@@ -240,6 +240,7 @@
       }
     },
     "questionsViewer": {
+      "loadFailed": "Could not load the questions",
       "titlePrefix": "Questions: {title}",
       "summary": "{count, plural, one {# question} other {# questions}} · Full marks:"
     },

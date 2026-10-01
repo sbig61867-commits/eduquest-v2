@@ -21,6 +21,8 @@
     "lessonCount": "{count, plural, zero {لا دروس} one {درس واحد} two {درسان} few {{count} دروس} many {{count} درساً} other {{count} درس}}",
     "emptyTitle": "لا توجد دروس متاحة بعد.",
     "emptyHint": "سينشر معلمك الدروس مع تقدّم المساق.",
+    "loading": "جارٍ تحميل الدرس…",
+    "loadFailed": "تعذّر تحميل الدرس — أغلقه وافتحه مرة أخرى",
     "otherSubject": "أخرى",
     "homeworkTitle": "واجبات هذا الدرس",
     "homeworkDue": "موعد التسليم: {date}",

@@ -13,12 +13,20 @@ import { formatDate } from '@/lib/utils'
 import { AiQuota } from '@/components/shared/ai-quota'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
+import { createClient } from '@/lib/supabase/client'
+import { toLessonRow, type TeacherLessonRow } from '@/lib/data/teacher-lessons'
+import { ListPagination } from '@/components/shared/list-pagination'
 
-interface Lesson { id: string; title: string; content: string | null; is_published: boolean; created_at: string; groups: { name: string } | null }
+type Lesson = TeacherLessonRow
 interface Group { id: string; name: string }
-interface Props { initialLessons: Lesson[]; groups: Group[] }
+interface Props {
+  initialLessons: Lesson[]
+  groups: Group[]
+  /** One page of the teacher's lessons (server-paginated); `total` is the database count. */
+  pagination: { page: number; pageCount: number; total: number }
+}
 
-export function LessonsClient({ initialLessons, groups }: Props) {
+export function LessonsClient({ initialLessons, groups, pagination }: Props) {
   const router = useRouter()
   const t = useTranslations('teacher')
   const locale = useLocale() as Locale
@@ -38,7 +46,13 @@ export function LessonsClient({ initialLessons, groups }: Props) {
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
   function openAdd() { setForm({ title: '', content: '', group_id: groups[0]?.id ?? '' }); setEditing(null); setMethod('manual'); setAiTopic(''); setAiError(''); setFormError(''); setShowModal(true) }
-  function openEdit(l: Lesson) { setForm({ title: l.title, content: l.content ?? '', group_id: '' }); setEditing(l); setMethod('manual'); setAiError(''); setFormError(''); setShowModal(true) }
+  // The list carries only an excerpt; the lesson body is read when it is edited
+  // (the teacher's own session — RLS decides, exactly as for the list).
+  async function openEdit(l: Lesson) {
+    const { data, error } = await createClient().from('lessons').select('content').eq('id', l.id).single()
+    if (error) { toast.error(error.message); return }
+    setForm({ title: l.title, content: (data?.content as string | null) ?? '', group_id: '' }); setEditing(l); setMethod('manual'); setAiError(''); setFormError(''); setShowModal(true)
+  }
 
   async function generateWithAI() {
     if (!aiTopic) return
@@ -79,7 +93,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
         })
         const data = await res.json()
         if (!res.ok) { setFormError(data.error); setLoading(false); return }
-        setLessons(prev => prev.map(l => l.id === editing.id ? data : l))
+        setLessons(prev => prev.map(l => l.id === editing.id ? toLessonRow(data) : l))
       } else {
         const res = await fetch('/api/lessons', {
           method: 'POST',
@@ -88,7 +102,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
         })
         const data = await res.json()
         if (!res.ok) { setFormError(data.error); setLoading(false); return }
-        setLessons(prev => [data, ...prev])
+        setLessons(prev => [toLessonRow(data), ...prev])
         if (method === 'file') {
           setShowModal(false)
           router.push(`/teacher/lessons/${data.id}?generate=file`)
@@ -110,7 +124,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       body: JSON.stringify({ id: lesson.id, is_published: !lesson.is_published }),
     })
     const data = await res.json()
-    if (res.ok) { setLessons(prev => prev.map(l => l.id === lesson.id ? data : l)); router.refresh() }
+    if (res.ok) { setLessons(prev => prev.map(l => l.id === lesson.id ? toLessonRow(data) : l)); router.refresh() }
     else toast.error(data.error)
   }
 
@@ -134,7 +148,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">{t('lessons.title')}</h2>
-          <p className="text-slate-400 mt-1">{t('lessons.subtitle', { count: lessons.length })}</p>
+          <p className="text-slate-400 mt-1">{t('lessons.subtitle', { count: pagination.total })}</p>
         </div>
         <Button onClick={openAdd}><Plus className="w-4 h-4" /> {t('lessons.newLesson')}</Button>
       </div>
@@ -156,7 +170,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
                     <Badge variant={lesson.is_published ? 'green' : 'gray'}>{lesson.is_published ? t('lessons.published') : t('lessons.draft')}</Badge>
                   </div>
                   <p className="text-slate-400 text-sm">{lesson.groups?.name ?? '—'} · {formatDate(lesson.created_at, locale)}</p>
-                  {lesson.content && <p className="text-slate-500 text-sm mt-2 line-clamp-2">{lesson.content.replace(/[#*`]/g, '').slice(0, 150)}...</p>}
+                  {lesson.excerpt && <p className="text-slate-500 text-sm mt-2 line-clamp-2">{lesson.excerpt}...</p>}
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <Button variant="secondary" size="sm" onClick={() => router.push(`/teacher/lessons/${lesson.id}`)}>
@@ -171,6 +185,7 @@ export function LessonsClient({ initialLessons, groups }: Props) {
               </div>
             </div>
           ))}
+          {pagination.pageCount > 1 && <ListPagination page={pagination.page} pageCount={pagination.pageCount} />}
         </div>
       )}
 

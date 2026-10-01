@@ -306,6 +306,18 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   identical apart from the new function; `/super-admin/users` live shows the function's counts (edge log:
   `rpc/get_tenant_role_counts` 200, no users read).
 
+- `content_feeds_migration.sql` (Batch 3, P-02 + P-04) — four functions, nothing else: `question_count(exams)`
+  (PostgREST computed field, INVOKER) so `/teacher/exams` selects named columns + the count instead of every
+  question; `get_admin_content_counts()`, `get_admin_lessons_page(limit, offset)`,
+  `get_admin_exams_page(homework, limit, offset)` (DEFINER, same guard / columns / metadata-only rule as
+  `get_admin_lessons` / `get_admin_exams`, which stay untouched for the code still in production) so the admin
+  dashboard and `/admin/lessons` / `/admin/exams` stop reading every lesson / exam. Rollback: `DROP FUNCTION` the
+  four (file header). ✅ 2026-10-01 — dry run 21/21 (migration executed inside the rolled-back check), green DB
+  backup (run 36913850532), applied via Supabase MCP exactly as the file (stored text md5 = file md5); live:
+  `supabase/tests/content_feeds_check.sql` 16/16 (incl. no EXECUTE to PUBLIC), anon REST 401 on all four,
+  DEFINER / INVOKER and pinned `search_path` as designed, every other function / policy / index / table grant
+  and the data unchanged, security advisor shows nothing new. Apply-before-deploy: the code is not deployed yet.
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
 None as of 2026-10-01.
