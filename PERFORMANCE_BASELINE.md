@@ -413,6 +413,50 @@ is kept unchanged on purpose (scope) and stays in the `UNBOUNDED_READS` ratchet 
    although that student is no longer listed (the student is still a valid candidate). Pre-existing behaviour,
    unchanged by C-S/C-M.
 
+## Batch 2 — R1: entity picker of `/super-admin/reports`
+
+Check: `supabase/tests/report_picker_check.sql` (institution A: 20 000 students, 500 teachers, 1 000 groups, one
+archived; institution B: 5 000 students, 100 teachers, 10 groups; read through RLS as the owner; rolled back).
+The page now reads only the institutions; a teacher / student / group is found on demand inside ONE chosen
+institution: `GET /api/admin/report-targets?kind=teacher|student|group&tenant_id=…&q=…` →
+`searchReportTargets()` (`src/lib/data/report-targets.ts`). Owner only — role read from the database with the
+caller's session, as the page does; runs on that session (RLS), never the service role; `.limit(20)`; people
+by name OR email → `{id, label, email}`, groups by name → `{id, label}`. Same set as the old lists (teachers and
+students of any status; archived groups hidden by RLS). `/api/reports` and report generation are unchanged; the
+whole-institution report still picks from the institution list. Picking is cleared whenever the institution or
+the search text changes (no stale row, nothing from another institution).
+
+| | before | after |
+|---|---|---|
+| Read on every page load (synthetic platform) | teachers 601 (105 KB) + groups 1 010 (117 KB) + students 25 121 (4 370 KB) + institutions → **4 593 KB**, 164 ms | institutions only (3 rows, < 1 KB) |
+| Props reaching the browser (real component input) | **2 786 KB** | 79 B |
+| One search | — (all rows already in the page) | ≤ 20 rows: students 2.5 KB / 43 ms, teachers 1.3 KB / 4 ms, groups 1.4 KB / 18 ms |
+| Picker DOM, «Student» chosen (real component, exact) | **25 159 nodes** | 49 before typing · 69 with 20 results |
+
+The jsdom render time of the old 25 121-option list (129 s, on battery) is not representative and is not
+counted; the node count is exact. Checks (SQL): a disabled student is still found (P1, as the old list), an
+institution-B search returns only B rows (P2), the archived group is not offered (P3), a B name never matches
+inside A (P4), an institution admin reads 0 rows of B (P5); nothing left behind. Unit: route 401 / 403 for every
+non-owner role before any search / 400 for bad kind, missing / malformed / injected institution, empty or
+wildcard-only query / 200 `{results}` ≤ 20 with `id, label, email` only, session client only, no write; the page
+reads only `tenants` and redirects a non-owner before reading; component: no request until institution AND
+text, one request per pause, labels «name — email», kind per scope (pilot → group), stale answers ignored,
+pick cleared on institution / text change, `/api/reports` URL unchanged. A mutation check (owner gate removed)
+fails 4 tests. Ratchet: `super-admin/reports/page.tsx` unbounded reads 4 → 1.
+**Verified live (2026-10-01, mains power, production build on localhost; the owner signed in himself; GET only)**
+against the two real institutions (A: 1 teacher, 121 students, 1 group; B: 1 teacher, 1 student, 0 groups):
+both institutions listed; A teacher / student (by name and by email) / group and B teacher / student each found
+alone; «معلم» in A does not return B's «معلم في جامعة الازهر»; 6 cross-institution searches (B's people in A, A's
+student / teacher / group in B, a teacher under kind=student) → 0; broad searches in A → exactly 20; fields
+`id, label, email` (groups `id, label`); bad kind / missing, malformed or injected institution / empty or
+wildcard query → 400; unknown institution and an injection in `q` → 200 with 0. UI: one request per typed word;
+switching institution clears results, pick and report (same text in B → «No match»); refining the text clears
+the pick (View disabled). «View report» → `GET /api/reports?scope=student&id=…&format=json&lang=ar` 200 (same URL;
+report generation has no write). A teacher session: page redirected, route 403 for all kinds. Database
+fingerprint (users md5, 128 users, 16 memberships, 2 AI-log rows, 2 tenants, 1 group) identical before and
+after. Full suite 943/943 and the production build passed on mains power. Server log: only two connect
+timeouts to Supabase at start-up (network), no route error.
+
 ## Separate open point — browser HTTP 400 during account switching (not part of Batch 2)
 
 Status: **open, deliberately not investigated now** (owner's decision, 2026-10-01).

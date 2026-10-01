@@ -73,7 +73,7 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(student)/student/profile/page.tsx': 4,
   'app/(super-admin)/super-admin/invitations/page.tsx': 1,
   'app/(super-admin)/super-admin/permissions/page.tsx': 1,
-  'app/(super-admin)/super-admin/reports/page.tsx': 4,
+  'app/(super-admin)/super-admin/reports/page.tsx': 1,
   'app/(super-admin)/super-admin/tenants/page.tsx': 1,
   'app/(super-admin)/super-admin/users/page.tsx': 3,
   'app/(teacher)/teacher/attendance/page.tsx': 1,
