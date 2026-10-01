@@ -290,6 +290,37 @@ export async function searchStudents(
   return { rows, error: null }
 }
 
+/**
+ * Recipient search of /center/mail: at most STUDENT_SEARCH_LIMIT active students
+ * of the institution whose name or email matches `q` — the same set and fields
+ * (id, name, email) the page used to send for EVERY active student. Runs on the
+ * caller's session (RLS); tenant / role / active are defence in depth. An empty
+ * `q` touches no table.
+ */
+export async function searchActiveStudents(
+  db: SupabaseClient,
+  tenantId: string,
+  q: string,
+): Promise<{ rows: StudentSearchRow[]; error: { message: string } | null }> {
+  const search = sanitizeSearch(q)
+  if (!search) return { rows: [], error: null }
+  const { data, error } = await db
+    .from('users')
+    .select('id, full_name, email')
+    .eq('tenant_id', tenantId)
+    .eq('role', 'student')
+    .eq('is_active', true)
+    .or(nameOrEmailFilter(search))
+    .order('full_name', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(STUDENT_SEARCH_LIMIT)
+  if (error) return { rows: [], error }
+  const rows = ((data ?? []) as unknown as StudentSearchRow[])
+    .slice(0, STUDENT_SEARCH_LIMIT)
+    .map(({ id, full_name, email }) => ({ id, full_name, email }))
+  return { rows, error: null }
+}
+
 /** A teacher embedded on a group/course row: teacher:users!…_teacher_id_fkey(full_name, role, is_active). */
 export interface EmbeddedTeacher {
   full_name: string | null

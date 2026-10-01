@@ -62,7 +62,7 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(center)/center/attendance/page.tsx': 1,
   'app/(center)/center/courses/page.tsx': 1,
   'app/(center)/center/groups/page.tsx': 2,
-  'app/(center)/center/mail/page.tsx': 2,
+  'app/(center)/center/mail/page.tsx': 1,
   'app/(student)/student/courses/[id]/page.tsx': 4,
   'app/(student)/student/courses/page.tsx': 4,
   'app/(student)/student/dashboard/page.tsx': 1,

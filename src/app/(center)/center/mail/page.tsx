@@ -2,24 +2,20 @@ export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
 import { NoPermission } from '@/components/shared/no-permission'
-import { MailClient, type Recipient, type RecipientGroup } from '@/components/mail/mail-client'
+import { MailClient, type RecipientGroup } from '@/components/mail/mail-client'
 
 export default async function CenterMailPage() {
   const { supabase, tenantId, has } = await loadCenterAccess()
   if (!has('manage_students')) return <NoPermission capability="manage_students" />
 
-  const [{ data: students }, { data: groups }] = await Promise.all([
-    supabase.from('users').select('id, full_name, email')
-      .eq('tenant_id', tenantId).eq('role', 'student').eq('is_active', true).order('full_name'),
-    supabase.from('groups').select('id, name, is_active, group_students(student_id)')
-      .eq('tenant_id', tenantId).eq('is_active', true).order('name'),
-  ])
+  // Students are found on demand (/api/mail/recipients, ≤ 20 per search) and a
+  // group is sent as its id and resolved on the server — the page carries
+  // neither the student body nor any group's member list, only each group's size.
+  const { data: groups } = await supabase.from('groups').select('id, name, group_students(count)')
+    .eq('tenant_id', tenantId).eq('is_active', true).order('name')
 
-  const recipients: Recipient[] = (students ?? []).map(s => ({
-    id: s.id as string, name: (s.full_name as string) || '—', email: s.email as string,
-  }))
-  const groupOptions: RecipientGroup[] = ((groups ?? []) as unknown as { id: string; name: string; group_students: { student_id: string }[] | null }[])
-    .map(g => ({ id: g.id, name: g.name, member_ids: (g.group_students ?? []).map(m => m.student_id) }))
+  const groupOptions: RecipientGroup[] = ((groups ?? []) as unknown as { id: string; name: string; group_students: { count: number }[] | null }[])
+    .map(g => ({ id: g.id, name: g.name, member_count: g.group_students?.[0]?.count ?? 0 }))
 
-  return <MailClient recipients={recipients} groups={groupOptions} />
+  return <MailClient groups={groupOptions} />
 }

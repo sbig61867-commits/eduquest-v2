@@ -457,6 +457,60 @@ fingerprint (users md5, 128 users, 16 memberships, 2 AI-log rows, 2 tenants, 1 g
 after. Full suite 943/943 and the production build passed on mains power. Server log: only two connect
 timeouts to Supabase at start-up (network), no route error.
 
+## Batch 2 — Centre Mail (`/center/mail`)
+
+Check: `supabase/tests/center_mail_recipients_check.sql` (institution A: 20 000 students, 1 000 active groups +
+1 disabled, ~19 000 memberships, a centre manager with `manage_students`; institution B: 2 000 students, 10
+groups; page reads as the centre manager through RLS; rolled back). Owner's decision: students are found on
+demand and «all students of a group» is sent as `group_id`, resolved on the server.
+- Page: only the active groups with a member COUNT (`group_students(count)`) — no student, no member id.
+- `GET /api/mail/recipients?q=` → `searchActiveStudents()` (`src/lib/data/people.ts`): ≤ 20 active students of the
+  caller's institution by name or email, `id, name, email`, on the session (RLS).
+- `POST /api/mail/recipients {recipient_ids, group_ids}` → `{count}` only — how many the selection reaches,
+  resolved exactly as the send resolves it (shown in the line under the list and in the confirmation).
+- `POST /api/mail/send` also accepts `group_ids`; `resolveMailRecipients()` (`src/lib/mail/recipients.ts`):
+  each group must be an ACTIVE, live group of the caller's institution (else 404 `groupNotFound`), contributing
+  its ACTIVE STUDENTS of that institution (what the old client kept), de-duplicated with the picks; ≤ 50 group
+  ids; member rows bounded (2 501 — if reached, the set is > 50 anyway). Then every existing rule applies to the
+  resolved set, unchanged: same gate (`getMailCaller`), ≤ 50 per request (a bigger group → 400
+  `tooManyRecipients`, as before), 300/day, active student/teacher of the tenant with an address, one
+  `mail_messages` row per attempt. The old body (`recipient_ids` only) works as before.
+
+| | before | after |
+|---|---|---|
+| Read on every page load | 17 778 students (2 237 KB, 89 ms) + 1 000 groups with 19 061 member ids (1 168 KB, 1 959 ms) | 1 000 groups + count (78 KB, 990 ms — the known RLS count cost, see C1) |
+| Props reaching the browser (real component input) | **1 765 KB** | 50 KB (group names + sizes) |
+| One search | — (filtered 17 778 rows in the browser) | ≤ 20 rows, 2.6 KB, 42 ms |
+| Mail component DOM (real component, exact) | **72 154 nodes** (17 778 checkboxes) | 1 043 nodes (1 000 of them the unchanged group menu) · 1 122 with 20 results |
+
+Checks (SQL): manager A reads 0 students / groups of B (P1); a B student never matches in A (P2); group 1
+resolves 72 active students of its 80 members — disabled left out (P3); a B group is not found in A (P4); a
+disabled group is not usable (P5); nothing left behind. Unit (Gmail mocked — no email sent anywhere):
+resolver query shape (tenant / active / live group, inner-joined active students of the tenant, bounded),
+foreign / malformed / too many groups refused before members are read; search gate (401, 403 for teacher,
+student, owner, centre manager without the capability), empty / wildcard query 400, ≤ 20 with id+name+email on
+the session; preview returns a number only and sends / logs nothing; send: union de-duplicated and logged per
+recipient, 51 → 400 with nothing sent or logged, exactly 50 allowed, daily cap on the resolved set, foreign
+group 404, all-disabled group 400, no capability 403 before any read, old body unchanged; page reads only
+`groups` with the count. Component: nothing listed until typed, one request per pause, picks kept with name +
+email, group kept as id with the server's count, send body `{recipient_ids, group_ids}`, confirmation names the
+server count, a refused group reported before any confirmation or send, remove / clear. Ratchet:
+`center/mail/page.tsx` 2 → 1.
+
+**Verified live (2026-10-01, mains power, production build on localhost; the owner signed in himself; reads and
+count previews only — no mailbox is linked, nothing can be or was sent):** owner session → search 403 and
+preview 403. As `admin@edu.qou` (institution A): «محمد» and «stu@edu» each find exactly the one A student,
+fields `id, name, email`; B's student by name or email → 0; a broad search → exactly 20; empty / wildcard → 400;
+an injection in `q` → 0. Preview: the real group → `{count: 16}` (= 16 active students of 16 members in the
+database); group + one of its members → 16 (de-duplicated); unknown group → 404; malformed → 400. `/center/mail`
+itself redirects an institution admin (existing role routing: the page is the centre manager's, whose
+permissions are `{}` and were not changed), so the page payload is covered by the unit test, not live.
+Database fingerprint (users md5 incl. email, 128 users, 16 memberships, 1 group, 2 tenants, `mail_messages` 0,
+`mail_connections` 0, `rate_limits` 23) identical before and after; server log clean. Full suite 967/967 and the
+production build passed on mains power.
+Note: the preview counts picked ids as sent (like the old `selected.size`); the send itself still keeps only
+active students/teachers of the tenant and reports the rest as `skipped`, unchanged.
+
 ## Separate open point — browser HTTP 400 during account switching (not part of Batch 2)
 
 Status: **open, deliberately not investigated now** (owner's decision, 2026-10-01).

@@ -4,13 +4,15 @@ import { serviceClient } from '@/lib/staff-auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { getMailCaller } from '@/lib/mail/access'
 import { buildMime, getAccessToken, sendGmail, type ConnectionRow } from '@/lib/mail/google'
+import { idList, MAX_RECIPIENTS, resolveMailRecipients } from '@/lib/mail/recipients'
 
-// POST { recipient_ids: string[], subject, body }
+// POST { recipient_ids?: string[], group_ids?: string[], subject, body }
 // Sends one message per recipient FROM the caller's own linked mailbox.
 // Recipients are user ids resolved inside the caller's tenant — never free-typed
-// addresses — so a linked mailbox can't be turned into a spam relay.
+// addresses — so a linked mailbox can't be turned into a spam relay. «All
+// students of a group» arrives as a group id and is resolved here
+// (src/lib/mail/recipients.ts); the limits below apply to the resolved set.
 
-const MAX_RECIPIENTS = 50
 const SEND_CONCURRENCY = 6
 export const maxDuration = 60
 const DAILY_MESSAGE_CAP = 300
@@ -21,14 +23,15 @@ export async function POST(request: Request) {
   if ('error' in auth) return auth.error
   const { caller } = auth
 
-  let body: { recipient_ids?: unknown; subject?: unknown; body?: unknown }
+  let body: { recipient_ids?: unknown; group_ids?: unknown; subject?: unknown; body?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  const ids = Array.isArray(body.recipient_ids) ? [...new Set(body.recipient_ids.filter((x): x is string => typeof x === 'string'))] : []
+  const picked = idList(body.recipient_ids)
+  const groupIds = idList(body.group_ids)
   const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
   const text = typeof body.body === 'string' ? body.body.trim() : ''
-  if (ids.length === 0) return NextResponse.json({ ...(await apiErr('recipientRequired')) }, { status: 400 })
-  if (ids.length > MAX_RECIPIENTS) return NextResponse.json({ ...(await apiErr('tooManyRecipients', { max: MAX_RECIPIENTS })) }, { status: 400 })
+  if (picked.length === 0 && groupIds.length === 0) return NextResponse.json({ ...(await apiErr('recipientRequired')) }, { status: 400 })
+  if (picked.length > MAX_RECIPIENTS) return NextResponse.json({ ...(await apiErr('tooManyRecipients', { max: MAX_RECIPIENTS })) }, { status: 400 })
   if (!subject || subject.length > 200) return NextResponse.json({ ...(await apiErr('subjectRequired200')) }, { status: 400 })
   if (!text || text.length > 20000) return NextResponse.json({ ...(await apiErr('bodyRequired')) }, { status: 400 })
 
@@ -37,6 +40,17 @@ export async function POST(request: Request) {
   if (!limit.allowed) return NextResponse.json({ ...(await apiErr('tooManyRequests')) }, { status: 429 })
 
   const admin = serviceClient()
+
+  // Groups → their active students of this institution; the limits apply to the whole set.
+  const resolved = await resolveMailRecipients(admin, caller.tenant_id, picked, groupIds)
+  if (!resolved.ok) {
+    if (resolved.error === 'groupNotFound') return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
+    if (resolved.error === 'invalidData') return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+    return NextResponse.json({ ...(await apiErr('unexpected')) }, { status: 500 })
+  }
+  const ids = resolved.ids
+  if (ids.length === 0) return NextResponse.json({ ...(await apiErr('noValidRecipients')) }, { status: 400 })
+  if (ids.length > MAX_RECIPIENTS) return NextResponse.json({ ...(await apiErr('tooManyRecipients', { max: MAX_RECIPIENTS })) }, { status: 400 })
 
   // Gmail's own daily cap is ~500 (personal) / ~2000 (Workspace); stay well under
   // it. One request carries up to 50 recipients, so the cap is on MESSAGES sent
