@@ -511,6 +511,33 @@ production build passed on mains power.
 Note: the preview counts picked ids as sent (like the old `selected.size`); the send itself still keeps only
 active students/teachers of the tenant and reports the rest as `skipped`, unchanged.
 
+## Batch 2 — Owner Counts (`/super-admin/users`)
+
+Measured on a synthetic platform (25 603 users: A 20 000 students / 500 teachers / admin / centre manager, B
+5 000 / 100, an owner; every 9th disabled), as the owner through RLS, fully rolled back — no function was
+created on the live database:
+
+| | before (page read) | after (`get_tenant_role_counts()`) |
+|---|---|---|
+| Rows / payload per page load | 25 729 rows of (tenant_id, role), **1 834 KB**, 51 ms | 4 rows, **383 B**, 23 ms (as the owner through RLS — the SECURITY INVOKER path chosen by the owner) |
+| Correctness at scale | counted in the app from whatever PostgREST returns — wrong once a max-rows cap truncates it | counted in the database |
+
+Checks (rolled back): the aggregate equals the page's own tally for every institution (P1); disabled students
+are counted, as today (P2: 20 000 of 20 000); an institution admin reads 0 users of B through RLS (P3).
+Code: `loadTenantRoleCounts()` (`src/lib/data/tenant-counts.ts`) reads only the function; any error → no counts and
+no read of `users`. Unit: 8 tests. `supabase/tests/owner_counts_check.sql` (correct counts per institution, disabled
+included, centre managers excluded, 42501 for admin / centre manager / teacher / student / signed out, anon
+cannot EXECUTE and a direct anon call is refused, SECURITY INVOKER + pinned search_path, 4 result columns) — see
+below. Ratchet: `super-admin/users/page.tsx` unbounded reads 3 → 2.
+
+**Applied and verified live (2026-10-01, owner's approval):** green DB backup first (run 36898293441, verified
+read-back); `owner_counts_migration.sql` applied exactly as reviewed (SECURITY INVOKER); `owner_counts_check.sql`
+12/12 on the live DB (synthetic data rolled back, nothing left); DB fingerprint before / after identical (users,
+policies, indexes, table grants, the 59 existing functions) apart from the one new function (anon false,
+authenticated true); `/super-admin/users` as the owner shows 1/1/1 and 1/1/121 = the database tally, and the
+edge log shows `rpc/get_tenant_role_counts` 200 with no users read. The pre-migration fallback was then removed
+(any RPC error → no counts, never a users read).
+
 ## Separate open point — browser HTTP 400 during account switching (not part of Batch 2)
 
 Status: **open, deliberately not investigated now** (owner's decision, 2026-10-01).

@@ -292,9 +292,23 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   `authenticated` (service_role keeps it; the old feed handed out questions of exams whose window had not
   opened). ✅ 2026-09-30 — applied after the deploy; live re-check 24/24, student call → 42501, anon REST → 401.
 
+- `owner_counts_migration.sql` (Batch 2, Owner Counts) — `get_tenant_role_counts()`: one row per institution
+  with university_admin / teacher / student counts (any status, as the page always counted) for
+  `/super-admin/users`, instead of reading every user row (25 729 rows / 1 834 KB per load at 25 000 users →
+  4 rows / 383 B; also immune to a PostgREST max-rows cap). SECURITY INVOKER (owner's choice — RLS still applies;
+  the owner reads every user through `users_select`), pinned `search_path`, explicit owner check (42501 otherwise),
+  `anon` revoked; one function, no table / row / policy / index change. Read only through
+  `src/lib/data/tenant-counts.ts` `loadTenantRoleCounts()` (no fallback). Rollback:
+  `DROP FUNCTION IF EXISTS public.get_tenant_role_counts();`. ✅ 2026-10-01 — green DB backup (run 36898293441)
+  first, applied via Supabase MCP exactly as reviewed; `supabase/tests/owner_counts_check.sql` 12/12 live (counts per
+  institution incl. disabled, centre manager / owner excluded, 42501 for admin / centre manager / teacher /
+  student / signed out, anon no EXECUTE and refused, INVOKER + pinned search_path, 4 columns); DB fingerprint
+  identical apart from the new function; `/super-admin/users` live shows the function's counts (edge log:
+  `rpc/get_tenant_role_counts` 200, no users read).
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-09-30.
+None as of 2026-10-01.
 
 ## Sign-in (2026-09-29)
 
