@@ -318,9 +318,23 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   DEFINER / INVOKER and pinned `search_path` as designed, every other function / policy / index / table grant
   and the data unchanged, security advisor shows nothing new. Apply-before-deploy: the code is not deployed yet.
 
+- `is_flagged_generated_migration.sql` — `exam_submissions.is_flagged` was never written (always FALSE, so reports,
+  teacher records and `get_center_dashboard` never showed a flagged attempt). Becomes `GENERATED ALWAYS AS
+  (COALESCE(proctoring_events @? '$[*] ? (@.type == "…" || …)', FALSE)) STORED NOT NULL` — the
+  `VIOLATION_TYPES` rule, recomputed on every write, not writable (428C9). The list must equal
+  `VIOLATION_TYPES` (`src/__tests__/is-flagged-violation-types.test.ts`); changing it later =
+  `ALTER COLUMN … SET EXPRESSION` (table rewrite). No policy/grant/function change. Dry-run 2026-10-02 in a
+  rolled-back transaction on the live DB (run twice: idempotent): no events / signal+info only / nested `type` → false,
+  violation → true, appended violation → recomputed true, direct UPDATE/INSERT refused 428C9, grants/RLS/policies
+  unchanged; nothing left behind. Rollback: in the file header. ✅ 2026-10-02 — green DB backup (run
+  37041146007), live column re-read (plain BOOLEAN NOT NULL DEFAULT FALSE, 0 rows), applied via Supabase MCP exactly as
+  the file; live: STORED generated boolean NOT NULL, stored expression = the file's, policies / table grants / indexes /
+  every public function / triggers fingerprints identical before and after, direct UPDATE/INSERT refused 428C9,
+  signal → false and appended violation → true (rolled back), 0 rows.
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-10-01.
+None as of 2026-10-02.
 
 ## Sign-in (2026-09-29)
 

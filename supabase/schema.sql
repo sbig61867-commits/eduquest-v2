@@ -2195,3 +2195,19 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_admin_exams_page(boolean, integer, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_admin_exams_page(boolean, integer, integer) TO authenticated;
+
+-- ── exam_submissions.is_flagged: derived from proctoring_events (is_flagged_generated_migration.sql) ──
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'public.exam_submissions'::regclass AND attname = 'is_flagged'
+      AND attgenerated = 's' AND NOT attisdropped
+  ) THEN
+    ALTER TABLE public.exam_submissions DROP COLUMN IF EXISTS is_flagged;
+    ALTER TABLE public.exam_submissions
+      ADD COLUMN is_flagged BOOLEAN GENERATED ALWAYS AS (
+        COALESCE(proctoring_events @? '$[*] ? (@.type == "tab_switch" || @.type == "fullscreen_exit" || @.type == "face_not_detected" || @.type == "multiple_faces" || @.type == "looking_away" || @.type == "audio_detected" || @.type == "speech_detected" || @.type == "suspicious_activity" || @.type == "camera_stopped" || @.type == "face_mismatch" || @.type == "spoof_detected")', FALSE)
+      ) STORED NOT NULL;
+  END IF;
+END $$;
