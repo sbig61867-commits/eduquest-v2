@@ -17,7 +17,6 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/(admin)/admin/settings/page.tsx': 1,
   'app/(auth)/change-password/page.tsx': 1,
   'app/(center)/center/groups/page.tsx': 1,
-  'app/(student)/student/courses/page.tsx': 2,
   'app/(student)/student/exams/page.tsx': 1,
   'app/(student)/student/profile/page.tsx': 1,
   'app/(super-admin)/super-admin/tenants/page.tsx': 1,
@@ -61,7 +60,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(center)/center/groups/page.tsx': 2,
   'app/(center)/center/mail/page.tsx': 1,
   'app/(student)/student/courses/[id]/page.tsx': 4,
-  'app/(student)/student/courses/page.tsx': 4,
   'app/(student)/student/dashboard/page.tsx': 1,
   'app/(student)/student/exams/page.tsx': 2,
   'app/(student)/student/grades/page.tsx': 2,
@@ -119,6 +117,11 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     all three tables whole (3 → 0 there). Allowance raised 1 → 3 with the owner's
   //     approval (2026-10-01); an aggregate RPC is the later option, not now.
   'lib/data/people.ts': 3,
+  // 4 — loadStudentCourseList (moved from student/courses/page.tsx, 4 → 0 there, Batch 4 / P-06):
+  //     enrolments, transfers and group memberships are filtered on student_id = the caller,
+  //     the courses on .in('id', the caller's enrolled course ids) — each is bounded by the
+  //     student's own enrolments / memberships / transfers, not by the institution's size.
+  'lib/data/student-courses.ts': 4,
   'lib/reports.ts': 20,
   'lib/requests-data.ts': 3,
   'lib/schedules-data.ts': 6,
