@@ -654,6 +654,84 @@ PUBLIC, search_path, DEFINER / INVOKER) with synthetic data rolled back and noth
 all four; fingerprint: the 60 existing functions, policies, indexes, table grants and the data identical before
 and after — only the four new functions added (60 → 64). Code not deployed yet.
 
+## Batch 5 — navigation (sidebar prefetch, first-visit JS, cold starts)
+
+Scope approved 2026-10-02: sidebar links prefetch on intent instead of on sight; identify the `Buffer`
+polyfill in the shared client chunk; cold starts measured only (no fix in this batch). No database, schema,
+RLS or index change. Measured on a local production build (`next start`, Windows → live Supabase, student
+account with 9 sidebar links), so absolute times are inflated by the client's distance to the database; the
+request counts are exact.
+
+**Prefetch on a full page load** (`/student/dashboard`, `_rsc` requests in the browser's resource timing):
+
+| | Before (default `Link` prefetch) | After (intent prefetch) |
+|---|---|---|
+| `_rsc` requests on load | **17** — round 1: 8 × 183 B (route tree), round 2: 9 × ~896 B (segments up to `loading.tsx`) | **2** — both for `/student/lessons`, from the lesson card inside the dashboard page (an ordinary page `Link`, outside the sidebar scope) |
+| Opening the mobile drawer | (links already prefetched on load) | 0 |
+
+Next 16 issues two requests per prefetched link (route tree + segment data); every one passes the proxy and
+a function invocation. An admin (15 links) sent ~30 per full load (§1).
+
+**Intent prefetch** (same build): hover, keyboard focus and touch each prefetch only that link — 2 requests
+(183 B + ~893 B); a second hover of the same link sends **0** (segment cache dedupe). Hover was driven by
+script-dispatched `mouseout` → `mouseover` (React derives `onMouseEnter` from that pair) because the browser
+tool's hover delivered no pointer events at all; focus by `element.focus()` and by the real `Tab` key; touch by a
+dispatched `touchstart`.
+
+**Click → URL change** (same build, after the change):
+
+| Link | Prefetched by hover first | Click → URL / main content changes | Navigation RSC |
+|---|---|---|---|
+| `/student/courses` | yes | 1 282 ms | 1 176 ms, 1.7 KB |
+| `/student/attendance` | no | 370 ms | 327 ms, 1.7 KB |
+| `/student/notifications` | yes | 936 ms | 899 ms, 1.8 KB |
+| `/student/profile` | no | 646 ms | 573 ms, 1.8 KB |
+
+Before the change (original sidebar, everything prefetched on load): courses 2 474 ms (RSC 1 511 ms), exams
+1 997 ms (1 326 ms), grades 994 ms (702 ms). In every case — prefetched or not, before or after — the URL and
+the content change only when the navigation's own RSC response arrives. The prefetched skeleton is never shown
+first: each role group's `loading.tsx` sits above the `student` / `teacher` / … segment, which is shared, so it
+is not a boundary for the segment that changes. **Conclusion:** sidebar prefetch (default or intent) does not
+reduce click time on these routes; removing the on-load burst costs no latency. Click time = the page's
+server response (the remaining data batches), not JavaScript.
+
+**Verification:** unit `sidebar-prefetch.test.tsx` (5: every link `prefetch={false}` and nothing prefetched on
+render; hover / focus / touch prefetch only that link; links stay anchors with `href`, name and active state).
+Browser: `Tab` moves focus link to link and `Enter` opens the page (active state follows); mobile width
+(375 px, touch emulation): the menu opens the drawer, a tap on a drawer link opens that page and the drawer
+closes; desktop: 9 links visible, 2 load requests as above.
+
+**First-visit JavaScript** (gzip, from the client-reference manifests of the production build): every panel
+route loads 281–321 KB, of which ~280 KB is shared (login included): React DOM 63, Supabase client 56, Next
+router 38, a chunk with zustand + the `Buffer` polyfill 22, next-intl 12, Sentry loader 14, lucide 6. The
+page's own JS on a navigation is 2–4 KB (heaviest pages ~40 KB).
+
+**`Buffer` polyfill — documented, not changed.** Traced in the dev build's named chunks: the only module that
+pulls in `next/dist/compiled/buffer` is `@supabase/storage-js` (`if (typeof Buffer !== "undefined") return
+Buffer.from(data).toString("base64")`, dist/index.mjs:1525 — a free `Buffer` reference the bundler polyfills).
+`@supabase/supabase-js` imports `StorageClient` statically, and the browser client is used by `AuthProvider` in
+every panel layout. The polyfill itself is **~8 KB gzip** (27 KB raw); the 22 KB chunk also holds other
+modules. Removing it needs a global bundler alias or a restructured Supabase client — outside this batch.
+
+**Cold starts (production `/login`, read-only `GET`, curl from the owner's machine):**
+
+| When | TTFB | of which TLS | ≈ server (TTFB − TLS) |
+|---|---|---|---|
+| 19:32Z, ~38 min after a deploy, 3 requests in a row | 1.02 / 0.53 / 0.75 s | 0.64 / 0.29 / 0.51 s | 0.38 / 0.24 / 0.24 s |
+| after **15 min** idle (19:47Z), then at once | 3.84 / 0.81 s | 2.94 / 0.52 s | **0.90** / 0.29 s |
+| after **30 min** idle (20:17Z), then at once | 0.99 / 0.90 s | 0.57 / 0.66 s | 0.42 / 0.24 s |
+
+All `fra1`. The 8.9–17 s cold responses of §1 were **not reproduced**: the slowest first request (15 min) lost
+most of its time in TLS (2.9 s, client network) and ~0.9 s at the server; after 30 min idle the server part was
+0.42 s. One sample per idle length — not enough to rule cold starts out; the next step (separate decision) is
+the Vercel function logs (init vs execution time) over longer idle periods.
+
+**Deferred (separate batches / decisions):** Sentry sends 2–3 requests per navigation with no errors (likely
+session tracking — a monitoring decision); the shared Supabase client (56 KB) needs an `AuthProvider`
+restructure; `session/check` + notification polling (P-08); page server time (P-07, P-10); `loading.tsx`
+placement is a UI decision (P11: no new loading UI). Local-only: the CSP `upgrade-insecure-requests` turns
+`_rsc` requests on `http://localhost` into failing `https` calls (production unaffected).
+
 ## Separate open point — browser HTTP 400 during account switching (not part of Batch 2)
 
 Status: **open, deliberately not investigated now** (owner's decision, 2026-10-01).
