@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { AdaptiveName } from './adaptive-name'
 import { cn } from '@/lib/utils'
@@ -72,6 +72,7 @@ export function Sidebar({ items }: SidebarProps) {
   const t = useTranslations('common.actions')
   const locale = useLocale() as Locale
   const pathname = usePathname()
+  const router = useRouter()
   const { sidebarOpen, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useUIStore()
   const { tenant } = useAuthStore()
   const terms = getTerms(tenant?.institution_type, locale)
@@ -153,10 +154,22 @@ export function Sidebar({ items }: SidebarProps) {
           ).map((item) => {
             const Icon = ICONS[item.icon]
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            // Prefetch on intent, not on sight (Batch 5, PERFORMANCE_CONTRACT.md P11): the
+            // default prefetched every sidebar link on every full page load — two requests
+            // per link (route tree + segments up to loading.tsx), 17 for a student and ~30
+            // for an admin, each a proxy + function invocation that only carried the
+            // loading skeleton. Hover, keyboard focus or a touch now prefetch that one link
+            // (the router's segment cache dedupes repeats); a click without either still
+            // navigates normally.
+            const prefetch = () => router.prefetch(item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
+                onMouseEnter={prefetch}
+                onFocus={prefetch}
+                onTouchStart={prefetch}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full',
                   isActive
