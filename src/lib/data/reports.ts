@@ -1,0 +1,219 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// ── Report reads (PERFORMANCE_CONTRACT.md P1, P2, P5, P10) ──────────────────
+//
+// The reports run with the service-role client behind the super_admin gate in
+// /api/reports, so RLS does not apply here: every read is scoped explicitly by
+// the report's subject (institution, teacher, group or student).
+//
+// The API answers at most `max_rows` (1000 on this project) rows per request
+// and says nothing when it cuts a result short, so a report read whole could
+// silently be built from a partial set. Every list read is paged: submissions
+// (the large sets) by keyset on their primary key — readAllById(), linear in the
+// set's size; an OFFSET page re-sorts the whole filtered set (measured: 72 000
+// submissions = 1.7–4.9 s of database time paged by OFFSET, 0.1 s by keyset) —
+// and the smaller ordered sets with readAll(), counted pages read a few at a
+// time, so their display order (created_at) is kept. Submissions are filtered by
+// their exam's teacher / group through a filter-only embed (`exams!inner()`)
+// rather than a list of exam ids, so the request stays one URL of fixed size.
+//
+// Exams are read without `questions`: a submission's own max_score is the sum
+// of its exam's points (finalize_exam_submission writes it with the same rule),
+// and the questions were ~97% of the bytes.
+
+/** The API's max_rows: a larger page would be cut to this anyway. */
+export const PAGE_SIZE = 1000
+/** Pages read at once after the first (which carries the exact count). */
+const PAGE_CONCURRENCY = 4
+
+type Page = PromiseLike<{ data: unknown[] | null; count?: number | null }>
+
+/**
+ * Every row of a read, page by page. `page(from, to, withCount)` must order by a
+ * unique key, so the pages neither overlap nor skip; the first page asks for the
+ * exact count and the rest are read a few at a time. Without a count (it should
+ * always come back) it keeps reading until a short page.
+ */
+export async function readAll<T>(page: (from: number, to: number, withCount: boolean) => Page): Promise<T[]> {
+  const first = await page(0, PAGE_SIZE - 1, true)
+  const rows = [...(first.data ?? [])] as T[]
+  if (first.count == null) {
+    let last = rows.length
+    while (last === PAGE_SIZE) {
+      const next = await page(rows.length, rows.length + PAGE_SIZE - 1, false)
+      last = next.data?.length ?? 0
+      rows.push(...((next.data ?? []) as T[]))
+    }
+    return rows
+  }
+  const starts: number[] = []
+  for (let from = PAGE_SIZE; from < first.count; from += PAGE_SIZE) starts.push(from)
+  for (let i = 0; i < starts.length; i += PAGE_CONCURRENCY) {
+    const batch = await Promise.all(starts.slice(i, i + PAGE_CONCURRENCY).map(from => page(from, from + PAGE_SIZE - 1, false)))
+    for (const r of batch) rows.push(...((r.data ?? []) as T[]))
+  }
+  return rows
+}
+
+/** Every uuid sorts after the nil uuid, so `id > FIRST_ID` is the first keyset page. */
+export const FIRST_ID = '00000000-0000-0000-0000-000000000000'
+
+/**
+ * Every row of a large read, by keyset on `id`: each page is the next PAGE_SIZE
+ * rows after the last id seen (`page(afterId)` filters `id > afterId`, orders by
+ * id and limits to PAGE_SIZE; the first call gets FIRST_ID). Pages follow one
+ * another; the read ends on a short page.
+ */
+export async function readAllById<T extends { id: string }>(page: (afterId: string) => Page): Promise<T[]> {
+  const rows: T[] = []
+  let after = FIRST_ID
+  for (;;) {
+    const batch = ((await page(after)).data ?? []) as T[]
+    rows.push(...batch)
+    if (batch.length < PAGE_SIZE) return rows
+    after = batch[batch.length - 1].id
+  }
+}
+
+const withCount = (on: boolean) => (on ? { count: 'exact' as const } : undefined)
+
+// ── Row shapes ──────────────────────────────────────────────────────────────
+
+export interface ReportExam {
+  id: string; title: string; type: string; group_id: string; teacher_id: string
+  created_at: string; proctoring_enabled: boolean
+}
+export interface ReportSub {
+  id: string; exam_id: string; student_id: string; score: number | null; max_score: number | null
+  is_graded: boolean; is_flagged: boolean; submitted_at: string | null
+}
+interface Person { id: string; full_name: string; email: string }
+interface Member { group_id: string; student_id: string; users: { full_name: string; email: string } | null }
+
+// ── University ──────────────────────────────────────────────────────────────
+
+export const UNIVERSITY_EXAM_COLUMNS = 'id, title, group_id, teacher_id, created_at'
+export const UNIVERSITY_SUB_COLUMNS = 'id, exam_id, score, max_score, is_flagged, submitted_at'
+
+export async function loadUniversityData(admin: SupabaseClient, tenantId: string) {
+  const { data: tenant } = await admin.from('tenants').select('id, name').eq('id', tenantId).single()
+  if (!tenant) return null
+  const [teachers, { count: studentCount }, groups, exams, { count: lessonCount }, subs, memberships] = await Promise.all([
+    readAll<Person>((f, t, c) => admin.from('users').select('id, full_name, email', withCount(c))
+      .eq('tenant_id', tenantId).eq('role', 'teacher').order('created_at').order('id').range(f, t)),
+    // Students are only counted.
+    admin.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
+    readAll<{ id: string; name: string; teacher_id: string }>((f, t, c) => admin.from('groups').select('id, name, teacher_id', withCount(c))
+      .eq('tenant_id', tenantId).is('deleted_at', null).order('created_at').order('id').range(f, t)),
+    readAll<ReportExam>((f, t, c) => admin.from('exams').select(UNIVERSITY_EXAM_COLUMNS, withCount(c))
+      .eq('tenant_id', tenantId).is('deleted_at', null).order('id').range(f, t)),
+    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_published', true).is('deleted_at', null),
+    readAllById<ReportSub>(after => admin.from('exam_submissions').select(UNIVERSITY_SUB_COLUMNS)
+      .eq('tenant_id', tenantId).gt('id', after).order('id').limit(PAGE_SIZE)),
+    // Members of the institution's live groups, counted per group.
+    readAll<{ group_id: string; student_id: string }>((f, t, c) => admin.from('group_students').select('group_id, student_id, groups!inner()', withCount(c))
+      .eq('groups.tenant_id', tenantId).is('groups.deleted_at', null).order('group_id').order('student_id').range(f, t)),
+  ])
+  return { tenant: tenant as { id: string; name: string }, teachers, studentCount: studentCount ?? 0, groups, exams, lessonCount: lessonCount ?? 0, subs, memberships }
+}
+
+// ── Teacher ─────────────────────────────────────────────────────────────────
+
+export const TEACHER_EXAM_COLUMNS = 'id, title, type, group_id'
+export const TEACHER_SUB_COLUMNS = 'id, exam_id, student_id, score, max_score, is_graded, exams!inner()'
+
+export async function loadTeacherData(admin: SupabaseClient, teacherId: string) {
+  const { data: teacher } = await admin.from('users').select('id, full_name, email, tenant_id, tenants(name)').eq('id', teacherId).single()
+  if (!teacher) return null
+  const [groups, exams, { count: lessonCount }, members, subs] = await Promise.all([
+    readAll<{ id: string; name: string }>((f, t, c) => admin.from('groups').select('id, name', withCount(c))
+      .eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
+    readAll<ReportExam>((f, t, c) => admin.from('exams').select(TEACHER_EXAM_COLUMNS, withCount(c))
+      .eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
+    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId).eq('is_published', true).is('deleted_at', null),
+    // Members of the teacher's live groups.
+    readAll<Member>((f, t, c) => admin.from('group_students').select('group_id, student_id, users(full_name, email), groups!inner()', withCount(c))
+      .eq('groups.teacher_id', teacherId).is('groups.deleted_at', null).order('group_id').order('student_id').range(f, t)),
+    // Submissions to the teacher's live exams.
+    readAllById<ReportSub>(after => admin.from('exam_submissions').select(TEACHER_SUB_COLUMNS)
+      .eq('exams.teacher_id', teacherId).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE)),
+  ])
+  return { teacher: teacher as unknown as Person & { tenants: { name: string } | null }, groups, exams, lessonCount: lessonCount ?? 0, members, subs }
+}
+
+// ── Group and pilot (one group) ─────────────────────────────────────────────
+
+export const GROUP_EXAM_COLUMNS = 'id, title, type, created_at, proctoring_enabled'
+export const GROUP_SUB_COLUMNS = 'id, exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at, exams!inner()'
+
+const groupExams = (admin: SupabaseClient, groupId: string) =>
+  readAll<ReportExam>((f, t, c) => admin.from('exams').select(GROUP_EXAM_COLUMNS, withCount(c))
+    .eq('group_id', groupId).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t))
+const groupMembers = (admin: SupabaseClient, groupId: string) =>
+  readAll<Member>((f, t, c) => admin.from('group_students').select('group_id, student_id, users(full_name, email)', withCount(c))
+    .eq('group_id', groupId).order('joined_at').order('student_id').range(f, t))
+const groupSubs = (admin: SupabaseClient, groupId: string) =>
+  readAllById<ReportSub>(after => admin.from('exam_submissions').select(GROUP_SUB_COLUMNS)
+    .eq('exams.group_id', groupId).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE))
+
+export async function loadGroupReportData(admin: SupabaseClient, groupId: string) {
+  const { data: group } = await admin.from('groups').select('id, name, tenant_id, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
+  if (!group) return null
+  const [exams, members, subs] = await Promise.all([groupExams(admin, groupId), groupMembers(admin, groupId), groupSubs(admin, groupId)])
+  return { group: group as unknown as GroupRow, exams, members, subs }
+}
+
+export interface SurveyResponse {
+  ease_rating: number; prefer_platform: boolean; recommend: boolean
+  best_feature: string | null; problem_faced: string | null; comment: string | null
+}
+interface GroupRow { id: string; name: string; created_at?: string; users: { full_name: string } | null; tenants: { name: string } | null }
+
+export async function loadPilotData(admin: SupabaseClient, groupId: string) {
+  const { data: group } = await admin.from('groups').select('id, name, tenant_id, created_at, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
+  if (!group) return null
+  const [exams, members, { count: lessonCount }, subs, responses] = await Promise.all([
+    groupExams(admin, groupId),
+    groupMembers(admin, groupId),
+    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('group_id', groupId).eq('is_published', true).is('deleted_at', null),
+    groupSubs(admin, groupId),
+    // The group's survey answers (a group has at most one survey; none = no answers).
+    readAll<SurveyResponse>((f, t, c) => admin.from('survey_responses')
+      .select('ease_rating, prefer_platform, recommend, best_feature, problem_faced, comment, surveys!inner()', withCount(c))
+      .eq('surveys.group_id', groupId).order('id').range(f, t)),
+  ])
+  return { group: group as unknown as GroupRow & { created_at: string }, exams, members, lessonCount: lessonCount ?? 0, subs, responses }
+}
+
+// ── Student ─────────────────────────────────────────────────────────────────
+
+export const STUDENT_EXAM_COLUMNS = 'id, title, type, group_id, created_at'
+export const STUDENT_SUB_COLUMNS = 'id, exam_id, student_id, score, max_score, is_flagged, submitted_at, exams!inner()'
+
+interface Membership { group_id: string; groups: { id: string; name: string; deleted_at: string | null; users: { full_name: string } | null } | null }
+
+export async function loadStudentData(admin: SupabaseClient, studentId: string) {
+  const [{ data: student }, memberships] = await Promise.all([
+    admin.from('users').select('id, full_name, email, created_at, tenant_id, tenants(name)').eq('id', studentId).single(),
+    readAll<Membership>((f, t, c) => admin.from('group_students')
+      .select('group_id, joined_at, groups(id, name, deleted_at, users:teacher_id(full_name))', withCount(c))
+      .eq('student_id', studentId).order('joined_at').order('group_id').range(f, t)),
+  ])
+  if (!student) return null
+  const activeGroups = memberships.filter(m => m.groups && !m.groups.deleted_at)
+  const groupIds = activeGroups.map(m => m.group_id)
+  const [exams, peerSubs] = groupIds.length
+    ? await Promise.all([
+        readAll<ReportExam>((f, t, c) => admin.from('exams').select(STUDENT_EXAM_COLUMNS, withCount(c))
+          .in('group_id', groupIds).eq('is_published', true).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
+        // Every submission to those exams: the student's own are among them (read once).
+        readAllById<ReportSub>(after => admin.from('exam_submissions').select(STUDENT_SUB_COLUMNS)
+          .in('exams.group_id', groupIds).eq('exams.is_published', true).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE)),
+      ])
+    : [[] as ReportExam[], [] as ReportSub[]]
+  return {
+    student: student as unknown as Person & { created_at: string; tenants: { name: string } | null },
+    activeGroups: activeGroups as (Membership & { groups: NonNullable<Membership['groups']> })[],
+    exams, peerSubs, ownSubs: peerSubs.filter(s => s.student_id === studentId),
+  }
+}
