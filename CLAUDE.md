@@ -331,6 +331,32 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   the file; live: STORED generated boolean NOT NULL, stored expression = the file's, policies / table grants / indexes /
   every public function / triggers fingerprints identical before and after, direct UPDATE/INSERT refused 428C9,
   signal → false and appended violation → true (rolled back), 0 rows.
+- `groups_select_initplan_migration.sql` (P-09) — performance only, no access rule change: `groups_select` called
+  `current_user_role()` / `current_tenant_id()` bare, and `group_students_select` reads `groups` (EXISTS) for every
+  membership row, so a per-group member count (`group_students(count)` on `/center/groups`, also `/center/mail`)
+  ran ~3 helper calls per membership row: 19 281 rows → ≈ 1 028 ms at 1 000 groups (24 ms without RLS). One
+  `ALTER POLICY` wraps each call in `(SELECT …)` (init-plan, once per query) — the live predicate otherwise byte for
+  byte (`deleted_at IS NULL`, the student branch through `current_student_group_ids()` unchanged); no other policy,
+  function, grant or index. Rollback: the exact pre-P-09 `ALTER POLICY` in the file header.
+  `src/__tests__/groups-select-initplan.test.ts` keeps the migration and `schema.sql` wrapped. Dry-run 2026-10-03 on the
+  live DB in a rolled-back transaction with `supabase/tests/groups_select_initplan_check.sql` (the migration file as
+  is): stored predicate = pre-P-09 text + 3 role / 1 tenant wrappers exactly; M3 C1 shape 1 026 → 33 ms (31×),
+  centre-mail shape 1 017 → 20 ms, groups only 56 → 9 ms (EXPLAIN: no bare helper call left, 427 110 → 4 267
+  buffers); 12/12 personas match the documented rules and are identical on both forms (groups, memberships,
+  per-group counts, mail shape, tenant + student isolation); every other policy / function / index / grant / trigger
+  identical; `rls_isolation_check` 5/5, `rls_write_path_check` 14/14 (L-02 run with `get_student_exam_list()` —
+  the file still calls the revoked `get_student_exams()`), `group_course_transfer_check` 13/13 identical before and
+  after; `center_mail_recipients_check`, `center_student_picker_check`, `teacher_student_search_check`,
+  `student_lessons_page_check` all PASS with it; nothing left behind. Takes an ACCESS EXCLUSIVE lock on
+  `public.groups` for the statement (and for the whole check run).
+  ✅ 2026-10-03 — green DB backup (run 37145047761, `2026-10-03T18-41-38Z`, verified), live policy re-read unchanged,
+  applied via Supabase MCP exactly as the file (migration `20261003184336`). Live: stored `groups_select` = pre-P-09
+  text + the 4 wrappers character for character; every other policy / function / index / grant / trigger / RLS flag
+  fingerprint and every row count identical before and after; the 129 real accounts see exactly the same groups,
+  memberships and per-group counts (one md5 before = after); `groups_select_initplan_check.sql` on the live DB
+  (rolled back): 12/12 personas identical on both forms, M3 1 172 → 33 ms, centre-mail shape 1 135 → 21 ms; anon
+  REST reads of `groups` / `group_students` / the count embed return `[]`; security advisor unchanged; nothing left
+  behind.
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
