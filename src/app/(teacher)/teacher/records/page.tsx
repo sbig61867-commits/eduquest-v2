@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { loadGroupCards, requestNow } from '@/lib/teacher-records'
+import { requestNow } from '@/lib/teacher-records'
+import { loadGroupCards } from '@/lib/data/teacher-records'
 import { GroupsClient } from './groups-client'
 
 // Level 1 of the student records: every group this teacher owns.
