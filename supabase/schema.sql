@@ -538,10 +538,15 @@ CREATE POLICY "student_names_select" ON student_names FOR SELECT USING (
 -- group_students_select's own USING clause reads groups — a direct
 -- correlated subquery here would create RLS-evaluation infinite recursion
 -- between the two policies (hit and confirmed live while drafting the fix).
+-- The helper calls are wrapped in (SELECT …) so they run once per query, not
+-- once per row: group_students_select reads groups for every membership row
+-- (groups_select_initplan_migration.sql, P-09).
 CREATE POLICY "groups_select" ON groups FOR SELECT USING (
-  current_user_role() = 'super_admin'
-  OR (current_user_role() != 'student' AND tenant_id = current_tenant_id())
-  OR (current_user_role() = 'student' AND id IN (SELECT current_student_group_ids()))
+  deleted_at IS NULL AND (
+    (SELECT current_user_role()) = 'super_admin'
+    OR ((SELECT current_user_role()) != 'student' AND tenant_id = (SELECT current_tenant_id()))
+    OR ((SELECT current_user_role()) = 'student' AND id IN (SELECT current_student_group_ids()))
+  )
 );
 CREATE POLICY "groups_insert" ON groups FOR INSERT WITH CHECK (
   current_user_role() IN ('teacher','university_admin','super_admin') AND
