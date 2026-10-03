@@ -98,7 +98,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/api/invitations/route.ts': 1,
   'app/api/mail/connection/route.ts': 1,
   'app/api/mail/send/route.ts': 1,
-  'app/api/notifications/route.ts': 2,
   'app/api/proctor/evidence/route.ts': 2,
   'app/api/surveys/respond/route.ts': 3,
   'components/student/quick-access-panel.tsx': 2,

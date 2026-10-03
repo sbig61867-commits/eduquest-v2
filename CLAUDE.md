@@ -334,7 +334,23 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None as of 2026-10-02.
+- `notifications_feed_migration.sql` (P-08) — `get_my_notifications()`: the header bell's feed in ONE read
+  (`/api/notifications`, polled by every open tab). Before, per poll: student 4 queries incl. the WHOLE
+  `get_student_exam_list()` (~64 KB at 100 exams) to use 8 titles; teacher every exam (unbounded) then
+  `.in(<every exam id>)` (≈400 ids already overflow the request). Now one JSON object of sections per role
+  (student lessons 8 / exams 8 / grades 20; teacher submissions 15; university_admin users 15 + alerts 6;
+  super_admin messages 10 + institutions 8 + alerts 6 — the same bounds); centre manager and any other role get
+  `{}` (the route skips the call). SECURITY INVOKER (same RLS as the reads it replaces), pinned `search_path`,
+  `REVOKE ALL FROM PUBLIC, anon`, identity from `auth.uid()` / `current_user_role()` / `current_tenant_id()`.
+  The score-visibility rule stays in TypeScript (`isScoreVisible`); SQL only supplies the fields. **Apply before
+  deploying** the route change (the route has no fallback: a failed read answers 200 with an empty list).
+  Rollback: `DROP FUNCTION IF EXISTS public.get_my_notifications();`. Dry-run 2026-10-03 on the live DB in a
+  rolled-back transaction with `supabase/tests/notifications_feed_check.sql`: 18/18 (E1–E8 equal to the old
+  per-table reads for every role, I1–I4 isolation incl. another institution and no session → `{}`, G1 EXECUTE
+  authenticated only, G2 INVOKER / STABLE / `search_path`); nothing left behind. Measured on 8 000 submissions:
+  student 4 queries / ~69 KB → 1 / 8.5 KB; teacher 2 queries + 200-id list → 1 / 3.5 KB, ~26–44 ms (the ≤ 10 ms
+  target is NOT met: it reads + RLS-checks all the teacher's submissions to sort them; no index matches — a
+  separate decision).
 
 ## Sign-in (2026-09-29)
 
