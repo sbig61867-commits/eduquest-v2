@@ -127,7 +127,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     (.in the member ids). Each is bounded by one group; the student record narrows the
   //     roster / marks / submissions / progress to one student.
   'lib/data/teacher-records.ts': 7,
-  'lib/reports.ts': 20,
   'lib/requests-data.ts': 3,
   'lib/schedules-data.ts': 6,
 }

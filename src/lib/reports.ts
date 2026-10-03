@@ -1,6 +1,10 @@
 import { createClient as createAdminClient, SupabaseClient } from '@supabase/supabase-js'
 import arReports from '@/messages/ar/reports.json'
 import enReports from '@/messages/en/reports.json'
+import {
+  loadGroupReportData, loadPilotData, loadStudentData, loadTeacherData, loadUniversityData,
+  type ReportExam, type ReportSub,
+} from '@/lib/data/reports'
 
 // ── Generic report shape ──────────────────────────────────────────
 // Every report is a list of sections; each section is a titled table.
@@ -55,37 +59,49 @@ export function reportChrome(lang: ReportLang): ReportChrome {
   return (lang === 'ar' ? arReports : enReports).chrome
 }
 
-// ── Shared row shapes (batched queries, computed in memory) ───────
-interface ExamRow {
-  id: string; title: string; type: string; group_id: string; teacher_id: string
-  questions: unknown; created_at: string; proctoring_enabled: boolean; is_published: boolean
-}
-interface SubRow {
-  exam_id: string; student_id: string; score: number | null; max_score: number | null
-  is_graded: boolean; is_flagged: boolean; submitted_at: string | null
-}
-
-// ── Helpers ───────────────────────────────────────────────────────
-function examMax(questions: unknown): number {
-  if (!Array.isArray(questions)) return 0
-  return (questions as Array<{ points?: number }>).reduce((s, q) => s + (q.points ?? 0), 0)
-}
+// ── Helpers (computed in memory from the reads in src/lib/data/reports.ts) ──
+// A submission's maximum is its own max_score: finalize_exam_submission writes
+// the sum of the exam's points (the rule the old question-based fallback used),
+// so the questions are no longer read.
+const maxOf = (s: { max_score: number | null }) => (s.max_score != null ? Number(s.max_score) : 0)
 const pct = (score: number, max: number) => (max > 0 ? Math.round((score / max) * 100) : 0)
 const fmtDate = (iso: string | null, lang: ReportLang) =>
   iso ? new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-u-ca-gregory-nu-latn' : 'en-GB') : '·'
 const typeLabel = (t: string, d: Dict) => (t === 'homework' ? d.homework : d.examType)
 
-function sumScores(subs: SubRow[], maxByExam: Map<string, number>) {
+/** Rows grouped by a key, each group in the input order. */
+function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>()
+  for (const r of rows) {
+    const k = key(r)
+    const arr = out.get(k)
+    if (arr) arr.push(r)
+    else out.set(k, [r])
+  }
+  return out
+}
+
+/** One submission per exam × student (the table's unique pair): the matrix cell lookup. */
+function cellIndex<T extends { exam_id: string; student_id: string }>(subs: T[]): Map<string, T> {
+  const out = new Map<string, T>()
+  for (const s of subs) {
+    const k = `${s.exam_id} ${s.student_id}`
+    if (!out.has(k)) out.set(k, s)
+  }
+  return out
+}
+
+function sumScores(subs: Pick<ReportSub, 'score' | 'max_score'>[]) {
   let total = 0, totalMax = 0
   for (const s of subs) {
     if (s.score == null) continue
     total += Number(s.score)
-    totalMax += s.max_score != null ? Number(s.max_score) : (maxByExam.get(s.exam_id) ?? 0)
+    totalMax += maxOf(s)
   }
   return { total, totalMax }
 }
 
-function distributionTable(subs: SubRow[], maxByExam: Map<string, number>, d: Dict): ReportTable {
+function distributionTable(subs: Pick<ReportSub, 'score' | 'max_score'>[], d: Dict): ReportTable {
   const buckets = [
     { label: d.bExcellent, min: 90, count: 0 },
     { label: d.bVGood, min: 80, count: 0 },
@@ -96,7 +112,7 @@ function distributionTable(subs: SubRow[], maxByExam: Map<string, number>, d: Di
   let graded = 0
   for (const s of subs) {
     if (s.score == null) continue
-    const max = s.max_score != null ? Number(s.max_score) : (maxByExam.get(s.exam_id) ?? 0)
+    const max = maxOf(s)
     if (max <= 0) continue
     graded++
     const p = (Number(s.score) / max) * 100
@@ -109,42 +125,51 @@ function distributionTable(subs: SubRow[], maxByExam: Map<string, number>, d: Di
   }
 }
 
+/** Per-student × per-assessment grade matrix (group and pilot reports). */
+function gradeMatrix(
+  exams: Pick<ReportExam, 'id' | 'title' | 'type'>[], members: { student_id: string; users: { full_name: string; email: string } | null }[],
+  subs: ReportSub[], d: Dict,
+): ReportTable {
+  const cell = cellIndex(subs)
+  return {
+    heading: d.studentGrades,
+    columns: [d.student, d.email, ...exams.map(e => `${e.type === 'homework' ? d.homeworkTag : ''}${e.title}`), d.total, d.pctCol],
+    rows: members.map(m => {
+      let total = 0, totalMax = 0
+      const cells = exams.map(e => {
+        const sub = cell.get(`${e.id} ${m.student_id}`)
+        if (sub?.score != null) { const max = maxOf(sub); total += Number(sub.score); totalMax += max; return `${sub.score}/${max}` }
+        return '·'
+      })
+      return [m.users?.full_name ?? '·', m.users?.email ?? '', ...cells, totalMax ? `${total}/${totalMax}` : '·', totalMax ? String(pct(total, totalMax)) : '·']
+    }),
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════
 // University report
 // ══════════════════════════════════════════════════════════════════
 export async function buildUniversityReport(admin: SupabaseClient, tenantId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const { data: tenant } = await admin.from('tenants').select('id, name').eq('id', tenantId).single()
-  if (!tenant) return null
+  const data = await loadUniversityData(admin, tenantId)
+  if (!data) return null
+  const { tenant, teachers, studentCount, groups, exams: examRows, lessonCount, subs: subRows, memberships } = data
 
-  const [{ data: people }, { data: groups }, { data: exams }, { count: lessonCount }, { data: subs }] = await Promise.all([
-    admin.from('users').select('id, full_name, email, role').eq('tenant_id', tenantId).in('role', ['teacher', 'student']),
-    admin.from('groups').select('id, name, teacher_id').eq('tenant_id', tenantId).is('deleted_at', null),
-    admin.from('exams').select('id, title, type, group_id, teacher_id, questions, created_at, proctoring_enabled, is_published').eq('tenant_id', tenantId).is('deleted_at', null),
-    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_published', true).is('deleted_at', null),
-    admin.from('exam_submissions').select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at').eq('tenant_id', tenantId),
-  ])
-
-  const teachers = (people ?? []).filter(p => p.role === 'teacher')
-  const students = (people ?? []).filter(p => p.role === 'student')
-  const examRows = (exams ?? []) as ExamRow[]
-  const subRows = (subs ?? []) as SubRow[]
-  const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
-
-  const groupIds = (groups ?? []).map(g => g.id)
-  const { data: memberships } = groupIds.length
-    ? await admin.from('group_students').select('group_id, student_id').in('group_id', groupIds)
-    : { data: [] as Array<{ group_id: string; student_id: string }> }
   const membersByGroup = new Map<string, number>()
-  for (const m of memberships ?? []) membersByGroup.set(m.group_id, (membersByGroup.get(m.group_id) ?? 0) + 1)
+  for (const m of memberships) membersByGroup.set(m.group_id, (membersByGroup.get(m.group_id) ?? 0) + 1)
+  const subsByExam = groupBy(subRows, s => s.exam_id)
+  const examsByTeacher = groupBy(examRows, e => e.teacher_id)
+  const examsByGroup = groupBy(examRows, e => e.group_id)
+  const groupsByTeacher = groupBy(groups, g => g.teacher_id)
+  const subsOf = (exams: ReportExam[] | undefined) => (exams ?? []).flatMap(e => subsByExam.get(e.id) ?? [])
 
   const teacherName = new Map(teachers.map(t => [t.id, t.full_name]))
-  const overall = sumScores(subRows, maxByExam)
+  const overall = sumScores(subRows)
 
   const summary: ReportTable = {
     heading: d.execSummary,
     columns: [d.teachers, d.students, d.groups, d.assessments, d.lessonsPublished, d.submissions, d.avgOverall],
-    rows: [[teachers.length, students.length, (groups ?? []).length, examRows.length, lessonCount ?? 0, subRows.length,
+    rows: [[teachers.length, studentCount, groups.length, examRows.length, lessonCount, subRows.length,
       overall.totalMax ? `${pct(overall.total, overall.totalMax)}%` : '·']],
   }
 
@@ -152,12 +177,11 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
     heading: d.teachers,
     columns: [d.teacher, d.email, d.groups, d.students, d.assessments, d.avgTheirStudents],
     rows: teachers.map(t => {
-      const tGroups = (groups ?? []).filter(g => g.teacher_id === t.id)
+      const tGroups = groupsByTeacher.get(t.id) ?? []
       const tStudents = tGroups.reduce((s, g) => s + (membersByGroup.get(g.id) ?? 0), 0)
-      const tExamIds = new Set(examRows.filter(e => e.teacher_id === t.id).map(e => e.id))
-      const tSubs = subRows.filter(s => tExamIds.has(s.exam_id))
-      const agg = sumScores(tSubs, maxByExam)
-      return [t.full_name, t.email, tGroups.length, tStudents, tExamIds.size,
+      const tExams = examsByTeacher.get(t.id)
+      const agg = sumScores(subsOf(tExams))
+      return [t.full_name, t.email, tGroups.length, tStudents, tExams?.length ?? 0,
         agg.totalMax ? `${pct(agg.total, agg.totalMax)}%` : '·']
     }),
   }
@@ -165,16 +189,15 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
   const groupTable: ReportTable = {
     heading: d.groups,
     columns: [d.group, d.teacher, d.students, d.assessments, d.avgPerf],
-    rows: (groups ?? []).map(g => {
-      const gExamIds = new Set(examRows.filter(e => e.group_id === g.id).map(e => e.id))
-      const gSubs = subRows.filter(s => gExamIds.has(s.exam_id))
-      const agg = sumScores(gSubs, maxByExam)
-      return [g.name, teacherName.get(g.teacher_id) ?? '·', membersByGroup.get(g.id) ?? 0, gExamIds.size,
+    rows: groups.map(g => {
+      const gExams = examsByGroup.get(g.id)
+      const agg = sumScores(subsOf(gExams))
+      return [g.name, teacherName.get(g.teacher_id) ?? '·', membersByGroup.get(g.id) ?? 0, gExams?.length ?? 0,
         agg.totalMax ? `${pct(agg.total, agg.totalMax)}%` : '·']
     }),
   }
 
-  const distribution = distributionTable(subRows, maxByExam, d)
+  const distribution = distributionTable(subRows, d)
 
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
   const recentExams = examRows.filter(e => new Date(e.created_at).getTime() >= cutoff).length
@@ -187,20 +210,21 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
 
   const flaggedByExam = new Map<string, number>()
   for (const s of subRows) if (s.is_flagged) flaggedByExam.set(s.exam_id, (flaggedByExam.get(s.exam_id) ?? 0) + 1)
+  const examById = new Map(examRows.map(e => [e.id, e]))
   const integrity: ReportTable = {
     heading: d.integrityUni,
     columns: [d.exam, d.teacher, d.flaggedSubs],
     rows: [...flaggedByExam.entries()]
       .sort((a, b) => b[1] - a[1]).slice(0, 10)
       .map(([examId, n]) => {
-        const e = examRows.find(x => x.id === examId)
+        const e = examById.get(examId)
         return [e?.title ?? '·', teacherName.get(e?.teacher_id ?? '') ?? '·', n]
       }),
   }
 
   return {
     title: `${d.universityReport}: ${tenant.name}`,
-    subtitle: `${teachers.length} ${d.uTeacher} · ${students.length} ${d.uStudent} · ${(groups ?? []).length} ${d.uGroup}`,
+    subtitle: `${teachers.length} ${d.uTeacher} · ${studentCount} ${d.uStudent} · ${groups.length} ${d.uGroup}`,
     generatedAt: new Date().toISOString(),
     lang,
     tables: [summary, teacherTable, groupTable, distribution, activity, integrity],
@@ -212,59 +236,39 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
 // ══════════════════════════════════════════════════════════════════
 export async function buildTeacherReport(admin: SupabaseClient, teacherId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const { data: teacher } = await admin.from('users').select('id, full_name, email, tenant_id, tenants(name)').eq('id', teacherId).single()
-  if (!teacher) return null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const universityName = ((teacher as any).tenants?.name as string | undefined) ?? undefined
+  const data = await loadTeacherData(admin, teacherId)
+  if (!data) return null
+  const { teacher, groups, exams: examRows, lessonCount, members: memberRows, subs: subRows } = data
+  const universityName = teacher.tenants?.name ?? undefined
 
-  const [{ data: groups }, { data: exams }, { count: lessonCount }] = await Promise.all([
-    admin.from('groups').select('id, name').eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }),
-    admin.from('exams').select('id, title, type, group_id, teacher_id, questions, created_at, proctoring_enabled, is_published').eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }),
-    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId).eq('is_published', true).is('deleted_at', null),
-  ])
-  const examRows = (exams ?? []) as ExamRow[]
-  const groupIds = (groups ?? []).map(g => g.id)
-  const examIds = examRows.map(e => e.id)
-
-  const [{ data: memberships }, { data: subs }] = await Promise.all([
-    groupIds.length
-      ? admin.from('group_students').select('group_id, student_id, users(full_name, email)').in('group_id', groupIds)
-      : Promise.resolve({ data: [] }),
-    examIds.length
-      ? admin.from('exam_submissions').select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at').in('exam_id', examIds)
-      : Promise.resolve({ data: [] }),
-  ])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const memberRows = (memberships ?? []) as any[]
-  const subRows = (subs ?? []) as SubRow[]
-  const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
-  const groupName = new Map((groups ?? []).map(g => [g.id, g.name]))
+  const groupName = new Map(groups.map(g => [g.id, g.name]))
   const membersByGroup = new Map<string, string[]>()
   for (const m of memberRows) {
     const arr = membersByGroup.get(m.group_id) ?? []
     arr.push(m.student_id)
     membersByGroup.set(m.group_id, arr)
   }
+  const subsByExam = groupBy(subRows, s => s.exam_id)
+  const examsByGroup = groupBy(examRows, e => e.group_id)
 
   const totalStudents = new Set(memberRows.map(m => m.student_id)).size
-  const overall = sumScores(subRows, maxByExam)
+  const overall = sumScores(subRows)
   const summary: ReportTable = {
     heading: d.summary,
     columns: [d.groups, d.students, d.lessonsPublished, d.assessments, d.avgTheirStudents],
-    rows: [[(groups ?? []).length, totalStudents, lessonCount ?? 0, examRows.length,
+    rows: [[groups.length, totalStudents, lessonCount, examRows.length,
       overall.totalMax ? `${pct(overall.total, overall.totalMax)}%` : '·']],
   }
 
   const groupTable: ReportTable = {
     heading: d.groups,
     columns: [d.group, d.students, d.assessments, d.submissionRate, d.avgPerf],
-    rows: (groups ?? []).map(g => {
+    rows: groups.map(g => {
       const gMembers = membersByGroup.get(g.id) ?? []
-      const gExams = examRows.filter(e => e.group_id === g.id)
-      const gExamIds = new Set(gExams.map(e => e.id))
-      const gSubs = subRows.filter(s => gExamIds.has(s.exam_id))
+      const gExams = examsByGroup.get(g.id) ?? []
+      const gSubs = gExams.flatMap(e => subsByExam.get(e.id) ?? [])
       const expected = gMembers.length * gExams.length
-      const agg = sumScores(gSubs, maxByExam)
+      const agg = sumScores(gSubs)
       return [g.name, gMembers.length, gExams.length,
         expected ? `${Math.round((gSubs.length / expected) * 100)}%` : '·',
         agg.totalMax ? `${pct(agg.total, agg.totalMax)}%` : '·']
@@ -275,10 +279,9 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
     heading: d.assessmentsDetail,
     columns: [d.assessment, d.type, d.group, d.submittedOf, d.avg, d.highest, d.lowest, d.pendingGrading],
     rows: examRows.map(e => {
-      const eSubs = subRows.filter(s => s.exam_id === e.id)
+      const eSubs = subsByExam.get(e.id) ?? []
       const graded = eSubs.filter(s => s.score != null)
-      const max = maxByExam.get(e.id) ?? 0
-      const pcts = graded.map(s => pct(Number(s.score), s.max_score != null ? Number(s.max_score) : max))
+      const pcts = graded.map(s => pct(Number(s.score), maxOf(s)))
       const expected = (membersByGroup.get(e.group_id) ?? []).length
       return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '·',
         `${eSubs.length} / ${expected}`,
@@ -289,16 +292,11 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
     }),
   }
 
-  const byStudent = new Map<string, SubRow[]>()
-  for (const s of subRows) {
-    const arr = byStudent.get(s.student_id) ?? []
-    arr.push(s)
-    byStudent.set(s.student_id, arr)
-  }
+  const byStudent = groupBy(subRows, s => s.student_id)
   const studentInfo = new Map(memberRows.map(m => [m.student_id, m.users]))
   const strugglingRows: (string | number)[][] = []
   for (const [studentId, sSubs] of byStudent) {
-    const agg = sumScores(sSubs, maxByExam)
+    const agg = sumScores(sSubs)
     if (agg.totalMax > 0 && pct(agg.total, agg.totalMax) < 50) {
       const info = studentInfo.get(studentId)
       strugglingRows.push([info?.full_name ?? '·', info?.email ?? '·', `${pct(agg.total, agg.totalMax)}%`, sSubs.length])
@@ -311,7 +309,7 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
   }
 
   const pendingRows = examRows
-    .map(e => ({ e, pending: subRows.filter(s => s.exam_id === e.id && !s.is_graded).length }))
+    .map(e => ({ e, pending: (subsByExam.get(e.id) ?? []).filter(s => !s.is_graded).length }))
     .filter(x => x.pending > 0)
     .map(x => [x.e.title, groupName.get(x.e.group_id) ?? '·', x.pending] as (string | number)[])
   const discipline: ReportTable = {
@@ -322,7 +320,7 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
 
   return {
     title: `${d.teacherReport}: ${teacher.full_name}`,
-    subtitle: `${teacher.email} · ${(groups ?? []).length} ${d.uGroup} · ${totalStudents} ${d.uStudent}`,
+    subtitle: `${teacher.email} · ${groups.length} ${d.uGroup} · ${totalStudents} ${d.uStudent}`,
     university: universityName,
     generatedAt: new Date().toISOString(),
     lang,
@@ -335,43 +333,18 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
 // ══════════════════════════════════════════════════════════════════
 export async function buildGroupReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const { data: group } = await admin
-    .from('groups').select('id, name, tenant_id, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
-  if (!group) return null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const universityName = ((group as any).tenants?.name as string | undefined) ?? undefined
-
-  const [{ data: exams }, { data: members }] = await Promise.all([
-    admin.from('exams').select('id, title, type, questions').eq('group_id', groupId).is('deleted_at', null).order('created_at', { ascending: true }),
-    admin.from('group_students').select('student_id, users(full_name, email)').eq('group_id', groupId),
-  ])
-  const examIds = (exams ?? []).map(e => e.id)
-  const { data: subs } = examIds.length
-    ? await admin.from('exam_submissions').select('exam_id, student_id, score').in('exam_id', examIds)
-    : { data: [] as Array<{ exam_id: string; student_id: string; score: number | null }> }
-
-  const columns = [d.student, d.email, ...(exams ?? []).map(e => `${e.type === 'homework' ? d.homeworkTag : ''}${e.title}`), d.total, d.pctCol]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = (members as any[] ?? []).map((m: any) => {
-    let total = 0, totalMax = 0
-    const cells = (exams ?? []).map(e => {
-      const sub = (subs ?? []).find(s => s.exam_id === e.id && s.student_id === m.student_id)
-      const max = examMax(e.questions)
-      if (sub?.score != null) { total += Number(sub.score); totalMax += max; return `${sub.score}/${max}` }
-      return '·'
-    })
-    return [m.users?.full_name ?? '·', m.users?.email ?? '', ...cells, totalMax ? `${total}/${totalMax}` : '·', totalMax ? String(pct(total, totalMax)) : '·']
-  })
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const teacherName = (group as any).users?.full_name ?? '·'
+  const data = await loadGroupReportData(admin, groupId)
+  if (!data) return null
+  const { group, exams, members, subs } = data
+  const universityName = group.tenants?.name ?? undefined
+  const teacherName = group.users?.full_name ?? '·'
   return {
     title: `${d.groupReport}: ${group.name}`,
-    subtitle: `${d.teacherPrefix}: ${teacherName} · ${(members ?? []).length} ${d.uStudent} · ${(exams ?? []).length} ${d.uAssessment}`,
+    subtitle: `${d.teacherPrefix}: ${teacherName} · ${members.length} ${d.uStudent} · ${exams.length} ${d.uAssessment}`,
     university: universityName,
     generatedAt: new Date().toISOString(),
     lang,
-    tables: [{ heading: d.studentGrades, columns, rows }],
+    tables: [gradeMatrix(exams, members, subs, d)],
   }
 }
 
@@ -384,38 +357,21 @@ const MINUTES_SAVED_PER_AUTO_GRADED = 5
 
 export async function buildPilotReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const { data: group } = await admin
-    .from('groups').select('id, name, tenant_id, created_at, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
-  if (!group) return null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const universityName = ((group as any).tenants?.name as string | undefined) ?? undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const teacherName = (group as any).users?.full_name ?? '·'
-
-  const [{ data: exams }, { data: members }, { count: lessonCount }, { data: survey }] = await Promise.all([
-    admin.from('exams').select('id, title, type, group_id, teacher_id, questions, created_at, proctoring_enabled, is_published').eq('group_id', groupId).is('deleted_at', null).order('created_at', { ascending: true }),
-    admin.from('group_students').select('student_id, users(full_name, email)').eq('group_id', groupId),
-    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('group_id', groupId).eq('is_published', true).is('deleted_at', null),
-    admin.from('surveys').select('id, title').eq('group_id', groupId).maybeSingle(),
-  ])
-  const examRows = (exams ?? []) as ExamRow[]
-  const examIds = examRows.map(e => e.id)
-  const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
-
-  const { data: subs } = examIds.length
-    ? await admin.from('exam_submissions').select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at').in('exam_id', examIds)
-    : { data: [] as SubRow[] }
-  const subRows = (subs ?? []) as SubRow[]
-  const overall = sumScores(subRows, maxByExam)
+  const data = await loadPilotData(admin, groupId)
+  if (!data) return null
+  const { group, exams: examRows, members, lessonCount, subs: subRows, responses } = data
+  const universityName = group.tenants?.name ?? undefined
+  const teacherName = group.users?.full_name ?? '·'
+  const overall = sumScores(subRows)
 
   // 1. Executive summary
   const autoGraded = subRows.filter(s => s.is_graded).length
   const hoursSaved = Math.round((autoGraded * MINUTES_SAVED_PER_AUTO_GRADED / 60) * 10) / 10
-  const expected = (members ?? []).length * examRows.length
+  const expected = members.length * examRows.length
   const summary: ReportTable = {
     heading: d.execSummaryPilot,
     columns: [d.students, d.lessonsPublished, d.assessments, d.submissions, d.submissionRate, d.avgOverall, d.hoursSaved],
-    rows: [[(members ?? []).length, lessonCount ?? 0, examRows.length, subRows.length,
+    rows: [[members.length, lessonCount, examRows.length, subRows.length,
       expected ? `${Math.round((subRows.length / expected) * 100)}%` : '·',
       overall.totalMax ? `${pct(overall.total, overall.totalMax)}%` : '·',
       hoursSaved]],
@@ -435,21 +391,8 @@ export async function buildPilotReport(admin: SupabaseClient, groupId: string, l
   const weekly: ReportTable = { heading: d.weeklyActivity, columns: [d.week, d.weekNewAssessments, d.weekSubmissions], rows: weeklyRows }
 
   // 3. Grade matrix (per-student, per-assessment) — same shape as group report
-  const gradeColumns = [d.student, d.email, ...examRows.map(e => `${e.type === 'homework' ? d.homeworkTag : ''}${e.title}`), d.total, d.pctCol]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const gradeRows = (members as any[] ?? []).map((m: any) => {
-    let total = 0, totalMax = 0
-    const cells = examRows.map(e => {
-      const sub = subRows.find(s => s.exam_id === e.id && s.student_id === m.student_id)
-      const max = maxByExam.get(e.id) ?? 0
-      if (sub?.score != null) { total += Number(sub.score); totalMax += max; return `${sub.score}/${max}` }
-      return '·'
-    })
-    return [m.users?.full_name ?? '·', m.users?.email ?? '', ...cells, totalMax ? `${total}/${totalMax}` : '·', totalMax ? String(pct(total, totalMax)) : '·']
-  })
-  const gradeMatrix: ReportTable = { heading: d.studentGrades, columns: gradeColumns, rows: gradeRows }
-
-  const distribution = distributionTable(subRows, maxByExam, d)
+  const matrix = gradeMatrix(examRows, members, subRows, d)
+  const distribution = distributionTable(subRows, d)
 
   // 4. Integrity
   const proctoredCount = examRows.filter(e => e.proctoring_enabled).length
@@ -463,21 +406,15 @@ export async function buildPilotReport(admin: SupabaseClient, groupId: string, l
   // 5. Student feedback (survey)
   let feedbackRows: (string | number)[][] = [[0, '·', '·', '·']]
   const quoteRows: (string | number)[][] = []
-  if (survey) {
-    const { data: responses } = await admin
-      .from('survey_responses')
-      .select('ease_rating, prefer_platform, recommend, best_feature, problem_faced, comment')
-      .eq('survey_id', survey.id)
-    const r = responses ?? []
-    if (r.length) {
-      const avgEase = Math.round((r.reduce((s, x) => s + x.ease_rating, 0) / r.length) * 10) / 10
-      const preferPct = Math.round((r.filter(x => x.prefer_platform).length / r.length) * 100)
-      const recommendPct = Math.round((r.filter(x => x.recommend).length / r.length) * 100)
-      feedbackRows = [[r.length, avgEase, `${preferPct}%`, `${recommendPct}%`]]
-      for (const resp of r) {
-        if (resp.best_feature || resp.problem_faced || resp.comment) {
-          quoteRows.push([resp.best_feature || '·', resp.problem_faced || '·', resp.comment || '·'])
-        }
+  const r = responses
+  if (r.length) {
+    const avgEase = Math.round((r.reduce((s, x) => s + x.ease_rating, 0) / r.length) * 10) / 10
+    const preferPct = Math.round((r.filter(x => x.prefer_platform).length / r.length) * 100)
+    const recommendPct = Math.round((r.filter(x => x.recommend).length / r.length) * 100)
+    feedbackRows = [[r.length, avgEase, `${preferPct}%`, `${recommendPct}%`]]
+    for (const resp of r) {
+      if (resp.best_feature || resp.problem_faced || resp.comment) {
+        quoteRows.push([resp.best_feature || '·', resp.problem_faced || '·', resp.comment || '·'])
       }
     }
   }
@@ -494,11 +431,11 @@ export async function buildPilotReport(admin: SupabaseClient, groupId: string, l
 
   return {
     title: `${d.pilotReport}: ${group.name}`,
-    subtitle: `${d.teacherPrefix}: ${teacherName} · ${(members ?? []).length} ${d.uStudent} · ${examRows.length} ${d.uAssessment}`,
+    subtitle: `${d.teacherPrefix}: ${teacherName} · ${members.length} ${d.uStudent} · ${examRows.length} ${d.uAssessment}`,
     university: universityName,
     generatedAt: new Date().toISOString(),
     lang,
-    tables: [summary, weekly, gradeMatrix, distribution, integrity, feedback, quotes],
+    tables: [summary, weekly, matrix, distribution, integrity, feedback, quotes],
   }
 }
 
@@ -507,37 +444,12 @@ export async function buildPilotReport(admin: SupabaseClient, groupId: string, l
 // ══════════════════════════════════════════════════════════════════
 export async function buildStudentReport(admin: SupabaseClient, studentId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const { data: student } = await admin
-    .from('users').select('id, full_name, email, created_at, tenant_id, tenants(name)').eq('id', studentId).single()
-  if (!student) return null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const universityName = ((student as any).tenants?.name as string | undefined) ?? undefined
+  const data = await loadStudentData(admin, studentId)
+  if (!data) return null
+  const { student, activeGroups, exams: examRows, peerSubs, ownSubs: subRows } = data
+  const universityName = student.tenants?.name ?? undefined
 
-  const { data: memberships } = await admin
-    .from('group_students')
-    .select('group_id, joined_at, groups(id, name, deleted_at, users:teacher_id(full_name))')
-    .eq('student_id', studentId)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeGroups = ((memberships ?? []) as any[]).filter(m => m.groups && !m.groups.deleted_at)
-  const groupIds = activeGroups.map(m => m.group_id)
-
-  const { data: exams } = groupIds.length
-    ? await admin.from('exams')
-        .select('id, title, type, group_id, teacher_id, questions, created_at, proctoring_enabled, is_published')
-        .in('group_id', groupIds).eq('is_published', true).is('deleted_at', null)
-        .order('created_at', { ascending: true })
-    : { data: [] }
-  const examRows = (exams ?? []) as ExamRow[]
-  const examIds = examRows.map(e => e.id)
-
-  const { data: subs } = examIds.length
-    ? await admin.from('exam_submissions')
-        .select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at')
-        .eq('student_id', studentId).in('exam_id', examIds)
-    : { data: [] }
-  const subRows = (subs ?? []) as SubRow[]
   const subByExam = new Map(subRows.map(s => [s.exam_id, s]))
-  const maxByExam = new Map(examRows.map(e => [e.id, examMax(e.questions)]))
   const groupName = new Map(activeGroups.map(m => [m.groups.id, m.groups.name]))
 
   const card: ReportTable = {
@@ -552,19 +464,16 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
     columns: [d.assessment, d.type, d.group, d.grade, d.pct, d.submitDate, d.status],
     rows: examRows.map(e => {
       const sub = subByExam.get(e.id)
-      const max = sub?.max_score != null ? Number(sub.max_score) : (maxByExam.get(e.id) ?? 0)
       if (!sub) return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '·', '·', '·', '·', d.notSubmitted]
       if (sub.score == null) return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '·', '·', '·', fmtDate(sub.submitted_at, lang), d.awaitingGrading]
+      const max = maxOf(sub)
       return [e.title, typeLabel(e.type, d), groupName.get(e.group_id) ?? '·',
         `${sub.score}/${max}`, max ? `${pct(Number(sub.score), max)}%` : '·', fmtDate(sub.submitted_at, lang), d.graded]
     }),
   }
 
-  const own = sumScores(subRows, maxByExam)
-  const { data: peerSubs } = examIds.length
-    ? await admin.from('exam_submissions').select('exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at').in('exam_id', examIds)
-    : { data: [] }
-  const peers = sumScores((peerSubs ?? []) as SubRow[], maxByExam)
+  const own = sumScores(subRows)
+  const peers = sumScores(peerSubs)
   const ownPct = own.totalMax ? pct(own.total, own.totalMax) : null
   const peerPct = peers.totalMax ? pct(peers.total, peers.totalMax) : null
   const summary: ReportTable = {
@@ -589,8 +498,8 @@ export async function buildStudentReport(admin: SupabaseClient, studentId: strin
   let trendRows: (string | number)[][] = []
   if (graded.length >= 4) {
     const half = Math.floor(graded.length / 2)
-    const first = sumScores(graded.slice(0, half), maxByExam)
-    const second = sumScores(graded.slice(half), maxByExam)
+    const first = sumScores(graded.slice(0, half))
+    const second = sumScores(graded.slice(half))
     const p1 = first.totalMax ? pct(first.total, first.totalMax) : 0
     const p2 = second.totalMax ? pct(second.total, second.totalMax) : 0
     trendRows = [[`${p1}%`, `${p2}%`, p2 > p1 ? d.improved : p2 < p1 ? d.declined : d.stable]]
