@@ -21,8 +21,12 @@ const NOW = FIXED_NOW.getTime()
 type Row = Record<string, unknown>
 export interface World { [table: string]: Row[] }
 
-/** Two live groups of 42 (one student in both), a deleted group, deleted and unpublished exams, a survey. */
-export function buildWorld(): World {
+/**
+ * Two live groups of 42 (one student in both), a deleted group, deleted and unpublished exams, a survey.
+ * `missingMax`: some scored submissions have no max_score (scored before finalisation) — on two
+ * listed exams (g0-e03, g1-e05) and on the deleted exam, which no report lists.
+ */
+export function buildWorld(opts: { missingMax?: boolean } = {}): World {
   const tenants = [{ id: 'tn', name: 'Uni' }]
   const teachers = ['t0', 't1'].map(id => ({ id, full_name: `Teacher ${id}`, email: `${id}@x.test`, role: 'teacher', tenant_id: 'tn', created_at: iso(NOW - 400 * DAY), tenants: { name: 'Uni' } }))
   const groupDefs = [
@@ -80,9 +84,10 @@ export function buildWorld(): World {
       if ((si + k) % 7 === 0) return                       // not submitted
       const max = e._max as number
       const awaiting = (si + k) % 11 === 0
+      const noMax = opts.missingMax && !awaiting && si % 5 === 1 && ['g0-e03', 'g1-e05', 'g0-deleted'].includes(e.id as string)
       subs.push({
         id: `sub${String(n++).padStart(5, '0')}`, exam_id: e.id, student_id: m.student_id, tenant_id: 'tn',
-        score: awaiting ? null : (si * 3 + k * 5) % (max + 1), max_score: max,
+        score: awaiting ? null : (si * 3 + k * 5) % (max + 1), max_score: noMax ? null : max,
         is_graded: (si + k) % 13 !== 0, is_flagged: (si + k) % 17 === 0,
         submitted_at: iso(new Date(e.created_at as string).getTime() + (si + 1) * 60_000),
       })
@@ -164,4 +169,10 @@ export const GOLDEN_CASES = [
   ['university', 'tn', 'ar'], ['university', 'tn', 'en'], ['teacher', 't0', 'ar'], ['teacher', 't1', 'ar'],
   ['group', 'g0', 'ar'], ['group', 'g1', 'ar'], ['pilot', 'g0', 'ar'], ['pilot', 'g1', 'ar'],
   ['student', 's00', 'ar'], ['student', 's00', 'en'], ['student', 's01', 'ar'], ['student', 's50', 'ar'],
+] as const
+
+/** Reports over the `missingMax` world (the score-without-max_score fallback). */
+export const GOLDEN_FALLBACK_CASES = [
+  ['university', 'tn', 'ar'], ['teacher', 't0', 'ar'], ['teacher', 't1', 'ar'], ['group', 'g0', 'ar'],
+  ['pilot', 'g1', 'ar'], ['student', 's01', 'ar'], ['student', 's43', 'ar'],
 ] as const

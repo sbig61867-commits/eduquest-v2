@@ -19,7 +19,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 //
 // Exams are read without `questions`: a submission's own max_score is the sum
 // of its exam's points (finalize_exam_submission writes it with the same rule),
-// and the questions were ~97% of the bytes.
+// and the questions were ~97% of the bytes. The one case without a max_score (a
+// score set before finalisation) reads its exams' questions on demand — see
+// withFallbackMax().
 
 /** The API's max_rows: a larger page would be cut to this anyway. */
 export const PAGE_SIZE = 1000
@@ -87,6 +89,37 @@ export interface ReportSub {
   id: string; exam_id: string; student_id: string; score: number | null; max_score: number | null
   is_graded: boolean; is_flagged: boolean; submitted_at: string | null
 }
+/** The pre-P-07 fallback maximum of a submission: its exam's question-point total (same expression as the old examMax). */
+function questionPointTotal(questions: unknown): number {
+  if (!Array.isArray(questions)) return 0
+  return (questions as Array<{ points?: number }>).reduce((s, q) => s + (q.points ?? 0), 0)
+}
+
+/** Exam ids per fallback read: well under max_rows, and a short URL. */
+export const FALLBACK_CHUNK = 100
+
+/**
+ * A submission scored before it was finalised (a score but no max_score — e.g. a
+ * teacher scoring a homework attempt that was never submitted) has no stored
+ * maximum, and the reports used its exam's question-point total instead. Exams are
+ * no longer read with their questions, so for exactly those exams — and only when
+ * such a submission exists — read the questions in bounded chunks and fill that
+ * maximum in. As before, only exams in the report's own exam list count; anything
+ * else keeps no maximum (0).
+ */
+async function withFallbackMax(admin: SupabaseClient, subs: ReportSub[], reportExamIds: Iterable<string>): Promise<ReportSub[]> {
+  const listed = new Set(reportExamIds)
+  const ids = [...new Set(subs.filter(s => s.score != null && s.max_score == null && listed.has(s.exam_id)).map(s => s.exam_id))]
+  if (!ids.length) return subs
+  const chunks: string[][] = []
+  for (let i = 0; i < ids.length; i += FALLBACK_CHUNK) chunks.push(ids.slice(i, i + FALLBACK_CHUNK))
+  const pages = await Promise.all(chunks.map(chunk =>
+    admin.from('exams').select('id, questions').in('id', chunk).limit(FALLBACK_CHUNK)))
+  const total = new Map<string, number>()
+  for (const { data } of pages) for (const e of (data ?? []) as { id: string; questions: unknown }[]) total.set(e.id, questionPointTotal(e.questions))
+  return subs.map(s => (s.score != null && s.max_score == null && total.has(s.exam_id) ? { ...s, max_score: total.get(s.exam_id)! } : s))
+}
+
 interface Person { id: string; full_name: string; email: string }
 interface Member { group_id: string; student_id: string; users: { full_name: string; email: string } | null }
 
@@ -114,7 +147,10 @@ export async function loadUniversityData(admin: SupabaseClient, tenantId: string
     readAll<{ group_id: string; student_id: string }>((f, t, c) => admin.from('group_students').select('group_id, student_id, groups!inner()', withCount(c))
       .eq('groups.tenant_id', tenantId).is('groups.deleted_at', null).order('group_id').order('student_id').range(f, t)),
   ])
-  return { tenant: tenant as { id: string; name: string }, teachers, studentCount: studentCount ?? 0, groups, exams, lessonCount: lessonCount ?? 0, subs, memberships }
+  return {
+    tenant: tenant as { id: string; name: string }, teachers, studentCount: studentCount ?? 0, groups, exams, lessonCount: lessonCount ?? 0,
+    subs: await withFallbackMax(admin, subs, exams.map(e => e.id)), memberships,
+  }
 }
 
 // ── Teacher ─────────────────────────────────────────────────────────────────
@@ -138,7 +174,10 @@ export async function loadTeacherData(admin: SupabaseClient, teacherId: string) 
     readAllById<ReportSub>(after => admin.from('exam_submissions').select(TEACHER_SUB_COLUMNS)
       .eq('exams.teacher_id', teacherId).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE)),
   ])
-  return { teacher: teacher as unknown as Person & { tenants: { name: string } | null }, groups, exams, lessonCount: lessonCount ?? 0, members, subs }
+  return {
+    teacher: teacher as unknown as Person & { tenants: { name: string } | null }, groups, exams, lessonCount: lessonCount ?? 0, members,
+    subs: await withFallbackMax(admin, subs, exams.map(e => e.id)),
+  }
 }
 
 // ── Group and pilot (one group) ─────────────────────────────────────────────
@@ -160,7 +199,7 @@ export async function loadGroupReportData(admin: SupabaseClient, groupId: string
   const { data: group } = await admin.from('groups').select('id, name, tenant_id, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single()
   if (!group) return null
   const [exams, members, subs] = await Promise.all([groupExams(admin, groupId), groupMembers(admin, groupId), groupSubs(admin, groupId)])
-  return { group: group as unknown as GroupRow, exams, members, subs }
+  return { group: group as unknown as GroupRow, exams, members, subs: await withFallbackMax(admin, subs, exams.map(e => e.id)) }
 }
 
 export interface SurveyResponse {
@@ -182,7 +221,10 @@ export async function loadPilotData(admin: SupabaseClient, groupId: string) {
       .select('ease_rating, prefer_platform, recommend, best_feature, problem_faced, comment, surveys!inner()', withCount(c))
       .eq('surveys.group_id', groupId).order('id').range(f, t)),
   ])
-  return { group: group as unknown as GroupRow & { created_at: string }, exams, members, lessonCount: lessonCount ?? 0, subs, responses }
+  return {
+    group: group as unknown as GroupRow & { created_at: string }, exams, members, lessonCount: lessonCount ?? 0,
+    subs: await withFallbackMax(admin, subs, exams.map(e => e.id)), responses,
+  }
 }
 
 // ── Student ─────────────────────────────────────────────────────────────────
@@ -202,7 +244,7 @@ export async function loadStudentData(admin: SupabaseClient, studentId: string) 
   if (!student) return null
   const activeGroups = memberships.filter(m => m.groups && !m.groups.deleted_at)
   const groupIds = activeGroups.map(m => m.group_id)
-  const [exams, peerSubs] = groupIds.length
+  const [exams, readSubs] = groupIds.length
     ? await Promise.all([
         readAll<ReportExam>((f, t, c) => admin.from('exams').select(STUDENT_EXAM_COLUMNS, withCount(c))
           .in('group_id', groupIds).eq('is_published', true).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
@@ -211,6 +253,7 @@ export async function loadStudentData(admin: SupabaseClient, studentId: string) 
           .in('exams.group_id', groupIds).eq('exams.is_published', true).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE)),
       ])
     : [[] as ReportExam[], [] as ReportSub[]]
+  const peerSubs = await withFallbackMax(admin, readSubs, exams.map(e => e.id))
   return {
     student: student as unknown as Person & { created_at: string; tenants: { name: string } | null },
     activeGroups: activeGroups as (Membership & { groups: NonNullable<Membership['groups']> })[],

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import golden from './reports-golden.json'
-import { buildWorld, mockAdmin, GOLDEN_CASES, FIXED_NOW, MAX_ROWS, type MockCall } from './reports-fixture'
+import { buildWorld, mockAdmin, GOLDEN_CASES, GOLDEN_FALLBACK_CASES, FIXED_NOW, MAX_ROWS, type MockCall } from './reports-fixture'
 import { buildUniversityReport, buildTeacherReport, buildGroupReport, buildPilotReport, buildStudentReport } from '@/lib/reports'
 import {
-  readAll, readAllById, PAGE_SIZE, FIRST_ID, UNIVERSITY_EXAM_COLUMNS, TEACHER_EXAM_COLUMNS, GROUP_EXAM_COLUMNS, STUDENT_EXAM_COLUMNS,
+  readAll, readAllById, PAGE_SIZE, FIRST_ID, FALLBACK_CHUNK, UNIVERSITY_EXAM_COLUMNS, TEACHER_EXAM_COLUMNS, GROUP_EXAM_COLUMNS, STUDENT_EXAM_COLUMNS,
 } from '@/lib/data/reports'
 
 /**
@@ -42,6 +42,44 @@ describe('equivalence with the pre-P-07 reports (fixture over the 1000-row cap)'
       // The student report reads its memberships beside the student row; nothing after.
       expect(calls.map(c => c.table)).toEqual(scope === 'student' ? ['users', 'group_students'] : [scope === 'university' ? 'tenants' : scope === 'teacher' ? 'users' : 'groups'])
     }
+  })
+})
+
+describe('a score without max_score keeps the pre-P-07 maximum (exam question points)', () => {
+  const questionReads = (calls: MockCall[]) => calls.filter(c => c.table === 'exams' && c.columns.includes('questions'))
+
+  for (const [scope, id, lang] of GOLDEN_FALLBACK_CASES) {
+    it(`${scope} ${id} (${lang}) equals the pre-P-07 report`, async () => {
+      const report = await BUILDERS[scope](mockAdmin(buildWorld({ missingMax: true }), { cap: true }), id, lang)
+      expect(report).toEqual((golden as Record<string, unknown>)[`missingMax:${scope}:${id}:${lang}`])
+    })
+  }
+
+  it('reads the questions of exactly the affected listed exams, in one bounded read', async () => {
+    const calls: MockCall[] = []
+    await buildUniversityReport(mockAdmin(buildWorld({ missingMax: true }), { cap: true, calls }), 'tn', 'ar')
+    const reads = questionReads(calls)
+    expect(reads).toHaveLength(1)
+    expect(reads[0].columns).toBe('id, questions')
+    // Two affected listed exams; the deleted exam is not in the report's list, so not read (it stays at 0, as before).
+    expect(reads[0].filters).toEqual([['in', 'id', ['g0-e03', 'g1-e05']]])
+    expect(reads[0].limit).toBe(FALLBACK_CHUNK)
+  })
+
+  it('no question read when every scored submission has its max_score', async () => {
+    for (const [scope, id] of [['university', 'tn'], ['teacher', 't0'], ['group', 'g0'], ['pilot', 'g0'], ['student', 's00']] as const) {
+      const calls: MockCall[] = []
+      await BUILDERS[scope](mockAdmin(buildWorld(), { cap: true, calls }), id, 'ar')
+      expect(questionReads(calls), scope).toEqual([])
+    }
+  })
+
+  it('without the fallback the reports would differ (the case is real in the fixture)', async () => {
+    // Same world, but the exams' questions are gone: the fallback finds no points.
+    const world = buildWorld({ missingMax: true })
+    for (const e of world.exams) e.questions = []
+    const report = await buildTeacherReport(mockAdmin(world, { cap: true }), 't0', 'ar')
+    expect(report).not.toEqual((golden as Record<string, unknown>)['missingMax:teacher:t0:ar'])
   })
 })
 
