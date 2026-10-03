@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
-import { buildItems, isShared, loadGroupData, marksFor, progressFor, requestNow, summarize } from '@/lib/teacher-records'
+import { buildItems, isShared, marksFor, progressFor, requestNow, summarize } from '@/lib/teacher-records'
+import { loadGroupData } from '@/lib/data/teacher-records'
 import { StudentRecordClient } from './student-record-client'
 
 // Level 3: one student's complete record inside one of the teacher's groups.
@@ -19,7 +20,8 @@ export default async function StudentRecordPage({ params, searchParams }: {
   const user = await getAuthUser(supabase)
   if (!user) redirect('/login')
 
-  const data = await loadGroupData(supabase, user.id, groupId)
+  // Only this student's roster row, submissions, marks and progress are read.
+  const data = await loadGroupData(supabase, user.id, groupId, { studentId })
   if (!data) notFound()
   const member = data.members.find(m => m.studentId === studentId)
   if (!member) notFound()

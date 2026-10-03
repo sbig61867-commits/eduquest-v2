@@ -44,7 +44,6 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
   'lib/seat-limit.ts': 2,
   'lib/storage-quota.ts': 1,
   'lib/structure-mode.ts': 2,
-  'lib/teacher-records.ts': 1,
 }
 
 /** Reads with no limit/range/single/maybeSingle/head count/eq('id'). */
@@ -122,10 +121,15 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     the courses on .in('id', the caller's enrolled course ids) — each is bounded by the
   //     student's own enrolments / memberships / transfers, not by the institution's size.
   'lib/data/student-courses.ts': 4,
+  // 7 — teacher records (moved from lib/teacher-records.ts, 7 → 0 there, P-10): the teacher's
+  //     own groups (teacher_id), and per group its roster, exams (named columns, no questions),
+  //     sessions, marks, submissions (.in the group's exam + member ids) and course progress
+  //     (.in the member ids). Each is bounded by one group; the student record narrows the
+  //     roster / marks / submissions / progress to one student.
+  'lib/data/teacher-records.ts': 7,
   'lib/reports.ts': 20,
   'lib/requests-data.ts': 3,
   'lib/schedules-data.ts': 6,
-  'lib/teacher-records.ts': 7,
 }
 
 /** Calls to the heavy feeds listed in HEAVY_FEEDS (perf-contract-scan.ts). */

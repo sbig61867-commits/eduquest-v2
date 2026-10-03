@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
-import { groupStudentRows, isShared, loadGroupData, requestNow, summarizeAttendance } from '@/lib/teacher-records'
+import { groupStudentRows, isShared, requestNow, summarizeAttendance } from '@/lib/teacher-records'
+import { loadGroupData } from '@/lib/data/teacher-records'
 import { GroupRecordClient, type AssessmentBar } from './group-record-client'
 
 const CHART_LAST = 12
