@@ -215,6 +215,7 @@
   "recipientRequiredOne": "المستلِم مطلوب",
   "reportFailed": "تعذّر جلب التقرير",
   "reportsRestricted": "التقارير متاحة حالياً لمالك المنصة فقط.",
+  "reportReadFailed": "تعذّرت قراءة بيانات التقرير كاملة. حاول مرة أخرى.",
   "requestActionForbidden": "ليس لديك صلاحية هذا الإجراء على الطلب",
   "requestCreateFailed": "تعذّر إنشاء الطلب",
   "requestNotFound": "الطلب غير موجود",
