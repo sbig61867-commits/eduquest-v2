@@ -10,6 +10,7 @@ import {
   sniffEvidenceImage, isClipExt, extOf,
 } from '@/lib/evidence-keys'
 import { evidenceViewUrl, isEvidenceStoreConfigured, putEvidence } from '@/lib/evidence-store'
+import { IncompleteReadError, inBatches, rowsOf } from '@/lib/data/complete-read'
 
 // Proctoring evidence snapshots (policy: src/lib/evidence-keys.ts).
 //   POST — the student's browser sends ONE small snapshot for a SEVERE violation.
@@ -140,10 +141,16 @@ export async function GET(request: Request) {
     .sort((a, b) => b.capturedAt - a.capturedAt)
 
   const ids = [...new Set(live.map(k => k.studentId))]
+  // Names in short `.in()` batches (one long list can pass the API's URL limit).
   const names = new Map<string, string>()
-  if (ids.length) {
-    const { data: students } = await supabase.from('users').select('id, full_name').in('id', ids)
-    for (const s of students ?? []) names.set(s.id, s.full_name ?? '')
+  try {
+    const students = await inBatches(ids, async batch => rowsOf(
+      await supabase.from('users').select('id, full_name').in('id', batch), 'evidence students'))
+    for (const s of students) names.set(s.id, s.full_name ?? '')
+  } catch (e) {
+    if (!(e instanceof IncompleteReadError)) throw e
+    console.error('[proctor/evidence]', e.message, e.detail ?? '')
+    return NextResponse.json({ ...(await apiErr('dataReadIncomplete')) }, { status: 503 })
   }
 
   const items: EvidenceItem[] = []

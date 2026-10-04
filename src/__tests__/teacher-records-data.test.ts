@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { loadGroupCards, loadGroupData, RECORD_EXAM_COLUMNS } from '@/lib/data/teacher-records'
 import { buildItems } from '@/lib/teacher-records'
+import { FIRST_ID, READ_PAGE } from '@/lib/data/complete-read'
 
 /**
  * P-10 (PERFORMANCE_CONTRACT.md P2, P4, P5). Teacher records read exams by named
@@ -19,15 +20,18 @@ let replies: Record<string, unknown>
 
 const db = () => ({
   from: (table: string) => ({
-    select: (columns: string, opts?: { head?: boolean }) => {
+    select: (columns: string, opts?: { head?: boolean; count?: string }) => {
       const call: Call = { table, columns, head: !!opts?.head, single: false, filters: [] }
       calls.push(call)
+      // Complete reads (B): a head count / counted page reports exactly the rows the reply holds.
+      const rows = () => (replies[table] ?? []) as unknown[]
       const result = () =>
         call.single ? { data: replies[`${table}:single`] ?? null, error: null }
-          : call.head ? { data: null, count: replies[`${table}:count`] ?? 0, error: null }
-          : { data: replies[table] ?? [], error: null }
+          : call.head ? { data: null, count: replies[`${table}:count`] ?? rows().length, error: null }
+          : { data: rows(), count: opts?.count === 'exact' ? rows().length : null, error: null }
       const chain: Record<string, unknown> = {}
-      for (const op of ['eq', 'in', 'is', 'or', 'order']) chain[op] = (...a: unknown[]) => { call.filters.push([op, ...a]); return chain }
+      for (const op of ['eq', 'in', 'is', 'or', 'order', 'gt', 'limit', 'range']) chain[op] = (...a: unknown[]) => { call.filters.push([op, ...a]); return chain }
+      chain.match = (o: Record<string, unknown>) => { for (const [c, v] of Object.entries(o)) call.filters.push(['eq', c, v]); return chain }
       chain.maybeSingle = () => { call.single = true; return chain }
       chain.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
         new Promise(r => pending.push(() => r(result()))).then(res, rej)
@@ -67,7 +71,7 @@ beforeEach(() => {
     exam_submissions: [{ id: 'x1', exam_id: 'e1', student_id: 's1', score: 15, max_score: 20, grading_status: 'published',
       status: 'submitted', submitted_at: '2026-09-10T10:00:00Z', is_flagged: false }],
     'unit_items:count': 4,
-    student_progress: [{ student_id: 's1' }, { student_id: 's1' }],
+    student_progress: [{ id: 'p1', student_id: 's1' }, { id: 'p2', student_id: 's1' }],
   }
 })
 
@@ -88,7 +92,8 @@ describe('loadGroupData — group page (P-10)', () => {
     await flush()
     expect(since(1).sort()).toEqual(['attendance_records', 'attendance_sessions', 'exams', 'group_students'])
     await flush()
-    expect(since(5)).toEqual(['exam_submissions', 'unit_items', 'student_progress'])
+    // Each complete read is its first page + a head-only count of the same read, in the same round.
+    expect(since(5)).toEqual(['exam_submissions', 'exam_submissions', 'unit_items', 'student_progress', 'student_progress'])
     await flush(); await flush()
     const data = await done
     expect(data!.members.map(m => m.studentId)).toEqual(['s2', 's1'])
@@ -107,8 +112,16 @@ describe('loadGroupData — group page (P-10)', () => {
     ])
     // The group's roster and marks are not narrowed to a student here.
     expect(callOf('group_students').filters).toEqual([['eq', 'group_id', 'g1']])
-    expect(callOf('attendance_records').filters).toEqual([['eq', 'attendance_sessions.group_id', 'g1']])
-    expect(callOf('exam_submissions').filters).toEqual([['in', 'exam_id', ['e1']], ['in', 'student_id', ['s2', 's1']]])
+    expect(callOf('attendance_records').filters).toEqual([
+      ['eq', 'attendance_sessions.group_id', 'g1'], ['order', 'session_id'], ['order', 'student_id'], ['range', 0, READ_PAGE - 1],
+    ])
+    // Submissions: through the exam's own conditions (no exam id list), members by id batch, keyset on id.
+    expect(callOf('exam_submissions').filters).toEqual([
+      ['eq', 'exams.teacher_id', 't1'], ['eq', 'exams.is_published', true], ['is', 'exams.deleted_at', null],
+      ['or', 'group_id.eq.g1,course_id.eq.c1', { referencedTable: 'exams' }], ['in', 'student_id', ['s2', 's1']],
+      ['gt', 'id', FIRST_ID], ['order', 'id'], ['limit', READ_PAGE],
+    ])
+    expect(callOf('exam_submissions').columns).toContain('exams!inner()')
   })
 
   it('not the teacher\'s group → null, and nothing else is read', async () => {
@@ -136,7 +149,9 @@ describe('loadGroupData — one student\'s record (P-10)', () => {
     await flush(); await flush(); await flush(); await flush()
     const data = (await done)!
     expect(callOf('group_students').filters).toEqual([['eq', 'group_id', 'g1'], ['eq', 'student_id', 's1']])
-    expect(callOf('attendance_records').filters).toEqual([['eq', 'attendance_sessions.group_id', 'g1'], ['eq', 'student_id', 's1']])
+    expect(callOf('attendance_records').filters).toEqual([
+      ['eq', 'attendance_sessions.group_id', 'g1'], ['eq', 'student_id', 's1'], ['order', 'session_id'], ['order', 'student_id'], ['range', 0, READ_PAGE - 1],
+    ])
     expect(callOf('exam_submissions').filters).toContainEqual(['in', 'student_id', ['s1']])
     expect(callOf('student_progress').filters).toContainEqual(['in', 'student_id', ['s1']])
     // The work set for the group is still listed whole (the follow-up composer picks from it).
@@ -168,7 +183,7 @@ describe('loadGroupCards — overview (P-10)', () => {
       'exams', 'exams', 'group_students', 'group_students',
     ])
     await flush()
-    expect(since(9)).toEqual(['exam_submissions', 'exam_submissions'])
+    expect(since(9)).toEqual(['exam_submissions', 'exam_submissions', 'exam_submissions', 'exam_submissions'])
     await flush()
     const cards = await done
     expect(calls.filter(c => c.table === 'groups')).toHaveLength(1)

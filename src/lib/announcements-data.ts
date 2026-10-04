@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { IncompleteReadError, readAllByKeyset, READ_PAGE } from '@/lib/data/complete-read'
 import { can } from '@/lib/permissions'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { canTargetUniversity, type AnnouncementAudience } from '@/lib/announcement-audience'
@@ -31,6 +32,28 @@ export interface AnnouncementStats { views: number; clicks: number; interest: nu
  * permission notice instead of the manager when they don't), plus whether they
  * may address students beyond the centre (`announce_to_university`).
  */
+/** PostgREST's "no such table" (PGRST205), or Postgres' own (42P01): the engagement migration is not applied. */
+const TABLE_MISSING = new Set(['PGRST205', '42P01'])
+
+/**
+ * Every engagement event of the institution, read completely (keyset + count) -
+ * views, clicks and interest of every student on every announcement pass the
+ * API's 1000-row cap quickly, and the stats are counted from them. `null` only
+ * when the events table does not exist (the engagement migration is not
+ * applied); any other failed or short read throws, never partial stats.
+ */
+async function readEngagementEvents(supabase: SupabaseClient, tenantId: string) {
+  try {
+    return await readAllByKeyset<{ id: string; announcement_id: string; kind: string }>('announcement events',
+      after => supabase.from('announcement_events').select('id, announcement_id, kind')
+        .eq('tenant_id', tenantId).gt('id', after).order('id').limit(READ_PAGE),
+      () => supabase.from('announcement_events').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId))
+  } catch (e) {
+    if (e instanceof IncompleteReadError && TABLE_MISSING.has(e.detail?.code ?? '')) return null
+    throw e
+  }
+}
+
 export async function loadAnnouncementsPage(
   supabase: SupabaseClient,
   userId: string,
@@ -64,12 +87,12 @@ export async function loadAnnouncementsPage(
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
     supabase.from('groups').select('id, name').eq('tenant_id', tenantId).order('name'),
-    supabase.from('announcement_events').select('announcement_id, kind').eq('tenant_id', tenantId),
+    readEngagementEvents(supabase, tenantId),
   ])
 
-  const engagementReady = !events.error
+  const engagementReady = events !== null
   const stats = new Map<string, AnnouncementStats>()
-  for (const e of (events.data ?? []) as { announcement_id: string; kind: string }[]) {
+  for (const e of events ?? []) {
     const st = stats.get(e.announcement_id) ?? { views: 0, clicks: 0, interest: 0 }
     if (e.kind === 'view') st.views++
     else if (e.kind === 'click') st.clicks++

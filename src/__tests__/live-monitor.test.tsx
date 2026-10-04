@@ -5,6 +5,9 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 // from presence (no table read), the wall shows only validated pictures, and
 // the 'last 30 s' button broadcasts to that one student.
 
+// Names lookups (C1): each `.in()` call's ids, and the reply the test chooses.
+const nameCalls: string[][] = []
+let namesReply: (ids: string[]) => { data: { id: string; full_name: string }[] | null; error: unknown } = () => ({ data: [], error: null })
 const channels: Record<string, { handlers: Record<string, (m: unknown) => void>; sent: unknown[]; state: Record<string, unknown[]> }> = {}
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
@@ -21,7 +24,7 @@ vi.mock('@/lib/supabase/client', () => ({
       return ch
     },
     removeChannel: () => {},
-    from: () => ({ select: () => ({ in: async () => ({ data: [{ id: S1, full_name: 'Sara' }, { id: S2, full_name: 'Omar' }] }) }) }),
+    from: () => ({ select: () => ({ in: async (_c: string, ids: string[]) => { nameCalls.push(ids); return namesReply(ids) } }) }),
   }),
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {} }) }))
@@ -39,7 +42,43 @@ const S1 = '22222222-2222-4222-8222-222222222222'
 const S2 = '33333333-3333-4333-8333-333333333333'
 
 describe('teacher live monitor', () => {
-  beforeEach(() => { for (const k of Object.keys(channels)) delete channels[k] })
+  beforeEach(() => {
+    for (const k of Object.keys(channels)) delete channels[k]
+    nameCalls.length = 0
+    const known: Record<string, string> = { [S1]: 'Sara', [S2]: 'Omar' }
+    namesReply = ids => ({ data: ids.filter(id => known[id]).map(id => ({ id, full_name: known[id] })), error: null })
+  })
+
+  it('a failed names lookup leaves the students unnamed (…), not "—", and the next presence change retries them', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const ok = namesReply
+    namesReply = () => ({ data: null, error: { code: '400', message: 'Bad Request' } })
+    render(<LiveMonitor examId={EXAM} examTitle="Quiz" liveConfigured={false} />)
+    await waitFor(() => expect(channels[`exam-live:${EXAM}`]).toBeTruthy())
+    const live = channels[`exam-live:${EXAM}`]
+    live.state = { [S1]: [{ v: 0, ev: 0 }] }
+    act(() => live.handlers['presence:sync']({}))
+    await waitFor(() => expect(errors).toHaveBeenCalled())
+    expect(screen.queryByText('—')).toBeNull()
+    expect(screen.getByText('…')).toBeTruthy()
+    namesReply = ok
+    live.state = { [S1]: [{ v: 0, ev: 0 }], [S2]: [{ v: 0, ev: 0 }] }
+    act(() => live.handlers['presence:sync']({}))
+    expect(await screen.findByText('Sara')).toBeTruthy()
+    expect(screen.getByText('Omar')).toBeTruthy()
+    errors.mockRestore()
+  })
+
+  it('more than 640 students: names are looked up in batches of at most 100 ids', async () => {
+    render(<LiveMonitor examId={EXAM} examTitle="Quiz" liveConfigured={false} />)
+    await waitFor(() => expect(channels[`exam-live:${EXAM}`]).toBeTruthy())
+    const live = channels[`exam-live:${EXAM}`]
+    const ids = Array.from({ length: 700 }, (_, k) => `44444444-4444-4444-8444-${String(k).padStart(12, '0')}`)
+    live.state = Object.fromEntries([[S1, [{ v: 0, ev: 0 }]], ...ids.map(id => [id, [{ v: 0, ev: 0 }]])])
+    act(() => live.handlers['presence:sync']({}))
+    await waitFor(() => expect(nameCalls.flat()).toHaveLength(701), { timeout: 30_000 })
+    expect(Math.max(...nameCalls.map(c => c.length))).toBeLessThanOrEqual(100)
+  }, 60_000) // 701 student tiles render slowly in jsdom
 
   it('lists students from presence with their counts, without video', async () => {
     render(<LiveMonitor examId={EXAM} examTitle="Quiz" liveConfigured={false} />)
