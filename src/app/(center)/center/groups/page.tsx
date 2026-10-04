@@ -4,6 +4,7 @@ import { loadCenterAccess } from '@/lib/center-access'
 import { NoPermission } from '@/components/shared/no-permission'
 import { CenterGroupsClient, type CenterGroupRow } from '@/components/center/groups-client'
 import { activeTeacherName, type EmbeddedTeacher } from '@/lib/data/people'
+import { loadCenterGroupsPage } from '@/lib/data/center-groups'
 
 interface RawGroup {
   id: string
@@ -20,25 +21,24 @@ interface RawGroup {
   teacher: EmbeddedTeacher | EmbeddedTeacher[] | null
 }
 
-export default async function CenterGroupsPage() {
+export default async function CenterGroupsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { supabase, tenantId, has } = await loadCenterAccess()
   if (!has('manage_groups')) return <NoPermission capability="manage_groups" />
 
   // Teachers are found on demand (/api/teachers/search, ≤ 20 per search); the page
   // only needs each group's teacher name and whether any active teacher exists.
   // Students to add are found on demand in RosterModal (/api/roster/candidates, ≤ 20).
-  const [{ data: groups }, { count: activeTeachers }, { data: courses }] = await Promise.all([
-    supabase.from('groups')
-      // `*` so the optional course/image/cap columns are simply absent pre-migration
-      .select('*, group_students(count), teacher:users!groups_teacher_id_fkey(full_name, role, is_active)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }),
+  // One page of groups (50), the active / archived totals, and every active group
+  // for the transfer picker (lib/data/center-groups.ts).
+  const { page: rawPage } = await searchParams
+  const [list, { count: activeTeachers }, { data: courses }] = await Promise.all([
+    loadCenterGroupsPage(supabase, tenantId, rawPage),
     supabase.from('users').select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId).eq('role', 'teacher').eq('is_active', true),
     supabase.from('courses').select('id, title').eq('tenant_id', tenantId).order('title'),
   ])
 
-  const rows: CenterGroupRow[] = ((groups ?? []) as unknown as RawGroup[]).map(g => ({
+  const rows: CenterGroupRow[] = (list.rows as unknown as RawGroup[]).map(g => ({
     id: g.id,
     name: g.name,
     description: g.description,
@@ -54,7 +54,16 @@ export default async function CenterGroupsPage() {
 
   return (
     <CenterGroupsClient
+      // A new page is a new list: the client's local rows start from it.
+      key={list.page}
       initialGroups={rows}
+      summary={{ active: list.active, archived: list.archived }}
+      page={list.page}
+      pageCount={list.pageCount}
+      transferOptions={list.transferOptions.map(o => ({
+        id: o.id, name: o.name, course_id: o.course_id, max_students: o.max_students,
+        student_count: o.group_students?.[0]?.count ?? 0,
+      }))}
       hasTeachers={(activeTeachers ?? 0) > 0}
       courses={(courses ?? []).map(c => ({ id: c.id as string, name: (c.title as string) || '—' }))}
     />

@@ -25,8 +25,10 @@ function fakeClient() {
       }
       chain.then = (resolve: (v: unknown) => unknown) => {
         const head = c.some(x => x[0] === 'select' && (x[2] as { head?: boolean } | undefined)?.head)
-        const reply = head ? { count: activeTeacherCount, data: null, error: null }
-          : table === 'groups' ? { data: groupRows, error: null }
+        const counted = c.some(x => x[0] === 'select' && (x[2] as { count?: string } | undefined)?.count === 'exact')
+        // /center/groups (B): its group reads are counted pages / head counts of the same rows.
+        const reply = head ? { count: table === 'groups' ? groupRows.length : activeTeacherCount, data: null, error: null }
+          : table === 'groups' ? { data: groupRows, count: counted ? groupRows.length : null, error: null }
           : table === 'courses' ? { data: courseRows, error: null }
           : { data: [], error: null }
         return Promise.resolve(reply).then(resolve)
@@ -44,6 +46,8 @@ vi.mock('@/components/center/courses-client', () => ({ CenterCoursesClient: () =
 vi.mock('@/components/shared/no-permission', () => ({ NoPermission: () => null }))
 
 import GroupsPage from '@/app/(center)/center/groups/page'
+/** Both pages take an optional searchParams (the groups list is paged). */
+const open = (Page: unknown) => (Page as (p: { searchParams: Promise<object> }) => Promise<unknown>)({ searchParams: Promise.resolve({}) })
 import CoursesPage from '@/app/(center)/center/courses/page'
 
 const ACTIVE = { full_name: 'Sara Idris', role: 'teacher', is_active: true }
@@ -76,14 +80,14 @@ describe.each([
   ['/center/courses', CoursesPage, 'courses', 'courses_teacher_id_fkey', 'initialCourses'],
 ] as const)('%s', (_path, Page, table, fk, rowsProp) => {
   it('C-S: does not read the student body — students are searched on demand in RosterModal', async () => {
-    const el = await Page() as { props: Record<string, unknown> }
+    const el = await open(Page) as { props: Record<string, unknown> }
     const studentReads = calls.filter(c => c[0][1] === 'users' && c.some(x => x[0] === 'eq' && x[1] === 'role' && x[2] === 'student'))
     expect(studentReads).toHaveLength(0)
     expect(el.props).not.toHaveProperty('students')
   })
 
   it('does not read the teaching staff — only a head count of active teachers', async () => {
-    await Page()
+    await open(Page)
     expect(teacherListReads()).toHaveLength(0)
     const count = teacherCounts()
     expect(count).toHaveLength(1)
@@ -93,14 +97,14 @@ describe.each([
   })
 
   it('embeds each row’s teacher (name, role, active) through the teacher foreign key', async () => {
-    await Page()
+    await open(Page)
     const rowsQuery = calls.find(c => c[0][1] === table)!
     const select = String(rowsQuery.find(x => x[0] === 'select')![1])
     expect(select).toContain(`teacher:users!${fk}(full_name, role, is_active)`)
   })
 
   it('an active teacher’s name; null («—») for a disabled or missing teacher — as the old list did', async () => {
-    const el = await Page() as { props: Record<string, unknown> }
+    const el = await open(Page) as { props: Record<string, unknown> }
     const rows = el.props[rowsProp] as { teacher_name: string | null }[]
     expect(rows.map(r => r.teacher_name)).toEqual(table === 'groups' ? ['Sara Idris', null, null] : ['Sara Idris', null])
     expect(el.props.hasTeachers).toBe(true)
@@ -109,8 +113,8 @@ describe.each([
 
   it('no active teacher (count 0 or unknown) → hasTeachers false', async () => {
     activeTeacherCount = 0
-    expect(((await Page()) as { props: Record<string, unknown> }).props.hasTeachers).toBe(false)
+    expect(((await open(Page)) as { props: Record<string, unknown> }).props.hasTeachers).toBe(false)
     activeTeacherCount = null
-    expect(((await Page()) as { props: Record<string, unknown> }).props.hasTeachers).toBe(false)
+    expect(((await open(Page)) as { props: Record<string, unknown> }).props.hasTeachers).toBe(false)
   })
 })
