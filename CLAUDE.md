@@ -376,6 +376,24 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   owner refused, public link + fresh account accepted, expiry / max uses / suspended / `GROUP_FULL` /
   `TEACHER_LIMIT_REACHED` refused without consuming, linked-course enrolment works); every other policy / function /
   index / grant / trigger fingerprint unchanged; security advisor unchanged; nothing left behind.
+- `a_unpublished_course_content_migration.sql` (A, security review 2026-10-04) — `course_levels_select` /
+  `course_units_select` / `unit_items_select` only required the parent course to be visible, so a student enrolled in
+  a published course read every draft level / unit / item of it through REST, `content` included (the player drops
+  drafts, so the policies did not hold the product's rule). Three `ALTER POLICY`: each keeps the pre-A predicate
+  verbatim AND adds, for the `student` role only (`IS DISTINCT FROM`, helper in `(SELECT …)`), the whole publication
+  chain — level published; unit published + its level (if any); item published + its unit + that unit's level.
+  Write policies, `courses_select`, the DEFINER readers, `student_progress`, app code and `schema.sql` (has none of
+  these objects) unchanged. Rollback: `supabase/a_unpublished_course_content_rollback.sql`. Regression check:
+  `supabase/tests/course_content_publication_check.sql` (switches between both forms); `course-content-publication.test.ts`
+  keeps migration / rollback / check in step. ✅ 2026-10-04 — dry-run first (12/12 personas, 5/5 DEFINER readers,
+  write path 5/5, `rls_write_path_check` 14/14), green DB backup (run 37216247872, `2026-10-04T16-19-36Z`, verified),
+  live policies re-read unchanged, applied via Supabase MCP exactly as the file (migration `20261004162131`). Live
+  (rolled back): the check reads the A form exactly and passes 12/12 personas (enrolled student 2/6/9 → 1/2/2 rows,
+  nothing outside the chain, the player's output unchanged; every non-student persona identical; no row of another
+  institution), 5/5 DEFINER readers identical, write path 5/5; `rls_write_path_check` 14/14; real accounts: the one
+  enrolled student 2/2/1 draft rows → 0 (the player rendered 0 items before and after), every non-student role's
+  visible rows identical (per-account md5); anon REST `[]`; every other policy / function / index / grant / trigger /
+  RLS flag fingerprint and every row count unchanged; security advisor unchanged; nothing left behind.
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
