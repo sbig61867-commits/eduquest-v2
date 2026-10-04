@@ -3,7 +3,7 @@ import golden from './reports-golden.json'
 import { buildWorld, mockAdmin, GOLDEN_CASES, GOLDEN_FALLBACK_CASES, FIXED_NOW, MAX_ROWS, type MockCall } from './reports-fixture'
 import { buildUniversityReport, buildTeacherReport, buildGroupReport, buildPilotReport, buildStudentReport } from '@/lib/reports'
 import {
-  readAll, readAllById, PAGE_SIZE, FIRST_ID, FALLBACK_CHUNK, UNIVERSITY_EXAM_COLUMNS, TEACHER_EXAM_COLUMNS, GROUP_EXAM_COLUMNS, STUDENT_EXAM_COLUMNS,
+  readAll, readAllById, ReportReadError, PAGE_SIZE, FIRST_ID, FALLBACK_CHUNK, UNIVERSITY_EXAM_COLUMNS, TEACHER_EXAM_COLUMNS, GROUP_EXAM_COLUMNS, STUDENT_EXAM_COLUMNS,
 } from '@/lib/data/reports'
 
 /**
@@ -125,10 +125,10 @@ describe('readAll (paging past max_rows)', () => {
     expect(s.maxInFlight()).toBeLessThanOrEqual(4)
   })
 
-  it('without a count it keeps reading until a short page', async () => {
+  it('without a count it refuses to read on (D1: a cut page could not be told from the last one)', async () => {
     const s = source(2300, { count: false })
-    expect(await readAll<number>(s.page)).toHaveLength(2300)
-    expect(s.calls.map(c => c.from)).toEqual([0, 1000, 2000])
+    await expect(readAll<number>(s.page)).rejects.toBeInstanceOf(ReportReadError)
+    expect(s.calls.map(c => c.from)).toEqual([0])
   })
 })
 
@@ -142,12 +142,14 @@ describe('readAllById (keyset paging of the large sets)', () => {
       const rest = all.filter(r => r.id > after)
       return Promise.resolve({ data: rest.slice(0, PAGE_SIZE) })
     }
-    return { page, afters, all }
+    // The same read as a head-only exact count (run alongside the first page).
+    const count = () => Promise.resolve({ data: null, count: n })
+    return { page, count, afters, all }
   }
 
   it('reads every row once, each page after the last id of the one before', async () => {
     const s = source(2500)
-    const rows = await readAllById<{ id: string }>(s.page)
+    const rows = await readAllById<{ id: string }>(s.page, s.count)
     expect(rows).toEqual(s.all)
     expect(new Set(rows.map(r => r.id)).size).toBe(2500)
     expect(s.afters).toEqual([FIRST_ID, 'id000999', 'id001999'])
@@ -155,10 +157,10 @@ describe('readAllById (keyset paging of the large sets)', () => {
 
   it('ends on a short page; an exact multiple of the page costs one empty page', async () => {
     const small = source(10)
-    expect(await readAllById<{ id: string }>(small.page)).toHaveLength(10)
+    expect(await readAllById<{ id: string }>(small.page, small.count)).toHaveLength(10)
     expect(small.afters).toEqual([FIRST_ID])
     const exact = source(2000)
-    expect(await readAllById<{ id: string }>(exact.page)).toHaveLength(2000)
+    expect(await readAllById<{ id: string }>(exact.page, exact.count)).toHaveLength(2000)
     expect(exact.afters).toEqual([FIRST_ID, 'id000999', 'id001999'])
   })
 })
@@ -217,7 +219,7 @@ describe('columns and reads', () => {
 
   it('student: submissions are read once (own derived from the peer read), no survey row read for the pilot', async () => {
     const student = await callsOf('student', 's00')
-    const subs = student.filter(c => c.table === 'exam_submissions')
+    const subs = student.filter(c => c.table === 'exam_submissions' && !c.head)
     expect(subs.every(c => !c.filters.some(f => f[1] === 'student_id'))).toBe(true)
     // Pages of one read, not two reads: the first page starts at FIRST_ID, each next one after the last.
     const cursors = subs.map(c => String(c.filters.find(f => f[0] === 'gt')?.[2]))
@@ -258,7 +260,8 @@ describe('rounds', () => {
   it('university: the institution, then every set at once, then the remaining pages', async () => {
     const r = await rounds('university', 'tn')
     expect(r[0]).toEqual(['tenants'])
-    expect(r[1]).toEqual(['exam_submissions', 'exams', 'group_students', 'groups', 'lessons', 'users', 'users'])
+    // exam_submissions twice: the first keyset page and its head-only count (D1), in the same round.
+    expect(r[1]).toEqual(['exam_submissions', 'exam_submissions', 'exams', 'group_students', 'groups', 'lessons', 'users', 'users'])
     // > 2000 submissions: keyset pages 2 and 3, one after the other.
     expect(r.slice(2)).toEqual([['exam_submissions'], ['exam_submissions']])
   })
@@ -266,18 +269,18 @@ describe('rounds', () => {
   it('teacher, group and pilot: the subject, then everything at once (+ pages)', async () => {
     const t = await rounds('teacher', 't0')
     expect(t[0]).toEqual(['users'])
-    expect(t[1]).toEqual(['exam_submissions', 'exams', 'group_students', 'groups', 'lessons'])
+    expect(t[1]).toEqual(['exam_submissions', 'exam_submissions', 'exams', 'group_students', 'groups', 'lessons'])
     const g = await rounds('group', 'g0')
     expect(g[0]).toEqual(['groups'])
-    expect(g[1]).toEqual(['exam_submissions', 'exams', 'group_students'])
+    expect(g[1]).toEqual(['exam_submissions', 'exam_submissions', 'exams', 'group_students'])
     const p = await rounds('pilot', 'g0')
     expect(p[0]).toEqual(['groups'])
-    expect(p[1]).toEqual(['exam_submissions', 'exams', 'group_students', 'lessons', 'survey_responses'])
+    expect(p[1]).toEqual(['exam_submissions', 'exam_submissions', 'exams', 'group_students', 'lessons', 'survey_responses'])
   })
 
   it('student: the student with their groups, then exams with every submission (was five rounds)', async () => {
     const r = await rounds('student', 's00')
     expect(r[0]).toEqual(['group_students', 'users'])
-    expect(r[1]).toEqual(['exam_submissions', 'exams'])
+    expect(r[1]).toEqual(['exam_submissions', 'exam_submissions', 'exams'])
   })
 })

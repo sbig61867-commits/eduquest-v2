@@ -118,16 +118,25 @@ const RELATIONS: Record<string, Record<string, (w: World, row: Row) => Row | und
 
 export interface MockCall { table: string; columns: string; filters: unknown[][]; range: [number, number] | null; limit: number | null; head: boolean; count: boolean }
 
-/** A Supabase-like client over `world`. With `cap`, a response carries at most MAX_ROWS rows, as the live API does. */
-export function mockAdmin(world: World, opts: { cap?: boolean; calls?: MockCall[]; gate?: (call: MockCall) => Promise<void> } = {}) {
+/**
+ * A Supabase-like client over `world`. With `cap`, a response carries at most MAX_ROWS rows, as the live API does
+ * (`capRows` lowers that cap, as a smaller max_rows would). `fail(call, n)` makes the n-th request (0-based) fail the
+ * way PostgREST does — no data, no count, an error — and `.single()` without a row answers PGRST116, as live.
+ */
+export function mockAdmin(world: World, opts: {
+  cap?: boolean; capRows?: number; calls?: MockCall[]; gate?: (call: MockCall) => Promise<void>
+  fail?: (call: MockCall, n: number) => boolean
+} = {}) {
+  let requests = 0
   return {
     from: (table: string) => ({
       select: (columns: string, selectOpts?: { count?: string; head?: boolean }) => {
         const call: MockCall = { table, columns, filters: [], range: null, limit: null, head: !!selectOpts?.head, count: selectOpts?.count === 'exact' }
         opts.calls?.push(call)
+        const n = requests++
         const preds: ((r: Row) => boolean)[] = []
         const sorts: string[] = []
-        let single = false
+        let single: false | 'single' | 'maybe' = false
         const value = (r: Row, col: string) => {
           if (!col.includes('.')) return r[col]
           const [rel, field] = col.split('.')
@@ -142,18 +151,20 @@ export function mockAdmin(world: World, opts: { cap?: boolean; calls?: MockCall[
         chain.order = (c: string, o?: unknown) => { call.filters.push(['order', c, o ?? null]); sorts.push(c); return chain }
         chain.range = (from: number, to: number) => { call.range = [from, to]; return chain }
         chain.limit = (n: number) => { call.limit = n; return chain }
-        chain.single = () => { single = true; return chain }
-        chain.maybeSingle = () => { single = true; return chain }
+        chain.single = () => { single = 'single'; return chain }
+        chain.maybeSingle = () => { single = 'maybe'; return chain }
         const run = () => {
+          if (opts.fail?.(call, n)) return { data: null, count: null, error: { code: 'PGRST000', message: 'injected failure' } }
           const rows = (world[table] ?? []).filter(r => preds.every(p => p(r)))
           // ORDER BY as the database applies it: ascending, nulls last, stable.
           const cmp = (a: unknown, b: unknown) => (a == null ? (b == null ? 0 : 1) : b == null ? -1 : a < b ? -1 : a > b ? 1 : 0)
           if (sorts.length) rows.sort((a, b) => { for (const c of sorts) { const d = cmp(a[c], b[c]); if (d) return d } return 0 })
           if (call.head) return { data: null, count: rows.length, error: null }
+          if (single === 'single' && !rows.length) return { data: null, error: { code: 'PGRST116', message: 'no rows' } }
           if (single) return { data: rows[0] ?? null, error: null }
           let out = call.range ? rows.slice(call.range[0], call.range[1] + 1) : rows
           if (call.limit != null) out = out.slice(0, call.limit)
-          if (opts.cap) out = out.slice(0, MAX_ROWS)
+          if (opts.cap) out = out.slice(0, opts.capRows ?? MAX_ROWS)
           return { data: out, count: call.count ? rows.length : null, error: null }
         }
         chain.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>

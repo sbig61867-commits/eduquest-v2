@@ -215,6 +215,7 @@
   "recipientRequiredOne": "A recipient is required",
   "reportFailed": "Could not fetch the report",
   "reportsRestricted": "Reports are currently restricted to the platform owner.",
+  "reportReadFailed": "The report data could not be read completely. Please try again.",
   "requestActionForbidden": "You do not have permission for this action on the request",
   "requestCreateFailed": "Could not create the request",
   "requestNotFound": "Request not found",
