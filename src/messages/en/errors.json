@@ -59,6 +59,7 @@
   "ctaUrlScheme": "The button must be a web link (https://), a phone number or an email address",
   "dailySendLimit": "You have reached the daily sending limit",
   "dailySendLimitRemaining": "Daily sending limit reached: only {remaining} messages left today",
+  "dataReadIncomplete": "Some of the data could not be read completely. Please try again.",
   "decisionSaveFailed": "Could not save the decision",
   "descriptionTooLong": "The description is too long",
   "draftSaveFailed": "Could not save the draft",

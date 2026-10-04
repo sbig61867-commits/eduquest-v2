@@ -59,6 +59,7 @@
   "ctaUrlScheme": "يجب أن يكون الزر رابطاً (https://) أو رقم هاتف أو بريداً إلكترونياً",
   "dailySendLimit": "تجاوزت حد الإرسال اليومي",
   "dailySendLimitRemaining": "تجاوزت حد الإرسال اليومي — المتبقي {remaining} رسالة",
+  "dataReadIncomplete": "تعذّرت قراءة جزء من البيانات كاملًا. حاول مرة أخرى.",
   "decisionSaveFailed": "تعذّر حفظ القرار",
   "descriptionTooLong": "الوصف طويل جداً",
   "draftSaveFailed": "فشل حفظ المسودة",

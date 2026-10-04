@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { can } from '@/lib/permissions'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { canEditAnnouncement, canTargetUniversity, AUDIENCE_DENIED } from '@/lib/announcement-audience'
+import { IncompleteReadError, inBatches, rowsOf } from '@/lib/data/complete-read'
 
 // GET /api/announcements/interested?id=… — the students who pressed
 // "I'm interested" on one announcement, for its authors. Same gate as editing
@@ -43,11 +44,20 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false })
   if (error) return NextResponse.json({ ...(await apiErr('announcementEventFailed')) }, { status: 503 })
 
+  // Names in short `.in()` batches: one list of every interested student can pass
+  // the API's URL limit (~640 ids), which used to come back as "no names".
   const ids = (events ?? []).map(e => e.student_id as string)
-  const { data: people } = ids.length
-    ? await supabase.from('users').select('id, full_name, email').eq('tenant_id', profile.tenant_id).in('id', ids)
-    : { data: [] as { id: string; full_name: string; email: string }[] }
-  const byId = new Map((people ?? []).map(p => [p.id, p]))
+  let people: { id: string; full_name: string; email: string }[]
+  try {
+    people = await inBatches(ids, async batch => rowsOf(
+      await supabase.from('users').select('id, full_name, email').eq('tenant_id', profile.tenant_id).in('id', batch),
+      'interested students'))
+  } catch (e) {
+    if (!(e instanceof IncompleteReadError)) throw e
+    console.error('[announcements/interested]', e.message, e.detail ?? '')
+    return NextResponse.json({ ...(await apiErr('announcementEventFailed')) }, { status: 503 })
+  }
+  const byId = new Map(people.map(p => [p.id, p]))
 
   return NextResponse.json({
     students: (events ?? []).map(e => ({

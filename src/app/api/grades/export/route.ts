@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { buildXlsx, type Cell } from '@/lib/xlsx'
+import { IncompleteReadError, readAllByKeyset, READ_PAGE } from '@/lib/data/complete-read'
 
 function adminClient() {
   return createAdminClient(
@@ -59,12 +60,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ ...(await apiErr('noGroupStudents')) }, { status: 404 })
   }
 
-  // Get all submissions for these exams
-  const examIds = exams.map(e => e.id)
-  const { data: submissions } = await adminClient()
-    .from('exam_submissions')
-    .select('exam_id, student_id, score, max_score, is_graded')
-    .in('exam_id', examIds)
+  // Every submission to exactly these exams: filtered through the exam (the same
+  // conditions as the exam read above) and read completely by keyset - an exam x
+  // student matrix passes the API's 1000-row cap. A failed or short read is an
+  // error, never a sheet with missing grades.
+  let submissions: { id: string; exam_id: string; student_id: string; score: number | null }[]
+  try {
+    submissions = await readAllByKeyset('grade export submissions',
+      after => adminClient().from('exam_submissions')
+        .select('id, exam_id, student_id, score, max_score, is_graded, exams!inner()')
+        .eq('exams.group_id', groupId).eq('exams.teacher_id', user.id).is('exams.deleted_at', null)
+        .gt('id', after).order('id').limit(READ_PAGE),
+      () => adminClient().from('exam_submissions')
+        .select('id, exam_id, student_id, score, max_score, is_graded, exams!inner()', { count: 'exact', head: true })
+        .eq('exams.group_id', groupId).eq('exams.teacher_id', user.id).is('exams.deleted_at', null))
+  } catch (e) {
+    if (!(e instanceof IncompleteReadError)) throw e
+    console.error('[api/grades/export]', e.message, e.detail ?? '')
+    return NextResponse.json({ ...(await apiErr('dataReadIncomplete')) }, { status: 503 })
+  }
 
   // Build grade matrix
   type StudentRow = {

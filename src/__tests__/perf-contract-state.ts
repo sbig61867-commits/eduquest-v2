@@ -81,7 +81,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(teacher)/teacher/lessons/page.tsx': 1,
   'app/(teacher)/teacher/proctoring/live/[examId]/live-monitor.tsx': 1,
   'app/(teacher)/teacher/proctoring/page.tsx': 2,
-  'app/api/admin/delete-tenant/route.ts': 1,
   'app/api/admin/member-lookup/route.ts': 2,
   'app/api/admin/tenant-users/route.ts': 1,
   'app/api/ai/quota/route.ts': 1,
@@ -91,7 +90,7 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/api/attendance/route.ts': 3,
   'app/api/course-enrollments/route.ts': 1,
   'app/api/exams/results/route.ts': 1,
-  'app/api/grades/export/route.ts': 3,
+  'app/api/grades/export/route.ts': 2,
   'app/api/group-students/route.ts': 1,
   'app/api/homework/route.ts': 1,
   'app/api/homework/submissions/route.ts': 2,
@@ -102,7 +101,7 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/api/surveys/respond/route.ts': 3,
   'components/student/quick-access-panel.tsx': 2,
   'lib/account-scope.ts': 2,
-  'lib/announcements-data.ts': 3,
+  'lib/announcements-data.ts': 2,
   // 1 — listByRole (listStudents / listTeachers / listCenterStudents / listCenterTeachers):
   //     bounded by .range() on the same builder, built over two statements
   //     (conditional search) — the scanner's known blind spot. Counts are head-only.
@@ -120,12 +119,13 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     the courses on .in('id', the caller's enrolled course ids) — each is bounded by the
   //     student's own enrolments / memberships / transfers, not by the institution's size.
   'lib/data/student-courses.ts': 4,
-  // 7 — teacher records (moved from lib/teacher-records.ts, 7 → 0 there, P-10): the teacher's
-  //     own groups (teacher_id), and per group its roster, exams (named columns, no questions),
-  //     sessions, marks, submissions (.in the group's exam + member ids) and course progress
-  //     (.in the member ids). Each is bounded by one group; the student record narrows the
-  //     roster / marks / submissions / progress to one student.
-  'lib/data/teacher-records.ts': 7,
+  // 4 — teacher records (moved from lib/teacher-records.ts, 7 → 0 there, P-10): the teacher's
+  //     own groups (teacher_id), and per group its roster, exams (named columns, no questions)
+  //     and sessions. Each is bounded by one group; the student record narrows the roster to
+  //     one student. Marks, submissions and course progress (members × sessions / exams / items,
+  //     past the 1000-row cap) are now read completely — paged, members in id batches (B / C1),
+  //     7 → 4.
+  'lib/data/teacher-records.ts': 4,
   'lib/requests-data.ts': 3,
   'lib/schedules-data.ts': 6,
 }

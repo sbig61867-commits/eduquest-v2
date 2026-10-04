@@ -14,6 +14,7 @@ import {
   type StudentPresence,
 } from '@/lib/live-channel'
 import { EvidencePanel } from './evidence-panel'
+import { inBatches, rowsOf } from '@/lib/data/complete-read'
 
 // The teacher's monitoring page. Two layers, both on demand:
 //  1. The exam's live channel (Supabase Realtime, no table read): who is in
@@ -129,21 +130,26 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     }
   }, [examId, sendWatch, sendThumbsState])
 
-  // Names for new ids, one query per batch (never per tick).
+  // Names for new ids, one query per batch of ids (never per tick). A failed
+  // batch leaves its ids unknown — not '—' — so the next presence change retries them.
   const studentIds = Object.keys(students).sort().join(',')
   useEffect(() => {
     const unknown = studentIds.split(',').filter(id => id && !(id in names))
     if (unknown.length === 0) return
     let cancelled = false
-    createClient().from('users').select('id, full_name').in('id', unknown).then(({ data }) => {
-      if (cancelled) return
-      setNames(prev => {
-        const next = { ...prev }
-        for (const u of (data ?? []) as { id: string; full_name: string | null }[]) next[u.id] = u.full_name || '—'
-        for (const id of unknown) next[id] ??= '—'
-        return next
+    const supabase = createClient()
+    inBatches(unknown, async batch => rowsOf(
+      await supabase.from('users').select('id, full_name').in('id', batch), 'live student names'))
+      .then(rows => {
+        if (cancelled) return
+        setNames(prev => {
+          const next = { ...prev }
+          for (const u of rows as { id: string; full_name: string | null }[]) next[u.id] = u.full_name || '—'
+          for (const id of unknown) next[id] ??= '—'
+          return next
+        })
       })
-    })
+      .catch(e => { if (!cancelled) console.error('[live-monitor] student names:', e) })
     return () => { cancelled = true }
   }, [studentIds, names])
 
