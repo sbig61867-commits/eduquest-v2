@@ -98,17 +98,21 @@ exception when others then insert into r values ('A-T08 [Medium] colleague adds 
 reset role;
 
 -- ── Student A ────────────────────────────────────────────────────────────────
+-- A student reads exams only through get_student_exam_list() since
+-- student_exam_list_lockdown_migration.sql (2026-09-30) revoked get_student_exams()
+-- from `authenticated`. Calling the revoked feed here made L-02 abort the whole
+-- script and let A-T10 report a successful self-enrolment as "blocked 42501".
 set role authenticated;
 set local request.jwt.claims = '{"sub":"c0000000-0000-0000-0000-0000000000a3","role":"authenticated"}';
 do $$ declare n int; begin insert into public.course_enrollments (course_id, student_id, tenant_id) values ('c0000000-0000-0000-0000-0000000000e1','c0000000-0000-0000-0000-0000000000a5','c0000000-0000-0000-0000-00000000000a'); get diagnostics n=row_count;
   insert into r values ('A-T09 [Medium] student enrols another student into a course', case when n>0 then 'VULNERABLE' else 'blocked' end);
 exception when others then insert into r values ('A-T09 [Medium] student enrols another student into a course','blocked '||sqlstate); end $$;
 do $$ declare n int; m int; begin insert into public.course_enrollments (course_id, student_id, tenant_id) values ('c0000000-0000-0000-0000-0000000000e2','c0000000-0000-0000-0000-0000000000a3','c0000000-0000-0000-0000-00000000000a'); get diagnostics n=row_count;
-  select count(*) into m from public.get_student_exams() where id='c0000000-0000-0000-0000-000000000011';
+  select count(*) into m from public.get_student_exam_list() where id='c0000000-0000-0000-0000-000000000011';
   insert into r values ('A-T10 [High] self-enrol in another tenant''s course + read its exam', case when n>0 then 'VULNERABLE (foreign exam visible='||m||')' else 'blocked' end);
 exception when others then insert into r values ('A-T10 [High] self-enrol in another tenant''s course + read its exam','blocked '||sqlstate); end $$;
 do $$ declare e int; l int; begin
-  select count(*) into e from public.get_student_exams() where id='c0000000-0000-0000-0000-000000000012';
+  select count(*) into e from public.get_student_exam_list() where id='c0000000-0000-0000-0000-000000000012';
   select count(*) into l from public.lessons where id='c0000000-0000-0000-0000-0000000000d1';
   insert into r values ('L-02 student still sees own group exam and lesson (must be exam=1 lesson=1)', 'exam='||e||' lesson='||l);
 end $$;
