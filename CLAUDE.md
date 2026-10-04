@@ -357,6 +357,25 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   (rolled back): 12/12 personas identical on both forms, M3 1 172 → 33 ms, centre-mail shape 1 135 → 21 ms; anon
   REST reads of `groups` / `group_students` / the count embed return `[]`; security advisor unchanged; nothing left
   behind.
+- `k_invitations_hardening_migration.sql` (K, security review 2026-10-04) — two controls, one migration.
+  K-1: `invitations_select` was tenant-wide, so every user of an institution (students included) could read its
+  invitation rows with their `token` and invitee `email`; now super_admin → all, `university_admin` /
+  `center_manager` → their institution (unchanged), anyone else → only invitations they created
+  (`invited_by = auth.uid()`), helpers wrapped in `(SELECT …)`. K-2: `accept_invitation()` (service role only) now
+  refuses, before anything is written, a target account that is already initialised (`tenant_id` set) or super_admin,
+  and a PRIVATE invitation whose email does not match the target's `auth.users.email` (case-insensitive); public links
+  keep their bearer behaviour. Expiry, max uses, suspended institution, group cap, seat limits, linked-course
+  enrolment, the error contract, SECURITY DEFINER, pinned `search_path` and service-role-only EXECUTE are unchanged.
+  No application-code change; `schema.sql` does not contain these objects. Rollback:
+  `supabase/k_invitations_hardening_rollback.sql` (re-opens both gaps). ✅ 2026-10-04 — green DB backup (run
+  37189781565, `2026-10-04T08-43-35Z`, verified), live definitions re-read unchanged since the dry run, applied via
+  Supabase MCP exactly as the file (migration `20261004152249`, live function body md5 = file). Live, in rolled-back
+  transactions: visibility matrix as designed (student / teacher without invitations 0 rows, teacher own only, admin /
+  centre manager / owner unchanged; real accounts: 123 students 854 → 0 rows, 3 teachers 8 → 0, admins unchanged);
+  acceptance matrix 13/13 (private non-matching email refused without consuming the invitation, initialised account and
+  owner refused, public link + fresh account accepted, expiry / max uses / suspended / `GROUP_FULL` /
+  `TEACHER_LIMIT_REACHED` refused without consuming, linked-course enrolment works); every other policy / function /
+  index / grant / trigger fingerprint unchanged; security advisor unchanged; nothing left behind.
 
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
