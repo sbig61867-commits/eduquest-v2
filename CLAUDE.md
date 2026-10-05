@@ -13,7 +13,7 @@ npm test         # vitest run — unit/component specs (src/__tests__/**)
 npm run test:watch
 ```
 
-Vitest + Testing Library + Playwright are configured (`vitest.config.ts`, `src/__tests__/**`, `tests/*.spec.ts`) — coverage is still thin, but this is no longer a zero-test repo. As of 2026-09-07: 63 Vitest unit/component tests, plus `tests/security-auth.spec.ts` (17 Playwright tests, run live against production — auth redirects, role isolation with a real test account, API-route access control, security headers). `npx vitest run --pool=threads` avoids a fork-pool sandbox flake seen in this environment; `npm test`'s default pool can intermittently fail to start a worker. Broader verification is still done by running the app against a live Supabase project — see `SECURITY_TEST_MATRIX.md` for exactly what each test does and does not prove (e.g. none of the current tests exercise cross-tenant isolation, since only one real tenant exists in production).
+Vitest + Testing Library + Playwright are configured (`vitest.config.ts`, `src/__tests__/**`, `tests/*.spec.ts`) — coverage is still thin, but this is no longer a zero-test repo. As of 2026-10-05: 106 Vitest files / 1138 tests, plus `tests/security-auth.spec.ts` (17 Playwright tests, run live against production — auth redirects, role isolation with a real test account, API-route access control, security headers). `npx vitest run --pool=threads` avoids a fork-pool sandbox flake seen in this environment; `npm test`'s default pool can intermittently fail to start a worker. Broader verification is still done by running the app against a live Supabase project — see `SECURITY_TEST_MATRIX.md` for exactly what each test does and does not prove (e.g. none of the current tests exercise cross-tenant isolation, since only one real tenant exists in production).
 
 ## Stack
 
@@ -60,7 +60,7 @@ Exam timing and grading never trust the client:
 - `POST /api/exam/start` → `start_exam_attempt` RPC records the authoritative server start time (idempotent; refresh resumes).
 - `POST /api/exam/submit` → grades server-side from the DB (`correct_answer` never leaves the server), merges server-written proctoring events, then `finalize_exam_submission`.
 - **Live video is on demand and silent** (2026-09-27). Every student in a proctored exam joins a PRIVATE Supabase Realtime channel `exam-live:<exam>` (`src/lib/live-channel.ts`, `src/hooks/use-exam-live-channel.ts`): presence = who is in the exam + violation/snapshot counts, broadcast (teacher only) = the set of students to watch. No table is read for any of it. LiveKit video is OFF until the teacher presses «تشغيل البث المباشر» on `/teacher/proctoring/live/[examId]` and picks students (≤ `MAX_WATCHED` = 9); only those stream, only while the page is open. `/api/proctor/live-token` issues a student token only while the exam's teacher is in the LiveKit room with that student in its `watching` attribute (checked with `RoomServiceClient`, so a student cannot start or prolong streaming); the student leaves when LiveKit reports the teacher gone or no longer watching. The student publishes the exam page's own capture (never a second `getUserMedia`; `stopLocalTrackOnUnpublish: false`). Nothing on the student's screen shows whether they are watched; the consent text says they may be at any time. Channel access = RLS on `realtime.messages` via `exam_live_role()` (`supabase/live_proctoring_channel_migration.sql`).
-- **Proctoring v2 (2026-09-27, local branch `feat/proctoring-v2-local`, not deployed).** Every event type is classified once in `src/lib/proctoring-events.ts` — *violation* (flags), *signal* (pasted text, bulk insert) or *info* (detector unavailable, monitoring gap/coverage, environment, clip requested, room scan, second camera); only violations flag an attempt (`isViolation`), everywhere. Cheap integrity first: per-student question/option order (`src/lib/exam-shuffle.ts`, display only — answers are keyed by question id and option text), paste/bulk-insert signals in written answers, answer-similarity hints after the exam (`src/lib/answer-similarity.ts`, returned by `/api/exams/results`). Monitoring trust: coverage % written at submit (`use-monitoring-coverage.ts`), 30 s stalls as `monitoring_gap`, VM/second-screen/webdriver hints (`src/lib/device-environment.ts`). On-device detection: speech (voice band + syllable rhythm, `src/lib/speech-detector.ts`, no download — Silero VAD rejected: ~14 MB runtime), identity continuity + photo spoof with `@vladmandic/human` (MIT; `use-face-identity.ts`, capable devices only, models self-hosted by `scripts/copy-human-models.mjs` → `public/models/human`, git-ignored). Evidence clips: 10 s segments of the exam's own stream in memory (`use-clip-recorder.ts`), uploaded only for a severe violation, the teacher's «آخر 30 ثانية» (broadcast `clip`), or the 10 s room scan at the start → `/api/proctor/evidence/clip` (WebM/MP4 sniffed, ≤900 KB, 6 per attempt, same 30 h store). Phone as a second camera via a signed QR link (`src/lib/second-camera-token.ts`, `/cam/[token]` public, `/api/proctor/second-camera[/event]`) — the only answer to windows hidden from screen capture. Thumbnail wall and Safe Exam Browser need the two pending migrations below. **Don't** build browser screen recording (windows can be excluded from capture) and **don't** add WebGazer (GPL-3).
+- **Proctoring v2 (2026-09-27; merged and deployed 2026-09-29, PR #19).** Every event type is classified once in `src/lib/proctoring-events.ts` — *violation* (flags), *signal* (pasted text, bulk insert) or *info* (detector unavailable, monitoring gap/coverage, environment, clip requested, room scan, second camera); only violations flag an attempt (`isViolation`), everywhere. Cheap integrity first: per-student question/option order (`src/lib/exam-shuffle.ts`, display only — answers are keyed by question id and option text), paste/bulk-insert signals in written answers, answer-similarity hints after the exam (`src/lib/answer-similarity.ts`, returned by `/api/exams/results`). Monitoring trust: coverage % written at submit (`use-monitoring-coverage.ts`), 30 s stalls as `monitoring_gap`, VM/second-screen/webdriver hints (`src/lib/device-environment.ts`). On-device detection: speech (voice band + syllable rhythm, `src/lib/speech-detector.ts`, no download — Silero VAD rejected: ~14 MB runtime), identity continuity + photo spoof with `@vladmandic/human` (MIT; `use-face-identity.ts`, capable devices only, models self-hosted by `scripts/copy-human-models.mjs` → `public/models/human`, git-ignored). Evidence clips: 10 s segments of the exam's own stream in memory (`use-clip-recorder.ts`), uploaded only for a severe violation, the teacher's «آخر 30 ثانية» (broadcast `clip`), or the 10 s room scan at the start → `/api/proctor/evidence/clip` (WebM/MP4 sniffed, ≤900 KB, 6 per attempt, same 30 h store). Phone as a second camera via a signed QR link (`src/lib/second-camera-token.ts`, `/cam/[token]` public, `/api/proctor/second-camera[/event]`) — the only answer to windows hidden from screen capture. Thumbnail wall and Safe Exam Browser use `live_thumbnails_migration.sql` / `seb_config_key_migration.sql` (both applied). **Don't** build browser screen recording (windows can be excluded from capture) and **don't** add WebGazer (GPL-3).
 - Proctoring runs **entirely on the student's device**: MediaPipe (face/gaze, `use-face-detection.ts`) and TensorFlow.js COCO-SSD (phone/book/extra person, `use-object-detection.ts`), plus audio/tab/fullscreen listeners. No camera frame is sent anywhere for analysis. `use-proctor-recorder.ts` batches + dedupes detections to `POST /api/proctor/events` (→ `append_proctoring_events`); `use-evidence-capture.ts` sends a capped number of snapshots for severe violations only — **never stored in Supabase** (owner's rule, 2026-09-26): a 320×240 WebP (~8–20 KB, ≤10 per student per exam) goes to an external store (`src/lib/evidence-store.ts`). **Current backend: Cloudflare Workers KV** (`EVIDENCE_KV_ACCOUNT_ID/_NAMESPACE_ID/_API_TOKEN`, namespace `eduquest-evidence`, token scoped to Workers KV Storage: Edit) — each value is written with an absolute 30-hour `expiration`, so Cloudflare deletes it itself; KV is never listed (free-plan caps), the attempt's `proctoring_events` lines (`evidence_key`) are the index, and images reach the teacher through `GET /api/proctor/evidence/image` (teacher-of-exam + not-expired check). Alternative backend: any S3/R2 bucket (`EVIDENCE_S3_*`, 10-minute SigV4 links, hourly `.github/workflows/evidence-cleanup.yml` → `POST /api/proctor/evidence/cleanup` with `CRON_SECRET`, no-op on KV). Neither configured = capture off, never a Supabase fallback. Only the exam's own teacher sees snapshots (panel beside the live wall, `GET /api/proctor/evidence`), for exactly 30 hours (`src/lib/evidence-keys.ts`). The old Supabase `proctoring-evidence` bucket is unused (empty). A detector that fails to load records a `detector_unavailable` event (not a violation). The former Gemini frame layer (`/api/proctor/analyze`, `use-server-proctoring.ts`, `NEXT_PUBLIC_SERVER_PROCTORING`) was removed 2026-09-13 — don't reintroduce server-side frame analysis (free-tier Gemini capped real concurrency at single digits and failed silently).
 
 ### i18n (Arabic / English)
@@ -91,8 +91,7 @@ is a shrink-only ratchet over `perf-contract-state.ts`; `supabase/tests/scale_ba
 sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md).
 
 - **Batch 1** (exam delivery) — shipped 2026-09-30, see the two `student_exam_list_*` migrations below.
-- **Batch 2** (large lists + selectors) — no migration. Done and committed locally on branch
-  `perf/batch-2-admin-students` (2026-10-01, **not pushed / not deployed**), each step owner-reviewed:
+- **Batch 2** (large lists + selectors) — no migration. Shipped (PR #37), each step owner-reviewed:
   - Lists, server page/search/count (`src/lib/data/people.ts` `listByRole` → `listStudents` / `listTeachers` /
     `listCenterStudents` / `listCenterTeachers`, 50 per page, `sanitizeSearch`, `?q=&page=` in the URL,
     `components/shared/list-pagination.tsx`): `/admin/students`, `/admin/teachers`, `/center/students`,
@@ -106,10 +105,26 @@ sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md]
     (`src/lib/data/rosters.ts` `readRosterPage`, 50 per page, exact total, past-end → last page). Without
     `page` both routes answer exactly as before — `/teacher/groups` (T1) reads its group's whole roster.
     The unpaged course read has no caller left in `src/` (kept; removing it is a later decision).
-  - Still to come in Batch 2: super-admin reports student picker (R1), centre mail recipients, owner counts.
+  - R1 (super-admin reports student picker), centre mail recipients and owner counts: done.
   - Follow-ups (not blockers, owner's decision 2026-10-01): (1) RosterModal re-fetches once more when the
     server corrects a past-end page; (2) after refining a search the previously picked student stays
     selected (Add enabled) though no longer listed — pre-existing behaviour.
+
+### Post-Plan fixes (2026-10-04 / 05, no migration unless stated)
+
+- **K** (invitations) and **A** (unpublished course content): migrations, see "Applied migrations".
+- **F3**: `supabase/tests/rls_write_path_check.sql` reads exams through `get_student_exam_list()` (PR #46).
+- **D1** (PR #49): report reads in `src/lib/data/reports.ts` throw `ReportReadError` on a failed read, a missing
+  count or a short page (`max_rows` guard); `/api/reports` answers `503 reportReadFailed`, never a partial report.
+- **B + C1** (PR #50): `src/lib/data/complete-read.ts` (`IncompleteReadError`, `readAllPages`, `readAllByKeyset`,
+  `inBatches` of 100 ids) for teacher records (marks / submissions / course progress), the grade export,
+  announcement stats (only "table missing" `PGRST205`/`42P01` hides them), delete-tenant (every user read before
+  any deletion) and the long `.in()` lists (interested students, evidence, live monitor).
+- **B / F1** (PR #51): `/center/groups` — one server page of 50 (`created_at DESC, id ASC`), active / archived
+  totals from the database, the transfer picker reads every active group (`src/lib/data/center-groups.ts`).
+- API limits (verified): `max_rows = 1000`; an `.in()` list past ≈ 640 uuids (≈ 25 KB URL) is refused with 400.
+- Ratchet now: STAR_SELECT 37, UNBOUNDED_READS 107. Deferred: C2, D2, E1 and the 35 "potentially incorrect"
+  1000-row reads. No action: J. Still open: I (this), H, E2 + F2, G1 + G2.
 
 ### Rate limiting
 `src/lib/rate-limit.ts` `rateLimit(key, {limit, windowSecs})` is backed by the Postgres `check_rate_limit` RPC (survives serverless cold starts; fails **open** if the limiter errors). Apply it in AI/expensive route handlers keyed by `feature:userId`.
@@ -120,7 +135,7 @@ The schema and all changes live as SQL files in `supabase/`, applied **manually 
 
 **Backups** (Supabase Free keeps none): `.github/workflows/db-backup.yml` dumps the DB with Supabase's documented `supabase db dump` commands on the 1st and 15th (owner's choice — not daily) and on demand, then `scripts/backup/backup.mjs` compresses (brotli), encrypts (AES-256-GCM, key wrapped with the owner's RSA public key — only the owner's private key opens it) and stores it in Cloudflare Workers KV under `backup/<id>/`, reads it back, and only then prunes to the newest 8. `scripts/backup/restore.mjs` lists / decrypts to SQL files and never touches a database. Storage files and proctoring evidence are not backed up. Runbook: `scripts/backup/README.md`. **Once the secrets are set, run the workflow (`gh workflow run db-backup.yml -f reason="before <migration>"`) and wait for it to pass before applying any migration to the live DB.**
 
-**Run `supabase/fix_all_search_path_migration.sql` on the live DB** (in addition to the already-applied `fix_helper_search_path.sql`) — it pins `search_path` on `check_rate_limit`, `start_exam_attempt`, `append_proctoring_events`, `finalize_exam_submission`, `cleanup_expired_invitations`, and `get_invitation_by_token`, which were found missing it (same class of bug: unqualified table refs under PostgREST's restricted search_path → silent 403/failure).
+`supabase/fix_all_search_path_migration.sql` is applied (see the list below; it was once missing on the live DB) — it pins `search_path` on `check_rate_limit`, `start_exam_attempt`, `append_proctoring_events`, `finalize_exam_submission`, `cleanup_expired_invitations`, and `get_invitation_by_token`, which were found missing it (same class of bug: unqualified table refs under PostgREST's restricted search_path → silent 403/failure).
 
 Once that migration is applied, RLS-scoped reads work correctly again, so route/page code should read through the **user session client** (`src/lib/supabase/server.ts`), not the service-role admin client — the admin client bypassed RLS as a workaround and is no longer needed for plain reads. Keep manual `.eq('tenant_id', ...)` / `.eq('teacher_id', ...)` filters as defense-in-depth even though RLS now enforces them. The service-role client remains correct for: privileged writes that need cross-tenant verification first (`api/admin/*`, `accept-invitation`), tables with **no** SELECT policy at all (currently only `rate_limits` — RLS enabled, zero policies), and any write path that must bypass RLS after app-level authorization.
 
@@ -395,12 +410,10 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   visible rows identical (per-account md5); anon REST `[]`; every other policy / function / index / grant / trigger /
   RLS flag fingerprint and every row count unchanged; security advisor unchanged; nothing left behind.
 
-## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
-
 - `notifications_feed_migration.sql` (P-08) — `get_my_notifications()`: the header bell's feed in ONE read
   (`/api/notifications`, polled by every open tab). Before, per poll: student 4 queries incl. the WHOLE
   `get_student_exam_list()` (~64 KB at 100 exams) to use 8 titles; teacher every exam (unbounded) then
-  `.in(<every exam id>)` (≈400 ids already overflow the request). Now one JSON object of sections per role
+  `.in(<every exam id>)` (≈640 ids already overflow the request — measured 2026-10-04). Now one JSON object of sections per role
   (student lessons 8 / exams 8 / grades 20; teacher submissions 15; university_admin users 15 + alerts 6;
   super_admin messages 10 + institutions 8 + alerts 6 — the same bounds); centre manager and any other role get
   `{}` (the route skips the call). SECURITY INVOKER (same RLS as the reads it replaces), pinned `search_path`,
@@ -413,7 +426,11 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   authenticated only, G2 INVOKER / STABLE / `search_path`); nothing left behind. Measured on 8 000 submissions:
   student 4 queries / ~69 KB → 1 / 8.5 KB; teacher 2 queries + 200-id list → 1 / 3.5 KB, ~26–44 ms (the ≤ 10 ms
   target is NOT met: it reads + RLS-checks all the teacher's submissions to sort them; no index matches — a
-  separate decision).
+  separate decision, C2, deferred). ✅ applied and deployed (PR #44); `get_my_notifications` present on the live DB.
+
+## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
+
+None.
 
 ## Sign-in (2026-09-29)
 

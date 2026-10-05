@@ -125,11 +125,6 @@ before/after measurement. Loading UI is never counted as a fix for backend laten
 
 ## Known unknowns (not verified — do not assume)
 
-- **PostgREST "Max Rows"** of this project: not verified. It could not be read from
-  here (the Supabase dashboard is not reachable from the tooling). Supabase's
-  documented default is 1000; if it still applies, every unbounded list above 1000 rows
-  is **silently truncated** today — a correctness bug, not only a speed one. P1 removes
-  the dependence on this value either way. Verify in Dashboard → Settings → API.
 - **Cold responses**: 8.9 s and ~17 s time-to-first-byte were observed after idle
   periods although Fluid Compute is enabled. Cause not yet measured (function bundle
   size, Sentry server init, platform). Tracked for a later batch.
@@ -139,6 +134,10 @@ before/after measurement. Loading UI is never counted as a fix for backend laten
 - Vercel **Fluid Compute: enabled** (project settings, read-only check).
 - Function region: **fra1** (`X-Vercel-Id: fra1::fra1::…`); Supabase: **eu-central-1**.
 - No direct Postgres driver in the app: all database traffic goes through PostgREST.
+- PostgREST **`max_rows = 1000`** (read from the Management API, 2026-10-01 and 2026-10-04): every unbounded
+  list above 1000 rows is **silently truncated** — a correctness bug, not only a speed one.
+- A request URL past ≈ 25 KB (≈ 640 uuids in one `.in()` list) is refused with HTTP 400 (measured 2026-10-04).
+- Ratchet (2026-10-05): STAR_SELECT 37, UNBOUNDED_READS 107.
 
 ## Triggers for the next steps (measure first, then act)
 
