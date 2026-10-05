@@ -725,6 +725,19 @@ most of its time in TLS (2.9 s, client network) and ~0.9 s at the server; after 
 0.42 s. One sample per idle length — not enough to rule cold starts out; the next step (separate decision) is
 the Vercel function logs (init vs execution time) over longer idle periods.
 
+**Later measurement (G2, 2026-10-05, same method, `/login`, owner's machine, all `fra1`).** The 8.9 s / 17 s rows
+above stay as the historical baseline.
+
+| When | TTFB | of which TLS | ≈ server (TTFB − TLS) |
+|---|---|---|---|
+| 10 warm requests (median / max) | 0.90 / 6.62 s | 0.31 / 4.94 s | 0.34 / 0.61 s |
+| after **15 min** idle, then twice at once | 0.91 / 0.98 / 0.92 s | 0.30 / 0.40 / 0.27 s | 0.24 / 0.33 / 0.28 s |
+| after **30 min** idle, then twice at once | **11.71** / 0.71 / 0.63 s | **10.60** / 0.26 / 0.20 s | 0.75 / 0.24 / 0.21 s |
+
+TLS / client network made up most of the large latencies; the server part stayed under 0.8 s (≈ +0.4 s after
+30 min idle). Full-body download varied 1.2–42 s (client network). Vercel function logs were not available, so
+init vs execution is still not separated. One sample per idle length, one device / network.
+
 **Deferred (separate batches / decisions):** Sentry sends 2–3 requests per navigation with no errors (likely
 session tracking — a monitoring decision); the shared Supabase client (56 KB) needs an `AuthProvider`
 restructure; `session/check` + notification polling (P-08); page server time (P-07, P-10); `loading.tsx`
