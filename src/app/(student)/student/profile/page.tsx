@@ -29,8 +29,11 @@ export default async function StudentProfilePage() {
 
   const { data: groups } = await supabase
     .from('group_students')
-    .select('groups(id, name, description, teacher:users!groups_teacher_id_fkey(full_name))')
+    .select('groups!inner(id, name, description, is_active, teacher:users!groups_teacher_id_fkey(full_name))')
     .eq('student_id', user.id)
+    // An archived group (is_active = false) is hidden from students — here and in the
+    // affiliation derived from these groups below. The membership itself stays.
+    .eq('groups.is_active', true)
 
   type GroupItem = { id: string; name: string; description: string | null; teacher: { full_name: string } | { full_name: string }[] | null }
   type GroupRow = { groups: GroupItem | GroupItem[] | null }

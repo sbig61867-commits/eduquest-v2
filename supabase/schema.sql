@@ -2261,7 +2261,7 @@ BEGIN
         SELECT les.id, les.title, les.created_at, gr.name AS group_name,
                row_number() OVER (ORDER BY les.created_at DESC) AS ord
         FROM public.lessons les
-        LEFT JOIN public.groups gr ON gr.id = les.group_id
+        JOIN public.groups gr ON gr.id = les.group_id AND gr.is_active = true
         WHERE les.group_id IN (SELECT gs.group_id FROM public.group_students gs WHERE gs.student_id = v_uid)
           AND les.is_published = true AND les.deleted_at IS NULL
         ORDER BY les.created_at DESC

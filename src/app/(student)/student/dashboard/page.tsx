@@ -20,11 +20,13 @@ export default async function StudentDashboard() {
   const supabase = await createClient()
   const user = await getAuthUser(supabase)
 
-  // Same scoping as /student/lessons: published lessons in the student's groups only
+  // Same scoping as /student/lessons: published lessons in the student's active groups only
+  // (an archived group — is_active = false — is hidden from students; its membership stays).
   const { data: groupRows } = await supabase
     .from('group_students')
-    .select('group_id')
+    .select('group_id, groups!inner(is_active)')
     .eq('student_id', user?.id ?? '')
+    .eq('groups.is_active', true)
   const groupIds = (groupRows ?? []).map(r => r.group_id)
 
   const [{ data: recentLessons, count: lessonCount }, { data: examRows }, { count: submissions }, { data: grades }, { data: announcementRows }] = await Promise.all([

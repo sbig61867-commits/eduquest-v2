@@ -35,11 +35,12 @@ export function StudentQuickAccessPanel() {
     if (!user?.id) return
     setLoading(true)
     try {
-      // Groups the student belongs to (needed for lessons)
+      // Active groups the student belongs to (needed for lessons; an archived group is hidden)
       const { data: groupRows } = await supabase
         .from('group_students')
-        .select('group_id')
+        .select('group_id, groups!inner(is_active)')
         .eq('student_id', user.id)
+        .eq('groups.is_active', true)
       const groupIds = (groupRows ?? []).map(r => r.group_id)
 
       // Fetch course IDs first, then titles

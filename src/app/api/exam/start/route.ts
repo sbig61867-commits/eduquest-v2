@@ -75,6 +75,20 @@ export async function POST(request: Request) {
   // Verify the student is on the exam's roster (its group, or its course)
   if (!(await isOnExamRoster(supabase, exam, user.id))) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
 
+  // An archived group (is_active = false) is hidden from its students: no NEW attempt
+  // starts on one of its exams. An attempt already in progress resumes exactly as before,
+  // so archiving never breaks an exam that is under way. Course exams (no group) are not
+  // affected. Checked here only — start_exam_attempt is unchanged (owner's decision, Option A).
+  if (exam.group_id) {
+    const admin = adminClient()
+    const { data: group } = await admin.from('groups').select('is_active').eq('id', exam.group_id).maybeSingle()
+    if (group?.is_active === false) {
+      const { data: attempt } = await admin.from('exam_submissions').select('id')
+        .eq('exam_id', exam.id).eq('student_id', user.id).eq('status', 'in_progress').maybeSingle()
+      if (!attempt) return NextResponse.json({ ...(await apiErr('examGroupArchived')) }, { status: 403 })
+    }
+  }
+
   // Enforce the exam window at start time too (clear error before they begin)
   const now = Date.now()
   if (exam.starts_at && now < new Date(exam.starts_at).getTime()) {
