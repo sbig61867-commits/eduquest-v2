@@ -16,7 +16,6 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/page.tsx': 1,
   'app/(admin)/admin/settings/page.tsx': 1,
   'app/(auth)/change-password/page.tsx': 1,
-  'app/(center)/center/groups/page.tsx': 1,
   'app/(student)/student/exams/page.tsx': 1,
   'app/(student)/student/profile/page.tsx': 1,
   'app/(super-admin)/super-admin/tenants/page.tsx': 1,
@@ -56,7 +55,9 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(admin)/admin/invitations/page.tsx': 1,
   'app/(center)/center/attendance/page.tsx': 1,
   'app/(center)/center/courses/page.tsx': 1,
-  'app/(center)/center/groups/page.tsx': 2,
+  // 1 — the courses list (out of B's approved scope). The groups are now one server page,
+  //     head-only totals and a complete paged read for the transfer picker (lib/data/center-groups.ts).
+  'app/(center)/center/groups/page.tsx': 1,
   'app/(center)/center/mail/page.tsx': 1,
   'app/(student)/student/courses/[id]/page.tsx': 4,
   'app/(student)/student/dashboard/page.tsx': 1,

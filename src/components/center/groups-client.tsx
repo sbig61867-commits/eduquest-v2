@@ -12,6 +12,7 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 import { Plus, Users, Archive, ArchiveRestore, Settings2, BookOpen } from 'lucide-react'
 import { RosterModal, type Option } from './roster-modal'
 import { TeacherPicker, type PickedTeacher } from './teacher-picker'
+import { ListPagination } from '@/components/shared/list-pagination'
 
 export interface CenterGroupRow {
   id: string
@@ -28,14 +29,33 @@ export interface CenterGroupRow {
   instructions: string | null
 }
 
+/** An active group the transfer picker offers — every active group of the institution, not just this page's. */
+export interface TransferOption {
+  id: string
+  name: string
+  course_id: string | null
+  max_students: number | null
+  student_count: number
+}
+
 interface SettingsForm { course_id: string; image_url: string; max_students: string; instructions: string }
 const toSettings = (g?: CenterGroupRow): SettingsForm => ({
   course_id: g?.course_id ?? '', image_url: g?.image_url ?? '',
   max_students: g?.max_students ? String(g.max_students) : '', instructions: g?.instructions ?? '',
 })
 
-export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }: {
+/** A stable empty list (a fresh `[]` default would look like new options on every render). */
+const NO_OPTIONS: TransferOption[] = []
+
+export function CenterGroupsClient({ initialGroups, summary, page = 1, pageCount = 1, transferOptions = NO_OPTIONS, hasTeachers, courses = [] }: {
+  /** One server page of the institution's groups (50, newest first). */
   initialGroups: CenterGroupRow[]
+  /** Active / archived totals, counted in the database. */
+  summary: { active: number; archived: number }
+  page?: number
+  pageCount?: number
+  /** Every active group of the institution, for the transfer picker. */
+  transferOptions?: TransferOption[]
   /** At least one active teacher exists (a count — the teachers are searched on demand). */
   hasTeachers: boolean
   courses?: Option[]
@@ -44,6 +64,10 @@ export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }:
   const tp = useTranslations('staff.teacherPicker')
   const router = useRouter()
   const [groups, setGroups] = useState(initialGroups)
+  const [options, setOptions] = useState(transferOptions)
+  // A refresh after a change brings the new set of active groups (adjusted while rendering, not in an effect).
+  const [optionsFrom, setOptionsFrom] = useState(transferOptions)
+  if (optionsFrom !== transferOptions) { setOptionsFrom(transferOptions); setOptions(transferOptions) }
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', teacher_id: '' })
   const [chosenTeacher, setChosenTeacher] = useState<PickedTeacher | null>(null)
@@ -132,9 +156,11 @@ export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }:
     const data = await res.json().catch(() => ({}))
     setBusy('')
     if (!res.ok) return toast.error(data.error ?? t('transferFailed'))
-    setGroups(prev => prev.map(g =>
+    const moved = <T extends { id: string; student_count: number }>(g: T): T =>
       g.id === transfer.group.id ? { ...g, student_count: Math.max(0, g.student_count - 1) }
-        : g.id === transferTo ? { ...g, student_count: g.student_count + 1 } : g))
+        : g.id === transferTo ? { ...g, student_count: g.student_count + 1 } : g
+    setGroups(prev => prev.map(moved))
+    setOptions(prev => prev.map(moved))
     toast.success(t('transferred', { name: transfer.student.full_name }))
     setTransfer(null); setRoster(null); setTransferTo(''); setTransferReason('')
     router.refresh()
@@ -160,7 +186,7 @@ export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }:
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-2xl font-bold text-white">{t('title')}</h2>
-          <p className="text-slate-400 mt-1">{t('summary', { active: groups.filter(g => g.is_active).length, archived: groups.filter(g => !g.is_active).length })}</p>
+          <p className="text-slate-400 mt-1">{t('summary', { active: summary.active, archived: summary.archived })}</p>
         </div>
         <Button onClick={() => setCreating(true)} disabled={!hasTeachers}>
           <Plus className="w-4 h-4" /> {t('newGroup')}
@@ -232,6 +258,7 @@ export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }:
           </tbody>
         </table>
       </div>
+      <ListPagination page={page} pageCount={pageCount} />
 
       <Modal open={creating} onClose={() => setCreating(false)} title={t('createTitle')}>
         <div className="space-y-4">
@@ -303,7 +330,7 @@ export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }:
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm"
             >
               <option value="">{t('pickGroup')}</option>
-              {groups.filter(g => g.is_active && g.id !== transfer?.group.id).map(g => (
+              {options.filter(g => g.id !== transfer?.group.id).map(g => (
                 <option key={g.id} value={g.id}>
                   {g.name}{g.course_id ? ` — ${courseName(g.course_id) ?? ''}` : ''}{g.max_students ? ` (${g.student_count}/${g.max_students})` : ''}
                 </option>
@@ -311,7 +338,7 @@ export function CenterGroupsClient({ initialGroups, hasTeachers, courses = [] }:
             </select>
           </label>
           {(() => {
-            const target = groups.find(g => g.id === transferTo)
+            const target = options.find(g => g.id === transferTo)
             if (!transfer || !target || !transfer.group.course_id || target.course_id === transfer.group.course_id) return null
             return (
               <p className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">

@@ -10,7 +10,11 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
  */
 
 const refresh = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push: vi.fn(), replace: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh, push: vi.fn(), replace: vi.fn() }),
+  // The groups list's ListPagination (renders nothing on a single page).
+  usePathname: () => '/center/groups', useSearchParams: () => new URLSearchParams(),
+}))
 vi.mock('next-intl', () => ({
   useTranslations: (ns: string) => (key: string, vars?: Record<string, unknown>) =>
     `${ns.split('.').pop()}.${key}${vars ? ':' + Object.values(vars).join('/') : ''}`,
@@ -108,7 +112,7 @@ const group = (over: Partial<CenterGroupRow> = {}): CenterGroupRow => ({
 
 describe('/center/groups — teacher column and «تغيير»', () => {
   it('rows show the teacher name, or «—» for a disabled teacher; no row renders a list of teachers', () => {
-    const { container } = render(<CenterGroupsClient hasTeachers initialGroups={[
+    const { container } = render(<CenterGroupsClient summary={{ active: 0, archived: 0 }} hasTeachers initialGroups={[
       group(), group({ id: 'g2', name: 'Evening', teacher_id: 'tX', teacher_name: null }),
     ]} />)
     expect(screen.getByText('Sara Idris')).toBeTruthy()
@@ -118,13 +122,13 @@ describe('/center/groups — teacher column and «تغيير»', () => {
   })
 
   it('no active teacher → «New group» disabled and the hint shown (as before)', () => {
-    render(<CenterGroupsClient hasTeachers={false} initialGroups={[]} />)
+    render(<CenterGroupsClient summary={{ active: 0, archived: 0 }} hasTeachers={false} initialGroups={[]} />)
     expect(screen.getByText('groups.needTeacher')).toBeTruthy()
     expect((screen.getByText('groups.newGroup').closest('button') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('«تغيير» → search → pick: the same PATCH /api/groups { id, teacher_id } as the old select, then the row shows the name', async () => {
-    render(<CenterGroupsClient hasTeachers initialGroups={[group()]} />)
+    render(<CenterGroupsClient summary={{ active: 0, archived: 0 }} hasTeachers initialGroups={[group()]} />)
     fireEvent.click(screen.getByText('teacherPicker.change'))
     expect(screen.getByText('teacherPicker.changeTitle:Morning Cohort')).toBeTruthy()
     typeIn('teacherPicker.search', 'huda')
@@ -141,7 +145,7 @@ describe('/center/groups — teacher column and «تغيير»', () => {
 
   it('picking the current teacher sends nothing; a refused PATCH keeps the old name', async () => {
     searchReply = [{ id: 't1', full_name: 'Sara Idris' }, { id: 't2', full_name: 'Huda Saleh' }]
-    render(<CenterGroupsClient hasTeachers initialGroups={[group()]} />)
+    render(<CenterGroupsClient summary={{ active: 0, archived: 0 }} hasTeachers initialGroups={[group()]} />)
     fireEvent.click(screen.getByText('teacherPicker.change'))
     typeIn('teacherPicker.search', 'a')
     await waitFor(() => expect(screen.getByText('Huda Saleh')).toBeTruthy())
@@ -158,7 +162,7 @@ describe('/center/groups — teacher column and «تغيير»', () => {
   })
 
   it('create: a teacher must be chosen; then the same POST /api/groups body carries teacher_id', async () => {
-    render(<CenterGroupsClient hasTeachers initialGroups={[]} />)
+    render(<CenterGroupsClient summary={{ active: 0, archived: 0 }} hasTeachers initialGroups={[]} />)
     fireEvent.click(screen.getByText('groups.newGroup'))
     fireEvent.change(fieldOf('groups.groupName'), { target: { value: 'New Cohort' } })
     fireEvent.click(screen.getByText('groups.create'))

@@ -16,6 +16,7 @@ import en from '@/messages/en'
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   usePathname: () => '/center/groups',
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -47,7 +48,7 @@ const groups = [
 function renderIn(locale: 'ar' | 'en') {
   return render(
     <NextIntlClientProvider locale={locale} messages={MESSAGES[locale] as never}>
-      <CenterGroupsClient
+      <CenterGroupsClient summary={{ active: 0, archived: 0 }}
         initialGroups={groups}
         hasTeachers
         courses={[]}
