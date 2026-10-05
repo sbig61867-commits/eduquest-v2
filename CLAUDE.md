@@ -428,6 +428,21 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   target is NOT met: it reads + RLS-checks all the teacher's submissions to sort them; no index matches — a
   separate decision, C2, deferred). ✅ applied and deployed (PR #44); `get_my_notifications` present on the live DB.
 
+- `e2_drop_duplicate_exam_submission_index_migration.sql` (E2, database maintenance) — drops
+  `idx_exam_submissions_exam_student` `(exam_id, student_id)`, a duplicate of the UNIQUE constraint's index
+  `exam_submissions_exam_id_student_id_key` (same columns, same order). Only that index; the constraint and every
+  other index (incl. the `idx_exam_submissions_student_id` / `_tenant` candidates, not part of E2) untouched.
+  **`rls_performance_migration.sql` is historical and must not be re-run** — its `CREATE INDEX IF NOT EXISTS` would
+  bring the duplicate back. Rollback: `supabase/e2_drop_duplicate_exam_submission_index_rollback.sql` (exact
+  original definition). Dry-run 2026-10-05 (rolled back, 20 000 synthetic submissions): lookups move to the unique
+  index with the same plan and cost, upserts already used it as conflict arbiter, a duplicate (exam, student) still
+  refused 23505. ✅ 2026-10-05 — green DB backup (run 37342822229, `2026-10-05T16-43-21Z`, verified), live state
+  re-checked, applied via Supabase MCP exactly as the file (migration `20261005164436`). Live: duplicate gone;
+  `UNIQUE (exam_id, student_id)` and its index unchanged (`pg_get_indexdef`); the two candidates, every other index,
+  every policy and every `public` function fingerprint identical; no other migration; nothing left behind.
+- **F2** (documentation only, no migration): `current_student_group_ids()` stays as it is live (VOLATILE, EXECUTE
+  for PUBLIC / anon / authenticated); `schema.sql` now mirrors that and says why (owner's decision 2026-10-05).
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
 None.

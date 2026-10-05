@@ -436,9 +436,19 @@ $$;
 -- needs to know a student's own groups) and group_students_select (which
 -- reads groups) — see the comment on groups_select below. Added alongside
 -- the 2026-09-13 PII-overexposure fix.
+--
+-- F2 (2026-10-05) — this mirrors the LIVE definition: VOLATILE (the applied
+-- fix_student_pii_overexposure_migration.sql declares no volatility; this file
+-- used to say STABLE). Called only through `IN (SELECT …)` in groups_select and
+-- attendance_sessions_select, i.e. once per query, so VOLATILE costs nothing.
+-- EXECUTE stays granted to PUBLIC / anon / authenticated on purpose: it returns
+-- the CALLER's own memberships only (nothing for anon, auth.uid() is NULL), and
+-- revoking it from anon might turn anon reads of groups / attendance_sessions
+-- from [] into 42501 (not verified). Changing either needs a full anon-path
+-- audit first (owner's decision).
 CREATE OR REPLACE FUNCTION current_student_group_ids()
 RETURNS SETOF UUID
-LANGUAGE SQL SECURITY DEFINER STABLE
+LANGUAGE SQL SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
   SELECT group_id FROM public.group_students WHERE student_id = auth.uid();
