@@ -17,10 +17,12 @@ export default async function NotificationsPage() {
   if (!user) redirect('/login')
 
   // Gather recent activity as notifications: new lessons & exams in student's groups
+  // (active groups only — an archived group is hidden from students; its membership stays)
   const { data: memberOf } = await supabase
     .from('group_students')
-    .select('group_id')
+    .select('group_id, groups!inner(is_active)')
     .eq('student_id', user.id)
+    .eq('groups.is_active', true)
 
   const groupIds = (memberOf ?? []).map(r => r.group_id)
 

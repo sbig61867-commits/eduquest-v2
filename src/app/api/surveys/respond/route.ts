@@ -22,7 +22,9 @@ export async function GET() {
   if (profile?.role !== 'student') return NextResponse.json({ survey: null })
 
   const admin = adminClient()
-  const { data: memberships } = await admin.from('group_students').select('group_id').eq('student_id', user.id)
+  // Active groups only: an archived group (is_active = false) and its surveys are hidden from students.
+  const { data: memberships } = await admin.from('group_students')
+    .select('group_id, groups!inner(is_active)').eq('student_id', user.id).eq('groups.is_active', true)
   const groupIds = (memberships ?? []).map(m => m.group_id)
   if (!groupIds.length) return NextResponse.json({ survey: null })
 
@@ -67,9 +69,12 @@ export async function POST(request: Request) {
 
   const admin = adminClient()
 
-  // Verify the survey is open and the student belongs to its group.
-  const { data: survey } = await admin.from('surveys').select('id, group_id, is_open').eq('id', survey_id).single()
-  if (!survey || !survey.is_open) return NextResponse.json({ ...(await apiErr('surveyNotOpen')) }, { status: 404 })
+  // Verify the survey is open, its group is not archived, and the student belongs to that group.
+  const { data: survey } = await admin.from('surveys').select('id, group_id, is_open, groups(is_active)').eq('id', survey_id).single()
+  const surveyGroup = (survey as { groups?: { is_active?: boolean } | null } | null)?.groups
+  if (!survey || !survey.is_open || surveyGroup?.is_active === false) {
+    return NextResponse.json({ ...(await apiErr('surveyNotOpen')) }, { status: 404 })
+  }
 
   const { data: membership } = await admin
     .from('group_students').select('group_id').eq('group_id', survey.group_id).eq('student_id', user.id).maybeSingle()

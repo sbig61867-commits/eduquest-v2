@@ -79,6 +79,7 @@
   "examDeleteFailed": "Could not delete the exam",
   "examDurationRange": "The exam duration must be a whole number between {min} and {max} minutes",
   "examEnded": "The exam period has ended.",
+  "examGroupArchived": "This exam's group has been archived, so it can no longer be started.",
   "examNotFound": "Exam not found",
   "examNotOpen": "This exam has not opened yet.",
   "examNotProctored": "The exam does not exist or is not proctored",
