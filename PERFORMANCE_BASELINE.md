@@ -15,7 +15,7 @@ times do not).
 | Production data | 1 tenant, 3 users, 0 exams, 0 lessons — list sizes today are tiny |
 | Client used | Desktop browser (Claude desktop app pane) on the owner's connection in Palestine (TLS handshake to Vercel 0.35–2.0 s, variable) |
 | Account | One `university_admin` account. Teacher / student / centre / super-admin navigations **not measured** (no signed-in account for those roles) |
-| PostgREST Max Rows | **Unknown — not verified** (see contract, "Known unknowns") |
+| PostgREST Max Rows | **1000** (verified later from the Management API, 2026-10-01 / 2026-10-04) |
 
 ## 1. Production — admin navigation (signed in)
 
@@ -110,7 +110,7 @@ that end in `RAISE EXCEPTION` (nothing persisted; verified afterwards: 3 users, 
 | Student count (head-only) | — | — | 13 ms |
 
 All three lists are passed to client components, i.e. sent to the browser in full
-(unless PostgREST Max Rows truncates them — unknown).
+(and PostgREST Max Rows = 1000 truncates them past 1000 rows).
 
 **B) 2 000 exams** (50 published to the student's group, 40 questions each), 2 000 lessons,
 40 000 submissions
@@ -140,7 +140,6 @@ ones) and in the quick-access panel (called from the browser to show 5 titles).
 - Navigations as teacher, student, centre manager, super admin (need signed-in accounts).
 - A phone on a mobile network (the owner uses Android; this baseline is desktop).
 - Behaviour under concurrent load.
-- PostgREST Max Rows.
 
 ## Batch 2 — admin students list (`/admin/students`)
 
@@ -742,3 +741,9 @@ second window). None came from the list pages: those pages had no 4xx/5xx resour
 returned 200, and the server log had no errors. The failing URLs had left the browser's request buffer, so
 the source is not known (most likely Supabase Auth answering a wrong password or a stale refresh token).
 Re-check only if it appears outside account switching.
+
+## B / F1 — `/center/groups` (PR #51, 2026-10-05)
+
+The table is one server page of 50 (was every group, cut at 1000 rows), the active / archived totals are database
+counts, and the transfer picker reads every active group in counted pages. No new measurement was taken; the
+870 ms render at 1 000 groups above is the pre-change figure, now bounded by the 50-row page.
