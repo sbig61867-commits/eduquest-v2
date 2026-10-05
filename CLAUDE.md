@@ -124,7 +124,14 @@ sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md]
   totals from the database, the transfer picker reads every active group (`src/lib/data/center-groups.ts`).
 - API limits (verified): `max_rows = 1000`; an `.in()` list past ≈ 640 uuids (≈ 25 KB URL) is refused with 400.
 - Ratchet now: STAR_SELECT 37, UNBOUNDED_READS 107. Deferred: C2, D2, E1 and the 35 "potentially incorrect"
-  1000-row reads. No action: J. Still open: I (this), H, E2 + F2, G1 + G2.
+  1000-row reads. No action: J. Done since: I (PR #52), H (the 120 seeded test students deleted 2026-10-05),
+  E2 + F2 (PR #53).
+- **G1 + G2** (2026-10-05, measurement only — no remediation): G1 — Sentry sent 0–3 requests per full page load
+  (median 1, 164–326 ms each, starting 1–10 s after load, non-blocking; 6 public-page samples): no performance
+  problem shown. G2 — curl on `/login` (10 warm, then after 15 and 30 min idle): server part ≈ 0.34 s warm median,
+  0.75 s at most after 30 min idle; the largest latencies were TLS / network on the client side (up to 10.6 s), not
+  server processing. Vercel function logs were not available, so cold-start init cannot be separated from
+  execution. Limits: one device / network, small samples. Decision: no remediation from G1 / G2 for now.
 
 ### Rate limiting
 `src/lib/rate-limit.ts` `rateLimit(key, {limit, windowSecs})` is backed by the Postgres `check_rate_limit` RPC (survives serverless cold starts; fails **open** if the limiter errors). Apply it in AI/expensive route handlers keyed by `feature:userId`.
