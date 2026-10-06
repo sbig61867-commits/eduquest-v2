@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./design-tokens.css";
 
 /* The app is dark-only: every screen is built on hard-coded slate colours.
    `color-scheme: dark` makes native controls (date pickers, selects,
@@ -16,43 +17,19 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-arabic), var(--font-latin), Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-/* Semantic tokens used by a few components (the confirm dialog, empty
-   states, loading skeletons, 404, AI-usage, course player). They were
-   referenced but never defined, so Tailwind emitted no CSS for them: the
-   confirm dialog had no background and colourless buttons. Mapped onto the
-   same slate palette the rest of the app hard-codes. */
-@theme {
-  --color-canvas: #020617;          /* slate-950 — page background */
-  --color-surface: #0f172a;         /* slate-900 — cards, dialogs */
-  --color-elevated: #1e293b;        /* slate-800 — raised / hovered */
-  --color-border: #1e293b;          /* slate-800 */
-  --color-fg: #ffffff;
-  --color-fg-secondary: #cbd5e1;    /* slate-300 */
-  --color-fg-muted: #94a3b8;        /* slate-400 */
-  --color-accent: #3b82f6;          /* blue-500 */
-  --color-accent-hover: #60a5fa;    /* blue-400 */
-  --color-accent-fg: #ffffff;
-  --color-accent-subtle: rgb(59 130 246 / 0.15);
-  --color-error: #dc2626;           /* red-600 */
-  --color-error-subtle: rgb(239 68 68 / 0.15);
-  --color-success: #34d399;         /* emerald-400 */
-  --color-success-subtle: rgb(16 185 129 / 0.15);
-  --color-warning: #fbbf24;         /* amber-400 */
-  --color-warning-subtle: rgb(245 158 11 / 0.15);
-  --color-info: #60a5fa;            /* blue-400 */
-  --color-info-subtle: rgb(59 130 246 / 0.15);
-}
+/* Semantic colour, type, radius, elevation and motion tokens live in
+   design-tokens.css (D3). */
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* --font-arabic carries Arabic glyphs only (see layout.tsx); Latin text
-     falls through to Arial exactly as before. */
-  font-family: var(--font-arabic), Arial, Helvetica, sans-serif;
+  /* --font-arabic carries Arabic glyphs only, --font-latin (IBM Plex Sans)
+     Latin text and digits (see layout.tsx); Arial is the fallback. */
+  font-family: var(--font-arabic), var(--font-latin), Arial, sans-serif;
 }
 
 /* ── Public surface appearance (marketing pages + sign-in) ──────────────────
