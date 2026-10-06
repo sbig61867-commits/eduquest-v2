@@ -17,7 +17,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-arabic), var(--font-latin), Arial, sans-serif;
+  --font-sans: var(--font-latin-face), var(--font-arabic-face), Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -27,9 +27,12 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  /* --font-arabic carries Arabic glyphs only, --font-latin (IBM Plex Sans)
-     Latin text and digits (see layout.tsx); Arial is the fallback. */
-  font-family: var(--font-arabic), var(--font-latin), Arial, sans-serif;
+  /* IBM Plex Sans first: it has no Arabic range, so it takes Latin text and
+     digits and Arabic falls through to Plex Arabic (which, under Turbopack,
+     also ships a Latin range — hence the order). Arial is the last fallback.
+     The *-face variables hold the bare family names, without next/font's
+     generated fallback (see layout.tsx). */
+  font-family: var(--font-latin-face), var(--font-arabic-face), Arial, sans-serif;
 }
 
 /* ── Public surface appearance (marketing pages + sign-in) ──────────────────
