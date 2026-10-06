@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Sans_Arabic } from 'next/font/google'
+import { IBM_Plex_Sans, IBM_Plex_Sans_Arabic } from 'next/font/google'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Toaster } from '@/components/ui/toast'
 import { dirFor, toLocale } from '@/i18n/config'
@@ -13,8 +13,7 @@ import './globals.css'
 // --font-geist-sans): a wasted font download per page. Removed 2026-09-29.
 // Arabic glyphs only (subset 'arabic' ships a unicode-range limited to the
 // Arabic block). Listed first in the body font stack, it renders Arabic text
-// while Latin characters fall through to Arial unchanged — so the existing
-// look of English text is untouched. adjustFontFallback is off because the
+// while Latin characters fall through to --font-latin below. adjustFontFallback is off because the
 // generated metric-adjusted fallback face has no unicode-range and would
 // otherwise resize Latin text too.
 const plexArabic = IBM_Plex_Sans_Arabic({
@@ -22,6 +21,16 @@ const plexArabic = IBM_Plex_Sans_Arabic({
   weight: ['400', '500', '600', '700'],
   variable: '--font-arabic',
   adjustFontFallback: false,
+  display: 'swap',
+})
+
+// Latin text and digits (D3 design tokens, 2026-10-06): the Latin companion of
+// Plex Arabic, replacing the Arial fallback. Second in the body font stack, so
+// Arabic glyphs still come from --font-arabic.
+const plexLatin = IBM_Plex_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-latin',
   display: 'swap',
 })
 
@@ -47,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang={locale}
       dir={dirFor(locale)}
-      className={`${plexArabic.variable} h-full`}
+      className={`${plexArabic.variable} ${plexLatin.variable} h-full`}
       suppressHydrationWarning
       translate="no"
     >

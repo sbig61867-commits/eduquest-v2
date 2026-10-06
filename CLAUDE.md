@@ -484,6 +484,24 @@ server-side through the user session, feeds them to `groqChat`, and is rate-limi
 
 Announcements tooling (free, no new storage): `components/announcements/banner-designer.tsx` renders a 1200×400 banner on a `<canvas>` in the author's browser (templates, RTL text, optional background photo) and uploads only the final WebP through `/api/announcements/upload`; `/api/ai/announcement-copy` suggests title/body/CTA via `groqChat` (text only, `manage_announcements` + 15/h rate limit). Datetime inputs are converted local→ISO in `announcements-manager.tsx` — a bare `datetime-local` string is stored as UTC by Postgres and shifts the window by the viewer's offset. The route rejects `image_url` values outside the project's `announcement-images` bucket.
 
+## Design system (D3, 2026-10-06)
+
+Tokens: `src/app/design-tokens.css` (imported by `globals.css`). Raw values are `--eq-*` on `:root` (dark — the
+only theme users see) and on `:root[data-eq-app-theme="light"]`; **nothing may set that attribute yet** (light
+tokens exist, light mode is off — owner's decision; the public surface keeps its own `data-eq-theme` system).
+Utilities: colours `canvas surface elevated line line-strong fg fg-2 fg-3 accent(-hover/-fg/-subtle) focus
+success warning danger info (+ -subtle)` (old names `border fg-secondary fg-muted error` are aliases); type
+`text-display h1 h2 h3 body body-sm meta label numeric-lg`; `num` (tabular figures); radius `rounded-control`
+(4px inputs/buttons/badges) · `rounded-overlay` (8px modals/dropdowns) · none for sections/tables · `rounded-full`
+avatars/status dots only; `shadow-overlay` for floating elements only; primitives `.eq-section`,
+`.eq-section-index` (01/02/03 on meaningful main sections only), `.eq-row`, `.eq-divide`, `.eq-focus`. Fonts: IBM
+Plex Sans Arabic + IBM Plex Sans (Latin) — no other font, no Plex Mono without a separate decision.
+Ratchet: `src/__tests__/design-contract.test.ts` (+ `-scan.ts`, `-state.ts`) counts raw palette colours,
+`text-[Npx]`, `rounded-xl/2xl/3xl`, gradients, coloured shadows, `backdrop-blur`, `p-5` per file in
+`src/{app,components}` — shrink-only, new files must be clean. `design-tokens.test.ts` checks light parity, WCAG AA
+pairs and that light mode stays off. Anti-patterns to avoid in new UI: KPI-card rows, icons in coloured boxes,
+card inside card, decorative icons/colour/animation, more than one page-level primary action.
+
 ## Conventions
 
 - Supabase joined-query results often need typed casts; the codebase uses `as unknown as RowType[]` with explicit interfaces rather than `as any`.
