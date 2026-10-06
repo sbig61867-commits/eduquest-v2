@@ -1,6 +1,7 @@
 // Browser-side Sentry, loaded on demand (perf audit 2026-09-30). The SDK is
 // the largest script the app ships, so nothing imports it statically on the
-// client: instrumentation-client.ts loads it when the browser is idle, and
+// client: instrumentation-client.ts schedules its routine load after the page's
+// `load` event, then the next idle moment (scheduleSentryLoad), and
 // reportClientError() loads it first if an error boundary fires before that.
 // Only init / captureException are loaded (./sentry-sdk). No performance
 // tracing (free-tier quota) and no session replay (quota, and proctored exam
@@ -20,6 +21,24 @@ export function loadSentry(): Promise<Sdk | null> {
     })
     .catch(() => null)
   return loading
+}
+
+/**
+ * Schedules the routine load of Sentry (Gate 5, 2026-10-06): after the page's
+ * `load` event, then the next idle moment — never inside the critical loading
+ * window. requestIdleCallback alone fired at ~0.8 s, before DOMContentLoaded,
+ * so the 75.6 KB SDK competed with the page's own files on slow networks.
+ * An error boundary still loads it at once through reportClientError().
+ */
+export function scheduleSentryLoad(): void {
+  if (typeof window === 'undefined') return
+  const whenIdle = () => {
+    const load = () => { void loadSentry() }
+    if ('requestIdleCallback' in window) window.requestIdleCallback(load, { timeout: 5000 })
+    else setTimeout(load, 3000)
+  }
+  if (document.readyState === 'complete') whenIdle()
+  else window.addEventListener('load', whenIdle, { once: true })
 }
 
 /** Report an error caught by an error boundary (loads Sentry if needed). */
