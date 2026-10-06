@@ -34,6 +34,18 @@ const plexLatin = IBM_Plex_Sans({
   display: 'swap',
 })
 
+// D3.1: the body stack names each family WITHOUT its generated fallback. Under
+// Turbopack, next/font emits "IBM Plex Sans Arabic Fallback" (local Arial, no
+// unicode-range) even with adjustFontFallback: false, and inside --font-arabic
+// it sat before Plex Sans and caught every Latin letter and digit. The first
+// name of each generated family is exposed as --font-arabic-face /
+// --font-latin-face; Arial stays the last fallback (globals.css).
+const firstFamily = (stack: string) => stack.split(',')[0].trim()
+const fontFaceVars = {
+  '--font-arabic-face': firstFamily(plexArabic.style.fontFamily),
+  '--font-latin-face': firstFamily(plexLatin.style.fontFamily),
+} as React.CSSProperties
+
 // Resolved per request: a static `metadata` export is evaluated once and
 // would pin the browser tab title to one language for every visitor.
 export async function generateMetadata(): Promise<Metadata> {
@@ -57,6 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={dirFor(locale)}
       className={`${plexArabic.variable} ${plexLatin.variable} h-full`}
+      style={fontFaceVars}
       suppressHydrationWarning
       translate="no"
     >
