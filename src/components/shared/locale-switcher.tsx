@@ -1,8 +1,7 @@
 'use client'
 
 import { useLocale } from 'next-intl'
-import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useState } from 'react'
 
 import { type Locale } from '@/i18n/config'
 import { writeLocaleCookie } from '@/lib/locale-cookie'
@@ -14,9 +13,9 @@ import { useAuthStore } from '@/stores/auth-store'
  * Switches the UI language for this browser.
  *
  * Writes `eq_locale` directly — the cookie is deliberately not HttpOnly for
- * exactly this reason (see src/i18n/config.ts) — then calls `router.refresh()`
- * so the server re-renders with the new locale. A full reload would also work
- * but throws away client state for no reason.
+ * exactly this reason (see src/i18n/config.ts) — then reloads the whole page
+ * (owner's rule 2026-10-09: a language or theme switch is always a full reload,
+ * so no client-rendered text stays in the old language).
  *
  * `lang`/`dir` on <html> come from the same cookie in the root layout, so the
  * direction flips with the language from one source of truth.
@@ -29,18 +28,20 @@ import { useAuthStore } from '@/stores/auth-store'
  */
 export function LocaleSwitcher({ className = '' }: { className?: string }) {
   const active = useLocale() as Locale
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [pending, setPending] = useState(false)
   const userId = useAuthStore(s => s.user?.id)
 
-  function pick(next: Locale) {
-    if (next === active) return
+  async function pick(next: Locale) {
+    if (next === active || pending) return
+    setPending(true)
     writeLocaleCookie(next)
-    startTransition(() => router.refresh())
     if (userId) {
-      void createClient().from('users').update({ locale: next }).eq('id', userId)
+      // Best-effort, but give it a moment to land before the reload aborts it.
+      const save = createClient().from('users').update({ locale: next }).eq('id', userId)
         .then(({ error }) => { if (error) console.warn('[locale] preference not saved:', error.message) })
+      await Promise.race([save, new Promise(r => setTimeout(r, 1500))])
     }
+    window.location.reload()
   }
 
   // Same compact EN · AR pill as the public pages, so the language switch

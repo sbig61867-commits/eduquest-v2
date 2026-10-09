@@ -10,6 +10,7 @@ import { createClient as createAdminClient, type SupabaseClient } from '@supabas
 // Path layout — the prefix is what the routes check before they accept a path:
 //   <tenant>/tasks/<teacher>/<uuid>.<ext>                    teacher attachment
 //   <tenant>/answers/<exam>/<student>/<question>.<ext>       student answer photo
+//   <tenant>/lessons/<teacher>/<uuid>.<ext>                  lesson image block
 
 export const EXAM_FILES_BUCKET = 'exam-files'
 export const MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -50,6 +51,18 @@ export function isOwnTaskAttachment(path: unknown, tenantId: string, teacherId: 
   if (typeof path !== 'string') return false
   const parts = path.split('/')
   return parts.length === 4 && parts[0] === tenantId && parts[1] === 'tasks' && parts[2] === teacherId &&
+    /^[0-9a-f-]{36}\.(jpg|png|webp|gif)$/i.test(parts[3])
+}
+
+export function lessonImagePath(tenantId: string, teacherId: string, id: string, ext: string): string {
+  return `${tenantId}/lessons/${teacherId}/${id}.${ext}`
+}
+
+/** A lesson may only show images its own teacher uploaded, inside the lesson's tenant. */
+export function isOwnLessonImage(path: unknown, tenantId: string, teacherId: string): path is string {
+  if (typeof path !== 'string') return false
+  const parts = path.split('/')
+  return parts.length === 4 && parts[0] === tenantId && parts[1] === 'lessons' && parts[2] === teacherId &&
     /^[0-9a-f-]{36}\.(jpg|png|webp|gif)$/i.test(parts[3])
 }
 

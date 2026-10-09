@@ -189,7 +189,9 @@
     "byFeature": "Most used this month"
   },
   "theme": {
-    "toggle": "Switch between light and dark appearance"
+    "toggle": "Switch between light and dark appearance",
+    "light": "Light appearance",
+    "dark": "Dark appearance"
   },
   "studentName": {
     "legend": "Four-part name",
@@ -239,5 +241,129 @@
     "copy": "Copy ID",
     "copied": "Copied",
     "close": "Continue"
+  },
+  "lessonView": {
+    "empty": "This lesson has no content yet.",
+    "mapRoot": "Lesson",
+    "progress": "{done} of {total} sections visited",
+    "lessonMap": "Lesson map",
+    "mapHint": "The lesson's concept tree. Pick a branch to jump to its section.",
+    "path": "Learning path",
+    "untitled": "Part {n}",
+    "finished": "You've reached the end of the lesson",
+    "image": "Lesson image",
+    "imageLoading": "Loading image",
+    "close": "Close",
+    "video": "Lesson video",
+    "videoUnsupported": "This video link can't be played here.",
+    "flipHint": "Tap a card to flip it.",
+    "resetCards": "Flip all back",
+    "listen": "Listen",
+    "translate": "Show translation",
+    "tones": {
+      "info": "Note",
+      "tip": "Tip",
+      "warning": "Watch out",
+      "remember": "Remember"
+    },
+    "nextSection": "Next: {title}",
+    "back": "Back to lessons",
+    "open": "Open lesson"
+  },
+  "lessonBuilder": {
+    "sections": "Sections",
+    "untitledSection": "Untitled section",
+    "addSection": "Section",
+    "sectionTitlePlaceholder": "Section title…",
+    "moveSectionBack": "Move section earlier",
+    "moveSectionForward": "Move section later",
+    "removeSection": "Delete section",
+    "confirmRemoveSection": "Delete this section and all its blocks?",
+    "emptySection": "Empty section — add a block.",
+    "addBlock": "Add block",
+    "edit": "Edit",
+    "preview": "Preview",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "duplicate": "Duplicate",
+    "remove": "Remove",
+    "textPlaceholder": "Write the explanation…",
+    "textHint": "Formatting: ### heading, **bold**, - list, ==highlight==.",
+    "videoUrlPlaceholder": "YouTube or Vimeo link, or an https .mp4 file",
+    "videoInvalid": "Only YouTube, Vimeo or a direct https video file.",
+    "captionPlaceholder": "Caption (optional)",
+    "linkInvalid": "The link must start with https://",
+    "linkTitlePlaceholder": "Link title",
+    "linkNotePlaceholder": "Why should the student open it? (optional)",
+    "calloutPlaceholder": "The note's text…",
+    "mindmapHint": "Build the concept tree: the central idea, then its branches.",
+    "mapRootPlaceholder": "Central idea",
+    "mapNodePlaceholder": "Branch",
+    "addBranch": "Add branch",
+    "addStep": "Add step",
+    "stepTitlePlaceholder": "Step {n}",
+    "stepBodyPlaceholder": "Details (optional)",
+    "addCard": "Add card",
+    "cardFront": "Front (term)",
+    "cardBack": "Back (meaning)",
+    "cardHint": "Translation / hint (optional)",
+    "quizIntroPlaceholder": "Instructions (optional)",
+    "addQuestion": "Add question",
+    "questionPlaceholder": "Question {n}",
+    "choices": "Choices",
+    "written": "Written answer",
+    "markCorrect": "Mark as the correct answer",
+    "markCorrectHint": "Tap a letter to mark the correct answer.",
+    "addOption": "Option",
+    "modelAnswer": "Correct / model answer",
+    "replaceImage": "Replace",
+    "uploadImage": "Upload your image",
+    "uploadImageHint": "A summary, diagram or slide you made — shown exactly as is. PNG, JPG, WebP, GIF.",
+    "uploading": "Uploading…",
+    "uploadFailed": "Upload failed. Try again.",
+    "tones": {
+      "info": "Note",
+      "tip": "Tip",
+      "warning": "Watch out",
+      "remember": "Remember"
+    },
+    "types": {
+      "text": {
+        "name": "Text",
+        "desc": "Explanation with headings and lists"
+      },
+      "image": {
+        "name": "Image",
+        "desc": "Your own summary or diagram, as is"
+      },
+      "video": {
+        "name": "Video",
+        "desc": "YouTube, Vimeo or a video file"
+      },
+      "link": {
+        "name": "Link",
+        "desc": "An external resource card"
+      },
+      "callout": {
+        "name": "Note box",
+        "desc": "Tip, warning or remember"
+      },
+      "mindmap": {
+        "name": "Mind map",
+        "desc": "Interactive concept tree"
+      },
+      "steps": {
+        "name": "Steps",
+        "desc": "An ordered path or procedure"
+      },
+      "flashcards": {
+        "name": "Flashcards",
+        "desc": "Flip cards for terms"
+      },
+      "quiz": {
+        "name": "Quick quiz",
+        "desc": "Self-check questions"
+      }
+    }
   }
 }

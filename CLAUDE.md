@@ -70,6 +70,15 @@ next-intl as a message layer only — no `[locale]` segment, no next-intl middle
 - **Ratchet:** `src/__tests__/i18n-no-hardcoded-strings.test.ts` + `i18n-migration-state.ts` — no Arabic or English UI literals inside `MIGRATED_DIRS` (every route group and every `components/` folder), and `formatDate`/`getTerms`/`getRoleLabel` must receive the locale there. `UNMIGRATED_FILES` is empty and must stay empty.
 - **Per-language content that is not UI** lives in `src/content/<area>/{ar,en}.ts`, one language per file, both typed against a shared `types.ts`: `ai/` (prompts, stop words; `ai/lesson-from-file.ts` is the one multilingual prompt), `demo/` (text of the /demo fixtures — ids/numbers stay in `lib/demo/data.ts`), `pricing/` (plan wording — prices stay in `lib/pricing/plans.ts`), `terminology/` (institution vocabulary + role names).
 - **Plurals:** a message that counts a noun uses ICU plural. Arabic has five forms (one, two, few 3–10, many 11–99 with tanween, other 0/100+), and Arabic branches print the number as `{var}`, never `#` (whose digits depend on the runtime's `ar` number formatter). `i18n-messages.test.ts` formats every plural for 0/1/2/3/11/100 in both languages and rejects Arabic-Indic digits.
+- **Block lessons (2026-10-09, no migration):** `lessons.content` holds either legacy Markdown or block JSON
+  `{"eqLesson":2,"sections":[…]}` (`src/lib/lesson-doc.ts`: text, image, video, link, callout, mindmap, steps,
+  flashcards, quiz). Markdown — old lessons and every AI draft — is converted on read (`markdownToLessonDoc`; the
+  prompts emit ```mindmap / ```steps fences and `> **Tip:**` boxes for it). Teachers edit in
+  `components/lesson/lesson-builder.tsx`, students see `components/lesson/lesson-view.tsx` (learning path, lesson
+  map, progress in localStorage). `PATCH/POST /api/lessons` re-sanitise the JSON; image blocks store a path in the
+  private `exam-files` bucket (`<tenant>/lessons/<teacher>/<uuid>.<ext>`, uploaded by `/api/lessons/files`, signed by
+  `/api/lessons/media` after an RLS read of the lesson). `cn()` registers the D3 type scale with tailwind-merge — without
+  it `text-fg text-body-sm` silently lost the colour.
 - **Lesson prompt format contract:** the vocabulary line `- **term** — explanation ||translation||` is parsed by `VOCAB_RE` in `components/shared/lesson-tabs.tsx`, which needs a dash after the term. Never "clean up" dashes in AI prompts (commit 8c1ff22 did, and broke it; restored in `src/content/ai/lesson-from-file.ts`).
 - **Password-reset email:** the source is `supabase/templates/recovery.html` (branches on `user_metadata.locale`, which `/api/auth/forgot-password` writes first). **Not applied** — Supabase rejects template edits on the free tier with the built-in email provider; it needs custom SMTP (then PATCH `mailer_templates_recovery_content` via the Management API). Until then the reset email is Supabase's English-only template.
 
@@ -486,9 +495,11 @@ Announcements tooling (free, no new storage): `components/announcements/banner-d
 
 ## Design system (D3, 2026-10-06)
 
-Tokens: `src/app/design-tokens.css` (imported by `globals.css`). Raw values are `--eq-*` on `:root` (dark — the
-only theme users see) and on `:root[data-eq-app-theme="light"]`; **nothing may set that attribute yet** (light
-tokens exist, light mode is off — owner's decision; the public surface keeps its own `data-eq-theme` system).
+Tokens: `src/app/design-tokens.css` (imported by `globals.css`). Raw values are `--eq-*` on `:root` (dark, soft
+navy since 2026-10-09) and on `:root[data-eq-theme="light"]`. **One theme system for the whole product** (owner,
+2026-10-09): `THEME_BOOT_SCRIPT` always sets `<html data-eq-theme>` (cookie `eq_theme`, else system setting);
+`globals.css` remaps the slate/accent palette for components still on raw classes. `ThemeToggle` (sun · moon pill)
+sits in the public bars, the demo and the signed-in header. **A theme or language switch always reloads the page.**
 Utilities: colours `canvas surface elevated line line-strong fg fg-2 fg-3 accent(-hover/-fg/-subtle) focus
 success warning danger info (+ -subtle)` (old names `border fg-secondary fg-muted error` are aliases); type
 `text-display h1 h2 h3 body body-sm meta label numeric-lg`; `num` (tabular figures); radius `rounded-control`
@@ -498,8 +509,8 @@ avatars/status dots only; `shadow-overlay` for floating elements only; primitive
 Plex Sans Arabic + IBM Plex Sans (Latin) — no other font, no Plex Mono without a separate decision.
 Ratchet: `src/__tests__/design-contract.test.ts` (+ `-scan.ts`, `-state.ts`) counts raw palette colours,
 `text-[Npx]`, `rounded-xl/2xl/3xl`, gradients, coloured shadows, `backdrop-blur`, `p-5` per file in
-`src/{app,components}` — shrink-only, new files must be clean. `design-tokens.test.ts` checks light parity, WCAG AA
-pairs and that light mode stays off. Anti-patterns to avoid in new UI: KPI-card rows, icons in coloured boxes,
+`src/{app,components}` — shrink-only, new files must be clean. `design-tokens.test.ts` checks light parity and WCAG AA
+pairs. Anti-patterns to avoid in new UI: KPI-card rows, icons in coloured boxes,
 card inside card, decorative icons/colour/animation, more than one page-level primary action.
 
 ## Conventions

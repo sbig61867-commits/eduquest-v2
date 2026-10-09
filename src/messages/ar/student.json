@@ -27,7 +27,8 @@
     "homeworkTitle": "واجبات هذا الدرس",
     "homeworkDue": "موعد التسليم: {date}",
     "homeworkSubmitted": "تم التسليم",
-    "homeworkSolve": "حل الواجب"
+    "homeworkSolve": "حل الواجب",
+    "openLesson": "افتح الدرس"
   },
   "schedule": {
     "title": "جدول مواعيدي",

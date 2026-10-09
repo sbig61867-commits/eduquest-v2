@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 /**
  * Design tokens (src/app/design-tokens.css, D3):
  *  - every dark `--eq-*` colour token has a light counterpart,
- *  - light mode exists as tokens only — nothing in src/ turns it on,
+ *  - the stale `data-eq-app-theme` attribute is gone (one theme attribute for the product),
  *  - the agreed text pairs meet WCAG AA (4.5:1) in both themes, from the real values.
  */
 
@@ -22,7 +22,7 @@ function block(selector: string): Record<string, string> {
 }
 
 const dark = block(':root')
-const light = block(':root[data-eq-app-theme="light"]')
+const light = block(':root[data-eq-theme="light"]')
 
 function luminance(hex: string): number {
   const m = /^#([0-9a-f]{6})$/i.exec(hex)
@@ -61,14 +61,14 @@ describe('design tokens', () => {
     }
   }
 
-  it('light mode is not enabled anywhere in src/', () => {
+  it('no code uses the retired data-eq-app-theme attribute', () => {
     const offenders: string[] = []
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {
         const p = join(dir, name)
         if (statSync(p).isDirectory()) {
           if (name !== '__tests__' && name !== 'node_modules') walk(p)
-        } else if (/\.(tsx?|jsx?|css)$/.test(name) && !p.endsWith(join('app', 'design-tokens.css'))) {
+        } else if (/\.(tsx?|jsx?|css)$/.test(name) && true) {
           const text = readFileSync(p, 'utf8')
           if (/data-eq-app-theme|eqAppTheme/.test(text)) offenders.push(relative(SRC, p).split(sep).join('/'))
         }

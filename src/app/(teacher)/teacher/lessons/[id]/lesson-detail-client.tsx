@@ -1,7 +1,7 @@
 'use client'
 import { confirmDialog } from '@/lib/confirm-dialog'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,9 @@ import {
   ArrowLeft, BookOpen, ClipboardList, Users, Sparkles, Upload,
   FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff
 } from 'lucide-react'
-import { LessonTabs } from '@/components/shared/lesson-tabs'
+import { LessonBuilder } from '@/components/lesson/lesson-builder'
+import { LessonView } from '@/components/lesson/lesson-view'
+import { markdownToLessonDoc, parseLessonContent, serializeLessonDoc, type LessonDoc } from '@/lib/lesson-doc'
 import { AiProgress } from '@/components/shared/ai-progress'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import { SubmissionsTab } from './submissions-tab'
@@ -48,7 +50,16 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const tAi = useTranslations('common.ai')
   const [tab, setTab] = useState<Tab>('content')
 
-  const [content, setContent] = useState(lesson.content ?? '')
+  const [doc, setDoc] = useState<LessonDoc>(() => parseLessonContent(lesson.content))
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+  // Signed URLs for the images already saved in this lesson (the builder shows them).
+  useEffect(() => {
+    if (!(lesson.content ?? '').includes('"image"')) return
+    fetch(`/api/lessons/media?lesson=${lesson.id}`)
+      .then(r => (r.ok ? r.json() : { urls: {} }))
+      .then(d => setImageUrls(u => ({ ...d.urls, ...u })))
+      .catch(() => {})
+  }, [lesson.id, lesson.content])
   const [title, setTitle] = useState(lesson.title)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -71,7 +82,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     setPublishing(false)
   }
 
-  const [previewMode, setPreviewMode] = useState(() => !!(lesson.content ?? '').trim())
+  const [previewMode, setPreviewMode] = useState(false)
 
   const [fileMode, setFileMode] = useState(() => searchParams.get('generate') === 'file')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -108,7 +119,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     await fetch('/api/lessons', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: lesson.id, title, content }),
+      body: JSON.stringify({ id: lesson.id, title, content: serializeLessonDoc(doc) }),
     })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -137,7 +148,17 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
     fd.append('question_types', JSON.stringify(qTypes))
     const res = await fetch('/api/ai/generate-lesson-from-file', { method: 'POST', body: fd })
     const data = await res.json()
-    if (res.ok) { setContent(data.content); if (!title) setTitle(uploadedFile.name.replace(/\.\w+$/, '')) }
+    if (res.ok) {
+      // The AI draft arrives as Markdown and becomes blocks the teacher can rearrange;
+      // added after what is already there, or replacing an empty lesson.
+      const draft = markdownToLessonDoc(data.content ?? '')
+      setDoc(prev => {
+        const hasContent = prev.sections.some(s => s.blocks.some(b => b.type !== 'text' || b.md.trim()))
+        return hasContent ? { ...prev, sections: [...prev.sections, ...draft.sections] } : draft
+      })
+      setPreviewMode(false)
+      if (!title) setTitle(uploadedFile.name.replace(/\.\w+$/, ''))
+    }
     else setAiError(data.error ?? 'Failed')
     setAiLoading(false)
   }
@@ -411,20 +432,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                 {previewMode ? <><EyeOff className="w-3.5 h-3.5" /> {t('lessonDetail.editMode')}</> : <><Eye className="w-3.5 h-3.5" /> {t('lessonDetail.previewMode')}</>}
               </button>
             </div>
-            {previewMode ? (
-              <div className="min-h-[300px] px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm prose prose-invert max-w-none">
-                {content.trim() ? <LessonTabs content={content} /> : <p className="text-slate-500 italic">{t('lessonDetail.noPreview')}</p>}
-              </div>
-            ) : (
-              <textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                rows={18}
-                className="w-full px-4 py-3 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                placeholder={t('lessonDetail.contentPlaceholder')}
-                dir="auto"
-              />
-            )}
+            {previewMode
+              ? <div className="min-h-72 p-4 rounded-overlay bg-surface border border-line">
+                  <LessonView doc={doc} title={title} lessonId={lesson.id} imageUrls={imageUrls} />
+                </div>
+              : <LessonBuilder doc={doc} onChange={setDoc} imageUrls={imageUrls}
+                  onImageUploaded={(path, url) => setImageUrls(u => ({ ...u, [path]: url }))} />}
           </div>
 
           <div className="flex justify-end">

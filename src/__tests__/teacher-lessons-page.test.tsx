@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 /**
  * Batch 3 / P-03 — /teacher/lessons. loadTeacherLessons reads one page of 50
  * lessons (named columns) and turns each body into the same 150-char excerpt
  * the list always showed — the browser never receives lesson bodies. «Edit»
- * reads that one lesson's content on demand through the teacher's session.
+ * opens the lesson's own page (the block builder), reading nothing in the list.
  */
 
 const lessonRead = vi.fn()
@@ -16,8 +16,9 @@ vi.mock('@/lib/supabase/client', () => ({
     }),
   }),
 }))
+const push = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push }),
   usePathname: () => '/teacher/lessons',
   useSearchParams: () => new URLSearchParams(),
 }))
@@ -98,20 +99,11 @@ describe('LessonsClient', () => {
     expect(screen.getByText('lessons.subtitle:300')).toBeTruthy()
   })
 
-  it('«Edit» reads THAT lesson\'s content on demand and fills the editor with it', async () => {
-    lessonRead.mockResolvedValue({ data: { content: 'Full body of lesson one' }, error: null })
-    const { container } = render(<LessonsClient initialLessons={rows} groups={[]} pagination={{ page: 1, pageCount: 1, total: 2 }} />)
-    const edit = [...container.querySelectorAll('button')].filter(b => b.querySelector('svg.lucide-pencil'))[0]
-    fireEvent.click(edit)
-    await waitFor(() => expect(lessonRead).toHaveBeenCalledWith('lessons', 'content', 'id', 'l1'))
-    await waitFor(() => expect(screen.getByDisplayValue('Full body of lesson one')).toBeTruthy())
-  })
-
-  it('a failed content read does not open the editor', async () => {
-    lessonRead.mockResolvedValue({ data: null, error: { message: 'denied' } })
+  it('«Edit» opens THAT lesson in the block builder and reads no body in the list', () => {
+    push.mockReset()
     const { container } = render(<LessonsClient initialLessons={rows} groups={[]} pagination={{ page: 1, pageCount: 1, total: 2 }} />)
     fireEvent.click([...container.querySelectorAll('button')].filter(b => b.querySelector('svg.lucide-pencil'))[0])
-    await waitFor(() => expect(lessonRead).toHaveBeenCalled())
-    expect(screen.queryByText('lessons.modal.editTitle')).toBeNull()
+    expect(push).toHaveBeenCalledWith('/teacher/lessons/l1')
+    expect(lessonRead).not.toHaveBeenCalled()
   })
 })

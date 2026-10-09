@@ -4,24 +4,23 @@
    system"; guarded by src/__tests__/design-contract.test.ts (shrink-only
    ratchet) and design-tokens.test.ts (light parity, AA contrast, light off).
 
-   Layering: raw values live in `--eq-*` custom properties on :root (dark, the
-   only theme users see) and on :root[data-eq-app-theme="light"]. Tailwind
-   utilities read them through `@theme inline`, so a theme switch is one
-   attribute — but NOTHING in src/ sets that attribute yet (owner's decision:
-   light tokens exist, light mode is not enabled). The public surface keeps its
-   own light system (`data-eq-theme` + `.eq-public` in globals.css).
+   Layering: raw values live in `--eq-*` custom properties on :root (dark) and
+   on :root[data-eq-theme="light"]. Tailwind utilities read them through
+   `@theme inline`, so a theme switch is one attribute, set for the whole
+   product by THEME_BOOT_SCRIPT (src/lib/theme.ts). Light mode enabled in the
+   app by the owner 2026-10-09; dark softened to navy the same day.
    ──────────────────────────────────────────────────────────────────────────── */
 
 :root {
   /* Neutrals — values identical to the pre-D3 tokens, so nothing shifts. */
-  --eq-canvas: #020617;        /* page background */
-  --eq-surface: #0f172a;       /* sidebar, dialogs */
-  --eq-elevated: #1e293b;      /* hover / raised */
-  --eq-line: #1e293b;          /* hairline dividers */
-  --eq-line-strong: #334155;   /* field borders, table head */
-  --eq-fg: #ffffff;            /* headings, values */
-  --eq-fg-2: #cbd5e1;          /* body text */
-  --eq-fg-3: #94a3b8;          /* metadata */
+  --eq-canvas: #121a2b;        /* page background — soft navy, not black */
+  --eq-surface: #1a2336;       /* sidebar, dialogs */
+  --eq-elevated: #252f44;      /* hover / raised */
+  --eq-line: #2a344a;          /* hairline dividers */
+  --eq-line-strong: #3a4660;   /* field borders, table head */
+  --eq-fg: #f5f7fb;            /* headings, values */
+  --eq-fg-2: #d3dae6;          /* body text */
+  --eq-fg-3: #a2aec2;          /* metadata */
 
   /* Accent — primary action, link, selection, focus. Never decoration. */
   --eq-accent: #3b82f6;
@@ -48,16 +47,16 @@
   --eq-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-/* Light architecture — NOT enabled anywhere (see header). */
-:root[data-eq-app-theme="light"] {
-  --eq-canvas: #f8fafc;
+/* Light — calm blue-tinted paper (see header). */
+:root[data-eq-theme="light"] {
+  --eq-canvas: #f5f7fc;
   --eq-surface: #ffffff;
-  --eq-elevated: #f1f5f9;
-  --eq-line: #e2e8f0;
-  --eq-line-strong: #cbd5e1;
-  --eq-fg: #0f172a;
-  --eq-fg-2: #334155;
-  --eq-fg-3: #475569;
+  --eq-elevated: #eaf0f9;
+  --eq-line: #e1e7f0;
+  --eq-line-strong: #c9d3e1;
+  --eq-fg: #13203a;
+  --eq-fg-2: #33415a;
+  --eq-fg-3: #56637a;
 
   --eq-accent: #2563eb;
   --eq-accent-hover: #1d4ed8;

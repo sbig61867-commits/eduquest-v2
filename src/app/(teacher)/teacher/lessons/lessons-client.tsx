@@ -13,7 +13,6 @@ import { formatDate } from '@/lib/utils'
 import { AiQuota } from '@/components/shared/ai-quota'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
-import { createClient } from '@/lib/supabase/client'
 import { toLessonRow, type TeacherLessonRow } from '@/lib/data/teacher-lessons'
 import { ListPagination } from '@/components/shared/list-pagination'
 
@@ -46,13 +45,8 @@ export function LessonsClient({ initialLessons, groups, pagination }: Props) {
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
   function openAdd() { setForm({ title: '', content: '', group_id: groups[0]?.id ?? '' }); setEditing(null); setMethod('manual'); setAiTopic(''); setAiError(''); setFormError(''); setShowModal(true) }
-  // The list carries only an excerpt; the lesson body is read when it is edited
-  // (the teacher's own session — RLS decides, exactly as for the list).
-  async function openEdit(l: Lesson) {
-    const { data, error } = await createClient().from('lessons').select('content').eq('id', l.id).single()
-    if (error) { toast.error(error.message); return }
-    setForm({ title: l.title, content: (data?.content as string | null) ?? '', group_id: '' }); setEditing(l); setMethod('manual'); setAiError(''); setFormError(''); setShowModal(true)
-  }
+  // Content is edited in the block builder on the lesson's own page.
+  function openEdit(l: Lesson) { router.push(`/teacher/lessons/${l.id}`) }
 
   async function generateWithAI() {
     if (!aiTopic) return
@@ -103,11 +97,10 @@ export function LessonsClient({ initialLessons, groups, pagination }: Props) {
         const data = await res.json()
         if (!res.ok) { setFormError(data.error); setLoading(false); return }
         setLessons(prev => [toLessonRow(data), ...prev])
-        if (method === 'file') {
-          setShowModal(false)
-          router.push(`/teacher/lessons/${data.id}?generate=file`)
-          return
-        }
+        // Straight into the block builder (or the file generator).
+        setShowModal(false)
+        router.push(`/teacher/lessons/${data.id}${method === 'file' ? '?generate=file' : ''}`)
+        return
       }
       setShowModal(false)
       router.refresh()

@@ -12,8 +12,10 @@ import { toast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import {
   ChevronLeft, Plus, Layers, BookOpen,
-  Trash2, ChevronDown, ChevronRight, Sparkles, Link2, AlertTriangle,
+  Trash2, ChevronDown, ChevronRight, Sparkles, Link2, AlertTriangle, Pencil,
 } from 'lucide-react'
+import { LessonBuilder } from '@/components/lesson/lesson-builder'
+import { emptyDoc, markdownToLessonDoc, parseLessonContent, serializeLessonDoc, type LessonDoc } from '@/lib/lesson-doc'
 import { useTranslations } from 'next-intl'
 import { parseVideoUrl } from '@/lib/video-embed'
 
@@ -87,6 +89,30 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
   const [unitModal,  setUnitModal]    = useState<{ open: boolean; levelId: string | null }>({ open: false, levelId: null })
   const [itemModal,  setItemModal]    = useState<{ open: boolean; unitId: string | null }>({ open: false, unitId: null })
   const [itemForm,   setItemForm]     = useState(EMPTY_ITEM)
+  // Content items (text / grammar / idioms / rules) are built from lesson blocks
+  // (src/lib/lesson-doc.ts) and stored serialized in content.body.
+  const [itemDoc,    setItemDoc]      = useState<LessonDoc>(() => emptyDoc())
+  const [itemImages, setItemImages]   = useState<Record<string, string>>({})
+  const [editingItem, setEditingItem] = useState<string | null>(null)
+  const isContentType = (type: string) => !isAssessmentType(type) && type !== 'video'
+
+  function openNewItem(unitId: string) {
+    setItemForm(EMPTY_ITEM); setItemDoc(emptyDoc()); setEditingItem(null)
+    setItemModal({ open: true, unitId })
+  }
+  function openEditItem(item: UnitItem, unitId: string) {
+    const body = typeof item.content?.body === 'string' ? item.content.body : ''
+    setItemForm({
+      ...EMPTY_ITEM, title: item.title, type: item.type, body: isContentType(item.type) ? '' : body,
+      exam_id: String(item.content?.exam_id ?? ''), video_url: String(item.content?.video_url ?? ''),
+    })
+    setItemDoc(parseLessonContent(body)); setEditingItem(item.id)
+    setItemModal({ open: true, unitId })
+    if (body.includes('"image"')) {
+      fetch(`/api/lessons/media?item=${item.id}`).then(r => (r.ok ? r.json() : { urls: {} }))
+        .then(d => setItemImages(u => ({ ...d.urls, ...u }))).catch(() => {})
+    }
+  }
   const [levelForm,  setLevelForm]    = useState({ title: '' })
   const [unitForm,   setUnitForm]     = useState({ title: '' })
   const [saving,     setSaving]       = useState(false)
@@ -178,7 +204,8 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
     })
     const data = await res.json()
     if (res.ok && data.content) {
-      setItemForm(p => ({ ...p, body: data.content, title: p.title || title }))
+      setItemDoc(markdownToLessonDoc(data.content))
+      setItemForm(p => ({ ...p, title: p.title || title }))
     } else {
       toast.error(data.error ?? t('courses.generateFailed'))
     }
@@ -187,7 +214,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
 
   async function addItem(e: React.FormEvent) {
     e.preventDefault()
-    const content: Record<string, unknown> = { body: itemForm.body }
+    const content: Record<string, unknown> = { body: isContentType(itemForm.type) ? serializeLessonDoc(itemDoc) : itemForm.body }
     if (isAssessmentType(itemForm.type)) {
       if (!itemForm.exam_id) { toast.warning(t('courses.assessment.pickFirst')); return }
       content.exam_id = itemForm.exam_id
@@ -198,6 +225,21 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
     }
     setSaving(true)
     const unitId = itemModal.unitId!
+    if (editingItem) {
+      const { data, error } = await supabase.from('unit_items')
+        .update({ title: itemForm.title, type: itemForm.type, content })
+        .eq('id', editingItem).select().single()
+      if (error || !data) { toast.error(error?.message ?? t('courses.generateFailed')); setSaving(false); return }
+      const swap = (units: CourseUnit[]) => units.map(u => u.id === unitId
+        ? { ...u, unit_items: u.unit_items.map(i => (i.id === editingItem ? { ...i, ...data } : i)) }
+        : u)
+      setLevels(p => p.map(l => ({ ...l, course_units: swap(l.course_units) })))
+      setFlatUnits(swap)
+      router.refresh()
+      setItemForm(EMPTY_ITEM); setEditingItem(null)
+      setItemModal({ open: false, unitId: null }); setSaving(false)
+      return
+    }
     const { data } = await supabase.from('unit_items').insert({
       unit_id: unitId, course_id: course.id, tenant_id: course.tenant_id,
       title: itemForm.title, type: itemForm.type,
@@ -245,6 +287,9 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
             </span>
           )
         })()}
+        <button onClick={() => openEditItem(item, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-fg-3 hover:text-fg p-1" title={t('courses.editItem')}>
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
         <button onClick={() => deleteItem(item.id, unitId)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 p-1">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -261,7 +306,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
           <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
           <span className="text-white text-sm font-medium flex-1">{unit.title}</span>
           <span className="text-slate-500 text-xs">{t('courses.itemsCount', { count: unit.unit_items.length })}</span>
-          <button onClick={e => { e.stopPropagation(); setItemModal({ open: true, unitId: unit.id }) }} className="ms-1 p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors" title={t('courses.addItemModal')}>
+          <button onClick={e => { e.stopPropagation(); openNewItem(unit.id) }} className="ms-1 p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors" title={t('courses.addItemModal')}>
             <Plus className="w-3.5 h-3.5" />
           </button>
           <button onClick={e => { e.stopPropagation(); deleteUnit(unit.id, levelId) }} className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors">
@@ -394,7 +439,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
       </Modal>
 
       {/* Add Content Item */}
-      <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title={t('courses.addItemModal')} size="xl">
+      <Modal open={itemModal.open} onClose={() => setItemModal({ open: false, unitId: null })} title={editingItem ? t('courses.editItem') : t('courses.addItemModal')} size="xl">
         <form onSubmit={addItem} className="space-y-4">
           {!isAssessmentType(itemForm.type) && itemForm.type !== 'video' && (
           <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 space-y-2">
@@ -481,6 +526,10 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
             </div>
           )}
 
+          {isContentType(itemForm.type)
+            ? <LessonBuilder doc={itemDoc} onChange={setItemDoc} imageUrls={itemImages}
+                onImageUploaded={(path, url) => setItemImages(u => ({ ...u, [path]: url }))} />
+            : (
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-300">
               {isAssessmentType(itemForm.type) || itemForm.type === 'video' ? t('courses.optionalNotesLabel') : t('courses.itemContentLabel')}
@@ -494,10 +543,11 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
               placeholder={t('courses.itemContentPlaceholder')}
             />
           </div>
+            )}
 
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={() => setItemModal({ open: false, unitId: null })} className="flex-1">{t('courses.modal.cancel')}</Button>
-            <Button type="submit" loading={saving} className="flex-1">{t('courses.addItemModal')}</Button>
+            <Button type="submit" loading={saving} className="flex-1">{editingItem ? t('courses.saveItem') : t('courses.addItemModal')}</Button>
           </div>
         </form>
       </Modal>

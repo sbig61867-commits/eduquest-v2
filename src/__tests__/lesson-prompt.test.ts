@@ -30,3 +30,21 @@ describe('buildLessonPrompt', () => {
     expect(p).toMatch(/QUIZ \(mandatory/)
   })
 })
+
+describe('buildLessonFromFilePrompt', async () => {
+  const { buildLessonFromFilePrompt } = await import('@/content/ai/lesson-from-file')
+  it('asks for the whole source, a teaching structure and the interactive blocks', () => {
+    const p = buildLessonFromFilePrompt('SOURCE TEXT', 'undergraduate', '', ['mcq'])
+    expect(p).toContain('SOURCE TEXT')
+    expect(p).toMatch(/COMPLETENESS: this is NOT a summary/)
+    expect(p).toContain('ONE content section per major topic')
+    expect(p).toContain('```mindmap')
+    expect(p).toContain('```steps')
+    expect(p).toContain('- **term** — short definition')
+    expect(p).not.toContain('choose 2-4')
+  })
+  it('later parts of a long file do not repeat the mind map instructions', () => {
+    const p = buildLessonFromFilePrompt('x', 'undergraduate', '', ['mcq'], { index: 1, total: 3 })
+    expect(p).not.toContain('```mindmap')
+  })
+})

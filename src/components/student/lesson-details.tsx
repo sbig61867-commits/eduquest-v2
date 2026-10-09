@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
-import { LessonTabs } from '@/components/shared/lesson-tabs'
+import { LessonView } from '@/components/lesson/lesson-view'
 
 /**
  * One lesson on /student/lessons (Batch 3 / P-05). The page sends only the
@@ -36,7 +36,7 @@ export function LessonDetails({ lessonId, summary, children }: { lessonId: strin
       {summary}
       <div className="px-5 pb-5 border-t border-slate-800 pt-4 space-y-4">
         {content !== null
-          ? <LessonTabs content={content} />
+          ? <LessonView content={content} lessonId={lessonId} />
           : <p className="text-slate-500 text-sm">{failed ? t('loadFailed') : t('loading')}</p>}
         {children}
       </div>

@@ -11,7 +11,8 @@ import { geminiUsage, meterCall } from '@/lib/ai/meter'
 import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
-export const maxDuration = 60
+// A full lesson from a long file is several minutes of generation, not one.
+export const maxDuration = 300
 
 // gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
 // current stable free-tier model, verified live. It caps a single response
@@ -19,14 +20,20 @@ export const maxDuration = 60
 // Gemini gives a materially larger single-pass ceiling, which is why
 // composition (not just vision extraction) now runs through it.
 const GEMINI_MODEL = 'gemini-2.5-flash'
-const MAX_OUTPUT_TOKENS = 8192
+// 2.5-flash allows 65k output tokens, but by default it also "thinks" first and
+// those thinking tokens are taken out of the SAME budget — with the old 8192
+// cap most of it went to thinking and the lesson came back a fraction of the
+// file (owner report 2026-10-09). Thinking off + a large cap = the whole budget
+// goes into the lesson.
+const MAX_OUTPUT_TOKENS = 32768
 
 function getGeminiModel() {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error('GEMINI_API_KEY not configured')
   return new GoogleGenerativeAI(key).getGenerativeModel({
     model: GEMINI_MODEL,
-    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+    // thinkingConfig is not in this SDK's types yet; the API accepts it as is.
+    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingBudget: 0 } } as Record<string, unknown>,
   }, { timeout: AI_TIMEOUT_MS })
 }
 
@@ -101,7 +108,7 @@ export const POST = meteredAiRoute('lesson-from-file', async (request: Request) 
 // Splits on paragraph boundaries (never mid-sentence) once a chunk would
 // approach Gemini's output ceiling, so long documents (~20+ pages) still
 // come back complete instead of being cut off silently.
-const CHUNK_CHAR_TARGET = 14000
+const CHUNK_CHAR_TARGET = 24000
 // Groq's llama-3.3-70b caps output at 4096 tokens, so its chunks must be
 // smaller than Gemini's for the output to fit without truncation.
 const GROQ_CHUNK_CHAR_TARGET = 8000
@@ -141,12 +148,10 @@ async function composeWithGemini(fullText: string, level: string, customInstruct
 
   // Long document: process each chunk independently (in order) and stitch
   // the results into one continuous lesson.
-  const parts: string[] = []
-  for (let i = 0; i < chunks.length; i++) {
-    parts.push(await generate(
-      buildLessonFromFilePrompt(chunks[i], level, customInstructions, qTypes, { index: i, total: chunks.length })
-    ))
-  }
+  // All chunks at once (each part takes a minute or two), joined in source order.
+  const parts = await Promise.all(chunks.map((chunk, i) => generate(
+    buildLessonFromFilePrompt(chunk, level, customInstructions, qTypes, { index: i, total: chunks.length }),
+  )))
   return parts.join('\n\n')
 }
 

@@ -3,6 +3,24 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { deleteEntity } from '@/lib/delete-entity'
+import { isLessonDocText, sanitizeLessonDoc, serializeLessonDoc } from '@/lib/lesson-doc'
+import { isOwnLessonImage } from '@/lib/exam-files'
+
+/**
+ * Block lessons (src/lib/lesson-doc.ts) are re-validated here: the JSON is
+ * rebuilt from known fields only, and an image block may only point at the
+ * author's own uploads. Returns null for a malformed document. Markdown passes through.
+ */
+function cleanContent(content: string, tenantId: string, teacherId: string): string | null {
+  if (!isLessonDocText(content)) return content
+  let doc
+  try { doc = sanitizeLessonDoc(JSON.parse(content)) } catch { return null }
+  if (!doc) return null
+  for (const s of doc.sections) {
+    for (const b of s.blocks) if (b.type === 'image' && !isOwnLessonImage(b.path, tenantId, teacherId)) b.path = ''
+  }
+  return serializeLessonDoc(doc)
+}
 
 function adminClient() {
   return createAdminClient(
@@ -40,7 +58,9 @@ export async function POST(request: Request) {
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  const { title, content, group_id } = body
+  const { title, group_id } = body
+  const content = cleanContent(body.content ?? '', profile.tenant_id, user.id)
+  if (content === null) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   if (!title?.trim() || !group_id) {
     return NextResponse.json({ ...(await apiErr('titleAndGroupRequired')) }, { status: 400 })
   }
@@ -57,7 +77,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await adminClient()
     .from('lessons')
-    .insert({ title: title.trim(), content: content ?? '', group_id, teacher_id: user.id, tenant_id: profile.tenant_id })
+    .insert({ title: title.trim(), content, group_id, teacher_id: user.id, tenant_id: profile.tenant_id })
     .select('*, groups(name)')
     .single()
 
@@ -91,7 +111,11 @@ export async function PATCH(request: Request) {
 
   const update: Record<string, unknown> = {}
   if (title !== undefined) update.title = title.trim()
-  if (content !== undefined) update.content = content
+  if (content !== undefined) {
+    const clean = cleanContent(content, profile.tenant_id, user.id)
+    if (clean === null) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+    update.content = clean
+  }
   if (is_published !== undefined) update.is_published = is_published
 
   const { data, error } = await adminClient()

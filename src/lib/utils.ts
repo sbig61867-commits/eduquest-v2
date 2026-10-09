@@ -1,11 +1,22 @@
 import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { extendTailwindMerge } from 'tailwind-merge'
 import type { Role } from '@/types'
 import { getTerms } from '@/lib/terminology'
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/config'
 import { roleLabels as arRoles } from '@/content/terminology/ar'
 import { roleLabels as enRoles } from '@/content/terminology/en'
 import type { RoleLabels } from '@/content/terminology/types'
+
+// The D3 type scale (design-tokens.css) adds text-display / h1 … numeric-lg.
+// Unregistered, tailwind-merge reads them as text COLOURS and drops a real
+// colour next to them (`text-fg text-body-sm` lost `text-fg`).
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [{ text: ['display', 'h1', 'h2', 'h3', 'body', 'body-sm', 'meta', 'label', 'numeric-lg'] }],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

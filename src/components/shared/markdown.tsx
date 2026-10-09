@@ -43,7 +43,8 @@ export function Markdown({ content, className }: { content: string; className?: 
     listItems = []
   }
 
-  for (const line of lines) {
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n]
     if (codeLines !== null) {
       if (line.trim().startsWith('```')) {
         blocks.push(<pre key={key++} className="my-3 p-3 rounded-lg bg-slate-950 border border-slate-800 overflow-x-auto text-sm text-slate-300"><code>{codeLines.join('\n')}</code></pre>)
@@ -53,6 +54,27 @@ export function Markdown({ content, className }: { content: string; className?: 
     }
     if (line.trim().startsWith('```')) { flushList(); codeLines = []; continue }
 
+    // | a | b | tables (lesson sources are full of them); the |---| row is the header rule.
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      flushList()
+      const rows: string[][] = []
+      while (n < lines.length && /^\s*\|.*\|\s*$/.test(lines[n])) {
+        const cells = lines[n].trim().slice(1, -1).split('|').map(c => c.trim())
+        if (!cells.every(c => /^:?-{2,}:?$/.test(c))) rows.push(cells)
+        n++
+      }
+      n--
+      const [head, ...body] = rows
+      blocks.push(
+        <div key={key++} className="my-3 overflow-x-auto">
+          <table className="w-full border-collapse text-start">
+            <thead><tr>{head.map((c, i) => <th key={i} className="border border-line-strong bg-elevated px-3 py-2 text-start font-semibold text-fg">{renderInline(c, `th${key}-${i}`)}</th>)}</tr></thead>
+            <tbody>{body.map((r, j) => <tr key={j}>{r.map((c, i) => <td key={i} className="border border-line px-3 py-2 align-top">{renderInline(c, `td${key}-${j}-${i}`)}</td>)}</tr>)}</tbody>
+          </table>
+        </div>,
+      )
+      continue
+    }
     const h = line.match(/^(#{1,6})\s+(.*)/)
     if (h) {
       flushList()

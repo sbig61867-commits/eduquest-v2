@@ -21,6 +21,23 @@ function questionTypesClause(qTypes: string[]): string {
   return `In the quiz and test sections use ONLY these question types, chosen by the teacher: ${qTypes.map(t => LABEL[t]).join(' + ')}. Never use any other type.`
 }
 
+// Interactive blocks (src/lib/lesson-doc.ts turns these fences into a mind map,
+// a step-by-step path and note boxes the teacher can then move around).
+export const INTERACTIVE_BLOCKS = `Interactive blocks — the platform turns these into interactive elements, so use them:
+- At the very START of the FIRST content section, a concept map of the WHOLE material as a fenced block, the central idea on the first line, branches indented two spaces per level (max 3 levels, short labels, same language as the source):
+\`\`\`mindmap
+- Central idea
+  - Branch
+    - Detail
+\`\`\`
+- Wherever the material describes a process, procedure or sequence, put it as a fenced steps block, one step per line as "1. Short title — one-sentence detail":
+\`\`\`steps
+1. First step — detail
+2. Second step — detail
+\`\`\`
+- Put key rules, warnings and things to memorise in note boxes: a line starting with "> **Tip:**", "> **Warning:**" or "> **Remember:**" (translate the word into the source language, e.g. "> **تذكّر:**").
+Never put questions inside these blocks.`
+
 export function buildLessonFromFilePrompt(chunk: string, level: string, customInstructions: string, qTypes: string[], part?: { index: number; total: number }): string {
   const structureBlock = customInstructions.trim()
     ? `The teacher has provided specific instructions — follow them exactly (they OVERRIDE the default section choice; if the teacher names specific sections/tabs, use exactly those, in their order and language):
@@ -45,7 +62,7 @@ Fill-in-the-blank questions have no option lines and the Answer is the exact mis
 - Examples in content sections are shown ALREADY SOLVED with the answer wrapped in ==double equals== (highlighted green), e.g. "There ==is== a car." — unsolved exercises belong in quiz sections only.`
     : `Organize the material into thematic sections. Each section MUST start with a Markdown H2 heading (\`## Section Name\`) — the platform renders every H2 section as a separate tab, so use \`##\` ONLY for section boundaries.
 
-First detect the subject and the language of the source, then choose 2-4 content-section names that fit it. ALWAYS write every section name (including the two quiz sections below) in the SAME language as the source:
+First detect the subject and the language of the source, then make ONE content section per major topic of the source, following the source's own headings and order (usually 3-8 sections; a long source gets more). ALWAYS write every section name (including the two quiz sections below) in the SAME language as the source:
 - Language-learning material: e.g. Vocabulary, Grammar, Idioms & Expressions, Examples.
   In Vocabulary and Idioms sections, write EVERY item on its own line EXACTLY as:
   \`- **term** — simple English explanation ||الترجمة العربية||\`
@@ -56,11 +73,18 @@ First detect the subject and the language of the source, then choose 2-4 content
 - Science / math / history / other: e.g. Key Concepts, Definitions, Explanations, Examples, Formulas, Laws.
 Include a section only if the source actually has that kind of content, but always produce AT LEAST TWO content sections by splitting the material into logical parts — never collapse everything into a single content tab.
 
+Inside EVERY content section use this teaching structure:
+1. One or two sentences saying what the section is about.
+2. A \`### Sub-heading\` for EACH concept, rule or idea of that part of the source, followed by a full explanation in clear teaching language, then a worked example whenever the source gives one or the idea needs one.
+3. Tables of the source stay Markdown tables (\`| a | b |\`). Lists stay lists. Every number, date, formula and name is kept.
+4. Close the section with its key terms, one per line, as \`- **term** — short definition\` (the platform turns these into flip cards), then a \`> **Remember:**\` box (translated) with the 2-4 most important takeaways.
+
 STRICT content-placement rules:
 - Content sections contain ONLY explanations, rules, definitions, lists, and WORKED examples (with their solutions shown). A "rules"/"grammar"/"concepts" section must EXPLAIN each point and show example(s).
 - Every example in content sections MUST be shown ALREADY SOLVED, with the answer wrapped in ==double equals== so the platform highlights it in green — e.g. "There ==is== a car in the garage." / "==Is there== a boy in the room?". Never leave a blank (________) unsolved in a content section.
 - NO exercises, drills, fill-in-the-blanks, or questions of any kind in content sections. Every exercise or question found in the source MUST be moved into the quiz section instead.
 - Do not omit source content and do not add facts that are not in the source.
+- COMPLETENESS: this is NOT a summary. Every paragraph, definition, example, list and table of the source must appear in the lesson, explained. The lesson is normally LONGER than the source, never shorter. Before finishing, check that every heading of the source is covered.
 
 Then ALWAYS end with exactly these two extra sections. Translate BOTH names into the source language — for an Arabic source they MUST be "اختبر نفسك" and "اختبار شامل"; for English keep "Quick Quiz" and "Comprehensive Test"; for any other language use the natural equivalent:
 1. \`## <Quick Quiz in source language>\` — all exercises found in the source, plus short questions, totalling at least 5.
@@ -88,12 +112,13 @@ Rules for questions: multiple choice has 2-4 options and the Answer is the lette
 
   return `You are converting a teacher's source material into a structured lesson page.
 Preserve the source content faithfully — do not invent information that is not present in it (quiz/test questions must be answerable from the material alone).
+Cover ALL of the source: this is a complete lesson that replaces reading the file, not a summary of it.
 Keep the same language as the source material.
 
 Level: ${level}
 ${structureBlock}
 ${questionTypesClause(qTypes)}${continuationNote}
-
+${part && part.index > 0 ? '' : INTERACTIVE_BLOCKS}
 Format in Markdown.
 
 Source content:

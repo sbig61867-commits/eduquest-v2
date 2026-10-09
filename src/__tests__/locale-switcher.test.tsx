@@ -3,13 +3,14 @@
  * pill as the public pages — two-letter codes, not the full language names.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import arMessages from '@/messages/ar'
 
+// A language switch is a full page reload (owner's rule 2026-10-09).
 const refresh = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
+Object.defineProperty(window, 'location', { configurable: true, value: { ...window.location, reload: refresh } })
 vi.mock('@/lib/supabase/client', () => ({ createClient: vi.fn() }))
 
 import { LocaleSwitcher } from '@/components/shared/locale-switcher'
@@ -32,11 +33,11 @@ describe('LocaleSwitcher', () => {
     expect(screen.getByRole('button', { name: 'العربية' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('switches language through the cookie and a refresh', () => {
+  it('switches language through the cookie and a full reload', async () => {
     renderAr()
     fireEvent.click(screen.getByRole('button', { name: 'English' }))
     expect(document.cookie).toContain('eq_locale=en')
-    expect(refresh).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
   })
 
   it('does nothing when the active language is picked again', () => {
