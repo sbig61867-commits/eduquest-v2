@@ -224,5 +224,12 @@
     "archiveChildren": " و{count} {units} تابعة له",
     "archive": "أرشفة",
     "isCurrent": "{term} الحالي"
+  },
+  "navGroups": {
+    "people": "الأشخاص",
+    "academic": "البنية الأكاديمية",
+    "content": "المحتوى والتقييم",
+    "communication": "التواصل",
+    "institution": "المؤسسة"
   }
 }

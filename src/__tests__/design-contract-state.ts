@@ -4,7 +4,7 @@
  * the line) when a file is cleaned; never raise one, never add a file.
  */
 
-// rawColor: 4434 in 155 files
+// rawColor: 4403 in 153 files
 export const RAW_COLOR: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/academic-client.tsx': 27,
   'app/(admin)/admin/academic/page.tsx': 4,
@@ -136,15 +136,13 @@ export const RAW_COLOR: Readonly<Record<string, number>> = {
   'components/shared/brand-intro.tsx': 3,
   'components/shared/error-fallback.tsx': 7,
   'components/shared/four-part-name-fields.tsx': 9,
-  'components/shared/header.tsx': 12,
   'components/shared/invitations-client.tsx': 133,
   'components/shared/lesson-tabs.tsx': 64,
   'components/shared/list-pagination.tsx': 6,
   'components/shared/markdown.tsx': 14,
   'components/shared/no-permission.tsx': 5,
-  'components/shared/notification-bell.tsx': 33,
+  'components/shared/notification-bell.tsx': 29,
   'components/shared/permissions-editor.tsx': 14,
-  'components/shared/sidebar.tsx': 15,
   'components/shared/student-name-editor.tsx': 1,
   'components/student/announcements-banner.tsx': 40,
   'components/student/appeal-panel.tsx': 10,
@@ -195,7 +193,7 @@ export const ARBITRARY_TEXT_SIZE: Readonly<Record<string, number>> = {
   'components/ui/empty-state.tsx': 2,
 }
 
-// largeRadius: 347 in 111 files
+// largeRadius: 345 in 109 files
 export const LARGE_RADIUS: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/academic-client.tsx': 4,
   'app/(admin)/admin/academic/page.tsx': 1,
@@ -289,11 +287,9 @@ export const LARGE_RADIUS: Readonly<Record<string, number>> = {
   'components/shared/ai-allowance-card.tsx': 1,
   'components/shared/ai-quota.tsx': 1,
   'components/shared/error-fallback.tsx': 2,
-  'components/shared/header.tsx': 1,
   'components/shared/invitations-client.tsx': 3,
   'components/shared/lesson-tabs.tsx': 1,
   'components/shared/no-permission.tsx': 1,
-  'components/shared/notification-bell.tsx': 1,
   'components/shared/permissions-editor.tsx': 2,
   'components/student/announcements-banner.tsx': 1,
   'components/student/appeal-panel.tsx': 1,
@@ -343,7 +339,7 @@ export const COLORED_SHADOW: Readonly<Record<string, number>> = {
   'components/public/pricing-page.tsx': 2,
 }
 
-// backdropBlur: 19 in 13 files
+// backdropBlur: 17 in 12 files
 export const BACKDROP_BLUR: Readonly<Record<string, number>> = {
   'app/(auth)/change-password/page.tsx': 1,
   'app/(auth)/forgot-password/page.tsx': 1,
@@ -356,7 +352,6 @@ export const BACKDROP_BLUR: Readonly<Record<string, number>> = {
   'components/public/landing.tsx': 1,
   'components/public/public-nav.tsx': 2,
   'components/shared/error-fallback.tsx': 1,
-  'components/shared/header.tsx': 2,
   'components/ui/modal.tsx': 1,
 }
 

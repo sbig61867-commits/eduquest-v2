@@ -899,5 +899,11 @@
       "titleRequired": "اكتب عنوان المهمة.",
       "questionRequired": "أضف سؤالاً واحداً على الأقل."
     }
+  },
+  "navGroups": {
+    "teaching": "التدريس",
+    "assessment": "التقييم",
+    "students": "الطلاب",
+    "communication": "التواصل"
   }
 }

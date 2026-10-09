@@ -1,4 +1,5 @@
 ﻿import { Sidebar } from '@/components/shared/sidebar'
+import { resolveNav } from '@/lib/navigation'
 import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
@@ -8,29 +9,16 @@ import { AuthProvider } from '@/components/shared/auth-provider'
 
 export default async function TeacherLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations('teacher')
-  const navItems = [
-    { label: t('nav.dashboard'),   href: '/teacher/dashboard',   icon: 'LayoutDashboard' as const },
-    { label: t('nav.groups'),      href: '/teacher/groups',      icon: 'Users' as const },
-    { label: t('nav.lessons'),     href: '/teacher/lessons',     icon: 'BookOpen' as const },
-    { label: t('nav.courses'),     href: '/teacher/courses',     icon: 'GraduationCap' as const },
-    { label: t('nav.exams'),       href: '/teacher/exams',       icon: 'ClipboardList' as const },
-    { label: t('nav.records'),     href: '/teacher/records',     icon: 'BarChart2' as const },
-    { label: t('nav.attendance'),  href: '/teacher/attendance',  icon: 'ClipboardCheck' as const },
-    { label: t('nav.engagement'),  href: '/teacher/engagement',  icon: 'Activity' as const },
-    { label: t('nav.proctoring'),  href: '/teacher/proctoring',  icon: 'ShieldCheck' as const },
-    { label: t('nav.schedule'),    href: '/teacher/schedule',    icon: 'CalendarDays' as const },
-    { label: t('nav.requests'),    href: '/teacher/requests',    icon: 'Inbox' as const },
-    { label: t('nav.invitations'), href: '/teacher/invitations', icon: 'Mail' as const },
-  ]
+  const nav = resolveNav('teacher', t)
   return (
     <ScopedIntlProvider namespaces={['common', 'teacher', 'terms']}>
       <AuthProvider>
       <div className="min-h-screen bg-slate-950">
         <TenantWatcher />
-        <Sidebar items={navItems} title={t('sidebarTitle')} />
+        <Sidebar nav={nav} title={t('sidebarTitle')} />
         <ContentShell>
-          <Header title={t('headerTitle')} />
-          <main className="p-4 lg:p-6 !pt-20">{children}</main>
+          <Header nav={nav} />
+          <main className="p-4 lg:p-6">{children}</main>
         </ContentShell>
       </div>
     </AuthProvider>

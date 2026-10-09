@@ -30,7 +30,12 @@
   },
   "greeting": "أهلاً بعودتك يا {name}",
   "nav": {
-    "openMenu": "فتح القائمة"
+    "openMenu": "فتح القائمة",
+    "mainNav": "التنقل الرئيسي",
+    "breadcrumb": "مسار الصفحة",
+    "collapseSidebar": "طيّ القائمة الجانبية",
+    "expandSidebar": "توسيع القائمة الجانبية",
+    "closeMenu": "إغلاق القائمة"
   },
   "notifications": {
     "label": "الإشعارات",
