@@ -82,7 +82,7 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={ref}>
       <button onClick={toggle} aria-label={t('label')}
-        className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+        className="eq-focus relative p-2 rounded-control text-fg-3 hover:text-fg hover:bg-elevated transition-colors">
         <Bell className="w-5 h-5" />
         {unread > 0 && (
           <span className="absolute top-1 end-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
@@ -105,7 +105,7 @@ export function NotificationBell() {
         // rightwards in English too and clip on the right. The direction the
         // insets must follow is the page's, which this element inherits; the
         // Arabic text keeps its own direction on the inner wrapper below.
-        <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 end-3 sm:end-0 sm:start-auto w-[calc(100vw-1.5rem)] sm:w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50">
+        <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 end-3 sm:end-0 sm:start-auto w-[calc(100vw-1.5rem)] sm:w-80 bg-surface border border-line-strong rounded-overlay shadow-overlay overflow-hidden z-50">
           <div>
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
             <span className="text-white font-semibold text-sm">{t('label')}</span>

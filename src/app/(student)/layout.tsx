@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 
 import { Sidebar } from '@/components/shared/sidebar'
+import { resolveNav } from '@/lib/navigation'
 import { Header } from '@/components/shared/header'
 import { ContentShell } from '@/components/shared/content-shell'
 import { TenantWatcher } from '@/components/shared/tenant-watcher'
@@ -16,27 +17,17 @@ import { AuthProvider } from '@/components/shared/auth-provider'
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations('student')
 
-  const navItems = [
-    { label: t('nav.dashboard'),     href: '/student/dashboard',     icon: 'LayoutDashboard' as const },
-    { label: t('nav.lessons'),       href: '/student/lessons',       icon: 'BookOpen' as const },
-    { label: t('nav.courses'),       href: '/student/courses',       icon: 'Layers' as const },
-    { label: t('nav.exams'),         href: '/student/exams',         icon: 'ClipboardList' as const },
-    { label: t('nav.schedule'),      href: '/student/schedule',      icon: 'CalendarDays' as const },
-    { label: t('nav.attendance'),    href: '/student/attendance',    icon: 'ClipboardCheck' as const },
-    { label: t('nav.grades'),        href: '/student/grades',        icon: 'BarChart2' as const },
-    { label: t('nav.notifications'), href: '/student/notifications', icon: 'Bell' as const },
-    { label: t('nav.profile'),       href: '/student/profile',       icon: 'GraduationCap' as const },
-  ]
+  const nav = resolveNav('student', t)
 
   return (
     <ScopedIntlProvider namespaces={['common', 'student', 'terms']}>
       <AuthProvider>
       <div className="min-h-screen bg-slate-950">
         <TenantWatcher />
-        <Sidebar items={navItems} title={t('roleTitle')} centreTraineeTitle={t('centreTraineeTitle')} />
+        <Sidebar nav={nav} title={t('roleTitle')} centreTraineeTitle={t('centreTraineeTitle')} />
         <ContentShell>
-          <Header title={t('portalTitle')} />
-          <main className="p-4 lg:p-6 !pt-20">{children}</main>
+          <Header nav={nav} />
+          <main className="p-4 lg:p-6">{children}</main>
         </ContentShell>
         <StudentQuickAccessPanel />
         <AnnouncementPopup />

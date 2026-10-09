@@ -477,5 +477,11 @@
       "student": "طالب",
       "pilot": "تجربة (مجموعة)"
     }
+  },
+  "navGroups": {
+    "institutions": "المؤسسات",
+    "governance": "الحوكمة",
+    "operations": "التشغيل",
+    "platform": "المنصة"
   }
 }

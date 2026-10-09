@@ -477,5 +477,11 @@
       "student": "Student",
       "pilot": "Pilot (group)"
     }
+  },
+  "navGroups": {
+    "institutions": "Institutions",
+    "governance": "Governance",
+    "operations": "Operations",
+    "platform": "Platform"
   }
 }

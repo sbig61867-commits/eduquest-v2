@@ -183,5 +183,11 @@
     "noSessionsSuggest": "Remind teachers to record attendance on the Attendance page after every session.",
     "allNormal": "The course's indicators are within the normal range — nothing calls for intervention.",
     "listSeparator": ", "
+  },
+  "navGroups": {
+    "people": "People",
+    "programs": "Programmes",
+    "tracking": "Tracking",
+    "communication": "Communication"
   }
 }

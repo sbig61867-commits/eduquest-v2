@@ -30,7 +30,12 @@
   },
   "greeting": "Welcome back, {name}",
   "nav": {
-    "openMenu": "Open menu"
+    "openMenu": "Open menu",
+    "mainNav": "Main navigation",
+    "breadcrumb": "Breadcrumb",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "closeMenu": "Close menu"
   },
   "notifications": {
     "label": "Notifications",

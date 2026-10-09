@@ -899,5 +899,11 @@
       "titleRequired": "Write a task title.",
       "questionRequired": "Add at least one question."
     }
+  },
+  "navGroups": {
+    "teaching": "Teaching",
+    "assessment": "Assessment",
+    "students": "Students",
+    "communication": "Communication"
   }
 }

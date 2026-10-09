@@ -224,5 +224,12 @@
     "archiveChildren": " and its {count} {units}",
     "archive": "Archive",
     "isCurrent": "Current {term}"
+  },
+  "navGroups": {
+    "people": "People",
+    "academic": "Academic structure",
+    "content": "Content & assessment",
+    "communication": "Communication",
+    "institution": "Institution"
   }
 }

@@ -310,5 +310,10 @@
     "ended": "The exam has ended. You can close this page.",
     "cameraError": "The camera could not start. Allow camera access for this site and reload the page.",
     "invalidLink": "This link is invalid or has expired. Create a new one from the exam page."
+  },
+  "navGroups": {
+    "learning": "Learning",
+    "tracking": "Tracking",
+    "account": "Account"
   }
 }
