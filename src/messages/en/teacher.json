@@ -525,7 +525,9 @@
       "urlLabel": "Video link",
       "hint": "A YouTube or Vimeo link, or a direct https link to a video file.",
       "invalid": "This link is not supported. Use a YouTube, Vimeo or direct video file link."
-    }
+    },
+    "editItem": "Edit content",
+    "saveItem": "Save changes"
   },
   "lessonDetail": {
     "tabs": {

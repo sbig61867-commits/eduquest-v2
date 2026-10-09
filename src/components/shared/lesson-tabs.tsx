@@ -43,7 +43,7 @@ function splitSections(content: string): { preamble: string; sections: Section[]
 
 const VOCAB_RE = /^[-*]\s+\*\*(.+?)\*\*\s*[—–:-]\s*(.+?)(?:\s*\|\|(.+?)\|\|)?\s*$/
 
-function speak(text: string) {
+export function speak(text: string) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   const u = new SpeechSynthesisUtterance(text)
   u.lang = /[a-z]/i.test(text) ? 'en-US' : 'ar-SA'
@@ -233,7 +233,7 @@ function isSelfCheck(q: QuizQuestion): boolean {
   return q.options.length === 0 && q.answer.split(/\s+/).length > 4
 }
 
-function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQuestion[] }) {
+export function InteractiveQuiz({ intro, questions }: { intro: string; questions: QuizQuestion[] }) {
   const t = useTranslations('common.lessonTabs')
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [checked, setChecked] = useState(false)

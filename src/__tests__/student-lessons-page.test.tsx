@@ -25,7 +25,7 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 const tStub = Object.assign((k: string) => k, { rich: (k: string) => k, has: () => true })
 vi.mock('next-intl', () => ({ useTranslations: () => tStub, useLocale: () => 'en' }))
-vi.mock('@/components/shared/lesson-tabs', () => ({ LessonTabs: ({ content }: { content: string }) => <div data-testid="body">{content}</div> }))
+vi.mock('@/components/lesson/lesson-view', () => ({ LessonView: ({ content }: { content: string }) => <div data-testid="body">{content}</div> }))
 
 import { loadStudentLessons, STUDENT_LESSONS_PAGE_SIZE } from '@/lib/data/student-lessons'
 import { LessonDetails } from '@/components/student/lesson-details'

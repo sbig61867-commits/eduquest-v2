@@ -13,7 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Markdown } from '@/components/shared/markdown'
+import { LessonView } from '@/components/lesson/lesson-view'
 import { toast } from '@/components/ui/toast'
 import { cn, formatDateTime } from '@/lib/utils'
 import { parseVideoUrl } from '@/lib/video-embed'
@@ -320,7 +320,7 @@ export function CoursePlayerClient({
           )}
 
           {current.item.body.trim()
-            ? <Markdown content={current.item.body} />
+            ? <LessonView key={current.item.id} content={current.item.body} title={current.item.title} itemId={current.item.id} />
             : !isAssessment && current.item.type !== 'video' && <p className="text-[13px] text-fg-muted">{t('noContent')}</p>}
 
           {/* Section navigation */}

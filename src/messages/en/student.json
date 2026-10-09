@@ -27,7 +27,8 @@
     "homeworkTitle": "Homework for this lesson",
     "homeworkDue": "Due: {date}",
     "homeworkSubmitted": "Submitted",
-    "homeworkSolve": "Start homework"
+    "homeworkSolve": "Start homework",
+    "openLesson": "Open lesson"
   },
   "schedule": {
     "title": "My Schedule",

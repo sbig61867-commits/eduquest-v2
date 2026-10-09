@@ -1,3 +1,4 @@
+import { INTERACTIVE_BLOCKS } from '@/content/ai/lesson-from-file'
 import * as Sentry from '@sentry/nextjs'
 import { QUIZ_SECTION_NAMES } from '@/content/ai'
 import { groqChat } from './groq'
@@ -220,6 +221,8 @@ FORMAT
 - Inside a section use \`###\` for sub-headings, \`-\` for bullets and \`**bold**\` for key terms.
 
 ${structureBlock}
+
+${INTERACTIVE_BLOCKS}
 
 QUIZ (mandatory, always last, even if the teacher's instructions don't mention it)
 End with a section whose H2 heading is the source language's equivalent of "Quick Quiz" (Arabic: "${QUIZ_SECTION_NAMES.ar.quiz}"), containing at least 5 questions in EXACTLY this shape:

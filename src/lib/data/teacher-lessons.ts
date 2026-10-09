@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { parsePage } from '@/lib/data/people'
+import { lessonPlainText } from '@/lib/lesson-doc'
 
 /**
  * /teacher/lessons (Batch 3 / P-03): a teacher's lessons one page at a time,
@@ -17,7 +18,7 @@ const RANGE_NOT_SATISFIABLE = 'PGRST103'
 
 /** What the list shows of a lesson's content (unchanged from the old client: markdown marks removed, 150 chars). */
 export function lessonExcerpt(content: string | null | undefined): string {
-  return content ? content.replace(/[#*`]/g, '').slice(0, 150) : ''
+  return content ? lessonPlainText(content).slice(0, 150) : ''
 }
 
 export interface TeacherLessonRow {

@@ -5,9 +5,8 @@ import type { Locale } from '@/i18n/config'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, ClipboardList, CheckCircle2, CalendarClock } from 'lucide-react'
+import { BookOpen, ClipboardList, CheckCircle2, CalendarClock, ChevronLeft } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { LessonDetails } from '@/components/student/lesson-details'
 import { ListPagination } from '@/components/shared/list-pagination'
 import { loadStudentLessons } from '@/lib/data/student-lessons'
 import { loadStudentExamList } from '@/lib/data/student-exams'
@@ -92,8 +91,10 @@ export default async function StudentLessonsPage({ searchParams }: { searchParam
           </header>
           <div className="p-5 space-y-3">
           {subjectLessons.map((lesson) => (
-            <LessonDetails key={lesson.id} lessonId={lesson.id} summary={
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+            // A lesson opens on its own focused page (no dashboard sidebar):
+            // /student/lessons/[id], in the (student-focus) route group.
+            <div key={lesson.id} className="bg-surface border border-line rounded-overlay overflow-hidden hover:border-line-strong transition-colors">
+              <Link href={`/student/lessons/${lesson.id}`} className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
                     <BookOpen className="w-4 h-4 text-blue-400" />
@@ -104,11 +105,12 @@ export default async function StudentLessonsPage({ searchParams }: { searchParam
                     <p className="text-slate-400 text-sm">{formatDate(lesson.created_at, locale)}</p>
                   </div>
                 </div>
-                <span className="text-slate-500 text-sm group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-            }>
+                <span className="flex items-center gap-1 text-accent text-body-sm font-medium shrink-0">
+                  {t('openLesson')} <ChevronLeft className="w-4 h-4 ltr:rotate-180" />
+                </span>
+              </Link>
                 {(homeworkByLesson.get(lesson.id) ?? []).length > 0 && (
-                  <div className="space-y-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <div className="mx-5 mb-5 space-y-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
                       <ClipboardList className="w-4 h-4 shrink-0" /> {t('homeworkTitle')}
                     </h4>
@@ -139,7 +141,7 @@ export default async function StudentLessonsPage({ searchParams }: { searchParam
                     })}
                   </div>
                 )}
-            </LessonDetails>
+            </div>
           ))}
           </div>
         </section>

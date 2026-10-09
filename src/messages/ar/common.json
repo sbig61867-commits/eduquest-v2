@@ -189,7 +189,9 @@
     "byFeature": "الأكثر استخداماً هذا الشهر"
   },
   "theme": {
-    "toggle": "التبديل بين المظهر النهاري والليلي"
+    "toggle": "التبديل بين المظهر النهاري والليلي",
+    "light": "المظهر النهاري",
+    "dark": "المظهر الليلي"
   },
   "studentName": {
     "legend": "الاسم الرباعي",
@@ -239,5 +241,129 @@
     "copy": "نسخ المعرّف",
     "copied": "نُسخ",
     "close": "متابعة"
+  },
+  "lessonView": {
+    "empty": "لا يوجد محتوى في هذا الدرس بعد.",
+    "mapRoot": "الدرس",
+    "progress": "زرت {done} من {total} أقسام",
+    "lessonMap": "خريطة الدرس",
+    "mapHint": "شجرة مفاهيم الدرس. اختر فرعاً للانتقال إلى قسمه.",
+    "path": "مسار التعلّم",
+    "untitled": "الجزء {n}",
+    "finished": "وصلت إلى نهاية الدرس",
+    "image": "صورة من الدرس",
+    "imageLoading": "جارٍ تحميل الصورة",
+    "close": "إغلاق",
+    "video": "فيديو الدرس",
+    "videoUnsupported": "لا يمكن تشغيل رابط الفيديو هذا هنا.",
+    "flipHint": "اضغط على البطاقة لقلبها.",
+    "resetCards": "إعادة كل البطاقات",
+    "listen": "استمع",
+    "translate": "أظهر الترجمة",
+    "tones": {
+      "info": "ملاحظة",
+      "tip": "نصيحة",
+      "warning": "انتبه",
+      "remember": "تذكّر"
+    },
+    "nextSection": "التالي: {title}",
+    "back": "العودة إلى الدروس",
+    "open": "افتح الدرس"
+  },
+  "lessonBuilder": {
+    "sections": "الأقسام",
+    "untitledSection": "قسم بلا عنوان",
+    "addSection": "قسم",
+    "sectionTitlePlaceholder": "عنوان القسم…",
+    "moveSectionBack": "تقديم القسم",
+    "moveSectionForward": "تأخير القسم",
+    "removeSection": "حذف القسم",
+    "confirmRemoveSection": "حذف هذا القسم وكل لبناته؟",
+    "emptySection": "قسم فارغ — أضف لبنة.",
+    "addBlock": "إضافة لبنة",
+    "edit": "تحرير",
+    "preview": "معاينة",
+    "moveUp": "تحريك لأعلى",
+    "moveDown": "تحريك لأسفل",
+    "duplicate": "نسخ",
+    "remove": "حذف",
+    "textPlaceholder": "اكتب الشرح…",
+    "textHint": "التنسيق: ### عنوان، **عريض**، - قائمة، ==تمييز==.",
+    "videoUrlPlaceholder": "رابط يوتيوب أو فيميو، أو ملف ‎.mp4 عبر https",
+    "videoInvalid": "يوتيوب أو فيميو أو ملف فيديو مباشر عبر https فقط.",
+    "captionPlaceholder": "وصف (اختياري)",
+    "linkInvalid": "يجب أن يبدأ الرابط بـ https://",
+    "linkTitlePlaceholder": "عنوان الرابط",
+    "linkNotePlaceholder": "لماذا يفتحه الطالب؟ (اختياري)",
+    "calloutPlaceholder": "نص الملاحظة…",
+    "mindmapHint": "ابنِ شجرة المفاهيم: الفكرة المركزية ثم فروعها.",
+    "mapRootPlaceholder": "الفكرة المركزية",
+    "mapNodePlaceholder": "فرع",
+    "addBranch": "إضافة فرع",
+    "addStep": "إضافة خطوة",
+    "stepTitlePlaceholder": "الخطوة {n}",
+    "stepBodyPlaceholder": "التفاصيل (اختياري)",
+    "addCard": "إضافة بطاقة",
+    "cardFront": "الوجه (المصطلح)",
+    "cardBack": "الظهر (المعنى)",
+    "cardHint": "ترجمة / تلميح (اختياري)",
+    "quizIntroPlaceholder": "تعليمات (اختياري)",
+    "addQuestion": "إضافة سؤال",
+    "questionPlaceholder": "السؤال {n}",
+    "choices": "اختيارات",
+    "written": "إجابة مكتوبة",
+    "markCorrect": "تحديد كإجابة صحيحة",
+    "markCorrectHint": "اضغط على الحرف لتحديد الإجابة الصحيحة.",
+    "addOption": "خيار",
+    "modelAnswer": "الإجابة الصحيحة / النموذجية",
+    "replaceImage": "استبدال",
+    "uploadImage": "ارفع صورتك",
+    "uploadImageHint": "ملخص أو مخطط أو شريحة صممتها — تظهر كما هي تماماً. PNG أو JPG أو WebP أو GIF.",
+    "uploading": "جارٍ الرفع…",
+    "uploadFailed": "فشل الرفع. حاول مرة أخرى.",
+    "tones": {
+      "info": "ملاحظة",
+      "tip": "نصيحة",
+      "warning": "انتبه",
+      "remember": "تذكّر"
+    },
+    "types": {
+      "text": {
+        "name": "نص",
+        "desc": "شرح بعناوين وقوائم"
+      },
+      "image": {
+        "name": "صورة",
+        "desc": "ملخصك أو مخططك كما هو"
+      },
+      "video": {
+        "name": "فيديو",
+        "desc": "يوتيوب أو فيميو أو ملف فيديو"
+      },
+      "link": {
+        "name": "رابط",
+        "desc": "بطاقة لمصدر خارجي"
+      },
+      "callout": {
+        "name": "صندوق ملاحظة",
+        "desc": "نصيحة أو تنبيه أو تذكير"
+      },
+      "mindmap": {
+        "name": "خريطة ذهنية",
+        "desc": "شجرة مفاهيم تفاعلية"
+      },
+      "steps": {
+        "name": "خطوات",
+        "desc": "مسار أو إجراء مرتب"
+      },
+      "flashcards": {
+        "name": "بطاقات تعليمية",
+        "desc": "بطاقات تنقلب للمصطلحات"
+      },
+      "quiz": {
+        "name": "اختبار سريع",
+        "desc": "أسئلة للتحقق الذاتي"
+      }
+    }
   }
 }
