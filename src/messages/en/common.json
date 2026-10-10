@@ -17,7 +17,8 @@
     "error": "Something went wrong"
   },
   "brandIntro": {
-    "skip": "Skip"
+    "skip": "Skip",
+    "greeting": "Welcome"
   },
   "locale": {
     "switchLabel": "Language",

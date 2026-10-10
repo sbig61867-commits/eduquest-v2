@@ -131,7 +131,6 @@ export const RAW_COLOR: Readonly<Record<string, number>> = {
   'components/shared/ai-allowance-card.tsx': 22,
   'components/shared/ai-progress.tsx': 10,
   'components/shared/ai-quota.tsx': 21,
-  'components/shared/brand-intro.tsx': 3,
   'components/shared/error-fallback.tsx': 7,
   'components/shared/four-part-name-fields.tsx': 9,
   'components/shared/invitations-client.tsx': 133,

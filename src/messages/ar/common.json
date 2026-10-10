@@ -17,7 +17,8 @@
     "error": "حدث خطأ ما"
   },
   "brandIntro": {
-    "skip": "تخطٍّ"
+    "skip": "تخطٍّ",
+    "greeting": "أهلاً بك"
   },
   "locale": {
     "switchLabel": "اللغة",
