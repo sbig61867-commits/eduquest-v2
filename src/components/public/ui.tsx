@@ -10,9 +10,23 @@ import Link from 'next/link'
 /** Wide container: the page fills large screens instead of a narrow column. */
 export const WRAP = 'max-w-[88rem] mx-auto px-4 sm:px-8 lg:px-12'
 export const PANEL = 'rounded-3xl border border-slate-800 bg-slate-900/60'
-/** Faint square grid, faded out towards the bottom (hero backdrops). */
-export const GRID_BG =
-  'opacity-[0.06] [background-image:linear-gradient(to_right,var(--color-white)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-white)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]'
+/**
+ * A reserved frame for a future photograph or video. With `src` it shows the
+ * image; without one it holds the space with a quiet framed surface, so the
+ * layout does not shift when real media arrives.
+ */
+export function MediaSlot({ src, alt = '' }: { src?: string; alt?: string }) {
+  return (
+    <figure className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- placeholder until real media is chosen
+        <img src={src} alt={alt} className="h-full w-full object-cover" />
+      ) : (
+        <span aria-hidden="true" className="absolute inset-3 rounded-md border border-dashed border-slate-700" />
+      )}
+    </figure>
+  )
+}
 
 export function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="text-blue-400 text-sm font-semibold tracking-wide mb-3">{children}</p>
@@ -62,15 +76,12 @@ export function CheckDot({ tone = 'bg-blue-600' }: { tone?: string }) {
 export function PageHero({ eyebrow, title, desc, children }: { eyebrow: string; title: string; desc: string; children?: React.ReactNode }) {
   return (
     <section className="relative">
-      <div aria-hidden="true" className={`absolute inset-0 ${GRID_BG}`} />
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[32rem] bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.2),transparent_65%)]" />
-      <div className={`relative ${WRAP} pt-14 sm:pt-20 pb-12 sm:pb-16 text-center`}>
+      <div className={`relative ${WRAP} pt-14 sm:pt-20 pb-12 sm:pb-16 text-start`}>
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/25 text-blue-300 text-sm font-medium">
-          <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-blue-400 motion-safe:animate-pulse" />
           {eyebrow}
         </span>
-        <h1 className="mt-7 text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight max-w-5xl mx-auto">{title}</h1>
-        <p className="text-slate-400 text-base sm:text-lg mt-6 max-w-3xl mx-auto leading-loose">{desc}</p>
+        <h1 className="mt-7 text-3xl sm:text-5xl font-extrabold text-white leading-tight max-w-4xl">{title}</h1>
+        <p className="text-slate-400 text-base sm:text-lg mt-6 max-w-3xl leading-loose">{desc}</p>
         {children}
       </div>
     </section>
@@ -86,13 +97,12 @@ export function CtaBand({ title, desc, primary, secondary }: {
 }) {
   return (
     <section className={`${WRAP} py-12 sm:py-16`}>
-      <div className="relative overflow-hidden rounded-[2rem] border border-blue-500/30 bg-gradient-to-br from-blue-600/30 via-slate-900 to-slate-950 px-6 py-14 sm:p-20 text-center">
-        <div aria-hidden="true" className="absolute -top-24 left-1/2 -translate-x-1/2 w-[36rem] h-[36rem] rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="relative overflow-hidden rounded-lg border border-slate-800 bg-slate-900 px-6 py-14 sm:p-16 text-start">
         <div className="relative">
           <h2 className="text-3xl sm:text-4xl font-bold text-white">{title}</h2>
-          <p className="text-slate-300 mt-4 max-w-2xl mx-auto leading-relaxed">{desc}</p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
-            <Link href={primary.href} className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-blue-50 text-slate-950 font-semibold transition-colors">
+          <p className="text-slate-300 mt-4 max-w-2xl leading-relaxed">{desc}</p>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-9">
+            <Link href={primary.href} className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-on-accent font-semibold transition-colors text-center">
               {primary.label}
             </Link>
             {secondary && (

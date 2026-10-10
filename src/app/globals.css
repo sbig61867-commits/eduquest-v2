@@ -53,21 +53,32 @@ body {
 }
 
 :root:not([data-eq-theme="light"]) {
-  --color-slate-950: oklch(21% 0.028 264);
-  --color-slate-900: oklch(25.5% 0.032 263);
-  --color-slate-800: oklch(31.5% 0.035 261);
-  --color-slate-700: oklch(39% 0.038 259);
-  --color-slate-600: oklch(50% 0.04 257);
-  --color-slate-500: oklch(64% 0.04 257);
-  --color-slate-400: oklch(75% 0.034 256);
+  --color-slate-950: oklch(19% 0.045 266);
+  --color-slate-900: oklch(23.5% 0.055 266);
+  --color-slate-800: oklch(30% 0.06 266);
+  --color-slate-700: oklch(38% 0.06 266);
+  --color-slate-600: oklch(49% 0.055 266);
+  --color-slate-500: oklch(64% 0.045 266);
+  --color-slate-400: oklch(76% 0.035 266);
+  /* Navy and gold: the blue/sky ramps carry a metallic gold on the navy
+     shell. Amber hue, moderate chroma: gold, never yellow. */
+  --color-blue-200: #f1e2b8;  /* champagne */
+  --color-blue-300: #e3c788;  /* pale gold */
+  --color-blue-400: #d4af5f;  /* bright gold */
+  --color-blue-500: #c9a24a;  /* gold */
+  --color-blue-600: #b8892f;  /* old gold: fills, navy text on it */
+  --color-blue-700: #9a7226;  /* deep gold */
+  --color-sky-300: #f3e6c4;   /* sheen end of gold gradients */
+  --color-sky-400: #e8d29c;
+  --color-on-accent: #13224a;
   color-scheme: dark;
 }
 
 :root[data-eq-theme="light"] {
-  --color-slate-950: oklch(97.8% 0.008 255);
+  --color-slate-950: oklch(97.6% 0.009 85);   /* ivory page */
   --color-slate-900: oklch(100% 0 0);
-  --color-slate-800: oklch(93.5% 0.014 255);
-  --color-slate-700: oklch(87.5% 0.022 253);
+  --color-slate-800: oklch(93% 0.013 85);
+  --color-slate-700: oklch(87% 0.02 82);
   --color-slate-600: oklch(70.4% 0.04 256.788);
   --color-slate-500: oklch(52% 0.046 257.417);
   --color-slate-400: oklch(44.6% 0.043 257.281);
@@ -75,11 +86,18 @@ body {
   --color-slate-200: oklch(27.9% 0.041 260.031);
   --color-slate-100: oklch(20.8% 0.042 265.755);
   --color-white: oklch(20.8% 0.042 265.755);
-  --color-blue-200: oklch(42.4% 0.199 265.638);
-  --color-blue-300: oklch(48.8% 0.243 264.376);
-  --color-blue-400: oklch(54.6% 0.245 262.881);
-  --color-sky-300: oklch(50% 0.134 242.749);
-  --color-sky-400: oklch(58.8% 0.158 241.966);
+  /* Day: navy is the ink, gold is the accent. Fills (buttons, badges) use
+     the same bright gold as the night shell, with navy text on them; gold
+     used as small text is deepened only as far as reading needs. */
+  --color-blue-200: #6e5018;
+  --color-blue-300: #8a6520;
+  --color-blue-400: #a87b25;
+  --color-blue-500: #d4af5f;  /* hover: brighter */
+  --color-blue-600: #c9a24a;  /* same gold as the night shell */
+  --color-blue-700: #b8892f;
+  --color-sky-300: #c9a24a;   /* sheen in gold gradients */
+  --color-sky-400: #d4af5f;
+  --color-on-accent: #13224a; /* navy text on gold */
   --color-emerald-300: oklch(50.8% 0.118 165.612);
   --color-emerald-400: oklch(52% 0.13 163.225);
   --color-amber-300: oklch(55.5% 0.163 48.998);
@@ -93,7 +111,7 @@ body {
 /* White stays white on a solid coloured fill (buttons, badges, avatars) and
    for intentionally white surfaces (QR codes, banner canvases). */
 :root[data-eq-theme="light"] :is(
-  [class*="bg-blue-5"], [class*="bg-blue-6"], [class*="bg-blue-7"],
+  /* bg-blue-* is gold in this theme: its text stays navy, so it is not listed. */
   [class*="bg-emerald-5"], [class*="bg-emerald-6"], [class*="bg-red-5"], [class*="bg-red-6"],
   [class*="bg-amber-5"], [class*="bg-amber-6"], [class*="bg-violet-5"], [class*="bg-violet-6"],
   [class*="bg-indigo-5"], [class*="bg-indigo-6"], [class*="bg-green-5"], [class*="bg-green-6"],
@@ -158,15 +176,15 @@ html[data-eq-intro] .eq-intro-run, html[data-eq-intro] .eq-intro-run ~ .eq-intro
 /* The EduQuest wordmark: blue gradient letters (colour flows only during the
    intro). Pale blues on the dark shell; deeper blues on a light public page. */
 .eq-wordmark {
-  background-image: linear-gradient(90deg, #e0f2fe, #60a5fa, #a5b4fc, #38bdf8, #e0f2fe);
+  background-image: linear-gradient(90deg, #f1e2b8, #c9a24a, #e3c788, #b8892f, #f1e2b8);
   background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 :root[data-eq-theme="light"] .eq-public .eq-wordmark {
-  background-image: linear-gradient(90deg, #1e3a8a, #2563eb, #6366f1, #0284c7, #1e3a8a);
+  background-image: linear-gradient(90deg, #13224a, #1d2f63, #8a6520, #1d2f63, #13224a);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-eq-theme]) .eq-public .eq-wordmark {
-    background-image: linear-gradient(90deg, #1e3a8a, #2563eb, #6366f1, #0284c7, #1e3a8a);
+    background-image: linear-gradient(90deg, #13224a, #1d2f63, #8a6520, #1d2f63, #13224a);
   }
 }
 
