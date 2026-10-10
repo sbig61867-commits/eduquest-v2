@@ -10,7 +10,7 @@ import { LOCALES, LOCALE_LABEL, type Locale } from '@/i18n/config'
 export function LocaleToggle({ active, onPick }: { active: Locale; onPick: (l: Locale) => void }) {
   const t = useTranslations('common.locale')
   return (
-    <div role="group" aria-label={t('switchLabel')} dir="ltr" className="flex items-center p-0.5 rounded-full border border-line-strong bg-surface">
+    <div role="group" aria-label={t('switchLabel')} dir="ltr" className="inline-flex items-center gap-0.5 p-0.5 rounded-control bg-elevated">
       {LOCALES.map(l => (
         <button
           key={l}
@@ -19,8 +19,8 @@ export function LocaleToggle({ active, onPick }: { active: Locale; onPick: (l: L
           lang={l}
           aria-pressed={l === active}
           aria-label={LOCALE_LABEL[l]}
-          className={`eq-focus w-8 h-7 rounded-full text-label font-bold tracking-wide transition-colors ${
-            l === active ? 'bg-accent text-on-accent' : 'text-fg-3 hover:text-fg'
+          className={`eq-focus h-7 min-w-9 px-2 rounded-control text-label font-semibold tracking-wide transition-colors ${
+            l === active ? 'bg-surface text-fg ring-1 ring-line-strong' : 'text-fg-3 hover:text-fg'
           }`}
         >
           {l.toUpperCase()}

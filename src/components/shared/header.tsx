@@ -115,8 +115,10 @@ export function Header({ nav }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-        <ThemeToggle className="hidden sm:flex" />
-        <LocaleSwitcher />
+        <div className="flex items-center gap-2">
+          <ThemeToggle className="hidden sm:inline-flex" />
+          <LocaleSwitcher />
+        </div>
         <NotificationBell />
 
         <div ref={menuRef} className="relative">
