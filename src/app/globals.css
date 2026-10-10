@@ -90,12 +90,12 @@ body {
      used as small text is deepened only as far as reading needs. */
   --color-blue-200: #6e5018;
   --color-blue-300: #8a6520;
-  --color-blue-400: #a87b25;
+  --color-blue-400: #86631c;  /* small gold text: 5.1:1 on ivory */
   --color-blue-500: #d4af5f;  /* hover: brighter */
   --color-blue-600: #c9a24a;  /* same gold as the night shell */
   --color-blue-700: #b8892f;
-  --color-sky-300: #c9a24a;   /* sheen in gold gradients */
-  --color-sky-400: #d4af5f;
+  --color-sky-300: #8a6520;   /* also used as text, so kept readable */
+  --color-sky-400: #7d5b1c;
   --color-emerald-300: oklch(50.8% 0.118 165.612);
   --color-emerald-400: oklch(52% 0.13 163.225);
   --color-amber-300: oklch(55.5% 0.163 48.998);

@@ -179,8 +179,11 @@ export function runLeafWelcome(canvas: HTMLCanvasElement, opts: LeafWelcomeOptio
     // Written in the reading direction.
     targets.sort((a, b) => (opts.rtl ? b.x - a.x : a.x - b.x) + (a.y - b.y) * 0.02)
     const letterSprites = new Map<string, Sprite>()
+    // Anti-aliased glyph edges yield many near-identical colours; snap them so
+    // only a handful of sprites are ever made.
+    const snap = (v: number) => Math.min(255, Math.round(v / 24) * 24)
     const letterSprite = (r: number, g: number, b: number) => {
-      const key = `${r},${g},${b}`
+      const key = `${snap(r)},${snap(g)},${snap(b)}`
       let s = letterSprites.get(key)
       if (!s) { s = makeSprite(`rgb(${key})`, null); letterSprites.set(key, s) }
       return s
