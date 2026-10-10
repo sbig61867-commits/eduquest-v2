@@ -70,7 +70,6 @@ body {
   --color-blue-700: #9a7226;  /* deep gold */
   --color-sky-300: #f3e6c4;   /* sheen end of gold gradients */
   --color-sky-400: #e8d29c;
-  --color-on-accent: #13224a;
   color-scheme: dark;
 }
 
@@ -97,7 +96,6 @@ body {
   --color-blue-700: #b8892f;
   --color-sky-300: #c9a24a;   /* sheen in gold gradients */
   --color-sky-400: #d4af5f;
-  --color-on-accent: #13224a; /* navy text on gold */
   --color-emerald-300: oklch(50.8% 0.118 165.612);
   --color-emerald-400: oklch(52% 0.13 163.225);
   --color-amber-300: oklch(55.5% 0.163 48.998);
@@ -120,6 +118,16 @@ body {
   --color-white: #ffffff;
 }
 :root[data-eq-theme="light"] .bg-white { background-color: #ffffff; }
+/* Solid gold fills (bg-blue-500/600/700 are gold in both themes, and the
+   night accent is gold): their text is navy, since white on gold fails
+   contrast. Exact class tokens only (~=), so tints like bg-blue-600/10 and
+   hover-only fills keep their own text colour; every other coloured fill
+   (green, red, violet …) keeps white text. */
+:is([class~="bg-blue-500"], [class~="bg-blue-600"], [class~="bg-blue-700"]),
+:root:not([data-eq-theme="light"]) [class~="bg-accent"] {
+  --color-white: #13224a;
+  --color-on-accent: #13224a;
+}
 
 /* Sign-in showcase: gentle drift of the decorative cards. */
 @keyframes eq-float {
