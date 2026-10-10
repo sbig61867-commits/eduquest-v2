@@ -241,7 +241,11 @@
     "memberIdHint": "You can sign in with it instead of your email, with your password.",
     "copy": "Copy ID",
     "copied": "Copied",
-    "close": "Continue"
+    "close": "Continue",
+    "settings": "Settings",
+    "preferences": "Preferences",
+    "language": "Language",
+    "appearance": "Appearance"
   },
   "lessonView": {
     "empty": "This lesson has no content yet.",

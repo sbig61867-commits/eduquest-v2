@@ -11,7 +11,8 @@
     "schedule": "Schedule",
     "requests": "Requests",
     "invitations": "Invitations",
-    "records": "Student records"
+    "records": "Student records",
+    "settings": "Settings"
   },
   "sidebarTitle": "Teacher",
   "headerTitle": "Teacher Dashboard",
@@ -906,6 +907,7 @@
     "teaching": "Teaching",
     "assessment": "Assessment",
     "students": "Students",
-    "communication": "Communication"
+    "communication": "Communication",
+    "account": "Account"
   }
 }

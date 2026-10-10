@@ -11,7 +11,8 @@
     "analytics": "Analytics",
     "schedules": "Schedules",
     "announcements": "Announcements",
-    "mail": "My Mail"
+    "mail": "My Mail",
+    "settings": "Settings"
   },
   "dashboard": {
     "title": "Centre Manager Dashboard",
@@ -188,6 +189,7 @@
     "people": "People",
     "programs": "Programmes",
     "tracking": "Tracking",
-    "communication": "Communication"
+    "communication": "Communication",
+    "account": "Account"
   }
 }

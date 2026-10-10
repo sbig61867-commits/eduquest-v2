@@ -11,7 +11,8 @@
     "analytics": "التحليلات",
     "schedules": "الجداول",
     "announcements": "الإعلانات",
-    "mail": "بريدي"
+    "mail": "بريدي",
+    "settings": "الإعدادات"
   },
   "dashboard": {
     "title": "لوحة مدير المركز",
@@ -188,6 +189,7 @@
     "people": "الأشخاص",
     "programs": "البرامج",
     "tracking": "المتابعة",
-    "communication": "التواصل"
+    "communication": "التواصل",
+    "account": "الحساب"
   }
 }

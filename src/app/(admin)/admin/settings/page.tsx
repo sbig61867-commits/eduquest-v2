@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AdminSettingsClient } from './settings-client'
+import { PreferencesCard } from '@/components/shared/preferences-card'
 
 export default async function AdminSettingsPage() {
   const supabase = await createClient()
@@ -21,5 +22,10 @@ export default async function AdminSettingsPage() {
     .eq('id', profile?.tenant_id ?? '')
     .single()
 
-  return <AdminSettingsClient tenant={tenant} />
+  return (
+    <div className="space-y-8">
+      <PreferencesCard />
+      <AdminSettingsClient tenant={tenant} />
+    </div>
+  )
 }
