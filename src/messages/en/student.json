@@ -316,5 +316,76 @@
     "learning": "Learning",
     "tracking": "Tracking",
     "account": "Account"
+  },
+  "assistant": {
+    "placeholder": "Ask about a lesson or any topic",
+    "send": "Send",
+    "sending": "Thinking...",
+    "lessonLabel": "Lesson",
+    "noLesson": "No lesson (general question)",
+    "selectionLabel": "Text to work on (paste it here)",
+    "actionExplain": "Explain",
+    "actionSimplify": "Simplify",
+    "actionSummarize": "Summarise",
+    "truncated": "The lesson is long, so the assistant read only its first part.",
+    "error": "The assistant could not answer. Try again.",
+    "empty": "Ask a question, or pick a lesson and an action.",
+    "advanced": "Advanced options",
+    "orb": {
+      "label": "Study assistant",
+      "openPanel": "Open the study assistant",
+      "closePanel": "Close the assistant",
+      "dismiss": "Hide messages for this session",
+      "summarize": "Summarise lesson",
+      "open": "Open",
+      "loading": "One moment, getting your updates…",
+      "tabs": {
+        "today": "Today",
+        "plan": "Study plan",
+        "summary": "Lesson summary",
+        "ask": "Ask"
+      },
+      "nudge": {
+        "due": "{type, select, homework {Assignment} other {Exam}} “{title}” closes {days, plural, =0 {within hours} one {tomorrow} other {in {days} days}}",
+        "review": "Exam “{title}” {days, plural, =0 {today} one {tomorrow} other {in {days} days}}. Revise “{lesson}” starting now.",
+        "examSoon": "Exam “{title}” {days, plural, =0 {today} one {tomorrow} other {in {days} days}}. Start revising today.",
+        "plan": "{count, plural, one {You have one task} other {You have {count} tasks}} this week. Start with “{first}”.",
+        "announcement": "New announcement: “{title}”",
+        "announcements": "{count, plural, one {One new announcement} other {{count} new announcements}} on your dashboard.",
+        "lesson": "New lesson: “{title}”. Want a summary?",
+        "quiet": "Nothing urgent right now. How about revising “{title}”?",
+        "welcome": "Hi! Your deadlines and new lessons will show up here once they are published."
+      },
+      "plan": {
+        "empty": "Nothing due in the next two weeks.",
+        "intro": "What is coming up, and when to start revising:",
+        "closes": "{type, select, homework {Assignment} other {Exam}} closes {days, plural, =0 {today} one {tomorrow} other {in {days} days}}",
+        "opens": "Exam opens {days, plural, =0 {today} one {tomorrow} other {in {days} days}}",
+        "reviewFrom": "Start revising {days, plural, =0 {today} one {tomorrow} other {in {days} days}}",
+        "summarizeLesson": "Summarise “{lesson}”"
+      },
+      "summary": {
+        "pick": "Pick a lesson to summarise:",
+        "noLessons": "No lessons published for you yet.",
+        "loading": "Preparing the summary…",
+        "error": "Could not prepare the summary. Please try again.",
+        "back": "Other lessons",
+        "reading": "{minutes, plural, one {1 min read} other {{minutes} min read}}",
+        "sections": "{count, plural, =0 {No sections} one {1 section} other {{count} sections}}",
+        "overview": "The main idea of each section",
+        "keyPoints": "Key points",
+        "terms": "Key terms",
+        "concepts": "Concept map",
+        "practice": "Practise",
+        "quiz": "{count, plural, one {1 practice question} other {{count} practice questions}} in the lesson",
+        "flashcards": "{count, plural, one {1 flashcard} other {{count} flashcards}}",
+        "openLesson": "Open lesson",
+        "note": "A structured summary of the lesson's own content."
+      },
+      "ask": {
+        "paused": "Free questions are paused until an AI provider is approved under the privacy policy. Deadlines, the study plan and summaries work now.",
+        "toSummary": "Summarise a lesson"
+      }
+    }
   }
 }
