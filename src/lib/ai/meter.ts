@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { costUsd, priceFor, type AiPricing } from './pricing'
+import { assertProviderApproved } from './privacy'
 
 // ── Per-request AI metering ──────────────────────────────────────
 // Every provider call (Groq, xKiro, Cohere, Gemini, OpenRouter, Gemini vision)
@@ -32,6 +33,8 @@ export interface MeterState {
   userId: string | null
   blocked: boolean
   calls: AiCallRecord[]
+  /** Quota reservation of this request (AI_QUOTA_RESERVATIONS=on), closed when it ends. */
+  holdId?: string
 }
 
 const store = new AsyncLocalStorage<MeterState>()
@@ -48,7 +51,30 @@ export function recordAiCall(call: AiCallRecord): void {
   store.getStore()?.calls.push(call)
 }
 
+/** A provider failure that carries only the provider name and a short code.
+ *  Provider bodies and SDK messages can echo prompt text or document content,
+ *  so they are never put in an error that may reach a log, Sentry or a response. */
+export class AiProviderError extends Error {
+  constructor(public provider: string, public code: string) {
+    super(`${provider} provider error ${code}`)
+    this.name = 'AiProviderError'
+  }
+}
+
+/** Maps an error thrown by the Gemini SDK to an AiProviderError. The SDK puts
+ *  Google's error text (which can quote the request) into its message, so only
+ *  the HTTP status or the abort is kept. */
+export function geminiProviderError(e: unknown): AiProviderError {
+  if (e instanceof AiProviderError) return e
+  const status = typeof e === 'object' && e !== null && 'status' in e ? (e as { status?: unknown }).status : undefined
+  if (typeof status === 'number') return new AiProviderError('gemini', String(status))
+  const name = typeof e === 'object' && e !== null && 'name' in e ? String((e as { name: unknown }).name) : ''
+  if (/abort/i.test(name)) return new AiProviderError('gemini', 'timeout')
+  return new AiProviderError('gemini', 'error')
+}
+
 export function aiErrorCode(e: unknown): string {
+  if (e instanceof AiProviderError) return e.code
   if (typeof e === 'object' && e !== null && 'name' in e && (e as { name: unknown }).name === 'AbortError') return 'timeout'
   const msg = e instanceof Error ? e.message : String(e)
   if (/timed out|timeout/i.test(msg)) return 'timeout'
@@ -67,14 +93,27 @@ export interface MeteredResult<T> {
   outputChars?: number
 }
 
+/** Logs an AI failure as a category only. Provider and SDK messages can echo
+ *  prompt text or partial documents, so they are never written to logs. */
+export function logAiFailure(tag: string, e: unknown): void {
+  const name = e instanceof Error ? e.name : typeof e
+  console.error(tag, { code: aiErrorCode(e), name })
+}
+
 /** Times one provider call and records it — success or failure — then
- *  returns (or rethrows) exactly what the call did. */
+ *  returns (or rethrows) exactly what the call did.
+ *
+ *  `audiences` is required: the kinds of content in the prompt (privacy.ts).
+ *  A missing, empty, unknown or unapproved audience throws PrivacyPendingError
+ *  BEFORE `run` starts, so no request leaves the server and nothing is recorded. */
 export async function meterCall<T>(
   provider: string,
   model: string,
   promptChars: number,
+  audiences: readonly string[],
   run: () => Promise<MeteredResult<T>>,
 ): Promise<T> {
+  assertProviderApproved(provider, audiences)
   const started = Date.now()
   try {
     const r = await run()

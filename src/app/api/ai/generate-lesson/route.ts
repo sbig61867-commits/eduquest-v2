@@ -5,6 +5,9 @@ import { generateLessonContentAI } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, PrivacyPendingError } from '@/lib/ai/privacy'
+import { normalizeLessonLevel } from '@/lib/ai/public-input'
 
 export const POST = meteredAiRoute('lesson', async (request: Request) => {
   const supabase = await createClient()
@@ -15,6 +18,9 @@ export const POST = meteredAiRoute('lesson', async (request: Request) => {
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // The topic alone travels as public content (public-input.ts).
+  if (!audienceApproved(['public'])) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
 
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
@@ -34,8 +40,13 @@ export const POST = meteredAiRoute('lesson', async (request: Request) => {
     return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   }
 
+  if ((body.topic !== undefined && typeof body.topic !== 'string')
+    || (body.customInstructions !== undefined && typeof body.customInstructions !== 'string')) {
+    return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+  }
   const rawTopic = body.topic?.trim() ?? ''
-  const level = body.level?.trim() ?? 'undergraduate'
+  const level = normalizeLessonLevel(body.level)
+  if (!level) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   const rawInstructions = body.customInstructions?.trim() ?? ''
 
   if (!rawTopic) return NextResponse.json({ ...(await apiErr('subjectRequired')) }, { status: 400 })
@@ -47,14 +58,21 @@ export const POST = meteredAiRoute('lesson', async (request: Request) => {
   if (!topic) return NextResponse.json({ ...(await apiErr('topicInvalidChars')) }, { status: 400 })
   const customInstructions = rawInstructions.replace(/[<>{}[\]`\\'"]/g, '').trim() || undefined
 
+  // Free-text instructions are institutional content. They are refused, never
+  // dropped silently, while no provider is approved for them.
+  if (customInstructions && !audienceApproved(['institution'])) {
+    return NextResponse.json({ ...(await apiErr('aiCustomInstructionsUnavailable')) }, { status: 422 })
+  }
+
   // aiChat tries Groq → xKiro → Cohere → Gemini → OpenRouter, skipping
   // providers whose keys are not configured.
   try {
     const { content, provider } = await generateLessonContentAI(topic, level, customInstructions)
     return NextResponse.json({ content, provider })
   } catch (e: unknown) {
+    if (e instanceof PrivacyPendingError) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
     const msg = e instanceof Error ? e.message : String(e)
-    console.error('[generate-lesson]', msg)
+    logAiFailure('[generate-lesson]', e)
     if (msg.includes('No AI provider configured')) {
       return NextResponse.json({ ...(await apiErr('noAiProvider')) }, { status: 503 })
     }

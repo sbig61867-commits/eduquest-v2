@@ -8,6 +8,11 @@ import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+
+// The brief and course data are institutional content.
+const AUDIENCES: AiAudience[] = ['institution']
 
 // Suggests announcement copy (title / body / button label) on the free Groq
 // tier. Text only — no image generation. Gated by manage_announcements and
@@ -48,6 +53,9 @@ export const POST = meteredAiRoute('announcement_copy', async (request: Request)
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
+
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
   if (denied) return denied
@@ -66,14 +74,14 @@ export const POST = meteredAiRoute('announcement_copy', async (request: Request)
   const text = aiPrompts(toLocale(await getLocale())).announcementCopy
 
   try {
-    const raw = await groqChat(text.brief(brief), text.system, 0.8)
+    const raw = await groqChat(text.brief(brief), text.system, 0.8, AUDIENCES)
     const suggestions = parseSuggestions(raw)
     if (suggestions.length === 0) {
       return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })
     }
     return NextResponse.json({ suggestions })
   } catch (err) {
-    console.error('[api/ai/announcement-copy]', err instanceof Error ? err.message : err)
+    logAiFailure('[api/ai/announcement-copy]', err)
     return NextResponse.json({ ...(await apiErr('aiUnavailable')) }, { status: 503 })
   }
 })

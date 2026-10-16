@@ -5,6 +5,12 @@ import { aiRateLimit } from '@/lib/rate-limit'
 import { getAiRateLimits } from '@/lib/settings'
 import { aiChatDetailed } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+import { normalizeExamType } from '@/lib/ai/public-input'
+
+// Only the topic, the count and a fixed type reach the provider (public-input.ts).
+const AUDIENCES: AiAudience[] = ['public']
 
 interface Question {
   id: string
@@ -46,6 +52,8 @@ export const POST = meteredAiRoute('exam', async (request: Request) => {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
+
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
   if (denied) return denied
@@ -64,8 +72,10 @@ export const POST = meteredAiRoute('exam', async (request: Request) => {
     return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   }
 
-  const { type = 'mixed' } = body
-  const rawTopic: string = (body.topic as string) ?? ''
+  const type = normalizeExamType(body.type)
+  if (!type) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+  if (body.topic !== undefined && typeof body.topic !== 'string') return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+  const rawTopic: string = (body.topic as string | undefined) ?? ''
   const count: number = Math.min(Math.max(parseInt(String(body.count ?? '10'), 10) || 10, 1), 30)
 
   if (!rawTopic.trim()) return NextResponse.json({ ...(await apiErr('subjectRequired')) }, { status: 400 })
@@ -91,7 +101,7 @@ Return ONLY a valid JSON array, no markdown:
 Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] and 5 points. correct_answer must match an option exactly.`
 
   try {
-    const { content } = await aiChatDetailed(prompt, 'Return only valid JSON arrays, no markdown, no explanations.')
+    const { content } = await aiChatDetailed(prompt, 'Return only valid JSON arrays, no markdown, no explanations.', { audiences: AUDIENCES })
 
     const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
     const jsonMatch = text.match(/\[[\s\S]*\]/)
@@ -102,8 +112,8 @@ Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] 
 
     return NextResponse.json({ questions })
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    console.error('[generate-exam]', msg)
-    return NextResponse.json({ ...(await apiErr('questionsFailed')), detail: msg }, { status: 500 })
+    // No `detail`: the message could carry provider text.
+    logAiFailure('[generate-exam]', e)
+    return NextResponse.json({ ...(await apiErr('questionsFailed')) }, { status: 500 })
   }
 })

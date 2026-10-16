@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { AI_TIMEOUT_MS } from './timeout'
+import { geminiUsage, meterCall } from './meter'
 
 function getModel() {
   const key = process.env.GEMINI_API_KEY
@@ -34,12 +35,17 @@ Do not add sections that are not requested. Do not ignore sections that are requ
 4. Key Concepts Summary
 5. Practice Questions (5 questions)`
 
-  const result = await model.generateContent(
-    `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
+  const prompt = `Create a comprehensive educational lesson about "${topic}" for ${level} level students.
 
 ${structureBlock}
 
 Format the response in Markdown.`
-  )
-  return result.response.text()
+  // Not called anywhere. The prompt carries the teacher's free-text
+  // instructions, so it is institutional content: meterCall() refuses it
+  // before any request unless Gemini is approved for it (privacy.ts).
+  return meterCall('gemini', 'gemini-2.5-flash', prompt.length, ['institution'], async () => {
+    const result = await model.generateContent(prompt)
+    const text = result.response.text()
+    return { value: text, ...geminiUsage(result.response), outputChars: text.length }
+  })
 }

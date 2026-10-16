@@ -90,14 +90,16 @@ describe('groqChat() timeout behavior', () => {
 
     const { groqChat } = await import('@/lib/ai/groq')
 
-    await expect(groqChat('test prompt')).rejects.toThrow('Groq API error: request timed out')
+    await expect(groqChat('test prompt', undefined, 0.7, ['public'])).rejects.toThrow('Groq API error: request timed out')
     // Exactly one attempt — a timeout must never trigger an automatic retry.
     expect(fetchCallCount).toBe(1)
   })
 
   it('does not swallow non-timeout fetch errors', async () => {
+    // Still thrown, and not misreported as a timeout. Since the privacy work the
+    // error carries a code instead of the network message (no free text in errors).
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('DNS resolution failed'))))
     const { groqChat } = await import('@/lib/ai/groq')
-    await expect(groqChat('test prompt')).rejects.toThrow('DNS resolution failed')
+    await expect(groqChat('test prompt', undefined, 0.7, ['public'])).rejects.toMatchObject({ provider: 'groq', code: 'network' })
   })
 })

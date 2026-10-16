@@ -316,5 +316,76 @@
     "learning": "التعلّم",
     "tracking": "المتابعة",
     "account": "الحساب"
+  },
+  "assistant": {
+    "placeholder": "اسأل عن درس أو أي موضوع",
+    "send": "إرسال",
+    "sending": "جارٍ التفكير...",
+    "lessonLabel": "الدرس",
+    "noLesson": "بدون درس (سؤال عام)",
+    "selectionLabel": "النص المراد العمل عليه (الصقه هنا)",
+    "actionExplain": "اشرح",
+    "actionSimplify": "بسّط",
+    "actionSummarize": "لخّص",
+    "truncated": "الدرس طويل، لذلك قرأ المساعد جزءه الأول فقط.",
+    "error": "تعذّر على المساعد الرد. حاول مرة أخرى.",
+    "empty": "اكتب سؤالًا، أو اختر درسًا وإجراءً.",
+    "advanced": "خيارات متقدمة",
+    "orb": {
+      "label": "المساعد الدراسي",
+      "openPanel": "افتح المساعد الدراسي",
+      "closePanel": "إغلاق المساعد",
+      "dismiss": "إخفاء الرسائل حتى نهاية الجلسة",
+      "summarize": "لخّص الدرس",
+      "open": "افتح",
+      "loading": "لحظة، أجهّز مستجداتك…",
+      "tabs": {
+        "today": "اليوم",
+        "plan": "خطة المراجعة",
+        "summary": "تلخيص درس",
+        "ask": "اسأل"
+      },
+      "nudge": {
+        "due": "{type, select, homework {الواجب} other {الاختبار}} «{title}» ينتهي {days, plural, =0 {خلال ساعات} one {غدًا} two {بعد يومين} few {بعد {days} أيام} many {بعد {days} يومًا} other {بعد {days} يوم}}",
+        "review": "اختبار «{title}» {days, plural, =0 {اليوم} one {غدًا} two {بعد يومين} few {بعد {days} أيام} many {بعد {days} يومًا} other {بعد {days} يوم}}. راجع درس «{lesson}» من الآن.",
+        "examSoon": "اختبار «{title}» {days, plural, =0 {اليوم} one {غدًا} two {بعد يومين} few {بعد {days} أيام} many {بعد {days} يومًا} other {بعد {days} يوم}}. ابدأ المراجعة من اليوم.",
+        "plan": "{count, plural, one {لديك مهمة واحدة} two {لديك مهمتان} few {لديك {count} مهام} many {لديك {count} مهمة} other {لديك {count} مهمة}} هذا الأسبوع. ابدأ بـ«{first}».",
+        "announcement": "إعلان جديد: «{title}»",
+        "announcements": "{count, plural, one {إعلان جديد} two {إعلانان جديدان} few {{count} إعلانات جديدة} many {{count} إعلانًا جديدًا} other {{count} إعلان جديد}} في لوحتك.",
+        "lesson": "درس جديد: «{title}». أُلخّصه لك؟",
+        "quiet": "لا مهام عاجلة الآن. ما رأيك بمراجعة «{title}»؟",
+        "welcome": "أهلًا! سأعرض هنا مواعيدك ودروسك الجديدة عندما تُنشر."
+      },
+      "plan": {
+        "empty": "لا مواعيد خلال الأسبوعين القادمين.",
+        "intro": "مواعيدك القادمة، ومتى تبدأ المراجعة:",
+        "closes": "{type, select, homework {واجب} other {اختبار}} يُغلق {days, plural, =0 {اليوم} one {غدًا} two {بعد يومين} few {بعد {days} أيام} many {بعد {days} يومًا} other {بعد {days} يوم}}",
+        "opens": "اختبار يبدأ {days, plural, =0 {اليوم} one {غدًا} two {بعد يومين} few {بعد {days} أيام} many {بعد {days} يومًا} other {بعد {days} يوم}}",
+        "reviewFrom": "ابدأ المراجعة {days, plural, =0 {اليوم} one {غدًا} two {بعد يومين} few {بعد {days} أيام} many {بعد {days} يومًا} other {بعد {days} يوم}}",
+        "summarizeLesson": "لخّص «{lesson}»"
+      },
+      "summary": {
+        "pick": "اختر درسًا لأُلخّصه لك:",
+        "noLessons": "لا دروس منشورة لك بعد.",
+        "loading": "أجهّز الملخص…",
+        "error": "تعذّر تجهيز الملخص. حاول مرة أخرى.",
+        "back": "دروس أخرى",
+        "reading": "{minutes, plural, one {دقيقة قراءة} two {دقيقتا قراءة} few {{minutes} دقائق قراءة} many {{minutes} دقيقة قراءة} other {{minutes} دقيقة قراءة}}",
+        "sections": "{count, plural, zero {بلا أقسام} one {قسم واحد} two {قسمان} few {{count} أقسام} many {{count} قسمًا} other {{count} قسم}}",
+        "overview": "الفكرة الرئيسية لكل قسم",
+        "keyPoints": "أهم النقاط",
+        "terms": "مصطلحات أساسية",
+        "concepts": "خريطة المفاهيم",
+        "practice": "تدرّب",
+        "quiz": "{count, plural, one {سؤال واحد} two {سؤالان} few {{count} أسئلة} many {{count} سؤالًا} other {{count} سؤال}} للتدرّب داخل الدرس",
+        "flashcards": "{count, plural, one {بطاقة مراجعة واحدة} two {بطاقتا مراجعة} few {{count} بطاقات مراجعة} many {{count} بطاقة مراجعة} other {{count} بطاقة مراجعة}}",
+        "openLesson": "افتح الدرس",
+        "note": "ملخص منظّم من محتوى الدرس نفسه."
+      },
+      "ask": {
+        "paused": "الأسئلة الحرة متوقفة مؤقتًا إلى حين اعتماد سياسة الخصوصية لمزوّدي الذكاء الاصطناعي. المواعيد وخطة المراجعة والتلخيص متاحة الآن.",
+        "toSummary": "لخّص درسًا"
+      }
+    }
   }
 }

@@ -4,7 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChatDetailed } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
-import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
+import { ExtractionError, extractTextFromFile, extractionErrorResponse, readFormDataCapped } from '@/lib/ai/extract'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+
+// Uploaded course files are institutional content.
+const AUDIENCES: AiAudience[] = ['institution']
 
 // ── AI response parser ───────────────────────────────────────────
 
@@ -38,6 +43,9 @@ export const POST = meteredAiRoute('course-pptx', async (request: Request) => {
     return NextResponse.json({ ...(await apiErr('courseCreationDisabled')) }, { status: 403 })
   }
 
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
+
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
   if (denied) return denied
@@ -51,8 +59,12 @@ export const POST = meteredAiRoute('course-pptx', async (request: Request) => {
   }
 
   let formData: FormData
-  try { formData = await request.formData() }
-  catch { return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 }) }
+  // Reads at most UPLOAD_MAX_REQUEST_BYTES of body, whatever Content-Length says.
+  try { formData = await readFormDataCapped(request) }
+  catch (e) {
+    if (e instanceof ExtractionError && e.code === 'too_large') return NextResponse.json({ ...(await apiErr('fileTooLarge')) }, { status: 413 })
+    return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 })
+  }
 
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ ...(await apiErr('noFileUploaded')) }, { status: 400 })
@@ -63,7 +75,7 @@ export const POST = meteredAiRoute('course-pptx', async (request: Request) => {
     // work here too (previously this route had no vision path).
     slideText = await extractTextFromFile(file)
   } catch (e) {
-    console.error('[generate-course-file] extraction error:', e)
+    logAiFailure('[generate-course-file] extraction error:', e)
     const { status, error, code } = await extractionErrorResponse(e)
     return NextResponse.json({ error, code }, { status })
   }
@@ -106,7 +118,7 @@ Document content:
 ${truncatedText}`
 
   try {
-    const { content: aiResponse } = await aiChatDetailed(prompt, 'Return only valid JSON. No markdown. No explanation.')
+    const { content: aiResponse } = await aiChatDetailed(prompt, 'Return only valid JSON. No markdown. No explanation.', { audiences: AUDIENCES })
     const course = parseAiJsonResponse(aiResponse)
 
     if (!course.title || !Array.isArray(course.units) || course.units.length === 0) {
@@ -117,7 +129,7 @@ ${truncatedText}`
     // to generate each section's content strictly from this file (no outside knowledge).
     return NextResponse.json({ course, charCount: slideText.length, sourceText: slideText.slice(0, 12000) })
   } catch (e) {
-    console.error('[generate-course-file] AI error:', e)
+    logAiFailure('[generate-course-file] AI error:', e)
     return NextResponse.json({ ...(await apiErr('courseFromFileFailed')) }, { status: 500 })
   }
 })

@@ -8,6 +8,11 @@ import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { parseTaskSuggestion } from '@/lib/individual-task'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+
+// A student's written answer is personal data; the question and the teacher's notes are institutional.
+const AUDIENCES: AiAudience[] = ['personal', 'institution']
 
 // POST /api/ai/individual-task — drafts ONE student's weak points and a short
 // rework task from their written answer (typed on the platform, or read from a
@@ -29,6 +34,9 @@ export const POST = meteredAiRoute('individual_task', async (request: Request) =
   if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
 
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
@@ -56,12 +64,12 @@ export const POST = meteredAiRoute('individual_task', async (request: Request) =
   })
 
   try {
-    const raw = await groqChat(prompt, prompts.system, 0.4)
+    const raw = await groqChat(prompt, prompts.system, 0.4, AUDIENCES)
     const suggestion = parseTaskSuggestion(raw)
     if (!suggestion) return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })
     return NextResponse.json(suggestion)
   } catch (err) {
-    console.error('[api/ai/individual-task]', err instanceof Error ? err.message : err)
+    logAiFailure('[api/ai/individual-task]', err)
     return NextResponse.json({ ...(await apiErr('aiUnavailable')) }, { status: 503 })
   }
 })

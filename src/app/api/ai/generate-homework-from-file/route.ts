@@ -6,6 +6,12 @@ import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChatDetailed } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { getAiRateLimits } from '@/lib/settings'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+import { ExtractionError, readFormDataCapped } from '@/lib/ai/extract'
+
+// Teacher files and the teacher's instructions are institutional content.
+const AUDIENCES: AiAudience[] = ['institution']
 
 export const maxDuration = 300
 
@@ -105,7 +111,13 @@ function validate(raw: unknown, allowed: Set<string>): GeneratedQuestion[] {
   return out
 }
 
+// Whole-request budget: maxDuration minus a margin for the response and the
+// usage write. No round starts with less than MIN_ROUND_START_MS left.
+const HOMEWORK_BUDGET_MS = 270_000
+const MIN_ROUND_START_MS = 30_000
+
 export const POST = meteredAiRoute('homework-from-file', async (request: Request) => {
+  const deadline = Date.now() + HOMEWORK_BUDGET_MS
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -115,6 +127,9 @@ export const POST = meteredAiRoute('homework-from-file', async (request: Request
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
 
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
@@ -130,8 +145,12 @@ export const POST = meteredAiRoute('homework-from-file', async (request: Request
   }
 
   let formData: FormData
-  try { formData = await request.formData() }
-  catch { return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 }) }
+  // Reads at most UPLOAD_MAX_REQUEST_BYTES of body, whatever Content-Length says.
+  try { formData = await readFormDataCapped(request) }
+  catch (e) {
+    if (e instanceof ExtractionError && e.code === 'too_large') return NextResponse.json({ ...(await apiErr('fileTooLarge')) }, { status: 413 })
+    return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 })
+  }
 
   const sourceText = ((formData.get('sourceText') as string | null) ?? '').trim()
   if (!sourceText) return NextResponse.json({ ...(await apiErr('noSourceText')) }, { status: 400 })
@@ -202,11 +221,12 @@ ${sourceText.slice(0, 30000)}`
     for (const t of priorTexts) seen.add(normalizeQ(t))
 
     for (let round = 0; round < maxRounds && collected.length < count; round++) {
+      if (deadline - Date.now() < MIN_ROUND_START_MS) break
       const need = Math.min(count - collected.length, BATCH)
       const { content } = await aiChatDetailed(
         buildPrompt(need, [...priorTexts, ...collected.map(q => q.text)]),
         'Return only valid JSON arrays, no markdown, no explanations.',
-        { temperature: 0.3 } // strict source-grounding, not creative writing
+        { temperature: 0.3, audiences: AUDIENCES, deadline } // strict source-grounding, not creative writing
       )
       const text = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '')
       const match = text.match(/\[[\s\S]*\]/)
@@ -217,14 +237,14 @@ ${sourceText.slice(0, 30000)}`
       // the round and let the remaining rounds' retry headroom cover it.
       let parsed: unknown
       try { parsed = JSON.parse(match[0]) } catch (e) {
-        console.error('[generate-homework-from-file] bad JSON batch:', e instanceof Error ? e.message : e)
+        logAiFailure('[generate-homework-from-file] bad JSON batch:', e)
         continue
       }
       for (const q of validate(parsed, allowed)) {
         const key = normalizeQ(q.text)
         if (seen.has(key)) continue
         if (!isGrounded(q, sourceVocab)) {
-          console.error('[generate-homework-from-file] rejected ungrounded question:', q.text.slice(0, 120))
+          console.error('[generate-homework-from-file] rejected ungrounded question')
           continue
         }
         seen.add(key)
@@ -237,7 +257,7 @@ ${sourceText.slice(0, 30000)}`
     if (collected.length === 0) throw new Error('No valid questions after validation')
     return NextResponse.json({ questions: collected, requested: count, delivered: collected.length })
   } catch (e) {
-    console.error('[generate-homework-from-file] AI:', e)
+    logAiFailure('[generate-homework-from-file] AI:', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
 })

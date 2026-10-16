@@ -1,20 +1,27 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ── Mocks for the route wrapper (service-role client, after(), apiErr) ──
 const rpc = vi.fn()
+// The users row authorizeAiUsage reads with the service role (role, is_active, tenant_id).
+let usersLookup: () => { data: unknown; error?: unknown } = () => ({ data: { role: 'teacher', is_active: true, tenant_id: 't1' }, error: null })
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     rpc: (fn: string, args: unknown) => {
       const result = rpc(fn, args)
-      const p = Promise.resolve(result) as Promise<unknown> & { abortSignal: () => Promise<unknown> }
+      // A function result is called here, so a rejection is created outside the spy
+      // (the spy would otherwise track it and report it as unhandled).
+      const p = (typeof result === 'function' ? result() : Promise.resolve(result)) as Promise<unknown> & { abortSignal: () => Promise<unknown> }
       p.abortSignal = () => p
       return p
     },
-    from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
-      insert: async () => ({ error: null }),
-    }),
+    from: () => {
+      const single = async () => usersLookup()
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: single, abortSignal: () => ({ maybeSingle: single }) }) }),
+        insert: async () => ({ error: null }),
+      }
+    },
   }),
 }))
 vi.mock('next/server', async () => {
@@ -120,17 +127,17 @@ describe('provider usage helpers', () => {
   })
 
   it('records calls only inside a metered scope, and never changes the result', async () => {
-    const outside = await meterCall('groq', 'm', 1, async () => ({ value: 'a' }))
+    const outside = await meterCall('groq', 'm', 1, ['public'], async () => ({ value: 'a' }))
     expect(outside).toBe('a')
 
     const state: MeterState = { feature: 'x', userId: null, blocked: false, calls: [] }
     await runMetered(state, async () => {
-      await meterCall('groq', 'm', 3, async () => ({ value: 'ok', inputTokens: 4, outputTokens: 5 }))
-      await expect(meterCall('xkiro', 'm2', 3, async () => { throw new Error('upstream 503: busy') })).rejects.toThrow('503')
+      await meterCall('groq', 'm', 3, ['public'], async () => ({ value: 'ok', inputTokens: 4, outputTokens: 5 }))
+      await expect(meterCall('groq', 'm2', 3, ['public'], async () => { throw new Error('upstream 503: busy') })).rejects.toThrow('503')
     })
     expect(state.calls).toHaveLength(2)
     expect(state.calls[0]).toMatchObject({ provider: 'groq', ok: true, inputTokens: 4, outputTokens: 5 })
-    expect(state.calls[1]).toMatchObject({ provider: 'xkiro', ok: false, error: '503' })
+    expect(state.calls[1]).toMatchObject({ provider: 'groq', model: 'm2', ok: false, error: '503' })
   })
 })
 
@@ -184,8 +191,8 @@ describe('meteredAiRoute', () => {
     const POST = meteredAiRoute('lesson', async () => {
       const denied = await authorizeAiUsage('user-1')
       if (denied) return denied
-      await meterCall('groq', 'openai/gpt-oss-120b', 10, async () => ({ value: 'x', inputTokens: 100, outputTokens: 50 }))
-      await meterCall('groq', 'openai/gpt-oss-120b', 10, async () => ({ value: 'y', inputTokens: 100, outputTokens: 50 }))
+      await meterCall('groq', 'openai/gpt-oss-120b', 10, ['public'], async () => ({ value: 'x', inputTokens: 100, outputTokens: 50 }))
+      await meterCall('groq', 'openai/gpt-oss-120b', 10, ['public'], async () => ({ value: 'y', inputTokens: 100, outputTokens: 50 }))
       return new Response('ok', { status: 200 })
     })
     const res = await POST()
@@ -220,7 +227,7 @@ describe('meteredAiRoute', () => {
     rpc.mockImplementation(() => ({ data: { allowed: true }, error: null }))
     const POST = meteredAiRoute('exam', async () => {
       await authorizeAiUsage('user-3')
-      await meterCall('groq', 'openai/gpt-oss-120b', 10, async () => ({ value: 'not json', inputTokens: 5, outputTokens: 5 }))
+      await meterCall('groq', 'openai/gpt-oss-120b', 10, ['public'], async () => ({ value: 'not json', inputTokens: 5, outputTokens: 5 }))
       return new Response('bad', { status: 500 })
     })
     await POST()
@@ -239,12 +246,184 @@ describe('meteredAiRoute', () => {
     expect(rpc.mock.calls.some(c => c[0] === 'record_ai_usage')).toBe(false)
   })
 
-  it('fails open when the allowance check errors', async () => {
-    rpc.mockImplementation((fn: string) =>
-      fn === 'check_ai_allowance' ? { data: null, error: { code: 'XX000', message: 'db down' } } : { data: null, error: null })
+  it('fails closed when the allowance check errors, times out or is malformed', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const res = await meteredAiRoute('lesson', async () => (await authorizeAiUsage('user-5')) ?? new Response('ok'))()
+    for (const result of [
+      { data: null, error: { code: 'XX000', message: 'db down' } },
+      { data: null, error: { code: 'PGRST202', message: 'missing' } },
+      { data: null, error: null },
+      { data: { allowed: 'yes' }, error: null },
+      { data: { allowed: true, tenant_id: 'other-tenant' }, error: null },
+    ]) {
+      rpc.mockImplementation((fn: string) => fn === 'check_ai_allowance' ? result : { data: null, error: null })
+      const provider = vi.fn()
+      const res = await meteredAiRoute('lesson', async () => (await authorizeAiUsage('user-5')) ?? (provider(), new Response('ok')))()
+      expect(res.status, JSON.stringify(result)).toBe(503)
+      expect(provider).not.toHaveBeenCalled()
+    }
+    rpc.mockImplementation(() => () => Promise.reject(new Error('network')))
+    expect((await authorizeAiUsage('user-5'))?.status).toBe(503)
+    spy.mockRestore()
+  })
+
+  it('warn mode stays allowed: over the limit but allowed=true passes', async () => {
+    rpc.mockImplementation(() => ({ data: { allowed: true, limited: true, over: true, action: 'warn', tenant_id: 't1' }, error: null }))
+    expect(await authorizeAiUsage('user-6')).toBeNull()
+  })
+
+  describe('caller is re-derived from the users row', () => {
+    afterEach(() => { usersLookup = () => ({ data: { role: 'teacher', is_active: true, tenant_id: 't1' }, error: null }) })
+
+    it.each([
+      ['inactive user', { role: 'teacher', is_active: false, tenant_id: 't1' }, 403],
+      ['missing row', null, 403],
+      ['no institution, not super_admin', { role: 'teacher', is_active: true, tenant_id: null }, 403],
+      ['inactive super_admin', { role: 'super_admin', is_active: false, tenant_id: null }, 403],
+    ])('%s is refused before the allowance check', async (_l, row, status) => {
+      usersLookup = () => ({ data: row, error: null })
+      rpc.mockImplementation(() => ({ data: { allowed: true }, error: null }))
+      expect((await authorizeAiUsage('u'))?.status).toBe(status)
+      expect(rpc.mock.calls.some(c => c[0] === 'check_ai_allowance')).toBe(false)
+    })
+
+    it('an active super_admin without an institution uses the platform path', async () => {
+      usersLookup = () => ({ data: { role: 'super_admin', is_active: true, tenant_id: null }, error: null })
+      expect(await authorizeAiUsage('admin')).toBeNull()
+      expect(rpc.mock.calls.some(c => c[0] === 'check_ai_allowance')).toBe(false)
+    })
+
+    it('a users lookup error fails closed (503)', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      usersLookup = () => ({ data: null, error: { code: '57014' } })
+      expect((await authorizeAiUsage('u'))?.status).toBe(503)
+      spy.mockRestore()
+    })
+  })
+
+  it('a failed ledger write is logged as usage_lost with numbers only, and not retried', async () => {
+    const logs: unknown[][] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { logs.push(a) })
+    rpc.mockImplementation((fn: string) => fn === 'record_ai_usage'
+      ? { data: null, error: { code: '08006', message: 'connection lost SECRET' } }
+      : { data: { allowed: true, tenant_id: 't1' }, error: null })
+    await meteredAiRoute('lesson', async () => {
+      await authorizeAiUsage('user-7')
+      await meterCall('groq', 'openai/gpt-oss-120b', 10, ['public'], async () => ({ value: 'x', inputTokens: 3, outputTokens: 4 }))
+      return new Response('ok')
+    })()
+    await flush()
+    expect(rpc.mock.calls.filter(c => c[0] === 'record_ai_usage')).toHaveLength(1)
+    const lost = logs.find(l => l[0] === '[ai-usage] usage_lost')
+    expect(lost?.[1]).toMatchObject({ reason: '08006', feature: 'lesson', inputTokens: 3, outputTokens: 4 })
+    expect(JSON.stringify(logs)).not.toContain('SECRET')
+    spy.mockRestore()
+  })
+})
+
+describe('quota reservations (AI_QUOTA_RESERVATIONS)', () => {
+  beforeEach(() => rpc.mockReset())
+  afterEach(() => vi.unstubAllEnvs())
+  const called = (fn: string) => rpc.mock.calls.filter(c => c[0] === fn)
+
+  it('flag off (default): the allowance check runs and no reservation function is called', async () => {
+    rpc.mockImplementation(() => ({ data: { allowed: true, tenant_id: 't1' }, error: null }))
+    await meteredAiRoute('lesson', async () => {
+      await authorizeAiUsage('u1')
+      await meterCall('groq', 'm', 1, ['public'], async () => ({ value: 'x', inputTokens: 2, outputTokens: 3 }))
+      return new Response('ok')
+    })()
+    await flush()
+    expect(called('check_ai_allowance')).toHaveLength(1)
+    expect(called('record_ai_usage')).toHaveLength(1)
+    expect(called('ai_quota_reserve')).toHaveLength(0)
+    expect(called('ai_quota_finish')).toHaveLength(0)
+  })
+
+  it('flag on: reserves, then closes the hold with the request summary (record_ai_usage not called directly)', async () => {
+    vi.stubEnv('AI_QUOTA_RESERVATIONS', 'on')
+    rpc.mockImplementation((fn: string) =>
+      fn === 'ai_quota_reserve' ? { data: { ok: true, hold_id: 'h1', over_limit: false }, error: null }
+        : fn === 'ai_quota_finish' ? { data: { ok: true }, error: null } : { data: null, error: null })
+    const res = await meteredAiRoute('lesson-from-file', async () => {
+      const denied = await authorizeAiUsage('u1')
+      if (denied) return denied
+      await meterCall('groq', 'm', 1, ['public'], async () => ({ value: 'x', inputTokens: 5, outputTokens: 7 }))
+      return new Response('ok')
+    })()
+    await flush()
     expect(res.status).toBe(200)
+    expect(called('check_ai_allowance')).toHaveLength(0)
+    expect(called('ai_quota_reserve')[0][1]).toMatchObject({ p_user: 'u1', p_feature: 'lesson-from-file', p_est_in: 60000, p_est_out: 40000, p_lease_seconds: 330 })
+    expect(called('ai_quota_finish')[0][1]).toMatchObject({ p_hold: 'h1', p_user: 'u1', p_status: 'success', p_input_tokens: 5, p_output_tokens: 7 })
+    expect(called('record_ai_usage')).toHaveLength(0)
+  })
+
+  it('flag on: a request that never reached a provider releases its hold and records nothing', async () => {
+    vi.stubEnv('AI_QUOTA_RESERVATIONS', 'on')
+    rpc.mockImplementation((fn: string) => fn === 'ai_quota_reserve'
+      ? { data: { ok: true, hold_id: 'h2' }, error: null } : { data: { ok: true }, error: null })
+    await meteredAiRoute('lesson', async () => {
+      await authorizeAiUsage('u1')
+      return new Response('invalid', { status: 400 })
+    })()
+    await flush()
+    expect(called('ai_quota_release')[0][1]).toEqual({ p_hold: 'h2', p_user: 'u1' })
+    expect(called('ai_quota_finish')).toHaveLength(0)
+    expect(called('record_ai_usage')).toHaveLength(0)
+  })
+
+  it('flag on: quota refused -> 429, no provider, blocked row recorded', async () => {
+    vi.stubEnv('AI_QUOTA_RESERVATIONS', 'on')
+    rpc.mockImplementation((fn: string) => fn === 'ai_quota_reserve'
+      ? { data: { ok: false, error: 'QUOTA_TOKENS' }, error: null } : { data: null, error: null })
+    const provider = vi.fn()
+    const res = await meteredAiRoute('lesson', async () => (await authorizeAiUsage('u1')) ?? (provider(), new Response('ok')))()
+    await flush()
+    expect(res.status).toBe(429)
+    expect(provider).not.toHaveBeenCalled()
+    expect(called('record_ai_usage')[0][1]).toMatchObject({ p_status: 'blocked' })
+  })
+
+  it('flag on: reservation error, missing function, timeout or malformed answer -> 503, no provider', async () => {
+    vi.stubEnv('AI_QUOTA_RESERVATIONS', 'on')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const result of [
+      { data: null, error: { code: 'XX000' } },
+      { data: null, error: { code: 'PGRST202' } },
+      { data: { ok: true }, error: null },
+      { data: null, error: null },
+    ]) {
+      rpc.mockImplementation((fn: string) => fn === 'ai_quota_reserve' ? result : { data: null, error: null })
+      expect((await authorizeAiUsage('u1'))?.status, JSON.stringify(result)).toBe(503)
+    }
+    rpc.mockImplementation(() => () => Promise.reject(new Error('network')))
+    expect((await authorizeAiUsage('u1'))?.status).toBe(503)
+    spy.mockRestore()
+  })
+
+  it('flag on: inactive / unknown / no-tenant answers from the database -> 403', async () => {
+    vi.stubEnv('AI_QUOTA_RESERVATIONS', 'on')
+    for (const code of ['USER_INACTIVE', 'UNKNOWN_USER', 'NO_TENANT']) {
+      rpc.mockImplementation((fn: string) => fn === 'ai_quota_reserve' ? { data: { ok: false, error: code }, error: null } : { data: null, error: null })
+      expect((await authorizeAiUsage('u1'))?.status, code).toBe(403)
+    }
+  })
+
+  it('flag on: a hold that already expired is not recorded again; logged as usage_lost (numbers only)', async () => {
+    vi.stubEnv('AI_QUOTA_RESERVATIONS', 'on')
+    const logs: unknown[][] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { logs.push(a) })
+    rpc.mockImplementation((fn: string) =>
+      fn === 'ai_quota_reserve' ? { data: { ok: true, hold_id: 'h3' }, error: null }
+        : fn === 'ai_quota_finish' ? { data: { ok: false, error: 'EXPIRED' }, error: null } : { data: null, error: null })
+    await meteredAiRoute('lesson', async () => {
+      await authorizeAiUsage('u1')
+      await meterCall('groq', 'm', 1, ['public'], async () => ({ value: 'x', inputTokens: 1, outputTokens: 1 }))
+      return new Response('ok')
+    })()
+    await flush()
+    expect(called('record_ai_usage')).toHaveLength(0)
+    expect(logs.find(l => l[0] === '[ai-usage] usage_lost')?.[1]).toMatchObject({ reason: 'EXPIRED' })
     spy.mockRestore()
   })
 })

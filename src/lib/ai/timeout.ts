@@ -11,9 +11,19 @@ export const AI_TIMEOUT_MS = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_AI_TIMEOUT_MS
 })()
 
-/** AbortSignal that fires after AI_TIMEOUT_MS — for use with fetch(). */
-export function aiTimeoutSignal(): AbortSignal {
-  return AbortSignal.timeout(AI_TIMEOUT_MS)
+/** AbortSignal that fires after `timeoutMs` (default AI_TIMEOUT_MS) — for use with fetch(). */
+export function aiTimeoutSignal(timeoutMs: number = AI_TIMEOUT_MS): AbortSignal {
+  return AbortSignal.timeout(timeoutMs)
+}
+
+/**
+ * Timeout for ONE provider call: AI_TIMEOUT_MS, cut down to what is left of
+ * `deadline` (absolute epoch ms) so a call started near the end of a request's
+ * budget cannot run past it. At least 1 ms.
+ */
+export function callTimeoutMs(deadline?: number, now: number = Date.now()): number {
+  if (deadline === undefined) return AI_TIMEOUT_MS
+  return Math.max(1, Math.min(AI_TIMEOUT_MS, deadline - now))
 }
 
 /**

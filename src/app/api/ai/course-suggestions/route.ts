@@ -9,6 +9,11 @@ import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { loadCourseAnalytics, courseInsights, formatInsight, type CourseAnalyticsRow } from '@/lib/engagement'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+
+// Course analytics are institutional data.
+const AUDIENCES: AiAudience[] = ['institution']
 
 // Improvement suggestions for ONE course, on demand only.
 //
@@ -89,6 +94,9 @@ export const POST = meteredAiRoute('course_suggestions', async (request: Request
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
+
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
   if (denied) return denied
@@ -117,14 +125,14 @@ export const POST = meteredAiRoute('course_suggestions', async (request: Request
   const system = systemPrompt(locale)
 
   try {
-    const raw = await groqChat(factSheet(course, days, locale, insights), system, 0.6)
+    const raw = await groqChat(factSheet(course, days, locale, insights), system, 0.6, AUDIENCES)
     const suggestions = parseSuggestions(raw)
     if (suggestions.length === 0) {
       return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })
     }
     return NextResponse.json({ suggestions })
   } catch (err) {
-    console.error('[api/ai/course-suggestions]', err instanceof Error ? err.message : err)
+    logAiFailure('[api/ai/course-suggestions]', err)
     return NextResponse.json({ ...(await apiErr('aiUnavailable')) }, { status: 503 })
   }
 })
