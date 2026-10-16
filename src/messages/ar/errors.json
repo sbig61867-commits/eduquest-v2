@@ -342,5 +342,5 @@
   "invalidLogin": "المعرّف أو كلمة المرور غير صحيحة.",
   "passwordUnchanged": "اختر كلمة مرور مختلفة عن المؤقتة.",
   "passwordChangeFailed": "تعذّر تغيير كلمة المرور.",
-  "memberIdStudentsOnly": "الحساب بالمعرّف متاح للطلاب فقط."
+  "memberIdStudentsOnly": "الحساب بالمعرّف متاح للطلاب والمعلمين فقط."
 }

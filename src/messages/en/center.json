@@ -11,7 +11,8 @@
     "analytics": "Analytics",
     "schedules": "Schedules",
     "announcements": "Announcements",
-    "mail": "My Mail"
+    "mail": "My Mail",
+    "settings": "Settings"
   },
   "dashboard": {
     "title": "Centre Manager Dashboard",
@@ -157,7 +158,7 @@
       "noCode": "No consent code was received from Google",
       "exchangeFailed": "Could not complete linking with Google",
       "noSendScope": "Send permission was not granted — enable “Send email” in the Google window",
-      "noRefreshToken": "Google issued no refresh token — remove EduQuest's access from your Google account, then link again",
+      "noRefreshToken": "Google issued no refresh token — remove Tilmoo's access from your Google account, then link again",
       "noEmail": "Could not determine the email address",
       "saveFailed": "Could not save the link",
       "linked": "Linked {email}",
@@ -188,6 +189,7 @@
     "people": "People",
     "programs": "Programmes",
     "tracking": "Tracking",
-    "communication": "Communication"
+    "communication": "Communication",
+    "account": "Account"
   }
 }

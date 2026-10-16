@@ -59,11 +59,11 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const { role } = body
-    // 'member_id': a student account without an email — the platform issues a
-    // member ID and a temporary password for staff to hand over. Every other
-    // account is created with the email and password staff typed.
+    // 'member_id': a student or teacher account without an email — the
+    // platform issues a member ID and a temporary password for staff to hand
+    // over. Every other account is created with the email and password staff typed.
     const byMemberId = body.login_mode === 'member_id'
-    if (byMemberId && role !== 'student') {
+    if (byMemberId && role !== 'student' && role !== 'teacher') {
       return NextResponse.json({ ...(await apiErr('memberIdStudentsOnly')) }, { status: 400 })
     }
     const email: string = byMemberId ? placeholderEmail(randomUUID()) : (typeof body.email === 'string' ? body.email : '')

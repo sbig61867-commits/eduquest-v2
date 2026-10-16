@@ -67,7 +67,7 @@ describe('university admin — existing tenant (flat, has centre)', () => {
     expect(screen.queryByText('Academic')).toBeNull()
     expect(screen.getByText('Centre Staff')).toBeInTheDocument()
     expect(screen.getByText('المجموعات')).toBeInTheDocument()
-    expect(within(screen.getByRole('complementary')).getByText('EduQuest')).toBeInTheDocument()
+    expect(within(screen.getByRole('complementary')).getByText('Tilmoo')).toBeInTheDocument()
     expect(screen.getByText('QOU')).toBeInTheDocument()
     // The role lives in the header only (not repeated in the sidebar).
     expect(screen.queryByText('مدير الجامعة')).toBeNull()

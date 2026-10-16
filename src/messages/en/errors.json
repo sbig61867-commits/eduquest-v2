@@ -342,5 +342,5 @@
   "invalidLogin": "Incorrect ID or password.",
   "passwordUnchanged": "Choose a password different from the temporary one.",
   "passwordChangeFailed": "Could not change the password.",
-  "memberIdStudentsOnly": "Accounts by ID are for students only."
+  "memberIdStudentsOnly": "Accounts by ID are for students and teachers only."
 }

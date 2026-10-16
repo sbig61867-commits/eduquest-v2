@@ -10,6 +10,7 @@ import { getStudentTrack } from '@/lib/student-track'
 import { getTerms } from '@/lib/terminology'
 import { loadOwnStudentName } from '@/lib/student-names'
 import { fourPartName } from '@/lib/person-name'
+import { PreferencesCard } from '@/components/shared/preferences-card'
 
 export default async function StudentProfilePage() {
   const supabase = await createClient()
@@ -73,11 +74,14 @@ export default async function StudentProfilePage() {
   }
 
   return (
+    <div className="space-y-8">
+      <PreferencesCard />
     <StudentProfileClient
       profile={profile as unknown as Parameters<typeof StudentProfileClient>[0]['profile']}
       fourPartName={ownName ? fourPartName(ownName) : null}
       groups={myGroups}
       affiliation={affiliation}
     />
+    </div>
   )
 }

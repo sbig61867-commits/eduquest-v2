@@ -8,7 +8,7 @@ import type enPublic from '@/messages/en/public.json'
 import { localizedPath } from '@/i18n/public-routes'
 import { LOCALES, LOCALE_DIR } from '@/i18n/config'
 import { FAQ_SECTION } from './anchors'
-import { CtaBand, Eyebrow, FaqGrid, GRID_BG, PANEL, SectionHead, Segmented, WRAP } from './ui'
+import { CtaBand, Eyebrow, FaqGrid, MediaSlot, PANEL, SectionHead, Segmented, WRAP } from './ui'
 
 // Copy lives in src/messages/<locale>/public.json under `landing`, written in a
 // formal academic register. Read with t.raw(): it is structured and static.
@@ -37,7 +37,6 @@ function StageDot({ state }: { state: 'done' | 'active' | 'pending' }) {
   if (state === 'active')
     return (
       <span aria-hidden="true" className="relative w-3 h-3 shrink-0">
-        <span className="absolute inset-0 rounded-full bg-blue-400 motion-safe:animate-ping" />
         <span className="absolute inset-0 rounded-full bg-blue-400" />
       </span>
     )
@@ -70,7 +69,6 @@ function LessonStudio({ copy }: { copy: LandingCopy['studio'] }) {
 
   return (
     <div className="relative">
-      <div aria-hidden="true" className="absolute -inset-8 bg-blue-600/10 blur-3xl rounded-[3rem]" />
       <div className="relative grid lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] rounded-[2rem] border border-slate-700/60 bg-slate-900/90 backdrop-blur shadow-2xl overflow-hidden">
         {/* Source picker + pipeline */}
         <div className="p-6 sm:p-7 border-b lg:border-b-0 lg:border-e border-slate-800 bg-slate-950/40">
@@ -297,11 +295,10 @@ function Privacy({ copy }: { copy: LandingCopy['privacy'] }) {
         </div>
       </div>
       <div className="relative">
-        <div aria-hidden="true" className="absolute -inset-6 bg-emerald-500/10 blur-3xl rounded-[2rem]" />
         <div key={view} className="eq-menu-in relative rounded-3xl border border-slate-700/60 bg-slate-900/90 overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
             <p className="text-white font-semibold">{view === 0 ? copy.deviceTab : copy.teacherTab}</p>
-            <span aria-hidden="true" className={`w-2 h-2 rounded-full motion-safe:animate-pulse ${view === 0 ? 'bg-emerald-400' : 'bg-blue-400'}`} />
+            <span aria-hidden="true" className={`w-2 h-2 rounded-full ${view === 0 ? 'bg-emerald-400' : 'bg-blue-400'}`} />
           </div>
           {view === 0 ? (
             <ul className="divide-y divide-slate-800">
@@ -455,26 +452,21 @@ export function Landing() {
 
       {/* Hero + lesson studio */}
       <section className="relative">
-        <div
-          aria-hidden="true"
-          className={`absolute inset-0 ${GRID_BG}`}
-        />
-        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[40rem] bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.22),transparent_65%)]" />
         <div className={`relative ${WRAP} pt-14 sm:pt-20 pb-16 sm:pb-20`}>
-          <div className="text-center max-w-5xl mx-auto">
+          <div className="grid gap-10 lg:gap-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center">
+          <div className="text-start">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/25 text-blue-300 text-sm font-medium">
-              <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-blue-400 motion-safe:animate-pulse" />
               {t.hero.badge}
             </span>
             <h1 className="mt-7 font-extrabold text-white leading-tight">
-              <span className="block text-4xl sm:text-6xl lg:text-7xl">{t.hero.title}</span>
+              <span className="block text-4xl sm:text-5xl lg:text-6xl">{t.hero.title}</span>
               <span className="block mt-4 text-xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-400 to-sky-300 bg-clip-text text-transparent leading-snug">
                 {t.hero.titleAccent}
               </span>
             </h1>
-            <p className="text-slate-400 text-base sm:text-lg mt-7 max-w-3xl mx-auto leading-loose">{t.hero.desc}</p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
-              <Link href={contact} className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-on-accent font-semibold transition-colors text-center shadow-lg shadow-blue-600/25">
+            <p className="text-slate-400 text-base sm:text-lg mt-7 max-w-2xl leading-loose">{t.hero.desc}</p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-9">
+              <Link href={contact} className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-on-accent font-semibold transition-colors text-center">
                 {t.hero.primary}
               </Link>
               <Link href={localizedPath(lang, '/demo')} className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 hover:bg-slate-900 text-slate-200 font-semibold transition-colors text-center">
@@ -482,6 +474,9 @@ export function Landing() {
               </Link>
             </div>
             <p className="text-slate-500 text-sm mt-5">{t.hero.note}</p>
+          </div>
+          {/* Reserved for a hero photograph or video (none yet). */}
+          <MediaSlot />
           </div>
 
           <div className="mt-16 sm:mt-20">

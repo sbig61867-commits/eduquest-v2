@@ -11,7 +11,8 @@
     "analytics": "التحليلات",
     "schedules": "الجداول",
     "announcements": "الإعلانات",
-    "mail": "بريدي"
+    "mail": "بريدي",
+    "settings": "الإعدادات"
   },
   "dashboard": {
     "title": "لوحة مدير المركز",
@@ -157,7 +158,7 @@
       "noCode": "لم يُستلم رمز الموافقة من Google",
       "exchangeFailed": "تعذّر إكمال الربط مع Google",
       "noSendScope": "لم تُمنح صلاحية الإرسال — فعّل خيار \"إرسال البريد\" في نافذة Google",
-      "noRefreshToken": "لم يُصدر Google رمز التحديث — أزل وصول EduQuest من حسابك في Google ثم أعد الربط",
+      "noRefreshToken": "لم يُصدر Google رمز التحديث — أزل وصول Tilmoo من حسابك في Google ثم أعد الربط",
       "noEmail": "تعذّر معرفة عنوان البريد",
       "saveFailed": "تعذّر حفظ الربط",
       "linked": "تم ربط {email}",
@@ -188,6 +189,7 @@
     "people": "الأشخاص",
     "programs": "البرامج",
     "tracking": "المتابعة",
-    "communication": "التواصل"
+    "communication": "التواصل",
+    "account": "الحساب"
   }
 }

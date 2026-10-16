@@ -6,6 +6,7 @@ import { groqChat } from './groq'
 import { AiProviderError, geminiProviderError, geminiUsage, logAiFailure, meterCall } from './meter'
 import { PrivacyPendingError, audienceApproved, providerApproved, type AiAudience } from './privacy'
 import { AI_TIMEOUT_MS, aiTimeoutSignal, callTimeoutMs, isAbortError } from './timeout'
+import { APP_NAME } from '@/lib/brand'
 
 // ── Unified AI chat with provider fallback ────────────────────────
 // Tries providers in order and moves to the next on any error (quota
@@ -133,7 +134,7 @@ function openRouterChat(prompt: string, systemPrompt: string | undefined, temper
       'minimax/minimax-m3:free',
     ],
     prompt, systemPrompt, temperature, audiences, timeoutMs,
-    headers: { 'X-Title': 'EduQuest' },
+    headers: { 'X-Title': APP_NAME },
   })
 }
 

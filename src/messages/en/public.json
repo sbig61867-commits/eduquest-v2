@@ -1,55 +1,55 @@
 {
   "meta": {
     "home": {
-      "title": "EduQuest | An integrated digital system for educational institutions",
+      "title": "Tilmoo | An integrated digital system for educational institutions",
       "description": "A digital learning environment that brings together content preparation and assessment and examination proctoring and academic administration in Arabic and English."
     },
     "contact": {
-      "title": "Contact | EduQuest",
-      "description": "Request a subscription for your institution or send your question to the EduQuest team."
+      "title": "Contact | Tilmoo",
+      "description": "Request a subscription for your institution or send your question to the Tilmoo team."
     },
     "features": {
-      "title": "Platform components | EduQuest",
+      "title": "Platform components | Tilmoo",
       "description": "AI assisted content preparation and examination proctoring and complete institutional isolation and server side grading and multilevel courses."
     },
     "pricing": {
-      "title": "Plans | EduQuest",
-      "description": "EduQuest plans for universities and schools and institutes and training centres. Start with a free trial and continue with a subscription suited to the size of your institution."
+      "title": "Plans | Tilmoo",
+      "description": "Tilmoo plans for universities and schools and institutes and training centres. Start with a free trial and continue with a subscription suited to the size of your institution."
     },
     "privacy": {
-      "title": "Privacy Policy | EduQuest",
-      "description": "The privacy policy of the EduQuest learning platform."
+      "title": "Privacy Policy | Tilmoo",
+      "description": "The privacy policy of the Tilmoo learning platform."
     },
     "terms": {
-      "title": "Terms of Use | EduQuest",
-      "description": "The terms of use of the EduQuest learning platform."
+      "title": "Terms of Use | Tilmoo",
+      "description": "The terms of use of the Tilmoo learning platform."
     },
     "about": {
-      "title": "About the platform | EduQuest",
-      "description": "The mission and vision of EduQuest and the principles on which the platform is built and its commitments to institutions."
+      "title": "About the platform | Tilmoo",
+      "description": "The mission and vision of Tilmoo and the principles on which the platform is built and its commitments to institutions."
     },
     "security": {
-      "title": "Security and privacy | EduQuest",
-      "description": "The technical safeguards that protect assessment integrity and the confidentiality of institutional and student data on EduQuest."
+      "title": "Security and privacy | Tilmoo",
+      "description": "The technical safeguards that protect assessment integrity and the confidentiality of institutional and student data on Tilmoo."
     },
     "ai": {
-      "title": "Responsible AI | EduQuest",
-      "description": "Where EduQuest uses artificial intelligence and where it does not and the rules that govern its use."
+      "title": "Responsible AI | Tilmoo",
+      "description": "Where Tilmoo uses artificial intelligence and where it does not and the rules that govern its use."
     },
     "demo": {
-      "title": "Demonstration | EduQuest",
-      "description": "Explore the EduQuest dashboards for four roles with illustrative data and no sign in."
+      "title": "Demonstration | Tilmoo",
+      "description": "Explore the Tilmoo dashboards for four roles with illustrative data and no sign in."
     }
   },
   "demo": {
     "meta": {
-      "title": "Demonstration | EduQuest",
-      "description": "Explore the EduQuest dashboards for four roles with illustrative data and no sign in.",
-      "admin": "Administrator dashboard | Demonstration | EduQuest",
-      "center": "Centre manager dashboard | Demonstration | EduQuest",
-      "student": "Student dashboard | Demonstration | EduQuest",
-      "teacher": "Instructor dashboard | Demonstration | EduQuest",
-      "roleDescription": "A tour of the {role} on EduQuest with illustrative data."
+      "title": "Demonstration | Tilmoo",
+      "description": "Explore the Tilmoo dashboards for four roles with illustrative data and no sign in.",
+      "admin": "Administrator dashboard | Demonstration | Tilmoo",
+      "center": "Centre manager dashboard | Demonstration | Tilmoo",
+      "student": "Student dashboard | Demonstration | Tilmoo",
+      "teacher": "Instructor dashboard | Demonstration | Tilmoo",
+      "roleDescription": "A tour of the {role} on Tilmoo with illustrative data."
     },
     "landing": {
       "eyebrow": "Demonstration",
@@ -300,7 +300,7 @@
       "about": {
         "label": "About",
         "heading": "Learn about the platform and its principles and safeguards",
-        "overview": "About EduQuest",
+        "overview": "About Tilmoo",
         "group": "About the platform",
         "items": {
           "about": {
@@ -336,7 +336,7 @@
       "badge": "An integrated digital system for educational institutions",
       "title": "An integrated digital learning environment",
       "titleAccent": "for content design and assessment and academic administration",
-      "desc": "EduQuest provides educational institutions with a unified system that brings together the preparation of instructional content and the assessment of students and the monitoring of their performance and the organisation of academic affairs. It is available in Arabic and English and serves universities and schools and institutes and training centres and professional organisations.",
+      "desc": "Tilmoo provides educational institutions with a unified system that brings together the preparation of instructional content and the assessment of students and the monitoring of their performance and the organisation of academic affairs. It is available in Arabic and English and serves universities and schools and institutes and training centres and professional organisations.",
       "primary": "Request an introductory presentation",
       "demo": "Explore the demonstration",
       "note": "No installation is required. The platform is accessed through the browser on computers and mobile devices."
@@ -1223,7 +1223,7 @@
         {
           "h": "Accepting these terms",
           "body": [
-            "Using EduQuest means you agree to these terms. If you do not agree do not use the platform."
+            "Using Tilmoo means you agree to these terms. If you do not agree do not use the platform."
           ]
         },
         {
@@ -1273,9 +1273,9 @@
   },
   "aboutPage": {
     "hero": {
-      "eyebrow": "About EduQuest",
+      "eyebrow": "About Tilmoo",
       "title": "An academic platform founded on integrity and clarity",
-      "desc": "EduQuest was created to give educational institutions a single digital environment that protects assessment integrity and student privacy. It also makes content preparation and the follow up of learning easier for instructors."
+      "desc": "Tilmoo was created to give educational institutions a single digital environment that protects assessment integrity and student privacy. It also makes content preparation and the follow up of learning easier for instructors."
     },
     "pillars": [
       {
@@ -1284,7 +1284,7 @@
       },
       {
         "label": "Vision",
-        "text": "For EduQuest to become a digital environment that institutions rely on to deliver education that is fair and accessible in Arabic and English."
+        "text": "For Tilmoo to become a digital environment that institutions rely on to deliver education that is fair and accessible in Arabic and English."
       },
       {
         "label": "Values",
