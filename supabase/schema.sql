@@ -2461,3 +2461,10 @@ FROM anon;
 -- write/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN). See anon_default_privileges_migration.sql.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES FROM anon;
+
+-- Signed-in callers may UPDATE only full_name and locale on users (the two
+-- columns the app writes through a session); RLS still decides which rows.
+-- Every other users write is service_role or a SECURITY DEFINER function.
+-- See users_column_update_lockdown_migration.sql.
+REVOKE UPDATE ON public.users FROM authenticated;
+GRANT UPDATE (full_name, locale) ON public.users TO authenticated;
