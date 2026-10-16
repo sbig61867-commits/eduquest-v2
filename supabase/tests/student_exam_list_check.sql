@@ -1,3 +1,9 @@
+-- HISTORICAL (2026-10-16). Kept for the record linked from CLAUDE.md and
+-- student_exam_list_migration.sql; do not use as a regression check. L4 is
+-- skipped and L10 reads "FAIL (service_role lost it too)" since
+-- function_execute_cleanup_migration.sql revoked get_student_exams() from every
+-- API role on purpose (it returns nothing under service_role: no auth.uid()).
+--
 -- Regression check — Batch 1: get_student_exam_list() (student_exam_list_migration.sql)
 -- and, when applied, the lockdown of get_student_exams() (student_exam_list_lockdown_migration.sql).
 --

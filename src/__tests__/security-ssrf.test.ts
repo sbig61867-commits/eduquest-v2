@@ -9,13 +9,16 @@
  *  S2  Hide it behind a public hostname whose DNS record points inward, or an
  *      alternate IP notation.
  *  S3  Pass a genuinely public URL that redirects inward once the first check
- *      has passed — the route never follows redirects (`redirect: 'manual'`).
+ *      has passed — the route never follows redirects.
+ *  S4  DNS rebinding: the name answers a public address to the pre-check and an
+ *      internal one to the connection. The connect-time guard in
+ *      src/lib/public-fetch.ts refuses it (its own suite: public-fetch.test.ts).
  * Plus: who may call it at all (manage_announcements only, never a student).
  *
  * Adapted 2026-09-29 from the claude/marhaba branch, which tested a separate
  * safe-fetch module; main guards inside the route, so this drives the route.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // DNS is mocked so the suite is hermetic and never touches the network.
 const lookupMock = vi.fn()
@@ -36,9 +39,17 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/rate-limit', () => ({ rateLimit: async () => ({ allowed: true, resetAt: 0 }) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 
-import { POST } from '@/app/api/announcements/preview-url/route'
-
+// The outbound request itself is mocked; isBlockedAddress / BlockedAddressError stay real.
 const fetchMock = vi.fn()
+vi.mock('@/lib/public-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/public-fetch')>()),
+  fetchPublic: (...args: unknown[]) => fetchMock(...args),
+}))
+
+import { POST } from '@/app/api/announcements/preview-url/route'
+import { BlockedAddressError } from '@/lib/public-fetch'
+
+const page = (status: number, contentType: string, html = '') => ({ status, contentType, body: Buffer.from(html) })
 const call = (url: string) =>
   POST(new Request('http://localhost/api/announcements/preview-url', { method: 'POST', body: JSON.stringify({ url }) }))
 const codeOf = async (res: Response) => ((await res.json()) as { code?: string }).code
@@ -51,10 +62,8 @@ beforeEach(() => {
   role = 'university_admin'
   lookupMock.mockReset()
   dnsResolvesTo('93.184.216.34')
-  fetchMock.mockReset().mockResolvedValue(new Response('<title>Hi</title>', { headers: { 'content-type': 'text/html' } }))
-  vi.stubGlobal('fetch', fetchMock)
+  fetchMock.mockReset().mockResolvedValue(page(200, 'text/html', '<title>Hi</title>'))
 })
-afterEach(() => vi.unstubAllGlobals())
 
 describe('S0 — only announcement authors can make the server fetch', () => {
   it('refuses a student', async () => {
@@ -105,10 +114,12 @@ describe('S2 — internal addresses in disguise', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('never fetches IPv6 loopback / IPv4-mapped literals', async () => {
+  it('never fetches IPv6 loopback / IPv4-mapped / NAT64 / 6to4 literals', async () => {
     lookupMock.mockRejectedValue(new Error('ENOTFOUND'))
-    for (const url of ['http://[::1]/', 'http://[::ffff:127.0.0.1]/']) {
-      expect((await call(url)).status).toBe(400)
+    for (const url of ['http://[::1]/', 'http://[::ffff:127.0.0.1]/', 'http://[64:ff9b::a9fe:a9fe]/', 'http://[2002:a9fe:a9fe::]/', 'http://[fd00::1]/']) {
+      const res = await call(url)
+      expect(res.status).toBe(400)
+      expect(await codeOf(res)).toBe('internalAddressBlocked')
     }
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -116,18 +127,26 @@ describe('S2 — internal addresses in disguise', () => {
 
 describe('S3 — a public URL that redirects inward', () => {
   it('does not follow redirects', async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 302, headers: { location: 'http://169.254.169.254/' } }))
+    fetchMock.mockResolvedValue(page(302, 'text/html'))
     const res = await call('https://example.com/')
     expect(res.status).toBe(422)
     expect(await codeOf(res)).toBe('urlRedirects')
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ redirect: 'manual' })
   })
 
   it('never echoes the network error (no internal-network oracle)', async () => {
     fetchMock.mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.5:22'))
     const res = await call('https://example.com/')
     expect(JSON.stringify(await res.json())).not.toContain('10.0.0.5')
+  })
+})
+
+describe('S4 — DNS rebinding between the pre-check and the connection', () => {
+  it('answers internalAddressBlocked when the connect-time guard refuses', async () => {
+    fetchMock.mockRejectedValue(new BlockedAddressError())
+    const res = await call('https://rebind.example/')
+    expect(res.status).toBe(400)
+    expect(await codeOf(res)).toBe('internalAddressBlocked')
   })
 })
 

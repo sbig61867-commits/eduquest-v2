@@ -1,3 +1,9 @@
+-- HISTORICAL (2026-10-16). Kept for the record linked from CLAUDE.md and
+-- PERFORMANCE_BASELINE.md; do not use as a regression check. Its BEFORE section
+-- calls get_admin_lessons() / get_admin_exams() as authenticated, which
+-- function_execute_cleanup_migration.sql made owner-only — it now stops with
+-- 42501. The live feeds are covered by scale_baseline_check.sql block B.
+--
 -- Batch 3 — P-02 + P-04 regression / measurement check for supabase/content_feeds_migration.sql.
 --
 -- Run where the functions exist (after applying), or as a DRY RUN: the migration's statements executed

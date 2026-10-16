@@ -25,6 +25,13 @@
 --      [get_student_exams] rows=50 json=1718 KB (without questions 30 KB) time=58 ms
 --      [get_admin_exams] rows=2000 json=537 KB time=129 ms
 --      [get_admin_lessons] rows=2000 json=375 KB time=99 ms
+--
+-- 2026-10-16: block B now measures the feeds the app calls today. The old
+-- unbounded get_student_exams / get_admin_exams / get_admin_lessons above are
+-- owner-only since function_execute_cleanup_migration.sql, so calling them as
+-- authenticated raised 42501 (the block had already failed since 2026-09-30,
+-- when get_student_exams was revoked from students). Expect one page (<= 50
+-- rows) from each _page feed, and a list payload independent of question count.
 
 -- ── A) Large lists: 20 000 students ─────────────────────────────────────────
 DO $$
@@ -99,17 +106,17 @@ BEGIN
   EXECUTE 'SET LOCAL ROLE authenticated';
   t0 := clock_timestamp();
   SELECT count(*), octet_length(coalesce(json_agg(x)::text, '')), octet_length(coalesce(json_agg(to_jsonb(x) - 'questions')::text, ''))
-    INTO c, sz, sz2 FROM public.get_student_exams() x;
-  r := r || format('[get_student_exams] rows=%s json=%s KB (without questions %s KB) time=%s ms | ', c, sz/1024, sz2/1024, round(extract(epoch from clock_timestamp()-t0)*1000));
+    INTO c, sz, sz2 FROM public.get_student_exam_list() x;
+  r := r || format('[get_student_exam_list] rows=%s json=%s KB (without questions %s KB) time=%s ms | ', c, sz/1024, sz2/1024, round(extract(epoch from clock_timestamp()-t0)*1000));
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
   EXECUTE 'SET LOCAL ROLE authenticated';
   t0 := clock_timestamp();
-  SELECT count(*), octet_length(coalesce(json_agg(x)::text, '')) INTO c, sz FROM public.get_admin_exams() x;
-  r := r || format('[get_admin_exams] rows=%s json=%s KB time=%s ms | ', c, sz/1024, round(extract(epoch from clock_timestamp()-t0)*1000));
+  SELECT count(*), octet_length(coalesce(json_agg(x)::text, '')) INTO c, sz FROM public.get_admin_exams_page(false, 50, 0) x;
+  r := r || format('[get_admin_exams_page] rows=%s json=%s KB time=%s ms | ', c, sz/1024, round(extract(epoch from clock_timestamp()-t0)*1000));
   t0 := clock_timestamp();
-  SELECT count(*), octet_length(coalesce(json_agg(x)::text, '')) INTO c, sz FROM public.get_admin_lessons() x;
-  r := r || format('[get_admin_lessons] rows=%s json=%s KB time=%s ms', c, sz/1024, round(extract(epoch from clock_timestamp()-t0)*1000));
+  SELECT count(*), octet_length(coalesce(json_agg(x)::text, '')) INTO c, sz FROM public.get_admin_lessons_page(50, 0) x;
+  r := r || format('[get_admin_lessons_page] rows=%s json=%s KB time=%s ms', c, sz/1024, round(extract(epoch from clock_timestamp()-t0)*1000));
   EXECUTE 'RESET ROLE';
   RAISE EXCEPTION 'RESULT: %', r;
 END $$;

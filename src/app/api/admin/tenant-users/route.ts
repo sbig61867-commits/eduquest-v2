@@ -21,7 +21,9 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('users')
-    .select('*', { count: 'exact' }) // '*' so member_code comes along once its migration is applied
+    // Exactly the fields the owner's users table reads (users-client.tsx `User`);
+    // member_code is live (member_code_migration.sql applied).
+    .select('id, full_name, email, role, is_active, created_at, tenant_id, member_code', { count: 'exact' })
     .eq('tenant_id', tenantId)
 
   if (role) query = query.eq('role', role)

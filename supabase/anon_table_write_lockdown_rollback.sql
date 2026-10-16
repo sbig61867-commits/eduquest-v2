@@ -1,0 +1,54 @@
+-- ROLLBACK KEPT AS COMMENTS ON PURPOSE.
+-- Rolling back re-grants privileges to anon. An executable GRANT ... TO anon in
+-- supabase/ fails the security invariant I4 (src/__tests__/security-invariants.test.ts),
+-- the same reason student_exam_list_lockdown_migration.sql documents its rollback as
+-- a comment. To roll back: copy the statements below, remove the leading "-- ",
+-- and run them in the SQL editor after the usual backup.
+--
+-- Rollback for anon_table_write_lockdown_migration.sql — restores the exact
+-- non-SELECT privileges `anon` held before it (aclexplode on the live DB,
+-- 2026-10-16). SELECT was never touched, so it is not re-granted here.
+
+-- Full set: INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN
+-- GRANT INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON
+--   public.announcement_groups,
+--   public.announcements,
+--   public.contact_messages,
+--   public.course_levels,
+--   public.course_units,
+--   public.exam_appeals,
+--   public.exam_retake_permissions,
+--   public.feature_flags,
+--   public.platform_settings,
+--   public.rate_limits,
+--   public.request_messages,
+--   public.schedule_slots,
+--   public.schedules,
+--   public.survey_responses,
+--   public.tenants,
+--   public.unit_items,
+--   public.users
+-- TO anon;
+
+-- Writes already revoked earlier; TRUNCATE still held
+-- GRANT TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON
+--   public.attendance_records,
+--   public.attendance_sessions,
+--   public.course_enrollments,
+--   public.courses,
+--   public.exams,
+--   public.group_students,
+--   public.groups,
+--   public.invitations,
+--   public.lessons,
+--   public.staff_requests,
+--   public.surveys
+-- TO anon;
+
+-- Writes and TRUNCATE already revoked earlier
+-- GRANT REFERENCES, TRIGGER, MAINTAIN ON
+--   public.exam_submissions,
+--   public.grades,
+--   public.student_progress,
+--   public.unit_quiz_submissions
+-- TO anon;

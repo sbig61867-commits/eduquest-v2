@@ -66,3 +66,6 @@ public/capture-admin/
 
 # Copied from node_modules/@vladmandic/human by scripts/copy-human-models.mjs
 public/models/human/
+
+# isolated local Playwright run (playwright.local.config.ts)
+/tests-local/.out/
