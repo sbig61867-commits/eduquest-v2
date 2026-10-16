@@ -2,8 +2,12 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
-import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
-import { identifyAiCaller, meteredAiRoute } from '@/lib/ai/usage'
+import {
+  ExtractionError, extractTextFromFile, extractionErrorResponse, fileExt, isImageExt, readFormDataCapped,
+} from '@/lib/ai/extract'
+import { authorizeAiUsage, identifyAiCaller, meteredAiRoute } from '@/lib/ai/usage'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved } from '@/lib/ai/privacy'
 
 export const maxDuration = 30
 
@@ -13,6 +17,13 @@ export const maxDuration = 30
 // limit — sending 10 raw files in a single FormData routinely blew past it
 // even though every file was individually small, and the resulting platform-
 // level rejection surfaced to teachers as a generic "connection error".
+//
+// Two paths, decided per file:
+//   local   PDF with a text layer, DOCX, PPTX. Parsed on the server, no AI,
+//           no provider, no allowance check, so ordinary files always work.
+//   vision  images, and PDFs with no text layer. Gemini reads the whole file,
+//           which is institutional content: privacy approval and the monthly
+//           allowance are both checked before any call.
 
 export const POST = meteredAiRoute('extract-file', async (request: Request) => {
   const supabase = await createClient()
@@ -25,15 +36,11 @@ export const POST = meteredAiRoute('extract-file', async (request: Request) => {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
-  // Plain PDF/DOCX/PPTX parsing is free; only the Gemini-vision fallback for
-  // scanned files is AI, and it is metered against this user. Not gated by the
-  // institution allowance: a teacher must still be able to read an ordinary file.
+  // Attributes a vision call (if any) to this user in the usage ledger.
   identifyAiCaller(user.id)
 
-  // Extraction is local parsing (cheap) except the Gemini-vision fallback for
-  // scanned files — generous fixed cap, independent of the admin-configured
-  // AI generation limits, since this endpoint never calls the lesson/exam
-  // generation model itself.
+  // Fixed per-user cap on every request, local or vision. It is not the
+  // admin-configured generation limit: this endpoint never calls a generator.
   const rl = await aiRateLimit(`extract-file:${user.id}`, { limit: 60, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
@@ -43,17 +50,44 @@ export const POST = meteredAiRoute('extract-file', async (request: Request) => {
   }
 
   let formData: FormData
-  try { formData = await request.formData() }
-  catch { return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 }) }
+  // Reads at most UPLOAD_MAX_REQUEST_BYTES of body, whatever Content-Length says.
+  try { formData = await readFormDataCapped(request) }
+  catch (e) {
+    if (e instanceof ExtractionError && e.code === 'too_large') return NextResponse.json({ ...(await apiErr('fileTooLarge')) }, { status: 413 })
+    return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 })
+  }
 
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ ...(await apiErr('noFileUploaded')) }, { status: 400 })
+  const file = formData.get('file')
+  if (!(file instanceof File)) return NextResponse.json({ ...(await apiErr('noFileUploaded')) }, { status: 400 })
+
+  const ext = fileExt(file.name)
+
+  // Runs only on the vision path, before Gemini is reachable.
+  const visionGate = async (): Promise<Response | null> => {
+    if (!audienceApproved(['institution'])) {
+      return NextResponse.json({ ...(await apiErr(ext === 'pdf' ? 'fileScannedUnsupported' : 'aiPrivacyPending')) }, { status: 503 })
+    }
+    return authorizeAiUsage(user.id)
+  }
 
   try {
-    const text = await extractTextFromFile(file)
-    return NextResponse.json({ text })
+    if (isImageExt(ext)) {
+      const denied = await visionGate()
+      if (denied) return denied
+      return NextResponse.json({ text: await extractTextFromFile(file, { vision: true }) })
+    }
+
+    try {
+      return NextResponse.json({ text: await extractTextFromFile(file, { vision: false }) })
+    } catch (e) {
+      // Only a PDF with no text layer needs vision. Any other local failure is final.
+      if (!(e instanceof ExtractionError) || e.userCode !== 'fileScannedUnsupported') throw e
+      const denied = await visionGate()
+      if (denied) return denied
+      return NextResponse.json({ text: await extractTextFromFile(file, { vision: true }) })
+    }
   } catch (e) {
-    console.error('[extract-file]', e)
+    logAiFailure('[extract-file]', e)
     const { status, error, code } = await extractionErrorResponse(e)
     return NextResponse.json({ error, code }, { status })
   }

@@ -1,45 +1,25 @@
 import { apiErr } from '@/lib/api-error'
-import { buildLessonFromFilePrompt } from '@/content/ai/lesson-from-file'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { aiChatDetailed } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
-import { AI_TIMEOUT_MS } from '@/lib/ai/timeout'
-import { geminiUsage, meterCall } from '@/lib/ai/meter'
-import { extractTextFromFile, extractionErrorResponse } from '@/lib/ai/extract'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, PrivacyPendingError, type AiAudience } from '@/lib/ai/privacy'
+import { COMPOSE_BUDGET_MS, composeLesson } from '@/lib/ai/lesson-compose'
+import { ExtractionError, extractTextFromFile, extractionErrorResponse, readFormDataCapped } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
 
 // A full lesson from a long file is several minutes of generation, not one.
+// Composition runs inside COMPOSE_BUDGET_MS (lesson-compose.ts), below this.
 export const maxDuration = 300
 
-// gemini-2.0-flash was retired by Google (404) — gemini-2.5-flash is the
-// current stable free-tier model, verified live. It caps a single response
-// around 8192 output tokens (~24k chars). Groq's gpt-oss-120b caps at 4096 —
-// Gemini gives a materially larger single-pass ceiling, which is why
-// composition (not just vision extraction) now runs through it.
-const GEMINI_MODEL = 'gemini-2.5-flash'
-// 2.5-flash allows 65k output tokens, but by default it also "thinks" first and
-// those thinking tokens are taken out of the SAME budget — with the old 8192
-// cap most of it went to thinking and the lesson came back a fraction of the
-// file (owner report 2026-10-09). Thinking off + a large cap = the whole budget
-// goes into the lesson.
-const MAX_OUTPUT_TOKENS = 32768
-
-function getGeminiModel() {
-  const key = process.env.GEMINI_API_KEY
-  if (!key) throw new Error('GEMINI_API_KEY not configured')
-  return new GoogleGenerativeAI(key).getGenerativeModel({
-    model: GEMINI_MODEL,
-    // thinkingConfig is not in this SDK's types yet; the API accepts it as is.
-    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingBudget: 0 } } as Record<string, unknown>,
-  }, { timeout: AI_TIMEOUT_MS })
-}
+// The uploaded file and the teacher's instructions are institutional content.
+const AUDIENCES: AiAudience[] = ['institution']
 
 // ── Route ────────────────────────────────────────────────────────
 
 export const POST = meteredAiRoute('lesson-from-file', async (request: Request) => {
+  const started = Date.now()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
@@ -49,6 +29,9 @@ export const POST = meteredAiRoute('lesson-from-file', async (request: Request) 
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
 
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
@@ -66,8 +49,12 @@ export const POST = meteredAiRoute('lesson-from-file', async (request: Request) 
   }
 
   let formData: FormData
-  try { formData = await request.formData() }
-  catch { return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 }) }
+  // Reads at most UPLOAD_MAX_REQUEST_BYTES of body, whatever Content-Length says.
+  try { formData = await readFormDataCapped(request) }
+  catch (e) {
+    if (e instanceof ExtractionError && e.code === 'too_large') return NextResponse.json({ ...(await apiErr('fileTooLarge')) }, { status: 413 })
+    return NextResponse.json({ ...(await apiErr('invalidFormData')) }, { status: 400 })
+  }
 
   const file = formData.get('file') as File | null
   const customInstructions = (formData.get('instructions') as string | null)?.slice(0, 1000) ?? ''
@@ -89,96 +76,22 @@ export const POST = meteredAiRoute('lesson-from-file', async (request: Request) 
     // summary, so cutting it at a fixed length would silently drop material.
     fullText = await extractTextFromFile(file)
   } catch (e) {
-    console.error('[generate-lesson-from-file] extraction:', e)
+    logAiFailure('[generate-lesson-from-file] extraction:', e)
     const { status, error, code } = await extractionErrorResponse(e)
     return NextResponse.json({ error, code }, { status })
   }
 
   try {
-    const { content } = await composeLesson(fullText, level, customInstructions, questionTypes)
+    const { content } = await composeLesson({
+      fullText, level, customInstructions, qTypes: questionTypes,
+      audiences: AUDIENCES, deadline: started + COMPOSE_BUDGET_MS,
+    })
     return NextResponse.json({ content })
   } catch (e) {
-    console.error('[generate-lesson-from-file] AI:', e)
+    if (e instanceof PrivacyPendingError) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
+    logAiFailure('[generate-lesson-from-file] AI:', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
 })
 
-// Prompt text: src/content/ai/lesson-from-file.ts.
-
-// Splits on paragraph boundaries (never mid-sentence) once a chunk would
-// approach Gemini's output ceiling, so long documents (~20+ pages) still
-// come back complete instead of being cut off silently.
-const CHUNK_CHAR_TARGET = 24000
-// Groq's llama-3.3-70b caps output at 4096 tokens, so its chunks must be
-// smaller than Gemini's for the output to fit without truncation.
-const GROQ_CHUNK_CHAR_TARGET = 8000
-
-function splitIntoChunks(text: string, target: number): string[] {
-  if (text.length <= target) return [text]
-
-  const paragraphs = text.split(/\n\s*\n/)
-  const chunks: string[] = []
-  let current = ''
-  for (const p of paragraphs) {
-    if (current && (current.length + p.length) > target) {
-      chunks.push(current)
-      current = p
-    } else {
-      current = current ? `${current}\n\n${p}` : p
-    }
-  }
-  if (current) chunks.push(current)
-  return chunks
-}
-
-async function composeWithGemini(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<string> {
-  const chunks = splitIntoChunks(fullText, CHUNK_CHAR_TARGET)
-  const model = getGeminiModel()
-
-  // Each chunk is one metered Gemini call (tokens from usageMetadata).
-  const generate = (prompt: string) => meterCall('gemini', GEMINI_MODEL, prompt.length, async () => {
-    const result = await model.generateContent(prompt)
-    const text = result.response.text()
-    return { value: text, ...geminiUsage(result.response), outputChars: text.length }
-  })
-
-  if (chunks.length === 1) {
-    return generate(buildLessonFromFilePrompt(chunks[0], level, customInstructions, qTypes))
-  }
-
-  // Long document: process each chunk independently (in order) and stitch
-  // the results into one continuous lesson.
-  // All chunks at once (each part takes a minute or two), joined in source order.
-  const parts = await Promise.all(chunks.map((chunk, i) => generate(
-    buildLessonFromFilePrompt(chunk, level, customInstructions, qTypes, { index: i, total: chunks.length }),
-  )))
-  return parts.join('\n\n')
-}
-
-async function composeWithFallbackChain(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<{ content: string; provider: string }> {
-  const chunks = splitIntoChunks(fullText, GROQ_CHUNK_CHAR_TARGET)
-  const system = 'You transcribe source material into Markdown lesson pages faithfully, without adding or omitting content.'
-
-  const parts: string[] = []
-  let provider = 'none'
-  for (let i = 0; i < chunks.length; i++) {
-    const part = chunks.length > 1 ? { index: i, total: chunks.length } : undefined
-    const result = await aiChatDetailed(buildLessonFromFilePrompt(chunks[i], level, customInstructions, qTypes, part), system)
-    parts.push(result.content)
-    provider = result.provider
-  }
-  return { content: parts.join('\n\n'), provider }
-}
-
-async function composeLesson(fullText: string, level: string, customInstructions: string, qTypes: string[]): Promise<{ content: string; provider: string }> {
-  // Gemini first (larger output window), then the aiChat chain
-  // (Groq → xKiro → Cohere → OpenRouter) — e.g. when the Gemini free-tier
-  // quota is exhausted (429) the teacher still gets a lesson.
-  try {
-    const content = await composeWithGemini(fullText, level, customInstructions, qTypes)
-    return { content, provider: 'gemini' }
-  } catch (e) {
-    console.error('[composeLesson] Gemini failed, falling back to aiChat chain:', e instanceof Error ? e.message : e)
-    return composeWithFallbackChain(fullText, level, customInstructions, qTypes)
-  }
-}
+// Prompt text: src/content/ai/lesson-from-file.ts. Composition: src/lib/ai/lesson-compose.ts.

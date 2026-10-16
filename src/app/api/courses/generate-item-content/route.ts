@@ -5,6 +5,11 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
+import { logAiFailure } from '@/lib/ai/meter'
+import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+
+// Course source text is institutional content.
+const AUDIENCES: AiAudience[] = ['institution']
 
 function adminClient() {
   return createAdminClient(
@@ -25,6 +30,9 @@ export const POST = meteredAiRoute('item-content', async (request: Request) => {
   const { data: profile } = await supabase
     .from('users').select('role, tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+
+  // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
+  if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
 
   // Monthly AI allowance of the institution (super_admin sets it per tenant).
   const denied = await authorizeAiUsage(user.id)
@@ -74,11 +82,12 @@ ${course.source_text.slice(0, 10000)}`
   try {
     const content = await aiChat(
       prompt,
-      'Write lesson content in Markdown strictly from the provided source material. Never add outside knowledge.'
+      'Write lesson content in Markdown strictly from the provided source material. Never add outside knowledge.',
+      { audiences: AUDIENCES },
     )
     return NextResponse.json({ content })
   } catch (e) {
-    console.error('[generate-item-content]', e)
+    logAiFailure('[generate-item-content]', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
   }
 })
