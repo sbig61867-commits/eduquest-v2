@@ -50,7 +50,7 @@ Next.js 16 (App Router; middleware is `src/proxy.ts`) · React 19 · TypeScript 
 
 - SQL in `supabase/`, applied manually (or via Supabase MCP) — no migration CLI. Update `schema.sql` **and** add an idempotent migration file.
 - Before applying to the live DB: run the backup workflow and wait for green (`gh workflow run db-backup.yml -f reason="before <migration>"`), dry-run in a rolled-back transaction, re-read the live definition and `origin/main` for newer migrations.
-- Never re-run an applied migration (list in `docs/claude/MIGRATIONS_LOG.md`). Pending: none.
+- Never re-run an applied migration (list in `docs/claude/MIGRATIONS_LOG.md`). Pending: `users_column_update_lockdown_migration.sql` — written and tested, NOT applied; needs the owner's separate approval.
 
 ## Conventions
 
