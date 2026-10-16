@@ -1,0 +1,37 @@
+-- =============================================================================
+-- users: column-level UPDATE for signed-in callers (security review 2026-10-16)
+-- =============================================================================
+-- `authenticated` held table-level UPDATE on public.users; the users_update
+-- policy pins every authorization column with WITH CHECK, so RLS was the only
+-- wall — and it does not pin everything: a user could rewrite their own
+-- created_at, and a super_admin session could set any account's role/tenant
+-- directly through PostgREST (the app does that with service_role).
+--
+-- After: a signed-in caller may UPDATE only full_name and locale. RLS still
+-- decides WHICH rows and pins full_name for students (unchanged).
+--
+-- Inventory (2026-10-16) of every write to public.users through a session:
+--   locale     — src/components/shared/locale-switcher.tsx (any user, own row)
+--   full_name  — src/app/(super-admin)/super-admin/settings/settings-client.tsx
+-- Every other write uses service_role (create-user, permissions, toggle-user,
+-- student-affiliation, teacher-permissions, accept-invitation, auth/callback,
+-- student-names). No server actions; no dynamic table name resolves to users.
+-- DB writers of users are all SECURITY DEFINER owned by postgres
+-- (accept_invitation, handle_new_user, cascade_tenant_active_status,
+-- deactivate_users_on_tenant_delete) and unaffected; BEFORE triggers that set
+-- NEW columns (assign_member_code) need no column privilege.
+--
+-- Verified in forced-rollback blocks on the live DB:
+-- tests/users_column_update_check.sql — before: U-01..U-04 allowed, L-01..L-10
+-- refused by RLS, L-11/L-12/X-01 allowed; with this migration: U-01..U-04
+-- allowed (both app writes read back), U-05 refused by RLS, L-01..L-12 and
+-- X-01 refused by GRANT, service_role keeps table UPDATE.
+--
+-- Not changed: INSERT/DELETE/SELECT grants, anon (no privileges), service_role,
+-- RLS policies. schema.sql gets the same two statements when this is applied.
+--
+-- Idempotent. Rollback: supabase/users_column_update_lockdown_rollback.sql
+-- =============================================================================
+
+REVOKE UPDATE ON public.users FROM authenticated;
+GRANT UPDATE (full_name, locale) ON public.users TO authenticated;
