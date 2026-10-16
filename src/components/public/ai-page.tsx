@@ -32,7 +32,7 @@ function TaskMap({ copy }: { copy: AiCopy['map'] }) {
   const tasks = filter ? copy.tasks.filter(t => t.kind === filter) : copy.tasks
   const chip = (on: boolean) =>
     `px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
-      on ? 'bg-white text-slate-950 border-white' : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'
+      on ? 'bg-fg text-canvas border-fg' : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'
     }`
   return (
     <>
