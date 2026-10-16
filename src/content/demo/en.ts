@@ -11,10 +11,10 @@ export const demoText: DemoText = {
   },
   students: {
     s1: { name: 'Yazan Abdullah', group: 'Programming - A' },
-    s2: { name: 'Malak Abu Zaid', group: 'Databases - B' },
+    s2: { name: 'Malak Abu Zaid', group: 'AI - A' },
     s3: { name: 'Karim Duwairi', group: 'AI - A' },
     s4: { name: 'Joud Nabulsi', group: 'Programming - B' },
-    s5: { name: 'Tala Salem', group: 'Networks - A' },
+    s5: { name: 'Tala Salem', group: 'Programming - B' },
   },
   courses: {
     c1: { title: 'Programming Fundamentals', level: 'Year 1' },
@@ -29,7 +29,7 @@ export const demoText: DemoText = {
   },
   homeworkTitle: 'Databases Homework',
   announcements: {
-    a1: { title: 'Final exam rescheduled', body: 'The Databases final exam has been moved to October 14.' },
+    a1: { title: 'Final exam rescheduled', body: 'The Databases final exam has been moved back a week; the new date is on the Exams page.' },
     a2: { title: 'AI workshop', body: 'A free workshop for interested students next Thursday in the main hall.' },
   },
   schedule: {

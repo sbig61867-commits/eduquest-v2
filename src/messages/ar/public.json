@@ -171,6 +171,8 @@
       "completedPct": "{pct}% مكتمل",
       "myExams": "اختباراتي",
       "enterExam": "دخول الاختبار",
+      "opensOnDate": "يُفتح الاختبار في موعده المحدد.",
+      "gradedScore": "صُحّح — الدرجة {score} من {outOf}",
       "myGrades": "درجاتي",
       "gradeRecord": "سجل الدرجات"
     },
