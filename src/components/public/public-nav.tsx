@@ -11,6 +11,7 @@ import { ThemeToggle } from './theme-toggle'
 import { LocaleToggle } from './locale-toggle'
 import { FAQ_SECTION, FEATURE_ANCHORS, ROLE_ANCHORS, ROLES_SECTION, roleAnchorId, setAnchor } from './anchors'
 import { BrandMark } from '@/components/shared/brand-mark'
+import { APP_NAME } from '@/lib/brand'
 
 // Header of the public pages: a mega-menu per section, in the spirit of large
 // product sites. Each trigger opens one wide panel (heading + overview link on
@@ -216,7 +217,7 @@ export function PublicNav({ lang, setLang }: { lang: Locale; setLang: (l: Locale
           <div className="flex items-center gap-2 lg:gap-8 min-w-0">
             <Link href={localizedPath(lang, '/')} onClick={closeAll} dir="ltr" className="eq-brand flex items-center gap-2.5 shrink-0 px-1">
               <BrandMark size={36} />
-              <span className="eq-wordmark font-bold text-lg hidden sm:inline">EduQuest</span>
+              <span className="eq-wordmark font-bold text-lg hidden sm:inline">{APP_NAME}</span>
             </Link>
 
             {/* Desktop triggers */}

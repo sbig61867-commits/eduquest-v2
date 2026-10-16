@@ -51,6 +51,11 @@ export interface PeoplePagination {
 // Typing waits this long before asking the server for the matching page.
 const SEARCH_DELAY_MS = 350
 
+type AddMode = 'invite' | 'link' | 'account' | 'byId'
+const ADD_MODES: AddMode[] = ['invite', 'link', 'account', 'byId']
+const MODE_LABEL = { invite: 'modeInvite', link: 'modeLink', account: 'modeAccount', byId: 'modeById' } as const
+const MODE_HINT = { invite: 'inviteHint', link: 'linkHint', account: 'accountHint', byId: 'byIdHint' } as const
+
 export function PeopleClient({ role, initialPeople, canSetAffiliation = false, pagination }: {
   role: 'teacher' | 'student'
   initialPeople: PersonRow[]
@@ -81,11 +86,19 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
     return () => clearTimeout(timer)
   }, [search, serverSearch, router])
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<'invite' | 'account' | 'byId'>('invite')
-  // A student account without an email: member ID + temporary password,
-  // shown once in the dialog (src/app/api/admin/create-user/route.ts).
+  // The owner's four ways in (src/components/shared/invitations-client.tsx),
+  // for this page's role only: an email invitation, a shareable sign-up link
+  // (validity + number of uses), an account by email + temporary password, or
+  // an account by member ID. Both direct accounts must change the temporary
+  // password at first sign-in (src/proxy.ts → /change-password).
+  const [mode, setMode] = useState<AddMode>('invite')
+  // An account without an email: member ID + temporary password, shown once in
+  // the dialog (src/app/api/admin/create-user/route.ts).
   const tInv = useTranslations('staff.invitations')
   const [issued, setIssued] = useState<{ name: string; code: string; password: string } | null>(null)
+  const [expiresHours, setExpiresHours] = useState(48)
+  const [maxUses, setMaxUses] = useState(1)
+  const [link, setLink] = useState<string | null>(null)
   const [form, setForm] = useState({ full_name: '', email: '', password: '' })
   const [nameParts, setNameParts] = useState<NameParts>(EMPTY_NAME_PARTS)
   const [showNameErrors, setShowNameErrors] = useState(false)
@@ -99,6 +112,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
   function close() {
     setOpen(false)
     setIssued(null)
+    setLink(null)
     setForm({ full_name: '', email: '', password: '' })
     setNameParts(EMPTY_NAME_PARTS)
     setShowNameErrors(false)
@@ -106,18 +120,21 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
   }
 
   async function submit() {
-    if (mode !== 'byId' && !form.email.trim()) return toast.error(t('emailRequired'))
-    if (mode !== 'invite' && isStudent && !checkNameParts(nameParts).ok) {
+    const isLink = mode === 'invite' || mode === 'link'
+    if ((mode === 'invite' || mode === 'account') && !form.email.trim()) return toast.error(t('emailRequired'))
+    if (!isLink && isStudent && !checkNameParts(nameParts).ok) {
       setShowNameErrors(true)
       return toast.error(tName('incomplete'))
     }
     setBusy('submit')
-    const res = mode === 'invite'
+    setLink(null)
+    const res = isLink
       ? await fetch('/api/invitations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: form.email.trim(),
+            ...(mode === 'link' ? { is_public: true, max_uses: maxUses } : { email: form.email.trim() }),
+            expires_hours: expiresHours,
             role,
             ...(showAffiliation ? { is_university_student: isUniversityStudent } : {}),
           }),
@@ -135,6 +152,11 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
     const data = await res.json().catch(() => ({}))
     setBusy('')
     if (!res.ok) return toast.error(data.error ?? t('actionFailed'))
+    if (mode === 'link') {
+      // Keep the dialog open: the link is copied from here.
+      setLink(data.joinUrl ?? null)
+      return
+    }
     if (mode === 'invite') {
       toast.success(t('invited'))
     } else {
@@ -278,25 +300,34 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
 
       <Modal open={open} onClose={close} title={t(`${role}.add`)}>
         <div className="space-y-4">
-          <div className="flex gap-2">
-            {(isStudent ? ['invite', 'account', 'byId'] as const : ['invite', 'account'] as const).map(m => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {ADD_MODES.map(m => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setIssued(null) }}
+                type="button"
+                aria-pressed={mode === m}
+                onClick={() => { setMode(m); setIssued(null); setLink(null) }}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm border transition-colors ${
                   mode === m ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
                 }`}
-              >{m === 'invite' ? t('modeInvite') : m === 'byId' ? tInv('accountById') : t('modeAccount')}</button>
+              >{t(MODE_LABEL[m])}</button>
             ))}
           </div>
-          <p className="text-slate-500 text-xs">
-            {mode === 'invite'
-              ? t('inviteHint')
-              : mode === 'byId' ? tInv('accountByIdNote') : t('accountHint')}
-          </p>
+          <p className="text-slate-500 text-xs">{t(MODE_HINT[mode])}</p>
+          {link && (
+            <div role="status" className="bg-success-subtle rounded-overlay p-4 space-y-3">
+              <p className="text-success text-sm">{t('linkCreated')}</p>
+              <div className="flex items-center gap-2 bg-canvas rounded-control px-3 py-2">
+                <code dir="ltr" className="text-fg text-sm flex-1 break-all">{link}</code>
+                <button type="button" aria-label={tInv('copy')} onClick={() => navigator.clipboard.writeText(link)} className="text-fg-3 hover:text-fg shrink-0">
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
           {issued && (
             <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
-              <p className="text-emerald-300 text-sm">{tInv('accountByIdCreated', { name: issued.name })}</p>
+              <p className="text-emerald-300 text-sm">{t('byIdCreated', { name: issued.name })}</p>
               {[
                 { label: tInv('memberIdLabel'), value: issued.code },
                 { label: tInv('tempPasswordLabel'), value: issued.password },
@@ -309,10 +340,10 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
                   </button>
                 </div>
               ))}
-              <p className="text-amber-300 text-xs">{tInv('tempPasswordOnce')}</p>
+              <p className="text-amber-300 text-xs">{t('tempPasswordOnce')}</p>
             </div>
           )}
-          {mode !== 'invite' && (isStudent ? (
+          {(mode === 'account' || mode === 'byId') && (isStudent ? (
             <FourPartNameFields
               idPrefix="new-student-name"
               value={nameParts}
@@ -324,13 +355,23 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
             <Input label={t('fullName')} value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
           ))}
-          {mode !== 'byId' && (
+          {(mode === 'invite' || mode === 'account') && (
             <Input label={t('email')} type="email" dir="ltr" value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           )}
           {mode === 'account' && (
             <Input label={t('tempPassword')} type="password" dir="ltr" value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+          )}
+          {(mode === 'invite' || mode === 'link') && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input label={t('expiryHours')} type="number" dir="ltr" min={1} max={720} value={expiresHours}
+                onChange={e => setExpiresHours(Math.max(1, Number(e.target.value) || 1))} />
+              {mode === 'link' && (
+                <Input label={t('maxUses')} type="number" dir="ltr" min={1} max={500} value={maxUses}
+                  onChange={e => setMaxUses(Math.max(1, Number(e.target.value) || 1))} />
+              )}
+            </div>
           )}
           {showAffiliation && (
             <label className="flex items-start gap-2 text-sm text-slate-300">
@@ -350,7 +391,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
           )}
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="ghost" onClick={close}>{t('cancel')}</Button>
-            <Button loading={busy === 'submit'} onClick={submit}>{mode === 'invite' ? t('sendInvite') : t('createAccount')}</Button>
+            <Button loading={busy === 'submit'} onClick={submit}>{mode === 'invite' ? t('sendInvite') : mode === 'link' ? t('createLink') : t('createAccount')}</Button>
           </div>
         </div>
       </Modal>

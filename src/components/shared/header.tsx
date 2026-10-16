@@ -9,8 +9,6 @@ import { cn } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { NotificationBell } from './notification-bell'
-import { LocaleSwitcher } from './locale-switcher'
-import { ThemeToggle } from '@/components/public/theme-toggle'
 import { AccountPanel } from './account-panel'
 import { Modal } from '@/components/ui/modal'
 import { useEffect, useRef, useState } from 'react'
@@ -115,8 +113,6 @@ export function Header({ nav }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-        <ThemeToggle className="hidden sm:flex" />
-        <LocaleSwitcher />
         <NotificationBell />
 
         <div ref={menuRef} className="relative">

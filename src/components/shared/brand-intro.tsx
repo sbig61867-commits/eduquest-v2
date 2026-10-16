@@ -2,26 +2,26 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { BrandMark } from './brand-mark'
+import { useAuthStore } from '@/stores/auth-store'
+import { firstName } from '@/lib/first-name'
+import { runLeafWelcome } from '@/lib/leaf-welcome'
 import { INTRO_DONE_KEY } from '@/lib/brand-intro-key'
 
 /**
- * Short logo intro, played once after each sign-in before the first dashboard
- * shows, ending with the mark flying into its place in the sidebar.
+ * The welcome played once after each sign-in, before the first dashboard
+ * shows: a body of golden maple leaves walks across the screen, sheds leaves
+ * that drift down everywhere, and the leaves then write "Welcome" and the
+ * user's first name, melting into clean text (src/lib/leaf-welcome.ts).
+ * It replaced the animated logo (owner, 2026-10-10: no logo at sign-in).
  *
- * Sequence (globals.css `.eq-intro-run`, ~1.8 s in all): the tile pops · the E
- * rises from its baseline and extrudes · the leather cap drops on with a small
- * bounce · the E lifts its head · the wordmark slides in · the mark flies to
- * [data-brand-anchor]. After that the mark never moves (owner's rule).
- *
- * Deliberately light (owner, 2026-09-29: the particle version stuttered on
- * phones and read as a glitch): CSS keyframes only, and only `transform` /
- * `opacity`, which the browser runs on the compositor — no per-frame
- * JavaScript, no particles, no animated gradients or clip-paths. The whole
- * overlay is gone ~1.8 s after the dashboard is ready (it was 4.6 s).
+ * The name: AuthProvider loads the signed-in row of public.users into the
+ * auth store. The store is persisted, so on a shared device it can still hold
+ * the previous account for a moment — the name is read only once the store
+ * reports `isLoading === false` for this session, and the welcome greets
+ * without a name rather than ever show the wrong one.
  *
  * "Once per sign-in" = the INTRO_DONE_KEY localStorage flag: set when the
- * intro starts, cleared by signOutAndLeave() and by the sign-in page. New
+ * welcome starts, cleared by signOutAndLeave() and by the sign-in page. New
  * tabs of the same session therefore do not replay it.
  *
  * Two ways in, both before first paint: a full page load runs INTRO_BOOT
@@ -33,16 +33,17 @@ import { INTRO_DONE_KEY } from '@/lib/brand-intro-key'
  */
 export { INTRO_DONE_KEY }
 const ATTR = 'data-eq-intro'
-const HOLD_MS = 1350
-const FLIGHT_MS = 450
+const LEAVE_MS = 450
 
 const INTRO_BOOT =
   `try{if(!localStorage.getItem('${INTRO_DONE_KEY}')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.setAttribute('${ATTR}','')}catch(e){}`
 
 export function BrandIntro() {
   const t = useTranslations('common.brandIntro')
-  const markRef = useRef<HTMLDivElement>(null)
+  const greeting = t('greeting')
   const rootRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const stopRef = useRef<() => void>(() => {})
   const done = useRef(false)
 
   useLayoutEffect(() => {
@@ -51,63 +52,51 @@ export function BrandIntro() {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
       localStorage.setItem(INTRO_DONE_KEY, '1')
       document.documentElement.setAttribute(ATTR, '')
-    } catch { /* storage blocked: no intro */ }
+    } catch { /* storage blocked: no welcome */ }
   }, [])
 
   const finish = useCallback(() => {
     if (done.current) return
     done.current = true
-    const root = rootRef.current
-    const mark = markRef.current
-    const end = () => document.documentElement.removeAttribute(ATTR)
-    if (!root || !mark) return end()
-    // A hidden tab pauses animations, so `finished` may never arrive; the
-    // timer guarantees the overlay (and its scroll lock) always goes away.
-    setTimeout(end, FLIGHT_MS + 150)
-    root.classList.add('eq-intro-leaving')
-
-    // Fly to the sidebar's mark when it is on screen (desktop, expanded);
-    // otherwise to the top inline-start corner.
-    const from = mark.getBoundingClientRect()
-    const anchor = document.querySelector('[data-brand-anchor]')?.getBoundingClientRect()
-    const visible = anchor && anchor.width > 0 && anchor.right > 0 && anchor.left < window.innerWidth
-    const rtl = document.documentElement.dir === 'rtl'
-    const to = visible ? anchor : { left: rtl ? window.innerWidth - 48 : 16, top: 16, width: 32 }
-    const scale = to.width / from.width
-    mark.animate(
-      [{ transform: 'none' }, { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${scale})` }],
-      { duration: FLIGHT_MS, easing: 'cubic-bezier(.65,0,.25,1)', fill: 'forwards' },
-    ).finished.then(end, end)
+    rootRef.current?.classList.add('eq-intro-leaving')
+    // Always lift the overlay (and its scroll lock), even in a hidden tab.
+    setTimeout(() => {
+      document.documentElement.removeAttribute(ATTR)
+      stopRef.current()
+    }, LEAVE_MS)
   }, [])
 
   useEffect(() => {
     const root = rootRef.current
-    if (!root || !document.documentElement.hasAttribute(ATTR)) return
+    const canvas = canvasRef.current
+    if (!root || !canvas || !document.documentElement.hasAttribute(ATTR)) return
     try { localStorage.setItem(INTRO_DONE_KEY, '1') } catch { /* ignore */ }
     root.classList.add('eq-intro-run')
 
-    const timer = setTimeout(finish, HOLD_MS)
+    stopRef.current = runLeafWelcome(canvas, {
+      greeting,
+      isReady: () => !useAuthStore.getState().isLoading,
+      getName: () => firstName(useAuthStore.getState().user?.full_name),
+      rtl: document.documentElement.dir === 'rtl',
+      light: document.documentElement.dataset.eqTheme === 'light',
+      onDone: finish,
+    })
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') finish() }
     document.addEventListener('keydown', onKey)
     return () => {
-      clearTimeout(timer)
+      stopRef.current()
       document.removeEventListener('keydown', onKey)
     }
-  }, [finish])
+  }, [finish, greeting])
 
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: INTRO_BOOT }} />
       <div ref={rootRef} className="eq-intro" onClick={finish} aria-hidden="true">
-        <div className="eq-intro-bg bg-slate-950" />
-        <div className="eq-intro-stage">
-          <div ref={markRef} className="eq-intro-mark">
-            <BrandMark size={112} />
-          </div>
-          <p dir="ltr" className="eq-intro-word eq-wordmark">EduQuest</p>
-        </div>
+        <div className="eq-intro-bg bg-canvas" />
+        <canvas ref={canvasRef} className="eq-intro-canvas" />
       </div>
-      <button type="button" onClick={finish} className="eq-intro-skip text-slate-300 hover:text-white border border-slate-700">
+      <button type="button" onClick={finish} className="eq-intro-skip text-fg-3 hover:text-fg border border-line-strong">
         {t('skip')}
       </button>
     </>

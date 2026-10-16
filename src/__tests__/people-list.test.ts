@@ -145,6 +145,8 @@ describe('listCenterStudents', () => {
     const pageQ = queries.find(q => q.some(c => c[0] === 'range'))!
     expect(pageQ.find(c => c[0] === 'select')?.[1]).toBe('id, full_name, email, is_active, created_at, is_university_student, name_complete')
     expect(pageQ).toContainEqual(['eq', 'role', 'student'])
+    // Isolation: the rows themselves are scoped to the caller's tenant, not only the count.
+    expect(pageQ).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
     const activeQ = queries.find(q => q.some(c => c[0] === 'eq' && c[1] === 'is_active'))!
     expect(activeQ.find(c => c[0] === 'select')?.[2]).toEqual({ count: 'exact', head: true })
     expect(activeQ).toContainEqual(['eq', 'tenant_id', 'tenant-a'])

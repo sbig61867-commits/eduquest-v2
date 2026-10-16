@@ -11,7 +11,8 @@
     "schedule": "الجدول",
     "requests": "الطلبات",
     "invitations": "الدعوات",
-    "records": "سجل الطلاب"
+    "records": "سجل الطلاب",
+    "settings": "الإعدادات"
   },
   "sidebarTitle": "معلم",
   "headerTitle": "لوحة المعلم",
@@ -906,6 +907,7 @@
     "teaching": "التدريس",
     "assessment": "التقييم",
     "students": "الطلاب",
-    "communication": "التواصل"
+    "communication": "التواصل",
+    "account": "الحساب"
   }
 }

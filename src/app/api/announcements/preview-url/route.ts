@@ -6,6 +6,7 @@ import { BlockedAddressError, fetchPublic, isBlockedAddress } from '@/lib/public
 import { createClient } from '@/lib/supabase/server'
 import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
+import { APP_NAME } from '@/lib/brand'
 
 // Fetches Open Graph / meta tags from an external URL so the announcement
 // form can auto-fill title, description, and image — no paid API needed.
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     // node:http never follows redirects, and a 3xx is refused below: following
     // one would let a public host bounce us to 169.254.169.254.
     const res = await fetchPublic(url, {
-      headers: { 'User-Agent': 'EduQuest/1.0 (link preview)', Accept: 'text/html' },
+      headers: { 'User-Agent': `${APP_NAME}/1.0 (link preview)`, Accept: 'text/html' },
       timeoutMs: 6000,
       maxBytes: 65536, // enough to capture OG tags in the <head>
     })

@@ -92,6 +92,9 @@ export const NAVIGATION: Record<NavRole, RoleNavDef> = {
         { key: 'announcements', href: '/center/announcements', icon: 'Megaphone' },
         { key: 'mail', href: '/center/mail', icon: 'Mail' },
       ] },
+      { key: 'account', items: [
+        { key: 'settings', href: '/center/settings', icon: 'Settings' },
+      ] },
     ],
   },
   teacher: {
@@ -115,6 +118,9 @@ export const NAVIGATION: Record<NavRole, RoleNavDef> = {
       ] },
       { key: 'communication', items: [
         { key: 'requests', href: '/teacher/requests', icon: 'Inbox' },
+      ] },
+      { key: 'account', items: [
+        { key: 'settings', href: '/teacher/settings', icon: 'Settings' },
       ] },
     ],
   },

@@ -1,591 +1,70 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Core rules only. Details live in `docs/claude/` — read the relevant file before working in that area:
+- `docs/claude/ARCHITECTURE.md` — auth gate, Supabase clients, staff collaboration, exam integrity + proctoring, i18n, AI metering, edge cache, performance contract, post-plan fixes, rate limiting
+- `docs/claude/MIGRATIONS_LOG.md` — DB workflow, backups, every applied migration and how it was verified
+- `docs/claude/PRODUCT_RULES.md` — sign-in by member ID, centre manager panel, design system (D3)
+- `PERFORMANCE_CONTRACT.md`, `SECURITY_TEST_MATRIX.md`, `PAGESPEED_PLAN.md`
 
 ## Commands
 
 ```bash
-npm run dev      # Next.js dev server (http://localhost:3000)
-npm run build    # production build
-npm run start    # serve the production build
-npm run lint     # eslint (flat config, eslint-config-next)
-npm test         # vitest run — unit/component specs (src/__tests__/**)
-npm run test:watch
+npm run dev      # http://localhost:3000
+npm run build
+npm run lint
+npm test         # vitest (src/__tests__/**); use `npx vitest run --pool=threads` if workers fail to start
 ```
-
-Vitest + Testing Library + Playwright are configured (`vitest.config.ts`, `src/__tests__/**`, `tests/*.spec.ts`) — coverage is still thin, but this is no longer a zero-test repo. As of 2026-10-05: 106 Vitest files / 1138 tests, plus `tests/security-auth.spec.ts` (17 Playwright tests, run live against production — auth redirects, role isolation with a real test account, API-route access control, security headers). `npx vitest run --pool=threads` avoids a fork-pool sandbox flake seen in this environment; `npm test`'s default pool can intermittently fail to start a worker. Broader verification is still done by running the app against a live Supabase project — see `SECURITY_TEST_MATRIX.md` for exactly what each test does and does not prove (e.g. none of the current tests exercise cross-tenant isolation, since only one real tenant exists in production).
+Playwright `tests/security-auth.spec.ts` runs against production.
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Postgres + Auth + Storage) · Zustand. AI via Groq (text generation) and Google Gemini (lesson fallback + scanned-file extraction). Exam proctoring uses **no AI provider** — it runs on the student's device (MediaPipe + TensorFlow.js). Email via Resend.
+Next.js 16 (App Router; middleware is `src/proxy.ts`) · React 19 · TypeScript · Tailwind v4 · Supabase (Postgres + Auth + Storage + Realtime) · Zustand · next-intl (ar/en). AI: Groq + Gemini (free tiers only). Proctoring runs on the student's device (MediaPipe, TF.js) — no AI provider. Email: Resend. Next 16 differs from training data: read `node_modules/next/dist/docs/` before writing Next code.
 
-## Architecture
+## Architecture in one screen
 
-### Multi-tenant, role-based SaaS
-Five roles (`src/types`): `super_admin`, `university_admin`, `center_manager`, `teacher`, `student`. `center_manager` is the continuing-education centre manager / admin assistant, whose actual abilities are per-user capability flags (see **Staff collaboration** below). Every domain row carries a `tenant_id` (a "university"); tenant isolation is enforced by Postgres **Row Level Security**, not application code. `super_admin` is cross-tenant; everyone else is scoped to their `tenant_id`.
+- Roles: `super_admin`, `university_admin`, `center_manager`, `teacher`, `student`. Route groups `src/app/(super-admin|admin|center|teacher|student|auth)`.
+- Every domain row has `tenant_id`; isolation is **Postgres RLS**, not app code. `super_admin` is cross-tenant.
+- Identity (`role`, `is_active`, `tenant_id`) is in JWT `app_metadata`, synced by trigger `sync_user_claims`; change these only through `public.users`.
+- Supabase clients: `lib/supabase/client.ts` (browser), `lib/supabase/server.ts` (RSC/routes, user session, RLS) — default for reads. Service-role client only for privileged writes after user-session authorization, tables with no SELECT policy (`rate_limits`), and service-role-only RPCs.
+- Capabilities: `users.permissions` resolved in `src/lib/permissions.ts`; routes check with the user session, then write with service role (`src/lib/staff-auth.ts`, `src/lib/center-access.ts`).
+- Reads that reach a screen go through `src/lib/data/<resource>.ts` and follow `PERFORMANCE_CONTRACT.md`.
 
-App routes are organized by role into route groups, each with its own layout/sidebar:
-`src/app/(super-admin)`, `src/app/(admin)` (= university_admin), `src/app/(center)` (= center_manager), `src/app/(teacher)`, `src/app/(student)`, plus `src/app/(auth)` (login + `/join/[token]` invitation acceptance).
+## Hard rules
 
-### Auth & routing gate — `src/proxy.ts`
-Next.js 16 renames middleware to **`proxy.ts`** (exports `proxy()` + `config.matcher`). This is the single auth/RBAC gate. It calls `updateSession()` (`src/lib/supabase/middleware.ts`) to refresh the session, then enforces login, account-active status, tenant presence, and role-to-route-prefix mapping (`ROLE_ROUTES`).
+1. Every `SECURITY DEFINER` function: schema-qualify tables (`public.x`) and `SET search_path = public, pg_temp`.
+2. A service-role-only RPC must never use `auth.uid()` (it is NULL there). Re-derive actor/tenant from `public.users`.
+3. `REVOKE ALL … FROM PUBLIC, anon` on new functions (anon inherits via PUBLIC).
+4. RLS cannot restrict columns: pin every authz column in `users_update` WITH CHECK.
+5. Exams are server-authoritative: start/submit/grade via `/api/exam/*` RPCs; `correct_answer` never leaves the server.
+6. Proctoring: no server-side frame analysis, no browser screen recording, no WebGazer (GPL). Evidence never stored in Supabase (Cloudflare KV, 30 h).
+7. Every AI route: `meteredAiRoute(...)` + `authorizeAiUsage(user.id)`; provider calls through `meterCall()` / shared helpers (`groqChat`). AI must stay free-tier.
+8. Rate-limit expensive routes with `rateLimit('feature:userId', …)`.
+9. No `select('*')`, bounded lists, no N+1. No Redis/app cache, no loading UI, no global prefetch change.
+10. i18n: no UI literals in route groups/components; messages in `src/messages/{en,ar}/` with identical keys; Arabic plurals print `{var}`, never `#`.
+11. Design: tokens from `src/app/design-tokens.css`; no raw palette colours, `text-[Npx]`, `rounded-xl+`, gradients, `backdrop-blur` in new code. IBM Plex fonts only.
+12. Never "clean up" dashes in AI lesson prompts (`VOCAB_RE` depends on them).
+13. Public marketing HTML must not depend on cookies (edge-cached).
+14. Ratchet tests (`perf-contract`, `design-contract`, `i18n-*`) are shrink-only.
 
-**Identity lives in the JWT.** `role`, `is_active`, and `tenant_id` are mirrored into `auth.users.app_metadata` by the `sync_user_claims` trigger, so the proxy reads them from `getUser()` with **no per-request DB query**. A one-time DB fallback covers users whose claims were never backfilled. When changing a user's role/status/tenant, that change must flow through `public.users` so the trigger re-syncs the JWT.
+## Database
 
-### Supabase client selection (pick by context)
-- `src/lib/supabase/client.ts` — browser (`createBrowserClient`), anon key, subject to RLS. Used in `'use client'` components for reads/writes the user is allowed to do.
-- `src/lib/supabase/server.ts` — RSC / route handlers (`createServerClient` + cookies), anon key, subject to RLS, runs as the logged-in user.
-- **Service-role admin client** — `createClient` from `@supabase/supabase-js` with `SUPABASE_SERVICE_ROLE_KEY`, **bypasses RLS**. Instantiated locally inside route handlers that need privileged writes (see `src/app/api/admin/*`, `accept-invitation`, `rate-limit.ts`).
-
-**Privileged-write pattern** (used in `api/admin/toggle-user`, `create-user`, `accept-invitation`): authenticate + authorize with the *user* session, verify the target belongs to the caller's tenant, then perform the actual write with the *admin* client. Never use the admin client for authorization decisions.
-
-### RLS helper functions — pin `search_path`
-RLS policies call `current_user_role()` and `current_tenant_id()` (`SECURITY DEFINER`, query `public.users` by `auth.uid()`). **These — and any other `SECURITY DEFINER` function — must schema-qualify their tables (`public.users`) and set `SET search_path = public, pg_temp`.** Without it, PostgREST runs them under a restricted `search_path`, the unqualified table is "not found", the function returns NULL, and *every* policy that calls it silently denies writes with **403**. This presents as "teacher can't create a group/lesson/exam" while the same SQL works in the SQL Editor (whose session has `public` on the path). See `supabase/fix_helper_search_path.sql`.
-
-### Staff collaboration (requests · announcements · schedules)
-Three staff subsystems share one shape: **capability-gated writes**. `users.permissions` (JSONB) holds per-user
-capability flags whose role defaults are resolved in `src/lib/permissions.ts` (`university_admin` default-ON,
-`center_manager` default-OFF); `users_update`'s WITH CHECK pins `permissions`/`role`/`can_create_courses`
-so nobody can self-grant. Route handlers check the capability with the **user session**, then write with the
-**service-role** client, so these tables intentionally have SELECT policies only.
-- **Requests** (`staff_requests`/`request_messages`) — teacher↔admin request inbox with a message thread.
-- **Announcements** (`announcements`) — student-facing cards; students read `get_student_announcements()`.
-- **Schedules** (`schedules`/`schedule_slots`) — weekly timetables, gated by `manage_schedules`. One official
-  timetable per group (publishable to its students) or one private timetable per teacher (informal exams,
-  never shown to students). Students have **no** direct row read — `get_student_schedule()` applies
-  publication state and group enrolment. Day numbering is 0=Sunday…6=Saturday.
-
-### Exam integrity (server-authoritative)
-Exam timing and grading never trust the client:
-- `POST /api/exam/start` → `start_exam_attempt` RPC records the authoritative server start time (idempotent; refresh resumes).
-- `POST /api/exam/submit` → grades server-side from the DB (`correct_answer` never leaves the server), merges server-written proctoring events, then `finalize_exam_submission`.
-- **Live video is on demand and silent** (2026-09-27). Every student in a proctored exam joins a PRIVATE Supabase Realtime channel `exam-live:<exam>` (`src/lib/live-channel.ts`, `src/hooks/use-exam-live-channel.ts`): presence = who is in the exam + violation/snapshot counts, broadcast (teacher only) = the set of students to watch. No table is read for any of it. LiveKit video is OFF until the teacher presses «تشغيل البث المباشر» on `/teacher/proctoring/live/[examId]` and picks students (≤ `MAX_WATCHED` = 9); only those stream, only while the page is open. `/api/proctor/live-token` issues a student token only while the exam's teacher is in the LiveKit room with that student in its `watching` attribute (checked with `RoomServiceClient`, so a student cannot start or prolong streaming); the student leaves when LiveKit reports the teacher gone or no longer watching. The student publishes the exam page's own capture (never a second `getUserMedia`; `stopLocalTrackOnUnpublish: false`). Nothing on the student's screen shows whether they are watched; the consent text says they may be at any time. Channel access = RLS on `realtime.messages` via `exam_live_role()` (`supabase/live_proctoring_channel_migration.sql`).
-- **Proctoring v2 (2026-09-27; merged and deployed 2026-09-29, PR #19).** Every event type is classified once in `src/lib/proctoring-events.ts` — *violation* (flags), *signal* (pasted text, bulk insert) or *info* (detector unavailable, monitoring gap/coverage, environment, clip requested, room scan, second camera); only violations flag an attempt (`isViolation`), everywhere. Cheap integrity first: per-student question/option order (`src/lib/exam-shuffle.ts`, display only — answers are keyed by question id and option text), paste/bulk-insert signals in written answers, answer-similarity hints after the exam (`src/lib/answer-similarity.ts`, returned by `/api/exams/results`). Monitoring trust: coverage % written at submit (`use-monitoring-coverage.ts`), 30 s stalls as `monitoring_gap`, VM/second-screen/webdriver hints (`src/lib/device-environment.ts`). On-device detection: speech (voice band + syllable rhythm, `src/lib/speech-detector.ts`, no download — Silero VAD rejected: ~14 MB runtime), identity continuity + photo spoof with `@vladmandic/human` (MIT; `use-face-identity.ts`, capable devices only, models self-hosted by `scripts/copy-human-models.mjs` → `public/models/human`, git-ignored). Evidence clips: 10 s segments of the exam's own stream in memory (`use-clip-recorder.ts`), uploaded only for a severe violation, the teacher's «آخر 30 ثانية» (broadcast `clip`), or the 10 s room scan at the start → `/api/proctor/evidence/clip` (WebM/MP4 sniffed, ≤900 KB, 6 per attempt, same 30 h store). Phone as a second camera via a signed QR link (`src/lib/second-camera-token.ts`, `/cam/[token]` public, `/api/proctor/second-camera[/event]`) — the only answer to windows hidden from screen capture. Thumbnail wall and Safe Exam Browser use `live_thumbnails_migration.sql` / `seb_config_key_migration.sql` (both applied). **Don't** build browser screen recording (windows can be excluded from capture) and **don't** add WebGazer (GPL-3).
-- Proctoring runs **entirely on the student's device**: MediaPipe (face/gaze, `use-face-detection.ts`) and TensorFlow.js COCO-SSD (phone/book/extra person, `use-object-detection.ts`), plus audio/tab/fullscreen listeners. No camera frame is sent anywhere for analysis. `use-proctor-recorder.ts` batches + dedupes detections to `POST /api/proctor/events` (→ `append_proctoring_events`); `use-evidence-capture.ts` sends a capped number of snapshots for severe violations only — **never stored in Supabase** (owner's rule, 2026-09-26): a 320×240 WebP (~8–20 KB, ≤10 per student per exam) goes to an external store (`src/lib/evidence-store.ts`). **Current backend: Cloudflare Workers KV** (`EVIDENCE_KV_ACCOUNT_ID/_NAMESPACE_ID/_API_TOKEN`, namespace `eduquest-evidence`, token scoped to Workers KV Storage: Edit) — each value is written with an absolute 30-hour `expiration`, so Cloudflare deletes it itself; KV is never listed (free-plan caps), the attempt's `proctoring_events` lines (`evidence_key`) are the index, and images reach the teacher through `GET /api/proctor/evidence/image` (teacher-of-exam + not-expired check). Alternative backend: any S3/R2 bucket (`EVIDENCE_S3_*`, 10-minute SigV4 links, hourly `.github/workflows/evidence-cleanup.yml` → `POST /api/proctor/evidence/cleanup` with `CRON_SECRET`, no-op on KV). Neither configured = capture off, never a Supabase fallback. Only the exam's own teacher sees snapshots (panel beside the live wall, `GET /api/proctor/evidence`), for exactly 30 hours (`src/lib/evidence-keys.ts`). The old Supabase `proctoring-evidence` bucket is unused (empty). A detector that fails to load records a `detector_unavailable` event (not a violation). The former Gemini frame layer (`/api/proctor/analyze`, `use-server-proctoring.ts`, `NEXT_PUBLIC_SERVER_PROCTORING`) was removed 2026-09-13 — don't reintroduce server-side frame analysis (free-tier Gemini capped real concurrency at single digits and failed silently).
-
-### i18n (Arabic / English)
-next-intl as a message layer only — no `[locale]` segment, no next-intl middleware. Messages: `src/messages/{en,ar}/<namespace>.json` (`en` is the key baseline; `src/__tests__/i18n-messages.test.ts` enforces identical key sets). Namespaces are declared in `src/i18n/config.ts`; server-only ones (`email`, `errors`, `reports`) can never reach a client provider. Each route-group layout mounts `ScopedIntlProvider` with only the namespaces it needs.
-- **Locale resolution:** explicit (emails/reports, passed as `getTranslations({ locale })`) → `/<locale>/` marketing URL (header set by the proxy) → `eq_locale` cookie → platform `DEFAULT_LOCALE` (`'en'`). The cookie is filled once per session by `src/proxy.ts` from `users.locale` → `tenants.default_locale` (DB default `'ar'`); the in-app switcher also saves `users.locale`.
-- **Marketing URLs:** `/ar/…` and `/en/…` for `/`, `/features`, `/pricing`, `/contact`, `/privacy`, `/terms` (`src/i18n/public-routes.ts`); the proxy rewrites them to the existing routes. Canonical + hreflang via `marketingMetadata()`, plus `src/app/sitemap.ts`. Switching language there is a full page load (the language lives in the root layout).
-- **Ratchet:** `src/__tests__/i18n-no-hardcoded-strings.test.ts` + `i18n-migration-state.ts` — no Arabic or English UI literals inside `MIGRATED_DIRS` (every route group and every `components/` folder), and `formatDate`/`getTerms`/`getRoleLabel` must receive the locale there. `UNMIGRATED_FILES` is empty and must stay empty.
-- **Per-language content that is not UI** lives in `src/content/<area>/{ar,en}.ts`, one language per file, both typed against a shared `types.ts`: `ai/` (prompts, stop words; `ai/lesson-from-file.ts` is the one multilingual prompt), `demo/` (text of the /demo fixtures — ids/numbers stay in `lib/demo/data.ts`), `pricing/` (plan wording — prices stay in `lib/pricing/plans.ts`), `terminology/` (institution vocabulary + role names).
-- **Plurals:** a message that counts a noun uses ICU plural. Arabic has five forms (one, two, few 3–10, many 11–99 with tanween, other 0/100+), and Arabic branches print the number as `{var}`, never `#` (whose digits depend on the runtime's `ar` number formatter). `i18n-messages.test.ts` formats every plural for 0/1/2/3/11/100 in both languages and rejects Arabic-Indic digits.
-- **Block lessons (2026-10-09, no migration):** `lessons.content` holds either legacy Markdown or block JSON
-  `{"eqLesson":2,"sections":[…]}` (`src/lib/lesson-doc.ts`: text, image, video, link, callout, mindmap, steps,
-  flashcards, quiz). Markdown — old lessons and every AI draft — is converted on read (`markdownToLessonDoc`; the
-  prompts emit ```mindmap / ```steps fences and `> **Tip:**` boxes for it). Teachers edit in
-  `components/lesson/lesson-builder.tsx`, students see `components/lesson/lesson-view.tsx` (learning path, lesson
-  map, progress in localStorage). `PATCH/POST /api/lessons` re-sanitise the JSON; image blocks store a path in the
-  private `exam-files` bucket (`<tenant>/lessons/<teacher>/<uuid>.<ext>`, uploaded by `/api/lessons/files`, signed by
-  `/api/lessons/media` after an RLS read of the lesson). `cn()` registers the D3 type scale with tailwind-merge — without
-  it `text-fg text-body-sm` silently lost the colour.
-- **Lesson prompt format contract:** the vocabulary line `- **term** — explanation ||translation||` is parsed by `VOCAB_RE` in `components/shared/lesson-tabs.tsx`, which needs a dash after the term. Never "clean up" dashes in AI prompts (commit 8c1ff22 did, and broke it; restored in `src/content/ai/lesson-from-file.ts`).
-- **Password-reset email:** the source is `supabase/templates/recovery.html` (branches on `user_metadata.locale`, which `/api/auth/forgot-password` writes first). **Not applied** — Supabase rejects template edits on the free tier with the built-in email provider; it needs custom SMTP (then PATCH `mailer_templates_recovery_content` via the Management API). Until then the reset email is Supabase's English-only template.
-
-### AI
-`src/lib/ai/groq.ts` exports `groqChat(prompt, systemPrompt?)` — the shared Groq entry point for `api/ai/generate-exam` and `generate-lesson`. `src/lib/ai/gemini.ts` is a lesson-generation fallback (and `src/lib/ai/extract.ts` uses Gemini vision for scanned files) — it is not used for proctoring. Don't re-implement the provider fetch in route handlers; call the shared helper.
-
-**Usage metering (every AI route).** Wrap the handler: `export const POST = meteredAiRoute('<feature>', async (request: Request) => { … })`, and right after auth call `const denied = await authorizeAiUsage(user.id); if (denied) return denied` (the institution's monthly allowance; `identifyAiCaller` instead when the route must never be gated, e.g. `extract-file`). Every provider call must go through `meterCall()` (`src/lib/ai/meter.ts`) — `groqChat`, the `aiChat` chain, Gemini vision and the direct Gemini calls in `generate-lesson-from-file` already do — so its tokens are captured (AsyncLocalStorage scope, one ledger row per request, written after the response via `record_ai_usage`). Cost = tokens × `src/lib/ai/pricing.ts` (the providers' PAID prices, verified 2026-09-26, overridable by super_admin in `platform_settings.ai_pricing`); billed cost stays 0 while every provider is on its free tier. Dashboard `/super-admin/ai-usage`, institution card `AiAllowanceCard` on the admin/centre dashboards, alerts in the bell. A new provider call that bypasses `meterCall` is invisible to the ledger.
-
-### Public page caching (edge)
-`src/proxy.ts` `withEdgeCache()` adds `Vercel-CDN-Cache-Control` / `CDN-Cache-Control: public, max-age=300, stale-while-revalidate=86400` to `/<locale>/…` marketing pages for **signed-out full page loads only** (Accept includes `text/html`; never RSC/prefetch — Next strips those headers before the proxy, hence the Accept check), and only when the response sets no cookie. So the public HTML must never depend on cookies: the theme is applied in the browser by `THEME_BOOT_SCRIPT` (`src/lib/theme.ts`, inline in the root layout `<head>`), and `eq_locale` is set by the proxy only when it differs and synced client-side by `PublicNav`. A deploy purges the cache. Heavy client libraries are loaded on demand only (TensorFlow, MediaPipe, and `livekit-client` after a live-proctoring token is granted).
-
-### Performance Architecture Contract (binding since 2026-09-30)
-Every read that reaches a screen follows [PERFORMANCE_CONTRACT.md](PERFORMANCE_CONTRACT.md): bounded lists
-(server-side page/search/count), named columns (no `select('*')`), metadata separate from content (exam
-questions only in the attempt flow), no N+1, no needless sequential waves, bounded UI-facing RPCs, RLS stays
-the isolation boundary, reads in `src/lib/data/<resource>.ts`. **No Redis, no application-data cache, no
-streaming/loading UI, no global prefetch change** for now (owner's decisions). `src/__tests__/perf-contract.test.ts`
-is a shrink-only ratchet over `perf-contract-state.ts`; `supabase/tests/scale_baseline_check.sql` measures feed
-sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md).
-
-- **Batch 1** (exam delivery) — shipped 2026-09-30, see the two `student_exam_list_*` migrations below.
-- **Batch 2** (large lists + selectors) — no migration. Shipped (PR #37), each step owner-reviewed:
-  - Lists, server page/search/count (`src/lib/data/people.ts` `listByRole` → `listStudents` / `listTeachers` /
-    `listCenterStudents` / `listCenterTeachers`, 50 per page, `sanitizeSearch`, `?q=&page=` in the URL,
-    `components/shared/list-pagination.tsx`): `/admin/students`, `/admin/teachers`, `/center/students`,
-    `/center/teachers`.
-  - Selectors, on demand (≤ 20 rows per search, nothing preloaded): T1 `/teacher/groups` student picker →
-    `/api/students/search` (own group only); C-T teacher picker on `/center/groups` + `/center/courses` →
-    `/api/teachers/search` + `components/center/teacher-picker.tsx`; C-S RosterModal «add a student» →
-    `/api/roster/candidates` (who may search = who may add: mirrors the membership routes' gates; NAME only,
-    no email; the target's members left out by a PostgREST anti-join).
-  - C-M RosterModal member list → opt-in `?page=` on `GET /api/group-students` / `/api/course-enrollments`
-    (`src/lib/data/rosters.ts` `readRosterPage`, 50 per page, exact total, past-end → last page). Without
-    `page` both routes answer exactly as before — `/teacher/groups` (T1) reads its group's whole roster.
-    The unpaged course read has no caller left in `src/` (kept; removing it is a later decision).
-  - R1 (super-admin reports student picker), centre mail recipients and owner counts: done.
-  - Follow-ups (not blockers, owner's decision 2026-10-01): (1) RosterModal re-fetches once more when the
-    server corrects a past-end page; (2) after refining a search the previously picked student stays
-    selected (Add enabled) though no longer listed — pre-existing behaviour.
-
-### Post-Plan fixes (2026-10-04 / 05, no migration unless stated)
-
-- **K** (invitations) and **A** (unpublished course content): migrations, see "Applied migrations".
-- **F3**: `supabase/tests/rls_write_path_check.sql` reads exams through `get_student_exam_list()` (PR #46).
-- **D1** (PR #49): report reads in `src/lib/data/reports.ts` throw `ReportReadError` on a failed read, a missing
-  count or a short page (`max_rows` guard); `/api/reports` answers `503 reportReadFailed`, never a partial report.
-- **B + C1** (PR #50): `src/lib/data/complete-read.ts` (`IncompleteReadError`, `readAllPages`, `readAllByKeyset`,
-  `inBatches` of 100 ids) for teacher records (marks / submissions / course progress), the grade export,
-  announcement stats (only "table missing" `PGRST205`/`42P01` hides them), delete-tenant (every user read before
-  any deletion) and the long `.in()` lists (interested students, evidence, live monitor).
-- **B / F1** (PR #51): `/center/groups` — one server page of 50 (`created_at DESC, id ASC`), active / archived
-  totals from the database, the transfer picker reads every active group (`src/lib/data/center-groups.ts`).
-- API limits (verified): `max_rows = 1000`; an `.in()` list past ≈ 640 uuids (≈ 25 KB URL) is refused with 400.
-- Ratchet now: STAR_SELECT 37, UNBOUNDED_READS 107. Deferred: C2, D2, E1 and the 35 "potentially incorrect"
-  1000-row reads. No action: J. Done since: I (PR #52), H (the 120 seeded test students deleted 2026-10-05),
-  E2 + F2 (PR #53).
-- **G1 + G2** (2026-10-05, measurement only — no remediation): G1 — Sentry sent 0–3 requests per full page load
-  (median 1, 164–326 ms each, starting 1–10 s after load, non-blocking; 6 public-page samples): no performance
-  problem shown. G2 — curl on `/login` (10 warm, then after 15 and 30 min idle): server part ≈ 0.34 s warm median,
-  0.75 s at most after 30 min idle; the largest latencies were TLS / network on the client side (up to 10.6 s), not
-  server processing. Vercel function logs were not available, so cold-start init cannot be separated from
-  execution. Limits: one device / network, small samples. Decision: no remediation from G1 / G2 for now.
-
-### Rate limiting
-`src/lib/rate-limit.ts` `rateLimit(key, {limit, windowSecs})` is backed by the Postgres `check_rate_limit` RPC (survives serverless cold starts; fails **open** if the limiter errors). Apply it in AI/expensive route handlers keyed by `feature:userId`.
-
-## Database / migrations
-
-The schema and all changes live as SQL files in `supabase/`, applied **manually in the Supabase SQL Editor** (no migration CLI). `schema.sql` is the base; the other files are ordered, idempotent migrations (e.g. `invitations_migration.sql`, `rls_performance_migration.sql`, `courses_migration.sql`, `phase1_migration.sql`, `platform_hardening_migration.sql`). When you change DB behavior: update `schema.sql` to reflect the new state **and** add a standalone re-runnable migration file. Triggers `handle_new_user` (placeholder profile on signup) and `sync_user_claims` (JWT claim sync) are central — both use exception handlers so they don't block auth.
-
-**Backups** (Supabase Free keeps none): `.github/workflows/db-backup.yml` dumps the DB with Supabase's documented `supabase db dump` commands on the 1st and 15th (owner's choice — not daily) and on demand, then `scripts/backup/backup.mjs` compresses (brotli), encrypts (AES-256-GCM, key wrapped with the owner's RSA public key — only the owner's private key opens it) and stores it in Cloudflare Workers KV under `backup/<id>/`, reads it back, and only then prunes to the newest 8. `scripts/backup/restore.mjs` lists / decrypts to SQL files and never touches a database. Storage files and proctoring evidence are not backed up. Runbook: `scripts/backup/README.md`. **Once the secrets are set, run the workflow (`gh workflow run db-backup.yml -f reason="before <migration>"`) and wait for it to pass before applying any migration to the live DB.**
-
-`supabase/fix_all_search_path_migration.sql` is applied (see the list below; it was once missing on the live DB) — it pins `search_path` on `check_rate_limit`, `start_exam_attempt`, `append_proctoring_events`, `finalize_exam_submission`, `cleanup_expired_invitations`, and `get_invitation_by_token`, which were found missing it (same class of bug: unqualified table refs under PostgREST's restricted search_path → silent 403/failure).
-
-Once that migration is applied, RLS-scoped reads work correctly again, so route/page code should read through the **user session client** (`src/lib/supabase/server.ts`), not the service-role admin client — the admin client bypassed RLS as a workaround and is no longer needed for plain reads. Keep manual `.eq('tenant_id', ...)` / `.eq('teacher_id', ...)` filters as defense-in-depth even though RLS now enforces them. The service-role client remains correct for: privileged writes that need cross-tenant verification first (`api/admin/*`, `accept-invitation`), tables with **no** SELECT policy at all (currently only `rate_limits` — RLS enabled, zero policies), and any write path that must bypass RLS after app-level authorization.
-
-> Verified 2026-09-05: `group_students` **does** now have select/insert/delete policies, so it is readable through the user-session client. (This file previously claimed it had zero policies — that was stale and led to unnecessary admin-client use.)
-
-## Applied migrations (already on live DB — do NOT re-run)
-
-- `fix_helper_search_path.sql` — pins search_path on RLS helper functions
-- `fix_all_search_path_migration.sql` — pins search_path on all SECURITY DEFINER RPCs
-- `soft_delete_archive_migration.sql` — adds deleted_at soft-delete columns + archive RPC
-- `hide_archived_rls_migration.sql` — wraps SELECT policies with deleted_at IS NULL
-- `rls_performance_migration.sql` — performance-optimized RLS policies + hot-path indexes
-- `security_rls_fix_migration.sql` — patches users_update / grades_select / lessons_select vulnerabilities ✅ 2026-07-11
-- `performance_indexes_migration.sql` — idx_lessons_teacher_live, idx_exams_teacher_live, idx_grades_exam_id ✅ 2026-07-11
-- `survey_migration.sql` — surveys / survey_responses tables + RLS for the in-platform pilot feedback survey (feeds the "pilot" report scope) ✅ 2026-07-12 — full flow (teacher creates → student answers → pilot report renders survey averages + quotes) verified end-to-end on production 2026-07-12
-- `admin_metadata_only_migration.sql` — university_admin loses direct read on lessons/exams/submissions/grades; adds `get_admin_lessons()` / `get_admin_exams()` metadata feeds ✅ 2026-09-04
-- `staff_requests_migration.sql` — `staff_requests` + `request_messages` (teacher↔admin request inbox + thread) ✅ 2026-09-04
-- `phase2_permissions_announcements_migration.sql` — `center_manager` role, `users.permissions` JSONB, announcements tables + `get_student_announcements()`, public `announcement-images` bucket ✅ 2026-09-05
-- `fk_covering_indexes_migration.sql` — 22 covering indexes for unindexed foreign keys ✅ 2026-09-05
-- `rpc_execute_lockdown_migration.sql` — **PART A + PART B both applied** ✅ 2026-09-05. Part A gives authoritative in-DB grading (kills grade forgery) and completes the `get_student_exams` revoke (the original `REVOKE ... FROM anon` was ineffective — anon inherits EXECUTE via PUBLIC). Part B revoked EXECUTE on `finalize_exam_submission` / `start_exam_attempt` / `append_proctoring_events` after the service-role-client code shipped. Verified grant matrix: `anon` false everywhere; `authenticated` true only for the internally-guarded read feeds.
-- `rls_initplan_optimization_migration.sql` — wraps `auth.uid()` / `current_user_role()` / `current_tenant_id()` in `(SELECT …)` across 16 policies so they evaluate once per query instead of once per row (`auth_rls_initplan`: 16 → 0). Semantics proven unchanged by stripping the wrappers and diffing against a pre-change snapshot (16/16 identical). ✅ 2026-09-05
-- `phase3_schedules_migration.sql` — weekly timetables: `schedules` (one per group, or one private per teacher) + `schedule_slots` over a 7-day week, RLS for staff/teachers, and the `get_student_schedule()` feed (published + enrolled only, `anon` revoked). ✅ 2026-09-05
-- `revoke_trigger_function_public_execute_migration.sql` — revokes EXECUTE on 4 trigger-only SECURITY DEFINER functions from PUBLIC/anon/authenticated (defense-in-depth; Postgres already blocks direct invocation of trigger functions). ✅ 2026-09-06
-- `fix_get_course_progress_cross_tenant_idor_migration.sql` — fixes a real cross-tenant IDOR: `get_course_progress` authorized any teacher/university_admin globally with no tenant check on the target course/student. ✅ 2026-09-06
-- `r1_defense_in_depth_service_role_rpcs_migration.sql` — `start_exam_attempt`, `soft_delete_entity`, `restore_entity` (gains a new required `p_actor` param), `append_proctoring_events` no longer trust caller-supplied tenant_id/actor/student_id at face value; each re-derives the real fact from `public.users`/`public.exams`/the target entity and rejects on mismatch. `restore_entity`'s old 3-arg signature is dropped. ✅ 2026-09-06 — see `SECURITY_DEFINER_PROOF.md` for the full per-function proof.
-- `fix_get_course_progress_flat_courses_migration.sql` — `get_course_progress` counted items through an INNER join on `course_levels`, so flat courses (`has_levels = FALSE`, units with `level_id IS NULL`) always reported 0%. Now counts through `course_units.course_id`, which is NOT NULL for both shapes, and applies the `is_published` filter to the completed count as well as the total. ✅ 2026-09-09
-- `fix_submission_insert_grade_forgery_migration.sql` — **CRITICAL.** `rpc_execute_lockdown` closed the RPC path to grade forgery but left the *table* path open: `exam_submissions` had an INSERT policy whose WITH CHECK only pinned `student_id`/`tenant_id`, and `authenticated` held an INSERT grant, so any student could `POST /rest/v1/exam_submissions` with `score: 100, grading_status: 'published'` for an exam they never sat. Verified exploitable live, then closed by dropping the INSERT policy and revoking write grants on `exam_submissions`, `unit_quiz_submissions` and `grades` (all writes already go through the service-role client). `student_progress` keeps its INSERT policy — the course player writes it from the browser and it has no score column. ✅ 2026-09-11
-- `fix_student_pii_overexposure_migration.sql` — a full security audit created two real test tenants + 7 real accounts in production and live-verified 9 cross-tenant attack attempts were all blocked (see `AUDIT/11-security-isolation-tests.md`), but found a real *intra-tenant* gap along the way: `users_select`/`groups_select`/`group_students_select` had no role check beyond `tenant_id = current_tenant_id()`, so any student account could enumerate every user's email/name/role in their own university (not another tenant's) plus every group's full roster, via a plain `GET /rest/v1/users?tenant_id=eq.<own tenant>`. Fixed for the `student` role only — `teacher`/`university_admin`/`center_manager`/`super_admin` keep tenant-wide read (traced against every client-side `users`/`groups`/`group_students` query in `src/app` first; `teacher/groups/page.tsx`'s "Manage Students" modal genuinely depends on a teacher browsing the whole tenant's student body). Adds `current_student_group_ids()` (SECURITY DEFINER, breaks an RLS-recursion cycle between `groups_select` and `group_students_select` — hit and confirmed live while drafting the fix). Verified live before AND after via a rolled-back test transaction and the `tests/tenant-isolation.spec.ts` suite (all 9 cases still pass; the PII case specifically flips from "leaks 3+ rows" to "≤2 rows, never includes the tenant admin"). ✅ 2026-09-13
-- `tenant_student_limit_migration.sql` — `tenants.student_limit` (NULL = unlimited, NULL for every existing tenant, so no behaviour change until set). Enforced in `src/lib/student-limit.ts`, called from `api/admin/create-user` and `api/auth/accept-invitation`. Verified live on a throwaway tenant (cap 0 → 403, cap 1 → first join 200 / second 403, refused join creates no auth user). ✅ 2026-09-13
-- `exam_appeals_migration.sql` — `exam_appeals` table (student dispute of a proctoring flag → exam teacher → admin report), SELECT policy only, writes via `api/appeals/*` with the service-role client, denormalized name/title snapshots. Verified end-to-end live with real logins (file 201, duplicate 409, teacher resolve persisted, admin JSON + xlsx report), all test data removed. ✅ 2026-09-13
-- `fix_rls_write_path_migration.sql` — **CRITICAL.** The 2026-09-13 audit re-verification found the write path was never tested: `invitations_update` let a teacher turn their own invitation into `role='university_admin'` (and `accept_invitation` trusts `inv.role`), plus five cross-tenant write paths (invitation into a foreign group, lesson moved / exam inserted into a foreign group, foreign student enrolled, student self-enrolment into a foreign course readable via `get_student_exams`) and two intra-tenant ones (request state-machine bypass, enrolling other students). Fix: drop write policies + revoke writes on tables only written by service-role routes, owner-scope the course-builder tables via `can_edit_course()`, tenant checks in `lessons_select`/`get_student_exams`/`accept_invitation`, `pg_temp` on the remaining SECURITY DEFINER functions. Regression check: `supabase/tests/rls_write_path_check.sql`. ✅ 2026-09-17 — verified live with `supabase/tests/rls_write_path_check.sql`: all 11 attack rows blocked (42501), both legitimate paths work, 0 SECURITY DEFINER functions missing pg_temp.
-- `institution_type_migration.sql` — `tenants.institution_type` (`university`|`school`|`institute`|`training_center`|`company`, DEFAULT `university` ⇒ no behaviour change). Drives UI vocabulary only via `src/lib/terminology.ts` (`getTerms`, `getRoleLabel(role, type)`); DB role names are never renamed. Set by super_admin on `/super-admin/tenants`. The auth provider fetches it in a separate query so login keeps working before this is applied. Also adds `tenants.has_center` (DEFAULT TRUE): when FALSE the university/centre student split, centre-staff page/link, `center_manager` invitations (409) and the centre announcement audiences disappear, every student counts as the institution's own (`is_university_student` forced TRUE on create/invite, every audience open), and trigger `users_center_manager_requires_center` refuses centre managers in the DB. Read all three tenant settings with `getTenantSettings`/`toTenantSettings` in `src/lib/structure-mode.ts`. ✅ 2026-09-17
-- `academic_structure_migration.sql` — **opt-in per tenant** via `tenants.structure_mode` (`'flat'` = original groups/courses structure, the DEFAULT for every tenant; `'academic'` = enabled; switched by super_admin on `/super-admin/tenants`). In `flat` mode the sidebar link, `/admin/academic` (redirects), the groups classification column and `/api/academic/*` + group linking (409) are all off, and DB triggers (`assert_tenant_academic_mode`) refuse new units/terms/links. Reverting to `flat` deletes nothing; existing links survive and may be cleared. Read the mode with `src/lib/structure-mode.ts` (selects `*` so it resolves to `flat` pre-migration). Two-level `academic_units` (faculty›department / stage›grade …) + `academic_terms` (one `is_current` per tenant) + nullable `groups.academic_unit_id`/`term_id`, `courses.academic_unit_id`. SELECT policies only, writes revoked, triggers reject cross-tenant links. Written by `/api/academic/{units,terms}` behind the new `manage_academic_structure` capability; UI `/admin/academic`, classification column on `/admin/groups` (hidden until applied). **Apply after** `institution_type_migration.sql`. Regression check: `supabase/tests/academic_structure_check.sql`. ✅ 2026-09-17 — verified live with `supabase/tests/academic_structure_check.sql`: 13/13 attack rows blocked, 8/8 legitimate rows as expected (incl. `has_center` trigger, flat↔academic revert keeps data).
-- `attendance_migration.sql` — `attendance_sessions` + `attendance_records`, SELECT policies only, table writes revoked from `anon`/`authenticated`; written by `/api/attendance`. ✅ (found applied on the live DB 2026-09-17 — tables present)
-- `student_affiliation_announcements_migration.sql` — splits the tenant's two student populations. `users.is_university_student` (DEFAULT TRUE, so no behaviour change until set) + `invitations.is_university_student`; "centre student" stays **derived** (flag off OR has a `course_enrollments` row), since a dual-enrolled student must match both. `announcements.audience` gains `'university'`/`'center'`, plus server-set `announcements.center_students_only` which pins an author lacking the new `announce_to_university` capability to centre students — groups audience included. `get_student_announcements()` applies it all server-side; `users_update` pins the new column (RLS gates rows, not columns) via `current_is_university_student()`. Reclassifying a student needs the same capability (`/api/admin/student-affiliation`). ✅ (found applied on the live DB 2026-09-17 — `users.is_university_student`, `current_is_university_student()` present)
-- `group_course_transfer_migration.sql` — **does not touch the curriculum** (courses/levels/units/items/student_progress/player are read only). Adds optional `groups.course_id` (a group MAY be a section of one course; shown under a course to a student only when linked AND a member — never inferred), `groups.image_url` (https only), `groups.max_students` (NULL = no cap, enforced in `/api/group-students` and the transfer), `groups.instructions`. Adding a student to a linked group also enrols them in the course (never the reverse). `group_transfers` is append-only history (SELECT: own student + tenant staff; writes revoked); `transfer_student_group()` (service role only, re-derives actor/student/tenant) moves the student atomically and, when the course changes, freezes the old course progress (`frozen_completed/total`) and removes only the old enrolment — `student_progress` rows stay. Route `/api/group-transfers` (`manage_students`), UI: centre Groups → الإعدادات / الطلاب → نقل; student My Courses shows group name/image/instructions and a read-only "Previous courses" section. Regression check: `supabase/tests/group_course_transfer_check.sql`. ✅ 2026-09-17 — verified live with `supabase/tests/group_course_transfer_check.sql`: 8/8 attack rows blocked, 5/5 legitimate rows as expected (move, enrolments, progress rows untouched, frozen 1/1 snapshot, own-history read).
-- `center_dashboard_migration.sql` — `get_center_dashboard(p_days)` aggregate-only JSONB feed (tenant from `auth.uid()`, `view_reports` guard mirroring `permissions.ts`) + 3 windowed indexes. **Apply after** `attendance_migration.sql`. ✅ (found applied on the live DB 2026-09-17 — `get_center_dashboard` present)
-- `mail_connections_migration.sql` — institutional mailbox linking. A staff member (`university_admin`, or `center_manager` with `manage_students`) links **their own** Google mailbox via Google's own OAuth popup (`/api/mail/google/start` → `/callback`); only `gmail.send` + openid/email are requested (never read access — read scopes are "restricted" and need a paid security assessment). Uses a **dedicated OAuth client "EduQuest Mail"** (`GOOGLE_MAIL_CLIENT_ID/SECRET`) in Google Cloud project `primal-duality-507719-n6` — **never touch the "EduQuest Web" client there, it is Supabase's Google sign-in**, and never switch that consent screen back to Testing (it would lock out Google sign-in). Tokens are AES-256-GCM encrypted in the app (`MAIL_TOKEN_ENCRYPTION_KEY`, `src/lib/mail/crypto.ts`); `mail_connections` has **no policies and all grants revoked** (status served by `/api/mail/connection`). `/api/mail/send` only emails active students/teachers of the caller's tenant by user id (≤50/request, 300/day rate limit) and logs every attempt in `mail_messages`. The callback notifies the page over `BroadcastChannel('eduquest-mail')` because `Cross-Origin-Opener-Policy: same-origin` severs `window.opener`. UI `/center/mail` (بريدي). ✅ 2026-09-17 — applied via Supabase MCP; grants verified live (mail_connections: anon/authenticated SELECT false, RLS on; mail_messages: authenticated SELECT true, INSERT false).
-- `locale_preferences_migration.sql` — `tenants.default_locale` (NOT NULL, DEFAULT `'ar'` ⇒ no behaviour change) + nullable `users.locale` (NULL = inherit the institution). No policy change: `users_update` pins columns by enumeration, so `locale` is self-writable while every pinned column stays pinned even in the same statement. Read once per session by `src/proxy.ts` `ensureLocaleCookie` into the `eq_locale` cookie — never per request. Also used for the invitation email language (institution default, else the inviter's). ✅ 2026-09-25 — dry-run in a forced-rollback transaction, then applied via Supabase MCP; `supabase/tests/locale_rls_check.sql` before and after: 2/2 legitimate paths work, 9/9 attack rows blocked.
-- `student_exams_expose_type_migration.sql` — adds `type` and `lesson_id` to `get_student_exams()`'s
-  return columns. Homework lives in the `exams` table (`type='homework'`, `lesson_id` set), but the
-  student feed returned neither column, so the UI classified rows by a **duration sentinel**
-  (`<= 0 || >= 43200`). That misread a real exam saved with an out-of-range duration as untimed
-  homework, which also stripped its countdown and auto-submit. Requires `DROP FUNCTION` first
-  (changed OUT columns) and re-asserts the grant matrix. **Until it is applied**, the client falls
-  back to the sentinel and homework does not appear under its lesson — no crash either way. ✅ 2026-09-25 — live body diffed against the migration first (identical apart from the two new columns), dry-run in a rolled-back transaction, then applied via Supabase MCP; verified: new OUT columns present, `anon` EXECUTE false (live anon RPC call → 401), `authenticated` true, `search_path` pinned. `student/grades` now prefers `type` too; the duration sentinel is only the pre-migration fallback.
-- `engagement_metrics_migration.sql` — platform engagement ("digital attendance"): `get_group_engagement(group, days)`
-  (per student: submitted/assigned, course items completed, active days, last activity, a 60/40 engagement score)
-  and `get_tenant_engagement(days)` (one aggregate row per group). SECURITY DEFINER with pinned `search_path`,
-  identity/tenant re-derived from `auth.uid()`, `anon` revoked, and **no scores anywhere** so it stays inside
-  admin_metadata_only's "numbers, not content". Read through `src/lib/engagement.ts`; UI `/teacher/engagement`
-  (renders an "apply the migration" state until it is applied). Also `get_course_analytics(days)` — one row per
-  course with its linked groups (progress / platform engagement / class attendance), feeding `/center/analytics`
-  (`view_reports`), whose strengths-weaknesses-suggestions come from the rule-based `courseInsights()` in
-  `src/lib/engagement.ts` — no AI, deterministic. A group appears under a course only via `groups.course_id`.
-  Verified in rolled-back transactions on the live DB 2026-09-19 (teacher on own group returns the expected JSON;
-  guard matrix: student denied, teacher-owner / university_admin / super_admin allowed; course analytics against
-  seeded fixtures returned items_total 2 / avg_progress 50 / active 1 / group attendance 100 exactly as expected). ✅ (found applied on the live DB 2026-09-25 — `get_group_engagement`, `get_course_analytics` present)
-- `fix_admin_user_escalation_migration.sql` — **security review 2026-09-27.** (1) `users_update` let a `university_admin` PATCH any user in their tenant with only `role <> 'super_admin'` pinned — promote anyone to admin with `permissions = {}` (every capability), write a centre manager's flags past `ungrantableCapabilities`, demote/disable a peer admin; the admin branch is dropped (every admin write already goes through a service-role route; `admin/teachers` toggle now uses `/api/admin/toggle-user`). (2) `users_insert` → super_admin only. (3) `accept_invitation` refuses a suspended tenant, and the tenant cascade trigger marks `users.suspended_by_tenant` so a restore re-activates only the accounts the suspension switched off (the route no longer cascades itself). Dry-run on the live DB in a rolled-back transaction: before, A-E01..A-E04 VULNERABLE; after, 6/6 attacks blocked, 4/4 legitimate paths work. Regression check: `supabase/tests/admin_user_escalation_check.sql`. ✅ 2026-09-28 — applied via Supabase MCP right after PR #13 reached production (the admin teachers toggle needed the new code first); re-verified live in a rolled-back transaction: 6/6 attacks blocked, 4/4 legitimate paths work, `accept_invitation` service_role only, `current_suspended_by_tenant()` authenticated only (anon revoked), trigger `on_tenant_active_change` present; security advisor shows nothing new.
-- `center_manager_capabilities_migration.sql` — lets `center_manager` read `courses` / `course_enrollments` in its tenant (writes stay service-role only). Required by `/center/courses`. ✅ (found applied on the live DB 2026-09-25 — `courses_select` grants `center_manager` tenant read)
-- `fix_start_exam_attempt_migration.sql` — **CRITICAL.** `exam_draft_migration.sql` (applied 2026-09-17) had replaced `start_exam_attempt` with a version that authorized via `auth.uid()` — NULL under the service-role client `/api/exam/start` must use — so every exam start raised `TENANT_MISMATCH` (it also wrote `grading_status='in_progress'`, which the CHECK rejects, and left `status` at its `'submitted'` default). Restores the R-1 re-derivation checks, returns `answers_draft` on resume; `/api/exam/start` now passes the draft through and `/api/exam/draft` filters on `status` (it filtered `grading_status='in_progress'`, so no draft was ever saved). The broken body was removed from `exam_draft_migration.sql`. **Lesson: a service_role-only RPC must never use `auth.uid()`.** ✅ 2026-09-25 — dry-run on the real exam in a rolled-back transaction: start / resume-with-draft / proctoring append / finalize all work; restart-after-submit, forged tenant, non-member all blocked; grants service_role-only.
-- `course_assessments_migration.sql` — course quizzes/tasks run on the exam engine: a quiz/task unit item stores `content.exam_id` of an exam row with `course_id` set (the existing CHECK `exam_must_belong_to_group_or_course`), and `start_exam_attempt` / `append_proctoring_events` accept the course's enrolled students as well as the group roster (`src/lib/exam-roster.ts` is the same rule for the routes). Video items store `content.video_url`, rendered only through `src/lib/video-embed.ts` (YouTube no-cookie / Vimeo / direct https file; CSP `frame-src` lists exactly those two players). ✅ 2026-09-26 — dry-run first (12/12: enrolled start/finalize/events, non-enrolled/closed/forged-tenant blocked, group exam unaffected, feed shows course items to the enrolled student only), then applied; grants service_role-only, no `auth.uid()`.
-- `ai_usage_log_migration.sql` — `ai_usage_log` (one row per AI call, written by `logAiUsage()` with the service-role client) + `get_tenant_ai_usage()` for `/super-admin/ai-usage`. Was never applied: the live edge logs showed every `logAiUsage` insert returning 404 and the dashboard showing its "run the migration" error. Before applying, the file's `REVOKE ... FROM anon` was replaced by `REVOKE ALL ... FROM PUBLIC, anon` (anon inherits EXECUTE via PUBLIC), table grants were revoked from `anon`/`authenticated`, and the id default became `gen_random_uuid()`. ✅ 2026-09-25 — dry-run in a forced-rollback transaction (super_admin feed returned the seeded 2 lesson + 1 exam = 3; student 0 rows; anon RPC 42501; direct INSERT/SELECT as authenticated 42501), then applied via Supabase MCP; verified live: RLS on, 0 policies, anon EXECUTE false, authenticated true, `search_path` pinned, service_role INSERT true.
-- `announcement_engagement_migration.sql` — `announcements.collect_interest` ("I'm interested" button) + `announcements.pinned`, and `announcement_events` (one row per announcement × student × `view`|`click`|`interest`, unique). SELECT policy only (own rows for a student; tenant rows for staff roles), all writes revoked — written by `/api/announcements/events`, which takes visibility from `get_student_announcements()` through the student's own session before a service-role upsert. `get_student_announcements()` is dropped and recreated with `collect_interest`, `pinned`, `interested` and pinned-first ordering; grants re-asserted (`REVOKE ALL … FROM PUBLIC, anon`). Staff read the interested list through `/api/announcements/interested` (same gate as editing). If it is ever rolled back (`supabase/announcement_engagement_rollback.sql`, which restores the exact pre-migration feed captured from production), the loader's `announcement_events` read fails → `engagementReady=false` → the manager hides pinning/interest/stats and the API never sends the new columns; nothing breaks. Dry-run 2026-09-26 in a forced-rollback transaction on the live DB: pinned-first ordering, own-row isolation (s1 2 rows, s2 1 row), admin sees tenant rows, duplicate blocked, student direct INSERT 42501, anon feed 42501. ✅ 2026-09-26 — applied via Supabase MCP after re-checking the live function was unchanged since the dry-run; verified live: new OUT columns, `search_path` pinned, anon EXECUTE false / authenticated true, RLS on + 1 policy, authenticated INSERT false, service_role INSERT true, existing announcement untouched (defaults false), both test students' feeds still return the 1 live announcement; security advisor shows nothing new.
-- `rls_initplan_followup_migration.sql` — performance only: wraps `auth.uid()` / `current_user_role()` / `current_tenant_id()` in `(SELECT …)` in `users_select`, `group_students_select`, `exam_appeals_select` (advisor `auth_rls_initplan`: 3 → 0) and adds 14 covering indexes for unindexed foreign keys. Dry-run 2026-09-26 in a rolled-back transaction: row counts AND the exact set of visible `users` ids identical before/after for 6 real accounts (2 students, teacher, university_admin, center_manager, super_admin). ✅ 2026-09-26 — applied via Supabase MCP; advisors `auth_rls_initplan` and `unindexed_foreign_keys` now clear.
-- `individual_tasks_migration.sql` — individual follow-up tasks: ONE student gets their own task (weak points, rework questions, images). An ordinary `exams` row (type `homework`) with `assigned_student_id`; also `source_exam_id`, `instructions`, `attachments` (paths, ≤6), `counts_toward_grade`, and on `exam_submissions` `answer_files` ({question: path}) + `teacher_comment`. A trigger keeps the assignee on the exam's roster; `get_student_exams` hides other students' tasks; `start_exam_attempt` / `append_proctoring_events` refuse anyone but the assignee; `get_group_engagement` / `get_tenant_engagement` count only work set for the whole group (patched in place with an asserted text replacement). Files live in the PRIVATE `exam-files` bucket with **no storage policies** — only the service role touches it, pages hand out 1-hour signed URLs (`src/lib/exam-files.ts`). Routes: `/api/exams/files` (teacher image), `/api/exams/individual` (create), `/api/exam/answer-file` (student photo, own task, in-progress only), `/api/ai/individual-task` (free Groq draft, on demand, 30/h). UI: «مهمة فردية» on the student's page in `/teacher/records`, and a link per student in exam results. Dry-run 2026-09-26: 13/13 (non-member assignee blocked, >6 attachments blocked, other member cannot start/see/append, assignee start+finalize, group exam unaffected, engagement excludes it, bucket private). **Apply after** `course_assessments_migration.sql`. The code tolerates it being absent (`select('*')`, separate query for the exams list). ✅ 2026-09-26 — applied via Supabase MCP; verified `start_exam_attempt` / `append_proctoring_events` service_role-only, feeds `authenticated` only, `search_path` pinned.
-- `ai_usage_metering_migration.sql` — turns `ai_usage_log` into a metering ledger: per-request model, status (success/failed/blocked), provider calls + fallback failures, input/output tokens, list cost (paid-price equivalent) and billed cost, latency, per-call `detail`; old rows keep `metered = FALSE`. Adds the `ai_usage_daily` rollup (incremented with each log row; backfilled once from the old rows), per-tenant monthly allowance on `tenants` (`ai_monthly_request_limit` / `ai_monthly_token_limit`, NULL = unlimited, 0 = AI off, `ai_limit_action` block|warn, `ai_alert_threshold_pct`) and `ai_usage_alerts` (once per tenant/month/metric/level; SELECT super_admin + own university_admin). RPCs: `record_ai_usage` + `check_ai_allowance` (service_role only, tenant re-derived from the user, no `auth.uid()`), `get_ai_usage_report(from, to)` (super_admin), `get_my_ai_allowance()` (university_admin / center_manager, counts only, never cost). Allowance is a soft limit (concurrent requests at the boundary can overshoot by a few) and fails open. Dry-run 2026-09-26 twice in rolled-back transactions: migration run twice in a row (backfill not duplicated), 16/16 attack checks blocked (teacher/uni-admin/anon cannot record, check, read the rollup/log, insert or see foreign alerts, read the report, or change a tenant's allowance; unknown user / bad status rejected), legitimate paths return the expected numbers, grants service_role-only / authenticated where intended, `search_path` pinned. **Until applied** the code falls back to the old count-only insert and the dashboard shows an "apply the migration" notice. ✅ 2026-09-26 — applied via Supabase MCP; verified live: `record_ai_usage` / `check_ai_allowance` service_role only, `get_ai_usage_report` / `get_my_ai_allowance` authenticated (not anon), `ai_usage_daily` / `ai_usage_log` RLS on with no anon/authenticated read, `search_path` pinned.
-
-- `tenant_seat_limits_migration.sql` — **owner's rule 2026-09-28: every limit the owner sets on an institution is binding the moment it is saved.** Adds `tenants.teacher_limit` (NULL = no cap) next to `student_limit`, and trigger `users_enforce_seat_limit` (BEFORE INSERT/UPDATE OF role, tenant_id, is_active on `users`): a row that ENTERS the counted set (active student/teacher of a tenant) is refused with `STUDENT_LIMIT_REACHED` / `TEACHER_LIMIT_REACHED` when the set is full, with the tenant row locked while counting (no race). That one gate covers every path — create-user, invitation accept, Google join (`auth/callback` calls the RPC directly and used to skip the check), re-enabling a disabled account (used to skip it), role change. Lowering a limit never disables anyone; restoring a suspended institution gives back its seats. App side (`src/lib/seat-limit.ts`, reads the live row, fails open — the trigger holds): `/api/invitations` refuses new links for a full role and returns `seats` so the invitations screen shows a banner and disables the button; `/join/[token]` shows «المؤسسة مكتملة» instead of the form; create-user / accept-invitation / toggle-user pre-check and map the trigger error to `studentLimit` / `teacherLimit`. Owner UI: «حدود الباقة» on each card in `/super-admin/tenants` (usage X of Y). AI allowance (`check_ai_allowance`) was already read live per request — verified: block at 0 refuses, warn allows, NULL allows. Regression check: `supabase/tests/tenant_seat_limits_check.sql`. ✅ 2026-09-28 — dry-run in a rolled-back transaction (12/12: 5 bypass paths blocked, 7 legitimate paths work), then applied via Supabase MCP; verified trigger present, function not executable by anon/authenticated, demo tenant at limit 4 refuses a re-join.
-- `live_proctoring_channel_migration.sql` — `exam_live_role(topic)` (SECURITY DEFINER, pinned `search_path`, `anon` revoked) + RLS on `realtime.messages` (it had none): the exam's teacher reads/presence/broadcasts on `exam-live:<exam>`, a student with an `in_progress` attempt reads + presence only (cannot send the watch signal); every other private topic stays closed. ✅ 2026-09-27 — dry-run first in a rolled-back transaction (9/9: teacher full, live student read+presence only, student not in the exam / university_admin / foreign exam / other topic / injection / uppercase all NULL, anon 42501), then applied; verified 2 policies, anon EXECUTE false, `search_path` pinned.
-- `accept_invitation_group_rules_migration.sql` — joining a group by invitation now honours `groups.max_students` (group row locked `FOR UPDATE`, raises `GROUP_FULL`, mapped to 409 `invitationGroupFull` by `api/auth/accept-invitation`; the whole RPC rolls back so the invitation use is not consumed) and enrols the student in the group's linked `course_id`. Built on the `fix_admin_user_escalation_migration.sql` definition — **keep its suspended-tenant check.** ✅ 2026-09-28. Incident: a first draft built on the pre-F3 definition was applied earlier the same day and dropped the suspended-tenant check for a few hours (no tenants existed in prod, so nothing was exposed); the corrected version was applied via Supabase MCP after a rolled-back functional test (10/10: seat cap, linked-course enrolment, use_count untouched on refusal, `NULL` cap, suspended tenant refused, grants) and `supabase/tests/admin_user_escalation_check.sql` passes 10/10 live (A-S01 blocked). Live `prosrc` md5 matches the file. Lesson: before applying a function, re-read the live definition AND check `origin/main` for a newer migration of it.
-
-- `student_name_lock_migration.sql` — **owner's rules 2026-09-28: a student registers with their real four-part
-  name; ONLY the student sees all four parts — teachers, the institution admin and the centre manager see first +
-  family name and must not be able to obtain the middle names at all; the student cannot change the name, only
-  the institution corrects it.** (1) `student_names` (four part columns, one row per student): SELECT policy =
-  own row or super_admin, all writes revoked — written only through `src/lib/student-names.ts` `saveStudentName()`
-  (service role), which also sets `users.full_name` = first + family name, so every screen/report/export/email
-  shows the short name with no change of its own. (2) `users.name_complete` — staff flag ("name incomplete")
-  without reading the name. (3) `users_update` pins `full_name` for the `student` role and `name_complete` for all
-  (`current_full_name()` / `current_name_complete()`, pinned `search_path`, `anon` revoked); every other pinned
-  column copied unchanged from the live policy. Code side: `src/lib/person-name.ts` holds the rules (four parts
-  first/father/grandfather/family, letters only, ≥2 letters each, one script — Arabic or Latin; `shortName` /
-  `fullName`), `components/shared/four-part-name-fields.tsx` the inputs. Enforced server-side in
-  `api/auth/accept-invitation` (`nameParts`), `auth/callback` (Google: the parts ride in the short-lived
-  `eq_join_name` cookie scoped to `/auth/callback`; without valid parts the fresh login is removed and the visitor
-  is sent back to `/join/<token>?error=name_required` — Google's display name is never used for a student) and
-  `api/admin/create-user` (`name_parts` when `role = student`). Staff correct a name through
-  `PATCH /api/admin/student-name` (`manage_students`, same tenant, a centre manager only for centre-only trainees):
-  they cannot read the middle names, so the dialog starts empty and all four parts are typed from the institution's
-  records. `/student/profile` shows the student their own four parts (`loadOwnStudentName`), read-only.
-  **Before the migration** `saveStudentName` finds no table and keeps the whole four-part name in `full_name`
-  (nothing lost, no privacy yet), the flags are hidden, and a student could still rename themselves through
-  PostgREST. Existing students keep their old single-field name and start flagged. Other roles keep the single
-  name field. Dry-run 2026-09-28 in a forced-rollback transaction with `supabase/tests/student_name_lock_check.sql`:
-  before, N-A01/N-A02 VULNERABLE; after, 14/14 attacks blocked (student renames self / another / via role change,
-  rewrites or plants `student_names` rows, clears the flag; another student, teacher, university_admin and anon
-  read the four parts), 9/9 legitimate paths work. ✅ 2026-09-29 — gap scan first (no function callable by
-  anon/authenticated writes `users`; the only `auth.users` trigger is `handle_new_user`, INSERT-only with
-  `ON CONFLICT DO NOTHING`, so a student editing their own auth metadata cannot reach `full_name`; no view exposes
-  `full_name`; `student_names` not in the realtime publication; no other app path writes a student's `full_name`),
-  live policy re-read unchanged, then applied via Supabase MCP. Re-verified live: `student_name_lock_check.sql`
-  14/14 blocked + 9/9 work, `admin_user_escalation_check.sql` 6/6 + 4/4, `locale_rls_check.sql` 9/9 + 2/2; grants
-  (RLS on, 1 policy, anon SELECT / authenticated INSERT-UPDATE-DELETE false, service_role INSERT true, anon cannot
-  execute the pin helpers). Rollback: `supabase/student_name_lock_rollback.sql` (restores the exact prior policy;
-  read its warning first — it drops the middle names).
-- `live_thumbnails_migration.sql` — thumbnail wall: `exam_topic_role()` for `exam-live:` and `exam-thumbs:`; `exam-thumbs` is teacher-read-only and student-write-only (students send over HTTP with `httpSend`, never see each other). **Apply after** `live_proctoring_channel_migration.sql`. Dry-run 2026-09-27 on the live DB with real inserts into `realtime.messages`, rolled back: 21/21 as expected, nothing left. Until applied the student's first send is refused and stops; the teacher sees «needs a database update». ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; live `exam_live_read`/`exam_live_write` re-checked first (unchanged since `live_proctoring_channel_migration.sql`), dry-run again (anon NULL, no anon EXECUTE, 2 policies, `search_path` pinned; no teacher/student in the DB to re-test roles — the 21/21 run above covered them).
-- `seb_config_key_migration.sql` — `exams.seb_config_key` (64 hex, CHECK) for the optional Safe Exam Browser requirement (`src/lib/seb.ts`, checked in `/api/exam/start`). Dry-run 2026-09-27, rolled back, run twice: valid accepted, malformed rejected, a student of the exam reads 0 rows, `get_student_exams` has no such column. Until applied, creating an exam with a key answers «needs a database update» (42703); without a key nothing changes. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; column + CHECK verified live.
-- `tenant_storage_limit_migration.sql` — per-institution file storage cap (owner's plan limits, 2026-09-29).
-  `tenants.storage_limit_mb` (NULL = no cap ⇒ no behaviour change) + `tenant_storage_bytes(tenant)` (sums the
-  tenant's objects in `exam-files` + `announcement-images`; every path starts with the tenant id). Allowed for the
-  service role (`auth.role()`, never `auth.uid()`) and super_admin, 42501 for anyone else, `anon` revoked, pinned
-  `search_path`. Checked before every upload by `src/lib/storage-quota.ts` (`api/exams/files`, `api/exam/answer-file`,
-  `api/announcements/upload` → 413 `storageLimit`), set on «حدود الباقة» in `/super-admin/tenants` (field hidden
-  until the column exists; fails open before the migration). Photos of answers/attachments are shrunk on the device
-  first (`DOCUMENT_PHOTO` in `src/lib/prepare-image.ts`: 1600 px WebP). Dry-run 2026-09-29 in a forced-rollback
-  transaction: 6/6 (service role + super_admin read, university_admin blocked, anon no EXECUTE, negative limit
-  rejected, search_path pinned), nothing left behind. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; verified live: column present, `tenant_storage_bytes` service_role yes / anon no.
-- `course_source_text_migration.sql` (June) — **found never applied 2026-09-29**: `courses.source_text` is missing on
-  the live DB while `api/courses/create-full` writes it and `generate-item-content` reads it, so creating a course
-  from a file fails in production. One additive `ADD COLUMN IF NOT EXISTS`. ✅ 2026-09-29 — applied via Supabase MCP after the first green DB backup; `courses.source_text` present, so creating a course from a file works again.
-- `member_code_migration.sql` — permanent unique account ID
-  `users.member_code` = `<tenants.code>-<role letter><8 random digits>` (not a counter — IDs must not be guessable) (e.g. `QOU-S48203917`; A admin · M centre manager ·
-  T teacher · S student · P owner with prefix `EQ`). Issued once by trigger `users_assign_member_code` (BEFORE INSERT;
-  on UPDATE it restores the old value, so no RLS change); digits from `gen_random_uuid()`, retried until unused,
-  unique index as the final guard. `tenants.code` (2–6 `A-Z0-9`, unique, not `EQ`) backfilled
-  `T001…`, auto-assigned when left empty, renamed on the card in `/super-admin/tenants` (old IDs keep their prefix).
-  Owner lookup: `GET /api/admin/member-lookup?code=` (super_admin) + «البحث بمعرّف المستخدم» on `/super-admin/users`.
-  Until applied the lookup answers 409 `memberCodeNotReady` and the code field/labels stay hidden. ✅ 2026-09-29 —
-  green DB backup first (run 36591711423), then a forced-rollback dry run on the live DB (15/15: 3/3 accounts coded
-  in format, immutable on UPDATE / NULL, new tenant auto `T002`, rename upper-cased, `EQ` / bad format / duplicate
-  refused, 2000/2000 random draws distinct, anon + authenticated cannot EXECUTE the trigger functions, `search_path`
-  pinned, `tenants` UPDATE is super_admin-only), confirmed nothing left behind, then applied via Supabase MCP.
-  Verified live: 3/3 coded, institution code `T001`, both triggers present, security advisor shows nothing new.
-- `audit_2026_09_29_migration.sql` — security audit fixes. (1) `users_update` now also pins `email` and
-  `avatar_url` (`current_email()` / `current_avatar_url()`, pinned `search_path`, `anon` revoked): any user could
-  PATCH their own row to show a fake email to staff (`rector@…`), redirect `/api/mail/send`, or set a tracking
-  avatar. Only service-role routes write them. (2) Dropped storage policy `announcement_images_public_read` — the
-  bucket is public (URLs work without it) but the policy let anyone LIST every tenant's image paths; the
-  `phase2` migration no longer recreates it. Audit also found everything else holding: 11/11 write attacks,
-  10/10 cross-tenant reads, 7/7 parameterised RPCs blocked. ✅ 2026-09-29 — green DB backup (run 36627689836),
-  dry-run 11/11, live policy re-read unchanged, applied via Supabase MCP; `supabase/tests/audit_2026_09_29_check.sql`
-  live: 8/8 attacks blocked, 5/5 legitimate paths (own locale, admin rename, service-role email write, bucket
-  still public), 0 SECURITY DEFINER functions without `pg_temp`.
-- `exam_grading_window_fix_migration.sql` — exam logic audit 2026-09-30, `finalize_exam_submission`. (B1) a blank
-  answer earned an essay's full marks: essays are stored with `correct_answer = ''` and `'' = ''` matched (live:
-  wrong MCQ + blank essays = 10/12, written essays = 2/12). Now only `mcq` / `true_false` (or a pre-types row with no
-  `type`) with a non-empty key score automatically — the teacher results screen's `isAutoQ`; everything else waits
-  for the teacher. (B2) `ends_at` gets the same 30 s grace as the duration, and the exam page counts down to
-  min(duration, ends_at) (a student who started late used to lose the attempt at the close). App side (B3): a
-  regular exam with teacher-graded questions no longer shows its automatic score on submit or on the grades /
-  dashboard / notifications pages until published (`isScoreVisible(status, type, questions)` +
-  `isAutoGradable` in `src/lib/score-visibility.ts`, shared with `/api/exam/submit`). Regression check:
-  `supabase/tests/exam_grading_check.sql`; component/route tests `exam-window-timer`, `exam-submit-provisional-score`.
-  ✅ 2026-09-30 — dry-run 8/8 (incl. legacy no-type auto, short_answer manual, hand-in 10 s after close accepted /
-  60 s refused, new start after close still refused), green DB backup (run 36708118181), live body re-read
-  unchanged, applied via Supabase MCP; live: 0/12, 2/12, grants service_role only, `search_path` pinned.
-
-- `student_exam_list_migration.sql` (Batch 1, PART A) — `get_student_exam_list()`: the student exam list with
-  the exact WHERE of `get_student_exams()` but no questions; `question_count`, `has_manual_questions` (same rule
-  as `isAutoGradable`) and `total_points` instead. Read only through `src/lib/data/student-exams.ts`
-  `loadStudentExamList()`. Questions reach a student only from `/api/exam/start` (`studentQuestions()`,
-  `src/lib/exam-delivery.ts`), which also filters `deleted_at` and maps `start_exam_attempt` refusals by exact
-  name under SQLSTATE P0001 (anything else stays 500). ✅ 2026-09-30 — green DB backup (run 36763661965),
-  applied via Supabase MCP, then PR #35 (fa0ce3f) deployed; `supabase/tests/student_exam_list_check.sql`
-  24/24 live (list isolation + `start_exam_attempt` S0–S9). Synthetic 50 exams × 40 questions: 1 718 KB →
-  31 KB, 24 → 6.3 ms.
-- `student_exam_list_lockdown_migration.sql` (Batch 1, PART B) — revokes `get_student_exams()` from `anon` /
-  `authenticated` (service_role keeps it; the old feed handed out questions of exams whose window had not
-  opened). ✅ 2026-09-30 — applied after the deploy; live re-check 24/24, student call → 42501, anon REST → 401.
-
-- `owner_counts_migration.sql` (Batch 2, Owner Counts) — `get_tenant_role_counts()`: one row per institution
-  with university_admin / teacher / student counts (any status, as the page always counted) for
-  `/super-admin/users`, instead of reading every user row (25 729 rows / 1 834 KB per load at 25 000 users →
-  4 rows / 383 B; also immune to a PostgREST max-rows cap). SECURITY INVOKER (owner's choice — RLS still applies;
-  the owner reads every user through `users_select`), pinned `search_path`, explicit owner check (42501 otherwise),
-  `anon` revoked; one function, no table / row / policy / index change. Read only through
-  `src/lib/data/tenant-counts.ts` `loadTenantRoleCounts()` (no fallback). Rollback:
-  `DROP FUNCTION IF EXISTS public.get_tenant_role_counts();`. ✅ 2026-10-01 — green DB backup (run 36898293441)
-  first, applied via Supabase MCP exactly as reviewed; `supabase/tests/owner_counts_check.sql` 12/12 live (counts per
-  institution incl. disabled, centre manager / owner excluded, 42501 for admin / centre manager / teacher /
-  student / signed out, anon no EXECUTE and refused, INVOKER + pinned search_path, 4 columns); DB fingerprint
-  identical apart from the new function; `/super-admin/users` live shows the function's counts (edge log:
-  `rpc/get_tenant_role_counts` 200, no users read).
-
-- `content_feeds_migration.sql` (Batch 3, P-02 + P-04) — four functions, nothing else: `question_count(exams)`
-  (PostgREST computed field, INVOKER) so `/teacher/exams` selects named columns + the count instead of every
-  question; `get_admin_content_counts()`, `get_admin_lessons_page(limit, offset)`,
-  `get_admin_exams_page(homework, limit, offset)` (DEFINER, same guard / columns / metadata-only rule as
-  `get_admin_lessons` / `get_admin_exams`, which stay untouched for the code still in production) so the admin
-  dashboard and `/admin/lessons` / `/admin/exams` stop reading every lesson / exam. Rollback: `DROP FUNCTION` the
-  four (file header). ✅ 2026-10-01 — dry run 21/21 (migration executed inside the rolled-back check), green DB
-  backup (run 36913850532), applied via Supabase MCP exactly as the file (stored text md5 = file md5); live:
-  `supabase/tests/content_feeds_check.sql` 16/16 (incl. no EXECUTE to PUBLIC), anon REST 401 on all four,
-  DEFINER / INVOKER and pinned `search_path` as designed, every other function / policy / index / table grant
-  and the data unchanged, security advisor shows nothing new. Apply-before-deploy: the code is not deployed yet.
-
-- `is_flagged_generated_migration.sql` — `exam_submissions.is_flagged` was never written (always FALSE, so reports,
-  teacher records and `get_center_dashboard` never showed a flagged attempt). Becomes `GENERATED ALWAYS AS
-  (COALESCE(proctoring_events @? '$[*] ? (@.type == "…" || …)', FALSE)) STORED NOT NULL` — the
-  `VIOLATION_TYPES` rule, recomputed on every write, not writable (428C9). The list must equal
-  `VIOLATION_TYPES` (`src/__tests__/is-flagged-violation-types.test.ts`); changing it later =
-  `ALTER COLUMN … SET EXPRESSION` (table rewrite). No policy/grant/function change. Dry-run 2026-10-02 in a
-  rolled-back transaction on the live DB (run twice: idempotent): no events / signal+info only / nested `type` → false,
-  violation → true, appended violation → recomputed true, direct UPDATE/INSERT refused 428C9, grants/RLS/policies
-  unchanged; nothing left behind. Rollback: in the file header. ✅ 2026-10-02 — green DB backup (run
-  37041146007), live column re-read (plain BOOLEAN NOT NULL DEFAULT FALSE, 0 rows), applied via Supabase MCP exactly as
-  the file; live: STORED generated boolean NOT NULL, stored expression = the file's, policies / table grants / indexes /
-  every public function / triggers fingerprints identical before and after, direct UPDATE/INSERT refused 428C9,
-  signal → false and appended violation → true (rolled back), 0 rows.
-- `groups_select_initplan_migration.sql` (P-09) — performance only, no access rule change: `groups_select` called
-  `current_user_role()` / `current_tenant_id()` bare, and `group_students_select` reads `groups` (EXISTS) for every
-  membership row, so a per-group member count (`group_students(count)` on `/center/groups`, also `/center/mail`)
-  ran ~3 helper calls per membership row: 19 281 rows → ≈ 1 028 ms at 1 000 groups (24 ms without RLS). One
-  `ALTER POLICY` wraps each call in `(SELECT …)` (init-plan, once per query) — the live predicate otherwise byte for
-  byte (`deleted_at IS NULL`, the student branch through `current_student_group_ids()` unchanged); no other policy,
-  function, grant or index. Rollback: the exact pre-P-09 `ALTER POLICY` in the file header.
-  `src/__tests__/groups-select-initplan.test.ts` keeps the migration and `schema.sql` wrapped. Dry-run 2026-10-03 on the
-  live DB in a rolled-back transaction with `supabase/tests/groups_select_initplan_check.sql` (the migration file as
-  is): stored predicate = pre-P-09 text + 3 role / 1 tenant wrappers exactly; M3 C1 shape 1 026 → 33 ms (31×),
-  centre-mail shape 1 017 → 20 ms, groups only 56 → 9 ms (EXPLAIN: no bare helper call left, 427 110 → 4 267
-  buffers); 12/12 personas match the documented rules and are identical on both forms (groups, memberships,
-  per-group counts, mail shape, tenant + student isolation); every other policy / function / index / grant / trigger
-  identical; `rls_isolation_check` 5/5, `rls_write_path_check` 14/14 (L-02 run with `get_student_exam_list()` —
-  the file still calls the revoked `get_student_exams()`), `group_course_transfer_check` 13/13 identical before and
-  after; `center_mail_recipients_check`, `center_student_picker_check`, `teacher_student_search_check`,
-  `student_lessons_page_check` all PASS with it; nothing left behind. Takes an ACCESS EXCLUSIVE lock on
-  `public.groups` for the statement (and for the whole check run).
-  ✅ 2026-10-03 — green DB backup (run 37145047761, `2026-10-03T18-41-38Z`, verified), live policy re-read unchanged,
-  applied via Supabase MCP exactly as the file (migration `20261003184336`). Live: stored `groups_select` = pre-P-09
-  text + the 4 wrappers character for character; every other policy / function / index / grant / trigger / RLS flag
-  fingerprint and every row count identical before and after; the 129 real accounts see exactly the same groups,
-  memberships and per-group counts (one md5 before = after); `groups_select_initplan_check.sql` on the live DB
-  (rolled back): 12/12 personas identical on both forms, M3 1 172 → 33 ms, centre-mail shape 1 135 → 21 ms; anon
-  REST reads of `groups` / `group_students` / the count embed return `[]`; security advisor unchanged; nothing left
-  behind.
-- `k_invitations_hardening_migration.sql` (K, security review 2026-10-04) — two controls, one migration.
-  K-1: `invitations_select` was tenant-wide, so every user of an institution (students included) could read its
-  invitation rows with their `token` and invitee `email`; now super_admin → all, `university_admin` /
-  `center_manager` → their institution (unchanged), anyone else → only invitations they created
-  (`invited_by = auth.uid()`), helpers wrapped in `(SELECT …)`. K-2: `accept_invitation()` (service role only) now
-  refuses, before anything is written, a target account that is already initialised (`tenant_id` set) or super_admin,
-  and a PRIVATE invitation whose email does not match the target's `auth.users.email` (case-insensitive); public links
-  keep their bearer behaviour. Expiry, max uses, suspended institution, group cap, seat limits, linked-course
-  enrolment, the error contract, SECURITY DEFINER, pinned `search_path` and service-role-only EXECUTE are unchanged.
-  No application-code change; `schema.sql` does not contain these objects. Rollback:
-  `supabase/k_invitations_hardening_rollback.sql` (re-opens both gaps). ✅ 2026-10-04 — green DB backup (run
-  37189781565, `2026-10-04T08-43-35Z`, verified), live definitions re-read unchanged since the dry run, applied via
-  Supabase MCP exactly as the file (migration `20261004152249`, live function body md5 = file). Live, in rolled-back
-  transactions: visibility matrix as designed (student / teacher without invitations 0 rows, teacher own only, admin /
-  centre manager / owner unchanged; real accounts: 123 students 854 → 0 rows, 3 teachers 8 → 0, admins unchanged);
-  acceptance matrix 13/13 (private non-matching email refused without consuming the invitation, initialised account and
-  owner refused, public link + fresh account accepted, expiry / max uses / suspended / `GROUP_FULL` /
-  `TEACHER_LIMIT_REACHED` refused without consuming, linked-course enrolment works); every other policy / function /
-  index / grant / trigger fingerprint unchanged; security advisor unchanged; nothing left behind.
-- `a_unpublished_course_content_migration.sql` (A, security review 2026-10-04) — `course_levels_select` /
-  `course_units_select` / `unit_items_select` only required the parent course to be visible, so a student enrolled in
-  a published course read every draft level / unit / item of it through REST, `content` included (the player drops
-  drafts, so the policies did not hold the product's rule). Three `ALTER POLICY`: each keeps the pre-A predicate
-  verbatim AND adds, for the `student` role only (`IS DISTINCT FROM`, helper in `(SELECT …)`), the whole publication
-  chain — level published; unit published + its level (if any); item published + its unit + that unit's level.
-  Write policies, `courses_select`, the DEFINER readers, `student_progress`, app code and `schema.sql` (has none of
-  these objects) unchanged. Rollback: `supabase/a_unpublished_course_content_rollback.sql`. Regression check:
-  `supabase/tests/course_content_publication_check.sql` (switches between both forms); `course-content-publication.test.ts`
-  keeps migration / rollback / check in step. ✅ 2026-10-04 — dry-run first (12/12 personas, 5/5 DEFINER readers,
-  write path 5/5, `rls_write_path_check` 14/14), green DB backup (run 37216247872, `2026-10-04T16-19-36Z`, verified),
-  live policies re-read unchanged, applied via Supabase MCP exactly as the file (migration `20261004162131`). Live
-  (rolled back): the check reads the A form exactly and passes 12/12 personas (enrolled student 2/6/9 → 1/2/2 rows,
-  nothing outside the chain, the player's output unchanged; every non-student persona identical; no row of another
-  institution), 5/5 DEFINER readers identical, write path 5/5; `rls_write_path_check` 14/14; real accounts: the one
-  enrolled student 2/2/1 draft rows → 0 (the player rendered 0 items before and after), every non-student role's
-  visible rows identical (per-account md5); anon REST `[]`; every other policy / function / index / grant / trigger /
-  RLS flag fingerprint and every row count unchanged; security advisor unchanged; nothing left behind.
-
-- `notifications_feed_migration.sql` (P-08) — `get_my_notifications()`: the header bell's feed in ONE read
-  (`/api/notifications`, polled by every open tab). Before, per poll: student 4 queries incl. the WHOLE
-  `get_student_exam_list()` (~64 KB at 100 exams) to use 8 titles; teacher every exam (unbounded) then
-  `.in(<every exam id>)` (≈640 ids already overflow the request — measured 2026-10-04). Now one JSON object of sections per role
-  (student lessons 8 / exams 8 / grades 20; teacher submissions 15; university_admin users 15 + alerts 6;
-  super_admin messages 10 + institutions 8 + alerts 6 — the same bounds); centre manager and any other role get
-  `{}` (the route skips the call). SECURITY INVOKER (same RLS as the reads it replaces), pinned `search_path`,
-  `REVOKE ALL FROM PUBLIC, anon`, identity from `auth.uid()` / `current_user_role()` / `current_tenant_id()`.
-  The score-visibility rule stays in TypeScript (`isScoreVisible`); SQL only supplies the fields. **Apply before
-  deploying** the route change (the route has no fallback: a failed read answers 200 with an empty list).
-  Rollback: `DROP FUNCTION IF EXISTS public.get_my_notifications();`. Dry-run 2026-10-03 on the live DB in a
-  rolled-back transaction with `supabase/tests/notifications_feed_check.sql`: 18/18 (E1–E8 equal to the old
-  per-table reads for every role, I1–I4 isolation incl. another institution and no session → `{}`, G1 EXECUTE
-  authenticated only, G2 INVOKER / STABLE / `search_path`); nothing left behind. Measured on 8 000 submissions:
-  student 4 queries / ~69 KB → 1 / 8.5 KB; teacher 2 queries + 200-id list → 1 / 3.5 KB, ~26–44 ms (the ≤ 10 ms
-  target is NOT met: it reads + RLS-checks all the teacher's submissions to sort them; no index matches — a
-  separate decision, C2, deferred). ✅ applied and deployed (PR #44); `get_my_notifications` present on the live DB.
-
-- `e2_drop_duplicate_exam_submission_index_migration.sql` (E2, database maintenance) — drops
-  `idx_exam_submissions_exam_student` `(exam_id, student_id)`, a duplicate of the UNIQUE constraint's index
-  `exam_submissions_exam_id_student_id_key` (same columns, same order). Only that index; the constraint and every
-  other index (incl. the `idx_exam_submissions_student_id` / `_tenant` candidates, not part of E2) untouched.
-  **`rls_performance_migration.sql` is historical and must not be re-run** — its `CREATE INDEX IF NOT EXISTS` would
-  bring the duplicate back. Rollback: `supabase/e2_drop_duplicate_exam_submission_index_rollback.sql` (exact
-  original definition). Dry-run 2026-10-05 (rolled back, 20 000 synthetic submissions): lookups move to the unique
-  index with the same plan and cost, upserts already used it as conflict arbiter, a duplicate (exam, student) still
-  refused 23505. ✅ 2026-10-05 — green DB backup (run 37342822229, `2026-10-05T16-43-21Z`, verified), live state
-  re-checked, applied via Supabase MCP exactly as the file (migration `20261005164436`). Live: duplicate gone;
-  `UNIQUE (exam_id, student_id)` and its index unchanged (`pg_get_indexdef`); the two candidates, every other index,
-  every policy and every `public` function fingerprint identical; no other migration; nothing left behind.
-- **F2** (documentation only, no migration): `current_student_group_ids()` stays as it is live (VOLATILE, EXECUTE
-  for PUBLIC / anon / authenticated); `schema.sql` now mirrors that and says why (owner's decision 2026-10-05).
-
-- `anon_table_write_lockdown_migration.sql` (P1, security review 2026-10-16) — defense in depth, no exploitable path:
-  `anon` still held 175 non-SELECT privileges on 32 public tables (INSERT/UPDATE/DELETE on 17, TRUNCATE / REFERENCES /
-  TRIGGER / MAINTAIN on most) — RLS blocked every write, but TRUNCATE/TRIGGER/REFERENCES/MAINTAIN are not RLS-governed.
-  All revoked; SELECT kept (RLS decides rows). Checked first: no code path writes as `anon` (every pre-auth write,
-  incl. `/api/contact` → `contact_messages`, uses the service role), no anon write policy is satisfiable, no column or
-  PUBLIC grants. EXECUTE on `current_*()` deliberately left for anon: the dry-run showed revoking it makes anon's
-  RLS-evaluated SELECTs fail with 42501. `schema.sql` lists only the 19 tables it creates itself. Dry-run in a
-  forced-rollback block: 0 anon non-SELECT privileges after, 32 SELECT tables kept, `authenticated` / `service_role`
-  ACLs byte-identical, idempotent, rollback restores the exact prior ACL. ✅ 2026-10-16 — applied via Supabase MCP after
-  green backup run 38873937766; `tests/anon_table_write_lockdown_check.sql` on live: A-01 0, A-02 32, A-03/A-04 blocked
-  (42501 grant), A-05 anon feature_flags read ok. Rollback: `anon_table_write_lockdown_rollback.sql`. Future tables:
-  see `anon_default_privileges_migration.sql` below.
-- `anon_default_privileges_migration.sql` (follow-up, 2026-10-16) — `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN
-  SCHEMA public REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES FROM anon`. Before it,
-  every table/view a migration created gave anon `arwdDxtm` — a new table whose migration forgot RLS was anon-writable
-  (check D-06 read ALLOWED on live). Scope verified: migrations (SQL editor, MCP `execute_sql` and `apply_migration`)
-  run as `postgres`, which owns all 43 relations + 65 functions in public; `supabase_admin`'s public defaults cover only
-  platform-created objects and postgres cannot alter them; no global default rows; anon is a member of no role and
-  PUBLIC gets nothing on tables. Not changed: SELECT stays in the default; sequences (`anon=rwU`); functions (PUBLIC
-  holds EXECUTE by Postgres default, so hard rule 3's per-function `REVOKE ... FROM PUBLIC, anon` still applies);
-  `authenticated` / `service_role` / `storage` defaults; every existing object. Forced-rollback dry-run: exactly 7
-  default entries removed (all postgres|public|tables|anon, grantor postgres), none added, 312 → 305; every relation,
-  function and schema ACL byte-identical; rollback restores the row and all 312 entries exactly (owner, grantor,
-  grantable). ✅ 2026-10-16 — applied via Supabase MCP after green backup run 38876036821; live row now
-  `{postgres=arwdDxtm/postgres,anon=r/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}`.
-  `tests/anon_default_privileges_check.sql` on live: D-01/D-03/D-12 `anon=r/postgres`, D-05 false, D-06 blocked
-  (42501), D-07 select ok, D-08 authenticated insert ok, D-09..D-11 RLS path ok, D-13 fn PUBLIC/anon exec true
-  (expected), D-14 seq `anon=rwU` (expected), D-15 none, D-16 32. Rollback: `anon_default_privileges_rollback.sql`.
-  A new table still needs RLS + its own `REVOKE ALL ... FROM anon` if anon must not even SELECT it.
-- `get_course_progress_teacher_scope_migration.sql` (P4, security review 2026-10-16) — before, any teacher read any
-  student's progress in any course of their institution (only "same tenant" was checked). Now a teacher needs to own
-  the course (`courses.teacher_id`) or teach a live (`deleted_at IS NULL`) group linked to it with the student in it;
-  student-self, super_admin and university_admin (same tenant) unchanged. Signature, body, SECURITY DEFINER,
-  search_path and ACL unchanged. Only app caller: `src/lib/data/student-courses.ts`, always the student's own id.
-  Live definition md5 `7ed4e035…` = the rollback file's body, checked right before applying. Check
-  `tests/get_course_progress_teacher_scope_check.sql` (two probe institutions with explicit codes ZZCPA/ZZCPB, 10
-  cases): 7/10 before (P-05, P-06, P-10 allowed), 10/10 in the forced-rollback dry-run and 10/10 on live after
-  applying. ✅ 2026-10-16 — applied via Supabase MCP after green backup run 38882902703. Rollback:
-  `get_course_progress_teacher_scope_rollback.sql` (exact prior definition). schema.sql does not define this function.
-- `function_execute_cleanup_migration.sql` (2026-10-16) — `member_role_letter(text)` → service_role only (its sole
-  caller is the `assign_member_code` trigger, SECURITY DEFINER owned by postgres); `get_admin_exams()`,
-  `get_admin_lessons()`, `exam_live_role(text)`, `get_tenant_ai_usage()`, `get_student_exams()` → no API role
-  (owner only; not dropped). Evidence of no callers: no reference in any function body, policy, view, trigger,
-  default, constraint, index or cron job (all schemas); none in 24 h of edge logs; app call sites removed 2026-09-26
-  → 10-01. `get_student_exams()` uses `auth.uid()`, NULL under service_role (its key carries no `sub`), so the kept
-  service_role grant could only return nothing. Exactly 12 ACL entries removed, none added; effective EXECUTE for all
-  15 roles identical after rollback. Check `tests/function_execute_cleanup_check.sql` on live: F-01 f/f/f/t, F-02 0,
-  F-03 6, F-04/F-05 blocked (42501), F-06 signup code issued, F-07 reissued through a super_admin session (re-run 2026-10-16 after
-  users_column_update_lockdown was written: F-07 now gives the institution with service_role, the
-  create-user path, since sessions may no longer set role/tenant_id — same result, ZZPRB-T…), F-08
-  exam_topic_role still authenticated; tenant_code_seq unchanged (explicit probe code ZZPRB). ✅ 2026-10-16 —
-  applied via Supabase MCP right after the migration above, same backup run 38882902703. Rollback:
-  `function_execute_cleanup_rollback.sql` (kept as comments: an executable GRANT to anon fails security invariant I4).
-  Side effects: `tests/content_feeds_check.sql` and `student_exam_list_check.sql` L10 now error / read FAIL (they
-  measure already-applied migrations); `scale_baseline_check.sql` already failed before (calls get_student_exams as
-  authenticated). Earlier check runs that day advanced tenant_code_seq 36 → 38 (next institution gets T039); not reset.
-  On branch `security/hardening`, schema.sql's realtime policies now use exam_topic_role (matching live) and revoke
-  exam_live_role from every API role.
-
-## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
-
-- `users_column_update_lockdown_migration.sql` (security review 2026-10-16) — **written + tested, NOT applied**
-  (owner: keep local). `authenticated` loses table-level UPDATE on `public.users` and keeps UPDATE only on
-  `(full_name, locale)` — the only two columns the app writes through a session (locale-switcher; super_admin
-  settings). Closes: a user rewriting their own `created_at`, and a super_admin session setting any account's
-  role/tenant through PostgREST. Every other users write is service_role (create-user upsert) or a
-  SECURITY DEFINER function owned by postgres (accept_invitation, handle_new_user, tenant cascades) — unaffected.
-  Check `tests/users_column_update_check.sql`, forced-rollback on live: before — L-11/L-12/X-01 allowed and
-  read-back shows `s2.role` and `te.created_at` really changed; with the migration — U-01..U-04, X-02, S-01..S-03
-  allowed, U-05 refused by RLS, X-03/X-04 no row, L-01..L-12 + X-01 refused by GRANT, R-01 nothing changed,
-  member code issued at signup and reissued on institution assignment, SELECT/INSERT/DELETE unchanged. Rollback
-  `users_column_update_lockdown_rollback.sql` verified exact in a forced-rollback block: table ACL and all 15
-  column ACLs byte-identical, effective privileges identical in 900/900 role×column×privilege entries.
-  To apply: green backup, re-read the users ACL, apply, run the check file on live, update schema.sql.
-
-## Sign-in (2026-09-29)
-
-- **Google sign-in is hidden** (awaiting Google verification): `src/lib/google-sign-in.ts`, shown only with
-  `NEXT_PUBLIC_GOOGLE_SIGNIN=on` (rebuild). `/auth/callback` is unchanged.
-- **Sign-in by member ID**: the login field takes an email or an ID (`QOU-S48203917`, `src/lib/member-code.ts`);
-  an ID goes to `POST /api/auth/login-id` (public prefix in the proxy, rate-limited per IP and per ID), which
-  resolves it to the auth email with the service role and signs in server-side. Unknown ID = wrong password.
-- **Student account by ID (no email)**: `create-user` with `login_mode: 'member_id'` (students only, needs
-  `member_code_migration.sql` → else 409 `memberCodeNotReady`). Auth email = `<uuid>@no-email.invalid`
-  (`src/lib/member-login.ts`); `public.users.email` is then set to the member code, so every screen shows the ID
-  and `/api/mail/send` skips it. Returns `member_code` + a generated `temp_password` once. UI: «بمعرّف (بدون إيميل)»
-  on the invitations screen (direct account) and the centre people dialog.
-- **Forced password change**: every account `create-user` makes gets `app_metadata.must_change_password = true`
-  (service-role only). `src/proxy.ts` sends such a user to `/change-password` (APIs answer 403) until
-  `POST /api/auth/change-password` sets the new password (must differ from the temporary one) and clears the flag;
-  the page then calls `refreshSession()` so the JWT drops it. Invitation/Google accounts chose their own password
-  and never carry the flag.
-
-## Centre manager panel
-
-Each university has exactly one continuing-education centre, so `center_manager` is tenant-scoped (no `centers` table). **Naming rule:** the two admin accounts never share a label — `university_admin` is named after the institution (`getTerms().institutionAdmin`: «مدير الجامعة», «مدير مركز التدريب» …) and `center_manager` is named by institution type too (`getTerms().centerManager`, 2026-09-29: university/institute «مدير مركز التعليم المستمر», school «مدير مركز الأنشطة», training centre «مساعد مدير المركز», company «منسق التدريب») and never contains the institution admin's label. The role shows in the header only; the sidebar top is the EduQuest brand with the institution name beneath it (`components/shared/adaptive-name.tsx`: short form, full name on hover). Enforced by `src/__tests__/role-label-separation.test.ts`. **Who configures whom (owner's rule, 2026-09-28):** the owner (super_admin) grants each institution admin (`university_admin`, whatever the `institution_type` — a university or an independent training centre) its capabilities; inside that grant the admin runs its own institution freely — creates/invites/(de)activates/deletes its centre managers and sets their capabilities — but can never grant a capability it does not hold (`ungrantableCapabilities` in `/api/admin/permissions`, `canManageAccountOf` for accounts). Do NOT gate this on `institution_type` (tried in PR #15, reverted). **Adding a student (owner's rule, 2026-09-29):** by invitation link OR by creating the account directly (four-part name + temporary password), for the centre manager (`components/center/people-client.tsx`), the institution admin of every institution type, and teachers (the «حساب مباشر» option on the shared invitations screen, `components/shared/invitations-client.tsx`). All go through `/api/admin/create-user`; a teacher may create **students only, into one of their own groups** (`group_id` required, `addOwnGroupsOnly` / `teacherGroupRequired`), staff may add an optional group. Group seat cap + linked-course enrolment are the shared rules in `src/lib/group-enrolment.ts` (also used by `/api/group-students`); a failure after the auth account exists deletes it again. Its pages under `src/app/(center)/center/*` gate per capability via `src/lib/center-access.ts`; route handlers use `src/lib/staff-auth.ts` (`staffCan`, `canManageAccountRole` — a centre manager can only ever create/invite/(de)activate `teacher`/`student`). Capabilities added 2026-09-13: `manage_courses` (create a course, assign it to a teacher, enrol students via `/api/course-enrollments`) and `manage_attendance` (`/api/attendance`, also open to a group's own teacher). Staff-created groups/courses always carry a real `teacher_id`. Because `university_admin` defaults ON, admins can now also edit/delete any course in their tenant through `/api/courses`.
-
-Course analytics (`/center/analytics`, `view_reports`) reads `get_course_analytics` + `get_tenant_engagement` and
-shows strengths/weaknesses/suggestions from the rule-based `courseInsights()` — no AI on page load. AI phrasing is
-**on demand only**: `/api/ai/course-suggestions` (POST `{course_id, days}`) re-computes the course's numbers
-server-side through the user session, feeds them to `groqChat`, and is rate-limited 10/h per user + metered via
-`meteredAiRoute`. Never call it from a render path.
-
-Announcements tooling (free, no new storage): `components/announcements/banner-designer.tsx` renders a 1200×400 banner on a `<canvas>` in the author's browser (templates, RTL text, optional background photo) and uploads only the final WebP through `/api/announcements/upload`; `/api/ai/announcement-copy` suggests title/body/CTA via `groqChat` (text only, `manage_announcements` + 15/h rate limit). Datetime inputs are converted local→ISO in `announcements-manager.tsx` — a bare `datetime-local` string is stored as UTC by Postgres and shifts the window by the viewer's offset. The route rejects `image_url` values outside the project's `announcement-images` bucket.
-
-## Design system (D3, 2026-10-06)
-
-Tokens: `src/app/design-tokens.css` (imported by `globals.css`). Raw values are `--eq-*` on `:root` (dark, soft
-navy since 2026-10-09) and on `:root[data-eq-theme="light"]`. **One theme system for the whole product** (owner,
-2026-10-09): `THEME_BOOT_SCRIPT` always sets `<html data-eq-theme>` (cookie `eq_theme`, else system setting);
-`globals.css` remaps the slate/accent palette for components still on raw classes. `ThemeToggle` (sun · moon pill)
-sits in the public bars, the demo and the signed-in header. **A theme or language switch always reloads the page.**
-Utilities: colours `canvas surface elevated line line-strong fg fg-2 fg-3 accent(-hover/-fg/-subtle) focus
-success warning danger info (+ -subtle)` (old names `border fg-secondary fg-muted error` are aliases); type
-`text-display h1 h2 h3 body body-sm meta label numeric-lg`; `num` (tabular figures); radius `rounded-control`
-(4px inputs/buttons/badges) · `rounded-overlay` (8px modals/dropdowns) · none for sections/tables · `rounded-full`
-avatars/status dots only; `shadow-overlay` for floating elements only; primitives `.eq-section`,
-`.eq-section-index` (01/02/03 on meaningful main sections only), `.eq-row`, `.eq-divide`, `.eq-focus`. Fonts: IBM
-Plex Sans Arabic + IBM Plex Sans (Latin) — no other font, no Plex Mono without a separate decision.
-Ratchet: `src/__tests__/design-contract.test.ts` (+ `-scan.ts`, `-state.ts`) counts raw palette colours,
-`text-[Npx]`, `rounded-xl/2xl/3xl`, gradients, coloured shadows, `backdrop-blur`, `p-5` per file in
-`src/{app,components}` — shrink-only, new files must be clean. `design-tokens.test.ts` checks light parity and WCAG AA
-pairs. Anti-patterns to avoid in new UI: KPI-card rows, icons in coloured boxes,
-card inside card, decorative icons/colour/animation, more than one page-level primary action.
+- SQL in `supabase/`, applied manually (or via Supabase MCP) — no migration CLI. Update `schema.sql` **and** add an idempotent migration file.
+- Before applying to the live DB: run the backup workflow and wait for green (`gh workflow run db-backup.yml -f reason="before <migration>"`), dry-run in a rolled-back transaction, re-read the live definition and `origin/main` for newer migrations.
+- Never re-run an applied migration (list in `docs/claude/MIGRATIONS_LOG.md`). Pending: `users_column_update_lockdown_migration.sql` — written and tested, NOT applied; needs the owner's separate approval.
 
 ## Conventions
 
-- Supabase joined-query results often need typed casts; the codebase uses `as unknown as RowType[]` with explicit interfaces rather than `as any`.
-- Role display/routing helpers (`getRoleLabel`, `getRoleDashboardPath`) live in `src/lib/utils.ts` — reuse them, don't redefine per-component.
-- Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, plus Gemini/Resend keys. App base URL resolves from `NEXT_PUBLIC_APP_URL` → `VERCEL_URL` → `localhost`.
+- Typed casts: `as unknown as RowType[]`, never `as any`.
+- Reuse `getRoleLabel`, `getRoleDashboardPath` (`src/lib/utils.ts`), `getTerms` (`src/lib/terminology.ts`).
+- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, Gemini/Resend keys; base URL `NEXT_PUBLIC_APP_URL` → `VERCEL_URL` → localhost.
+- Work stays local until the owner says deploy; then ship the whole pipeline.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

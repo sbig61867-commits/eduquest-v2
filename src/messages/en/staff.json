@@ -192,7 +192,7 @@
     "modeInvite": "Invite by email (recommended)",
     "modeAccount": "Create the account directly",
     "inviteHint": "A join link is emailed and the account holder chooses their own password.",
-    "accountHint": "You create the account with a temporary password and hand it over yourself.",
+    "accountHint": "You create the account with a temporary password and hand it over yourself; they must change it at first sign-in before anything else.",
     "fullName": "Full name",
     "email": "Email",
     "tempPassword": "Temporary password (at least 8 characters)",
@@ -206,7 +206,17 @@
       "universityStudent": "Managed by the {admin}",
       "sharedTeacher": "Also teaches at the institution — managed by the {admin}",
       "unassignedTeacher": "Not in any centre course — managed by the {admin}"
-    }
+    },
+    "modeLink": "Sign-up link",
+    "modeById": "With an ID (no email)",
+    "linkHint": "A link you copy and send yourself (WhatsApp, for example); whoever opens it signs up and chooses their own password. Set how long it stays valid and how many people may use it.",
+    "byIdHint": "The platform issues a sign-in ID and a temporary password for you to hand over; they must change the password at first sign-in before anything else.",
+    "expiryHours": "Valid for (hours)",
+    "maxUses": "How many people may sign up with it",
+    "createLink": "Create link",
+    "linkCreated": "The link is ready. Copy it and send it:",
+    "byIdCreated": "{name}’s account is ready. Hand over the ID and temporary password:",
+    "tempPasswordOnce": "Copy the password now: it will not be shown again."
   },
   "groups": {
     "updateFailed": "Could not update",

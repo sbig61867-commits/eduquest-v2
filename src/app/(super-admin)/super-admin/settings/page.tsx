@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SettingsClient } from './settings-client'
 import { getInvitationDefaults, getAiRateLimits, getExamPolicies, getDeletionPolicy } from '@/lib/settings'
+import { PreferencesCard } from '@/components/shared/preferences-card'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -32,5 +33,10 @@ export default async function SettingsPage() {
     appUrl: process.env.NEXT_PUBLIC_APP_URL ?? null,
   }
 
-  return <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} />
+  return (
+    <div className="space-y-8">
+      <PreferencesCard />
+      <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} />
+    </div>
+  )
 }

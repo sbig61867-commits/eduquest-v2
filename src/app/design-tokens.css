@@ -13,21 +13,21 @@
 
 :root {
   /* Neutrals — values identical to the pre-D3 tokens, so nothing shifts. */
-  --eq-canvas: #121a2b;        /* page background — soft navy, not black */
-  --eq-surface: #1a2336;       /* sidebar, dialogs */
-  --eq-elevated: #252f44;      /* hover / raised */
-  --eq-line: #2a344a;          /* hairline dividers */
-  --eq-line-strong: #3a4660;   /* field borders, table head */
-  --eq-fg: #f5f7fb;            /* headings, values */
-  --eq-fg-2: #d3dae6;          /* body text */
-  --eq-fg-3: #a2aec2;          /* metadata */
+  --eq-canvas: #0f1a36;        /* page background — deep navy */
+  --eq-surface: #15224a;       /* sidebar, dialogs */
+  --eq-elevated: #1d2d5c;      /* hover / raised */
+  --eq-line: #24365f;          /* hairline dividers */
+  --eq-line-strong: #34497b;   /* field borders, table head */
+  --eq-fg: #f5f3ec;            /* headings, values */
+  --eq-fg-2: #d6dbe8;          /* body text */
+  --eq-fg-3: #a7b1cc;          /* metadata */
 
   /* Accent — primary action, link, selection, focus. Never decoration. */
-  --eq-accent: #3b82f6;
-  --eq-accent-hover: #60a5fa;
-  --eq-accent-fg: #ffffff;
-  --eq-accent-subtle: rgb(59 130 246 / 0.15);
-  --eq-focus: #60a5fa;
+  --eq-accent: #c9a24a;        /* gold on navy */
+  --eq-accent-hover: #d4af5f;
+  --eq-accent-fg: #13224a;
+  --eq-accent-subtle: rgb(201 162 74 / 0.14);
+  --eq-focus: #d4af5f;
 
   /* Semantic — state only (success / late / violation / error), never category. */
   --eq-success: #34d399;
@@ -36,8 +36,8 @@
   --eq-warning-subtle: rgb(245 158 11 / 0.15);
   --eq-danger: #dc2626;
   --eq-danger-subtle: rgb(239 68 68 / 0.15);
-  --eq-info: #60a5fa;
-  --eq-info-subtle: rgb(59 130 246 / 0.15);
+  --eq-info: #8fa6dd;
+  --eq-info-subtle: rgb(143 166 221 / 0.15);
 
   --eq-shadow-overlay: 0 8px 24px rgb(0 0 0 / 0.45);
 
@@ -49,20 +49,20 @@
 
 /* Light — calm blue-tinted paper (see header). */
 :root[data-eq-theme="light"] {
-  --eq-canvas: #f5f7fc;
+  --eq-canvas: #faf7f0;        /* ivory, not stark white */
   --eq-surface: #ffffff;
-  --eq-elevated: #eaf0f9;
-  --eq-line: #e1e7f0;
-  --eq-line-strong: #c9d3e1;
+  --eq-elevated: #f1ece1;
+  --eq-line: #e6dfd0;
+  --eq-line-strong: #d1c6b0;
   --eq-fg: #13203a;
   --eq-fg-2: #33415a;
   --eq-fg-3: #56637a;
 
-  --eq-accent: #2563eb;
-  --eq-accent-hover: #1d4ed8;
+  --eq-accent: #8a6520;        /* antique gold; navy stays the ink */
+  --eq-accent-hover: #6e5018;
   --eq-accent-fg: #ffffff;
-  --eq-accent-subtle: rgb(37 99 235 / 0.10);
-  --eq-focus: #2563eb;
+  --eq-accent-subtle: rgb(138 101 32 / 0.10);
+  --eq-focus: #8a6520;
 
   --eq-success: #047857;
   --eq-success-subtle: rgb(4 120 87 / 0.10);
@@ -70,8 +70,8 @@
   --eq-warning-subtle: rgb(180 83 9 / 0.10);
   --eq-danger: #b91c1c;
   --eq-danger-subtle: rgb(185 28 28 / 0.10);
-  --eq-info: #1d4ed8;
-  --eq-info-subtle: rgb(29 78 216 / 0.10);
+  --eq-info: #1d2f63;
+  --eq-info-subtle: rgb(29 47 99 / 0.08);
 
   --eq-shadow-overlay: 0 8px 24px rgb(15 23 42 / 0.12);
 }
