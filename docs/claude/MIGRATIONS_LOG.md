@@ -382,10 +382,7 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   On branch `security/hardening`, schema.sql's realtime policies now use exam_topic_role (matching live) and revoke
   exam_live_role from every API role.
 
-## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
-
-- `users_column_update_lockdown_migration.sql` (security review 2026-10-16) — **written + tested, NOT applied**
-  (owner: keep local). `authenticated` loses table-level UPDATE on `public.users` and keeps UPDATE only on
+- `users_column_update_lockdown_migration.sql` (security review 2026-10-16) — `authenticated` loses table-level UPDATE on `public.users` and keeps UPDATE only on
   `(full_name, locale)` — the only two columns the app writes through a session (locale-switcher; super_admin
   settings). Closes: a user rewriting their own `created_at`, and a super_admin session setting any account's
   role/tenant through PostgREST. Every other users write is service_role (create-user upsert) or a
@@ -396,6 +393,14 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
   member code issued at signup and reissued on institution assignment, SELECT/INSERT/DELETE unchanged. Rollback
   `users_column_update_lockdown_rollback.sql` verified exact in a forced-rollback block: table ACL and all 15
   column ACLs byte-identical, effective privileges identical in 900/900 role×column×privilege entries.
-  To apply: green backup, re-read the users ACL, apply, run the check file on live, update schema.sql.
+  ✅ 2026-10-16 — applied via Supabase MCP (owner's explicit approval) after green backup run 38954407538;
+  code inventory re-checked on origin/main after PRs #62/#64 (still only locale + super_admin full_name through a
+  session). Same check on live after applying: identical to the dry-run (U-01..U-04, X-02, S-01..S-03 allowed; U-05
+  RLS; X-03/X-04 no row; L-01..L-12 + X-01 refused by GRANT; R-01 unchanged; readback 2/2); probes rolled back,
+  tenant_code_seq still 38. schema.sql updated.
+
+## Pending migrations
+
+None.
 
 
