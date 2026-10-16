@@ -121,7 +121,7 @@ export const RAW_COLOR: Readonly<Record<string, number>> = {
   'components/public/pricing-page.tsx': 55,
   'components/public/public-nav.tsx': 33,
   'components/public/security-page.tsx': 48,
-  'components/public/shell.tsx': 6,
+  'components/public/shell.tsx': 5,
   'components/public/ui.tsx': 32,
   'components/requests/requests-inbox.tsx': 55,
   'components/schedules/schedule-grid.tsx': 17,

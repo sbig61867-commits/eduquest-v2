@@ -1,5 +1,5 @@
 {
-  "appName": "EduQuest",
+  "appName": "Tilmoo",
   "actions": {
     "save": "Save",
     "cancel": "Cancel",
@@ -121,15 +121,15 @@
     "gridEmpty": "No slots in this timetable yet."
   },
   "meta": {
-    "title": "EduQuest — Learning Platform",
+    "title": "Tilmoo — Learning Platform",
     "description": "A multi-institution learning platform with AI-powered learning tools"
   },
   "notFound": {
     "code": "Error 404",
     "title": "This page does not exist",
     "body": "The link may be outdated, or the item was archived by your institution. Your account and data are unaffected.",
-    "home": "Back to EduQuest",
-    "metaTitle": "Page not found · EduQuest"
+    "home": "Back to Tilmoo",
+    "metaTitle": "Page not found · Tilmoo"
   },
   "globalError": {
     "body": "An unexpected error occurred. Please try again."
@@ -231,7 +231,7 @@
   "account": {
     "title": "My account",
     "open": "My account details",
-    "welcomeTitle": "Welcome to EduQuest",
+    "welcomeTitle": "Welcome to Tilmoo",
     "welcomeBody": "Your registration is complete. These are your account details and your ID; you can always find them by clicking your name at the top of the page.",
     "name": "Name",
     "email": "Email",

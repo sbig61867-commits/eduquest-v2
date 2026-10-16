@@ -3,11 +3,11 @@ import { getTranslations } from 'next-intl/server'
 import { dirFor, type Locale } from '@/i18n/config'
 import { getRoleLabel } from '@/lib/utils'
 import type { Role } from '@/types'
+import { APP_NAME } from '@/lib/brand'
 
-// Set EMAIL_FROM in your env to your verified domain (e.g. "EduQuest <noreply@yourdomain.com>")
+// Set EMAIL_FROM in your env to your verified domain (e.g. "Tilmoo <noreply@yourdomain.com>")
 // The resend.dev address only delivers to the Resend account owner — not production-ready.
-const FROM_EMAIL = process.env.EMAIL_FROM ?? 'EduQuest <onboarding@resend.dev>'
-const APP_NAME   = 'EduQuest'
+const FROM_EMAIL = process.env.EMAIL_FROM ?? `${APP_NAME} <onboarding@resend.dev>`
 
 // Same pinning as src/lib/utils.ts: a bare 'ar' can render Arabic-Indic
 // digits or a non-Gregorian calendar depending on the host's ICU build.

@@ -5,6 +5,7 @@ import { serviceClient } from '@/lib/staff-auth'
 import { getMailCaller } from '@/lib/mail/access'
 import { encrypt, verifyState } from '@/lib/mail/crypto'
 import { GMAIL_SEND_SCOPE, emailFromIdToken, exchangeCode, revokeToken } from '@/lib/mail/google'
+import { APP_NAME } from '@/lib/brand'
 
 // Google redirects the popup here. We finish the exchange server-side, store
 // the tokens encrypted, then notify the page (BroadcastChannel) and close the popup.
@@ -17,7 +18,7 @@ async function popupResult(ok: boolean, key: string, params?: Record<string, str
   const closeHint = t('closeHint')
   const payload = JSON.stringify({ type: 'eduquest-mail-link', ok, message })
   const hint = JSON.stringify(closeHint)
-  const html = `<!doctype html><html lang="${locale}" dir="${dirFor(locale)}"><meta charset="utf-8"><title>EduQuest</title>
+  const html = `<!doctype html><html lang="${locale}" dir="${dirFor(locale)}"><meta charset="utf-8"><title>${APP_NAME}</title>
 <body style="font-family:sans-serif;background:#0f172a;color:#e2e8f0;display:grid;place-items:center;height:100vh;margin:0">
 <p id="m"></p>
 <script>

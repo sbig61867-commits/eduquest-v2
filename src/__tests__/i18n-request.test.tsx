@@ -64,7 +64,7 @@ describe('request config — cookie locale', () => {
     cookie.value = 'en'
     const { locale, messages } = await config()
     expect(locale).toBe('en')
-    expect((messages.common as { appName: string }).appName).toBe('EduQuest')
+    expect((messages.common as { appName: string }).appName).toBe('Tilmoo')
   })
 
   it('serves Arabic from the same code path, same URL', async () => {
@@ -189,7 +189,7 @@ function renderAt(locale: Locale) {
 describe('client translation', () => {
   it('renders English with interpolation', () => {
     renderAt('en')
-    expect(screen.getByTestId('app').textContent).toBe('EduQuest')
+    expect(screen.getByTestId('app').textContent).toBe('Tilmoo')
     expect(screen.getByTestId('greeting').textContent).toBe('Welcome back, سامي')
   })
 

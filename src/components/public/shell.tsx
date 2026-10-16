@@ -8,6 +8,7 @@ import type { Locale } from '@/i18n/config'
 import { currentMarketingPath, localizedPath } from '@/i18n/public-routes'
 import { WRAP } from './ui'
 import { BrandMark } from '@/components/shared/brand-mark'
+import { APP_NAME } from '@/lib/brand'
 
 export type Lang = Locale
 
@@ -72,7 +73,7 @@ export function PublicFooter({ lang }: { lang: Lang }) {
         <div className="sm:col-span-2 lg:col-span-1 max-w-sm">
           <Link href={localizedPath(lang, '/')} dir="ltr" className="eq-brand inline-flex items-center gap-2.5">
             <BrandMark size={36} />
-            <span className="eq-wordmark font-bold text-lg">EduQuest</span>
+            <span className="eq-wordmark font-bold text-lg">{APP_NAME}</span>
           </Link>
           <p className="text-slate-400 text-sm mt-4 leading-relaxed">{f('tagline')}</p>
         </div>
@@ -90,7 +91,7 @@ export function PublicFooter({ lang }: { lang: Lang }) {
         ))}
       </div>
       <div className="border-t border-slate-800/80">
-        <p className={`${WRAP} py-6 text-slate-500 text-sm`}>© {new Date().getFullYear()} EduQuest. {t('rights')}</p>
+        <p className={`${WRAP} py-6 text-fg-3 text-sm`}>© {new Date().getFullYear()} {APP_NAME}. {t('rights')}</p>
       </div>
     </footer>
   )

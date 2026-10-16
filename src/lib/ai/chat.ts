@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/nextjs'
 import { QUIZ_SECTION_NAMES } from '@/content/ai'
 import { groqChat } from './groq'
 import { geminiUsage, meterCall } from './meter'
+import { APP_NAME } from '@/lib/brand'
 
 // ── Unified AI chat with provider fallback ────────────────────────
 // Tries providers in order and moves to the next on any error (quota
@@ -116,7 +117,7 @@ function openRouterChat(prompt: string, systemPrompt?: string, temperature?: num
       'minimax/minimax-m3:free',
     ],
     prompt, systemPrompt, temperature,
-    headers: { 'X-Title': 'EduQuest' },
+    headers: { 'X-Title': APP_NAME },
   })
 }
 

@@ -7,6 +7,7 @@ import { writeLocaleCookie } from '@/lib/locale-cookie'
 import { LocaleToggle } from './locale-toggle'
 import { ThemeToggle } from './theme-toggle'
 import { BrandMark } from '@/components/shared/brand-mark'
+import { APP_NAME } from '@/lib/brand'
 
 // Header of the signed-out pages (sign-in, recovery, invitation): the brand on
 // one side, appearance and language on the other. Language switches in place
@@ -23,7 +24,7 @@ export function AuthTopBar({ className = '' }: { className?: string }) {
     <div className={`relative flex items-center justify-between gap-3 ${className}`}>
       <Link href="/" dir="ltr" className="eq-brand flex items-center gap-2.5">
         <BrandMark size={36} />
-        <span className="eq-wordmark font-bold text-lg hidden min-[380px]:inline">EduQuest</span>
+        <span className="eq-wordmark font-bold text-lg hidden min-[380px]:inline">{APP_NAME}</span>
       </Link>
       <div className="flex shrink-0 items-center gap-2">
         <ThemeToggle />

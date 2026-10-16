@@ -15,6 +15,7 @@ import { LocaleToggle } from '@/components/public/locale-toggle'
 import { ThemeToggle } from '@/components/public/theme-toggle'
 import { localizedPath } from '@/i18n/public-routes'
 import { BrandMark } from '@/components/shared/brand-mark'
+import { APP_NAME } from '@/lib/brand'
 
 // Frame of the /demo tour: the same public look as the marketing pages
 // (`.eq-public` from app/demo/layout.tsx, light and dark). On large screens a
@@ -49,7 +50,7 @@ export function DemoShell({ role, items, children }: { role: string; items: Demo
         <div className="p-4 lg:p-5 flex lg:block items-center justify-between gap-3">
           <Link href={localizedPath(locale, '/')} dir="ltr" className="eq-brand flex items-center gap-2.5">
             <BrandMark size={36} />
-            <span className="eq-wordmark font-bold text-lg">EduQuest</span>
+            <span className="eq-wordmark font-bold text-lg">{APP_NAME}</span>
           </Link>
           <div className="lg:mt-5 min-w-0 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
             <p className="text-white text-sm font-semibold truncate">{tenant.name}</p>

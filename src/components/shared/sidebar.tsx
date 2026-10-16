@@ -14,6 +14,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { getTerms, type Terms } from '@/lib/terminology'
 import { activeHref, type IconName, type NavItem, type ResolvedNav } from '@/lib/navigation'
+import { APP_NAME } from '@/lib/brand'
 import {
   LogOut, ChevronLeft, X,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
@@ -175,7 +176,7 @@ export function Sidebar({ nav, items = [] }: SidebarProps) {
       )}>
         <div className="flex items-center justify-between px-3 border-b border-line h-16">
           {expanded && (
-            // The logo is a fixed mark: [E] EduQuest in both languages. The
+            // The logo is a fixed mark: [T] Tilmoo in both languages. The
             // institution name under it keeps its own direction (dir=auto) but
             // lines up with the wordmark. Flat colour in the app shell (D4);
             // the gradient wordmark stays on the sign-in intro and public pages.
@@ -183,7 +184,7 @@ export function Sidebar({ nav, items = [] }: SidebarProps) {
             <div dir="ltr" className="eq-brand flex items-center gap-2 overflow-hidden ps-1">
               <span data-brand-anchor className="shrink-0"><BrandMark size={32} className="block" /></span>
               <div className="min-w-0">
-                <p className="text-fg text-body-sm font-semibold tracking-tight leading-none">EduQuest</p>
+                <p className="text-fg text-body-sm font-semibold tracking-tight leading-none">{APP_NAME}</p>
                 {tenant?.name && (
                   <p dir="auto" className="text-fg-3 text-label mt-1 text-left"><AdaptiveName name={tenant.name} max={26} /></p>
                 )}

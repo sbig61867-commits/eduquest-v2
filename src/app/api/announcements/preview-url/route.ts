@@ -5,6 +5,7 @@ import { isIP } from 'node:net'
 import { createClient } from '@/lib/supabase/server'
 import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
+import { APP_NAME } from '@/lib/brand'
 
 // Fetches Open Graph / meta tags from an external URL so the announcement
 // form can auto-fill title, description, and image — no paid API needed.
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
     // redirect: 'manual' matters — following redirects would let a public host
     // bounce us to 169.254.169.254 and defeat the check above.
     const res = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'EduQuest/1.0 (link preview)', Accept: 'text/html' },
+      headers: { 'User-Agent': `${APP_NAME}/1.0 (link preview)`, Accept: 'text/html' },
       signal: AbortSignal.timeout(6000),
       redirect: 'manual',
     })
