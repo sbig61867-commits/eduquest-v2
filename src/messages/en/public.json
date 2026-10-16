@@ -171,6 +171,8 @@
       "completedPct": "{pct}% complete",
       "myExams": "My Exams",
       "enterExam": "Enter exam",
+      "opensOnDate": "The exam opens at its scheduled time.",
+      "gradedScore": "Graded — {score} / {outOf}",
       "myGrades": "My Grades",
       "gradeRecord": "Grade record"
     },

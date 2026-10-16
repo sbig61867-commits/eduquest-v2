@@ -18,7 +18,7 @@ export default function DemoStudentDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <DemoStatCard label={t('student.enrolled')} value={3} icon={BookOpen} color="text-blue-400" bg="bg-blue-500/10" />
-        <DemoStatCard label={t('student.upcoming')} value={2} icon={ClipboardList} color="text-amber-400" bg="bg-amber-500/10" />
+        <DemoStatCard label={t('student.upcoming')} value={d.upcomingExams.length} icon={ClipboardList} color="text-amber-400" bg="bg-amber-500/10" />
         <DemoStatCard label={t('student.average')} value="88%" icon={GraduationCap} color="text-emerald-400" bg="bg-emerald-500/10" />
       </div>
 
@@ -28,7 +28,8 @@ export default function DemoStudentDashboard() {
             <li key={a.id}>
               <p className="text-white text-sm font-medium">{a.title}</p>
               <p className="text-slate-400 text-sm">{a.body}</p>
-              <p className="text-slate-500 text-xs mt-1">{a.date}</p>
+              {/* Dates are relative to today; a cached page may be a day behind the browser. */}
+              <p className="text-slate-500 text-xs mt-1" suppressHydrationWarning>{a.date}</p>
             </li>
           ))}
         </ul>

@@ -71,7 +71,7 @@ describe('request config — cookie locale', () => {
     cookie.value = 'ar'
     const { locale, messages } = await config()
     expect(locale).toBe('ar')
-    expect((messages.common as { appName: string }).appName).toBe('إديوكويست')
+    expect((messages.common as { appName: string }).appName).toBe('Tilmoo')
   })
 
   it('falls back to the platform default on a missing or tampered cookie', async () => {
@@ -195,7 +195,7 @@ describe('client translation', () => {
 
   it('renders Arabic with interpolation', () => {
     renderAt('ar')
-    expect(screen.getByTestId('app').textContent).toBe('إديوكويست')
+    expect(screen.getByTestId('app').textContent).toBe('Tilmoo')
     expect(screen.getByTestId('greeting').textContent).toBe('أهلاً بعودتك يا سامي')
   })
 

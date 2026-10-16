@@ -10,7 +10,17 @@ import type { Locale } from '@/i18n/config'
 import { demoText as ar } from '@/content/demo/ar'
 import { demoText as en } from '@/content/demo/en'
 
-export function getDemoData(locale: Locale) {
+/** `days` from `now` as YYYY-MM-DD (UTC). The sample is anchored to today,
+ *  so its "upcoming" exam is always ahead and its graded ones always behind. */
+function dayFrom(now: Date, days: number): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + days)).toISOString().slice(0, 10)
+}
+
+export type DemoExam =
+  | { id: string; title: string; date: string; duration: number; submissions: number; status: 'graded'; score: number; outOf: number }
+  | { id: string; title: string; date: string; duration: number; submissions: number; status: 'upcoming' }
+
+export function getDemoData(locale: Locale, now: Date = new Date()) {
   const x = locale === 'ar' ? ar : en
 
   const tenant = { name: x.tenantName, slug: 'al-ofoq' }
@@ -37,21 +47,21 @@ export function getDemoData(locale: Locale) {
     { id: 'c4', ...x.courses.c4, units: 4, published: true },
   ]
 
-  const exams = [
-    { id: 'e1', title: x.exams.e1, date: '2026-10-01', duration: 60, submissions: 68 },
-    { id: 'e2', title: x.exams.e2, date: '2026-10-14', duration: 90, submissions: 0 },
-    { id: 'e3', title: x.exams.e3, date: '2026-09-20', duration: 20, submissions: 45 },
+  const exams: DemoExam[] = [
+    { id: 'e1', title: x.exams.e1, date: dayFrom(now, -15), duration: 60, submissions: 68, status: 'graded', score: 42, outOf: 50 },
+    { id: 'e2', title: x.exams.e2, date: dayFrom(now, 5), duration: 90, submissions: 0, status: 'upcoming' },
+    { id: 'e3', title: x.exams.e3, date: dayFrom(now, -26), duration: 20, submissions: 45, status: 'graded', score: 18, outOf: 20 },
   ]
+  const upcomingExams = exams.filter(e => e.status === 'upcoming')
 
   const grades = [
-    { exam: exams[0].title, score: 42, outOf: 50 },
-    { exam: exams[2].title, score: 18, outOf: 20 },
+    ...exams.flatMap(e => (e.status === 'graded' ? [{ exam: e.title, score: e.score, outOf: e.outOf }] : [])),
     { exam: x.homeworkTitle, score: 27, outOf: 30 },
   ]
 
   const announcements = [
-    { id: 'a1', ...x.announcements.a1, date: '2026-09-08' },
-    { id: 'a2', ...x.announcements.a2, date: '2026-09-05' },
+    { id: 'a1', ...x.announcements.a1, date: dayFrom(now, -3) },
+    { id: 'a2', ...x.announcements.a2, date: dayFrom(now, -6) },
   ]
 
   // Day is an index (0=Sunday), resolved through `common.days` by the page.
@@ -70,5 +80,5 @@ export function getDemoData(locale: Locale) {
 
   const stats = { teachers: teachers.length, students: 214, courses: courses.length, exams: exams.length }
 
-  return { tenant, teachers, students, courses, exams, grades, announcements, schedule, requests, teacherGroups, stats }
+  return { tenant, teachers, students, courses, exams, upcomingExams, grades, announcements, schedule, requests, teacherGroups, stats }
 }

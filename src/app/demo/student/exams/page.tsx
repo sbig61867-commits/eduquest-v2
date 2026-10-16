@@ -14,7 +14,14 @@ export default async function DemoStudentExams() {
           <DemoCard key={e.id} title={e.title}>
             <p className="text-slate-400 text-sm">{t('common.date', { date: e.date })}</p>
             <p className="text-slate-400 text-sm mb-3">{t('common.duration', { count: e.duration })}</p>
-            <button className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-on-accent">{t('student.enterExam')}</button>
+            {e.status === 'graded' ? (
+              <p className="text-sm font-medium text-success">{t('student.gradedScore', { score: e.score, outOf: e.outOf })}</p>
+            ) : (
+              <>
+                <button type="button" disabled className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-on-accent opacity-60 cursor-not-allowed">{t('student.enterExam')}</button>
+                <p className="text-fg-muted text-xs mt-2">{t('student.opensOnDate')}</p>
+              </>
+            )}
           </DemoCard>
         ))}
       </div>

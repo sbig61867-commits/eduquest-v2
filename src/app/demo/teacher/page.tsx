@@ -24,11 +24,11 @@ export default function DemoTeacherDashboard() {
 
       <DemoCard title={t('teacher.upcomingExams')}>
         <ul className="space-y-3">
-          {d.exams.map((e) => (
+          {d.upcomingExams.map((e) => (
             <li key={e.id} className="flex items-center justify-between">
               <div>
                 <p className="text-white text-sm font-medium">{e.title}</p>
-                <p className="text-slate-500 text-xs">{t('teacher.examMeta', { date: e.date, count: e.duration })}</p>
+                <p className="text-slate-500 text-xs" suppressHydrationWarning>{t('teacher.examMeta', { date: e.date, count: e.duration })}</p>
               </div>
               <span className="text-xs text-slate-400">{t('common.submissionsCount', { count: e.submissions })}</span>
             </li>
