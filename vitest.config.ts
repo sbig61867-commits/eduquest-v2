@@ -19,7 +19,8 @@ export default defineConfig({
     maxWorkers: 4,
     setupFiles: ['./src/__tests__/setup.ts'],
     css: false,
-    exclude: ['**/node_modules/**', '**/tests/**'],
+    // tests/ and tests-local/ are Playwright suites (playwright*.config.ts), not vitest.
+    exclude: ['**/node_modules/**', '**/tests/**', '**/tests-local/**'],
   },
   resolve: {
     alias: {

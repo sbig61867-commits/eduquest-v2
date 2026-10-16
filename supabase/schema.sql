@@ -1884,6 +1884,10 @@ CREATE TABLE announcement_events (
 -- 'teacher' | 'student' | NULL for the calling user on an exam-live topic.
 -- SECURITY DEFINER so it can read exams / exam_submissions regardless of the
 -- caller's table policies; search_path pinned (see fix_helper_search_path.sql).
+-- No longer referenced: live_thumbnails_migration.sql moved the realtime.messages
+-- policies to exam_topic_role() below. Kept (not dropped) so a rollback is a
+-- plain GRANT; function_execute_cleanup_migration.sql revoked EXECUTE from every
+-- API role (applied 2026-10-16) — only the owner can call it.
 CREATE OR REPLACE FUNCTION public.exam_live_role(p_topic TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -1920,26 +1924,78 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.exam_live_role(TEXT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.exam_live_role(TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.exam_live_role(TEXT) FROM PUBLIC, anon, authenticated, service_role;
+
+-- ── Thumbnail wall (live_thumbnails_migration.sql) ──
+-- 'teacher' | 'student' | NULL for the calling user on an exam-live or
+-- exam-thumbs topic. Same checks as exam_live_role(), both prefixes.
+-- exam-live:   teacher read/presence/broadcast, live student read + presence.
+-- exam-thumbs: teacher read only, live student broadcast only (httpSend).
+CREATE OR REPLACE FUNCTION public.exam_topic_role(p_topic TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_uid  UUID := auth.uid();
+  v_exam UUID;
+BEGIN
+  IF v_uid IS NULL OR p_topic IS NULL
+     OR p_topic !~ '^exam-(live|thumbs):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    RETURN NULL;
+  END IF;
+  v_exam := substr(p_topic, strpos(p_topic, ':') + 1)::uuid;
+
+  IF EXISTS (
+    SELECT 1 FROM public.exams e
+    WHERE e.id = v_exam AND e.teacher_id = v_uid
+      AND e.proctoring_enabled AND e.deleted_at IS NULL
+  ) THEN
+    RETURN 'teacher';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.exam_submissions s
+    WHERE s.exam_id = v_exam AND s.student_id = v_uid AND s.status = 'in_progress'
+  ) THEN
+    RETURN 'student';
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.exam_topic_role(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.exam_topic_role(TEXT) TO authenticated;
 
 DROP POLICY IF EXISTS exam_live_read ON realtime.messages;
 CREATE POLICY exam_live_read ON realtime.messages
   FOR SELECT TO authenticated
   USING (
     realtime.messages.extension IN ('broadcast', 'presence')
-    AND public.exam_live_role((SELECT realtime.topic())) IS NOT NULL
+    AND (
+      ((SELECT realtime.topic()) LIKE 'exam-live:%'
+        AND public.exam_topic_role((SELECT realtime.topic())) IS NOT NULL)
+      OR
+      ((SELECT realtime.topic()) LIKE 'exam-thumbs:%'
+        AND public.exam_topic_role((SELECT realtime.topic())) = 'teacher')
+    )
   );
 
 DROP POLICY IF EXISTS exam_live_write ON realtime.messages;
 CREATE POLICY exam_live_write ON realtime.messages
   FOR INSERT TO authenticated
   WITH CHECK (
-    (realtime.messages.extension = 'presence'
-      AND public.exam_live_role((SELECT realtime.topic())) IS NOT NULL)
+    ((SELECT realtime.topic()) LIKE 'exam-live:%' AND realtime.messages.extension = 'presence'
+      AND public.exam_topic_role((SELECT realtime.topic())) IS NOT NULL)
     OR
-    (realtime.messages.extension = 'broadcast'
-      AND public.exam_live_role((SELECT realtime.topic())) = 'teacher')
+    ((SELECT realtime.topic()) LIKE 'exam-live:%' AND realtime.messages.extension = 'broadcast'
+      AND public.exam_topic_role((SELECT realtime.topic())) = 'teacher')
+    OR
+    ((SELECT realtime.topic()) LIKE 'exam-thumbs:%' AND realtime.messages.extension = 'broadcast'
+      AND public.exam_topic_role((SELECT realtime.topic())) = 'student')
   );
 
 -- ============================================================
@@ -2371,3 +2427,35 @@ $fn$;
 
 REVOKE ALL ON FUNCTION public.get_my_notifications() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_notifications() TO authenticated;
+
+-- anon holds SELECT only on public tables (RLS decides the rows); every write,
+-- TRUNCATE, REFERENCES, TRIGGER and MAINTAIN privilege is revoked. Pre-auth writes
+-- go through the service-role client. Only the tables created in this file are
+-- listed; anon_table_write_lockdown_migration.sql covers all 32 (the others are
+-- created by their own migrations).
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON
+  public.attendance_records,
+  public.attendance_sessions,
+  public.exam_appeals,
+  public.exam_submissions,
+  public.exams,
+  public.feature_flags,
+  public.grades,
+  public.group_students,
+  public.groups,
+  public.lessons,
+  public.platform_settings,
+  public.request_messages,
+  public.schedule_slots,
+  public.schedules,
+  public.staff_requests,
+  public.survey_responses,
+  public.surveys,
+  public.tenants,
+  public.users
+FROM anon;
+
+-- Tables postgres creates in public from here on give anon SELECT only (no
+-- write/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN). See anon_default_privileges_migration.sql.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES FROM anon;

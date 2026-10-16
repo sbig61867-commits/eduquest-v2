@@ -1,0 +1,23 @@
+-- ROLLBACK KEPT AS COMMENTS ON PURPOSE.
+-- Rolling back re-grants privileges to anon. An executable GRANT ... TO anon in
+-- supabase/ fails the security invariant I4 (src/__tests__/security-invariants.test.ts),
+-- the same reason student_exam_list_lockdown_migration.sql documents its rollback as
+-- a comment. To roll back: copy the statements below, remove the leading "-- ",
+-- and run them in the SQL editor after the usual backup.
+--
+-- Rollback for function_execute_cleanup_migration.sql — restores the exact prior
+-- ACLs (live, 2026-10-16; grantor postgres in every entry):
+--   member_role_letter(text)  {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--   get_admin_exams()         {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--   get_admin_lessons()       {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--   exam_live_role(text)      {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--   get_tenant_ai_usage()     {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--   get_student_exams()       {postgres=X/postgres,service_role=X/postgres}
+
+-- GRANT EXECUTE ON FUNCTION public.member_role_letter(text) TO PUBLIC, anon, authenticated, service_role;
+
+-- GRANT EXECUTE ON FUNCTION public.get_admin_exams()     TO authenticated, service_role;
+-- GRANT EXECUTE ON FUNCTION public.get_admin_lessons()   TO authenticated, service_role;
+-- GRANT EXECUTE ON FUNCTION public.exam_live_role(text)  TO authenticated, service_role;
+-- GRANT EXECUTE ON FUNCTION public.get_tenant_ai_usage() TO authenticated, service_role;
+-- GRANT EXECUTE ON FUNCTION public.get_student_exams()   TO service_role;

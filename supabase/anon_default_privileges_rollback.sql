@@ -1,0 +1,16 @@
+-- ROLLBACK KEPT AS COMMENTS ON PURPOSE.
+-- Rolling back re-grants privileges to anon. An executable GRANT ... TO anon in
+-- supabase/ fails the security invariant I4 (src/__tests__/security-invariants.test.ts),
+-- the same reason student_exam_list_lockdown_migration.sql documents its rollback as
+-- a comment. To roll back: copy the statements below, remove the leading "-- ",
+-- and run them in the SQL editor after the usual backup.
+--
+-- Rollback for anon_default_privileges_migration.sql — restores the exact prior
+-- default ACL for tables `postgres` creates in public (live, 2026-10-16):
+--   postgres=arwdDxtm/postgres anon=arwdDxtm/postgres authenticated=arwdDxtm/postgres service_role=arwdDxtm/postgres
+-- Verified in a forced-rollback transaction: the default ACL string after this
+-- is identical to the one before the migration. Existing tables are unaffected
+-- either way (default privileges only apply to objects created later).
+
+-- ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+--   GRANT INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES TO anon;
