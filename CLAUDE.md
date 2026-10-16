@@ -459,9 +459,80 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 - **F2** (documentation only, no migration): `current_student_group_ids()` stays as it is live (VOLATILE, EXECUTE
   for PUBLIC / anon / authenticated); `schema.sql` now mirrors that and says why (owner's decision 2026-10-05).
 
+- `anon_table_write_lockdown_migration.sql` (P1, security review 2026-10-16) — defense in depth, no exploitable path:
+  `anon` still held 175 non-SELECT privileges on 32 public tables (INSERT/UPDATE/DELETE on 17, TRUNCATE / REFERENCES /
+  TRIGGER / MAINTAIN on most) — RLS blocked every write, but TRUNCATE/TRIGGER/REFERENCES/MAINTAIN are not RLS-governed.
+  All revoked; SELECT kept (RLS decides rows). Checked first: no code path writes as `anon` (every pre-auth write,
+  incl. `/api/contact` → `contact_messages`, uses the service role), no anon write policy is satisfiable, no column or
+  PUBLIC grants. EXECUTE on `current_*()` deliberately left for anon: the dry-run showed revoking it makes anon's
+  RLS-evaluated SELECTs fail with 42501. `schema.sql` lists only the 19 tables it creates itself. Dry-run in a
+  forced-rollback block: 0 anon non-SELECT privileges after, 32 SELECT tables kept, `authenticated` / `service_role`
+  ACLs byte-identical, idempotent, rollback restores the exact prior ACL. ✅ 2026-10-16 — applied via Supabase MCP after
+  green backup run 38873937766; `tests/anon_table_write_lockdown_check.sql` on live: A-01 0, A-02 32, A-03/A-04 blocked
+  (42501 grant), A-05 anon feature_flags read ok. Rollback: `anon_table_write_lockdown_rollback.sql`. Future tables:
+  see `anon_default_privileges_migration.sql` below.
+- `anon_default_privileges_migration.sql` (follow-up, 2026-10-16) — `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN
+  SCHEMA public REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES FROM anon`. Before it,
+  every table/view a migration created gave anon `arwdDxtm` — a new table whose migration forgot RLS was anon-writable
+  (check D-06 read ALLOWED on live). Scope verified: migrations (SQL editor, MCP `execute_sql` and `apply_migration`)
+  run as `postgres`, which owns all 43 relations + 65 functions in public; `supabase_admin`'s public defaults cover only
+  platform-created objects and postgres cannot alter them; no global default rows; anon is a member of no role and
+  PUBLIC gets nothing on tables. Not changed: SELECT stays in the default; sequences (`anon=rwU`); functions (PUBLIC
+  holds EXECUTE by Postgres default, so hard rule 3's per-function `REVOKE ... FROM PUBLIC, anon` still applies);
+  `authenticated` / `service_role` / `storage` defaults; every existing object. Forced-rollback dry-run: exactly 7
+  default entries removed (all postgres|public|tables|anon, grantor postgres), none added, 312 → 305; every relation,
+  function and schema ACL byte-identical; rollback restores the row and all 312 entries exactly (owner, grantor,
+  grantable). ✅ 2026-10-16 — applied via Supabase MCP after green backup run 38876036821; live row now
+  `{postgres=arwdDxtm/postgres,anon=r/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}`.
+  `tests/anon_default_privileges_check.sql` on live: D-01/D-03/D-12 `anon=r/postgres`, D-05 false, D-06 blocked
+  (42501), D-07 select ok, D-08 authenticated insert ok, D-09..D-11 RLS path ok, D-13 fn PUBLIC/anon exec true
+  (expected), D-14 seq `anon=rwU` (expected), D-15 none, D-16 32. Rollback: `anon_default_privileges_rollback.sql`.
+  A new table still needs RLS + its own `REVOKE ALL ... FROM anon` if anon must not even SELECT it.
+- `get_course_progress_teacher_scope_migration.sql` (P4, security review 2026-10-16) — before, any teacher read any
+  student's progress in any course of their institution (only "same tenant" was checked). Now a teacher needs to own
+  the course (`courses.teacher_id`) or teach a live (`deleted_at IS NULL`) group linked to it with the student in it;
+  student-self, super_admin and university_admin (same tenant) unchanged. Signature, body, SECURITY DEFINER,
+  search_path and ACL unchanged. Only app caller: `src/lib/data/student-courses.ts`, always the student's own id.
+  Live definition md5 `7ed4e035…` = the rollback file's body, checked right before applying. Check
+  `tests/get_course_progress_teacher_scope_check.sql` (two probe institutions with explicit codes ZZCPA/ZZCPB, 10
+  cases): 7/10 before (P-05, P-06, P-10 allowed), 10/10 in the forced-rollback dry-run and 10/10 on live after
+  applying. ✅ 2026-10-16 — applied via Supabase MCP after green backup run 38882902703. Rollback:
+  `get_course_progress_teacher_scope_rollback.sql` (exact prior definition). schema.sql does not define this function.
+- `function_execute_cleanup_migration.sql` (2026-10-16) — `member_role_letter(text)` → service_role only (its sole
+  caller is the `assign_member_code` trigger, SECURITY DEFINER owned by postgres); `get_admin_exams()`,
+  `get_admin_lessons()`, `exam_live_role(text)`, `get_tenant_ai_usage()`, `get_student_exams()` → no API role
+  (owner only; not dropped). Evidence of no callers: no reference in any function body, policy, view, trigger,
+  default, constraint, index or cron job (all schemas); none in 24 h of edge logs; app call sites removed 2026-09-26
+  → 10-01. `get_student_exams()` uses `auth.uid()`, NULL under service_role (its key carries no `sub`), so the kept
+  service_role grant could only return nothing. Exactly 12 ACL entries removed, none added; effective EXECUTE for all
+  15 roles identical after rollback. Check `tests/function_execute_cleanup_check.sql` on live: F-01 f/f/f/t, F-02 0,
+  F-03 6, F-04/F-05 blocked (42501), F-06 signup code issued, F-07 reissued through a super_admin session (re-run 2026-10-16 after
+  users_column_update_lockdown was written: F-07 now gives the institution with service_role, the
+  create-user path, since sessions may no longer set role/tenant_id — same result, ZZPRB-T…), F-08
+  exam_topic_role still authenticated; tenant_code_seq unchanged (explicit probe code ZZPRB). ✅ 2026-10-16 —
+  applied via Supabase MCP right after the migration above, same backup run 38882902703. Rollback:
+  `function_execute_cleanup_rollback.sql` (kept as comments: an executable GRANT to anon fails security invariant I4).
+  Side effects: `tests/content_feeds_check.sql` and `student_exam_list_check.sql` L10 now error / read FAIL (they
+  measure already-applied migrations); `scale_baseline_check.sql` already failed before (calls get_student_exams as
+  authenticated). Earlier check runs that day advanced tenant_code_seq 36 → 38 (next institution gets T039); not reset.
+  On branch `security/hardening`, schema.sql's realtime policies now use exam_topic_role (matching live) and revoke
+  exam_live_role from every API role.
+
 ## Pending migrations (written + tested in a rolled-back transaction — NOT applied)
 
-None.
+- `users_column_update_lockdown_migration.sql` (security review 2026-10-16) — **written + tested, NOT applied**
+  (owner: keep local). `authenticated` loses table-level UPDATE on `public.users` and keeps UPDATE only on
+  `(full_name, locale)` — the only two columns the app writes through a session (locale-switcher; super_admin
+  settings). Closes: a user rewriting their own `created_at`, and a super_admin session setting any account's
+  role/tenant through PostgREST. Every other users write is service_role (create-user upsert) or a
+  SECURITY DEFINER function owned by postgres (accept_invitation, handle_new_user, tenant cascades) — unaffected.
+  Check `tests/users_column_update_check.sql`, forced-rollback on live: before — L-11/L-12/X-01 allowed and
+  read-back shows `s2.role` and `te.created_at` really changed; with the migration — U-01..U-04, X-02, S-01..S-03
+  allowed, U-05 refused by RLS, X-03/X-04 no row, L-01..L-12 + X-01 refused by GRANT, R-01 nothing changed,
+  member code issued at signup and reissued on institution assignment, SELECT/INSERT/DELETE unchanged. Rollback
+  `users_column_update_lockdown_rollback.sql` verified exact in a forced-rollback block: table ACL and all 15
+  column ACLs byte-identical, effective privileges identical in 900/900 role×column×privilege entries.
+  To apply: green backup, re-read the users ACL, apply, run the check file on live, update schema.sql.
 
 ## Sign-in (2026-09-29)
 

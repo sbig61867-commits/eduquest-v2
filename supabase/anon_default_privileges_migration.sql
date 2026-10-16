@@ -1,0 +1,36 @@
+-- =============================================================================
+-- anon default privileges on future public tables (follow-up to
+-- anon_table_write_lockdown_migration.sql, 2026-10-16)
+-- =============================================================================
+-- Every table, view and materialized view `postgres` creates in `public` got
+-- `anon=arwdDxtm` from pg_default_acl (Supabase's default), so each new table
+-- re-opened INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN for
+-- anon until a migration revoked them by hand.
+--
+-- Scope, verified on the live DB 2026-10-16:
+--   * Migrations run as `postgres` (SQL editor and Supabase MCP); all 43 public
+--     relations and 65 public functions are owned by `postgres`. So the
+--     `FOR ROLE postgres IN SCHEMA public` defaults are the ones that apply.
+--   * `supabase_admin` has its own public defaults; `postgres` is not a member
+--     of it and cannot change them. They only affect objects supabase_admin
+--     creates (platform-side), never this repo's migrations.
+--   * PUBLIC gets no table privileges by default, and anon is a member of no
+--     role — after this, a new table gives anon SELECT and nothing else.
+--
+-- Deliberately NOT changed:
+--   * SELECT stays in the default, matching the 32 existing tables (RLS
+--     decides rows). A table that anon must not even query still needs
+--     `REVOKE ALL ... FROM anon` in its own migration, as recent ones do.
+--   * Functions: PUBLIC holds EXECUTE on every new function by Postgres
+--     default, so revoking anon's default alone would change nothing; hard
+--     rule 3 (`REVOKE ALL ... FROM PUBLIC, anon` per function) still applies.
+--   * Sequences (`anon=rwU`), the `authenticated` / `service_role` defaults,
+--     the `storage` schema defaults and every existing object.
+--
+-- Idempotent: re-running leaves the same default ACL.
+-- Rollback: supabase/anon_default_privileges_rollback.sql
+-- Check:    supabase/tests/anon_default_privileges_check.sql
+-- =============================================================================
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN ON TABLES FROM anon;
