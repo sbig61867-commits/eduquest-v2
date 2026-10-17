@@ -14,7 +14,6 @@
 /** .select('*…') on a read (row shape = whatever the table grows into). */
 export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/page.tsx': 1,
-  'app/(admin)/admin/settings/page.tsx': 1,
   'app/(auth)/change-password/page.tsx': 1,
   'app/(student)/student/exams/page.tsx': 1,
   'app/(student)/student/profile/page.tsx': 1,
