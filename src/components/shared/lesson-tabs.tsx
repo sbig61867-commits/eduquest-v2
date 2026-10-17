@@ -43,14 +43,10 @@ function splitSections(content: string): { preamble: string; sections: Section[]
 
 const VOCAB_RE = /^[-*]\s+\*\*(.+?)\*\*\s*[—–:-]\s*(.+?)(?:\s*\|\|(.+?)\|\|)?\s*$/
 
-export function speak(text: string) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return
-  const u = new SpeechSynthesisUtterance(text)
-  u.lang = /[a-z]/i.test(text) ? 'en-US' : 'ar-SA'
-  u.rate = 0.9
-  window.speechSynthesis.cancel()
-  window.speechSynthesis.speak(u)
-}
+// Language detection, voice choice and the Chrome stall fix live in
+// src/lib/speech.ts; re-exported so existing imports keep working.
+import { speak } from '@/lib/speech'
+export { speak }
 
 function VocabItem({ term, explanation, translation }: { term: string; explanation: string; translation?: string }) {
   const t = useTranslations('common.lessonTabs')
@@ -290,7 +286,7 @@ export function InteractiveQuiz({ intro, questions }: { intro: string; questions
                             : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-500'
                       }`}
                     >
-                      <span className="font-bold me-2">{opt.letter})</span>{opt.label}
+                      <span className="font-bold me-2">{opt.letter})</span><bdi>{opt.label}</bdi>
                     </button>
                   )
                 })}

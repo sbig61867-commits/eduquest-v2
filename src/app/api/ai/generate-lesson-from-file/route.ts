@@ -8,6 +8,7 @@ import { audienceApproved, PrivacyPendingError, type AiAudience } from '@/lib/ai
 import { COMPOSE_BUDGET_MS, composeLesson } from '@/lib/ai/lesson-compose'
 import { ExtractionError, extractTextFromFile, extractionErrorResponse, readFormDataCapped } from '@/lib/ai/extract'
 import { getAiRateLimits } from '@/lib/settings'
+import { normalizeTransliterations } from '@/lib/ai/arabic-transliteration'
 
 // A full lesson from a long file is several minutes of generation, not one.
 // Composition runs inside COMPOSE_BUDGET_MS (lesson-compose.ts), below this.
@@ -86,7 +87,7 @@ export const POST = meteredAiRoute('lesson-from-file', async (request: Request) 
       fullText, level, customInstructions, qTypes: questionTypes,
       audiences: AUDIENCES, deadline: started + COMPOSE_BUDGET_MS,
     })
-    return NextResponse.json({ content })
+    return NextResponse.json({ content: normalizeTransliterations(content) })
   } catch (e) {
     if (e instanceof PrivacyPendingError) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
     logAiFailure('[generate-lesson-from-file] AI:', e)

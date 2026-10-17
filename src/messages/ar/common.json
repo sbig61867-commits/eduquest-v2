@@ -282,7 +282,10 @@
     },
     "nextSection": "التالي: {title}",
     "back": "العودة إلى الدروس",
-    "open": "افتح الدرس"
+    "open": "افتح الدرس",
+    "showAll": "عرض الدرس كاملاً",
+    "showOne": "قسم واحد في كل مرة",
+    "previousSection": "السابق: {title}"
   },
   "lessonBuilder": {
     "sections": "الأقسام",

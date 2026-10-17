@@ -3,6 +3,10 @@ import React from 'react'
 // Minimal dependency-free Markdown renderer (headings, lists, bold/italic,
 // inline code, fenced code blocks, blockquotes, hr). Outputs React elements —
 // no dangerouslySetInnerHTML, so lesson content can never inject HTML/JS.
+//
+// Every block is dir="auto" (2026-10-17): a language lesson mixes French or
+// English lines with their Arabic translation, and each line must align by
+// its own language (its first strong letter), not by the page's direction.
 
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = []
@@ -68,8 +72,8 @@ export function Markdown({ content, className }: { content: string; className?: 
       blocks.push(
         <div key={key++} className="my-3 overflow-x-auto">
           <table className="w-full border-collapse text-start">
-            <thead><tr>{head.map((c, i) => <th key={i} className="border border-line-strong bg-elevated px-3 py-2 text-start font-semibold text-fg">{renderInline(c, `th${key}-${i}`)}</th>)}</tr></thead>
-            <tbody>{body.map((r, j) => <tr key={j}>{r.map((c, i) => <td key={i} className="border border-line px-3 py-2 align-top">{renderInline(c, `td${key}-${j}-${i}`)}</td>)}</tr>)}</tbody>
+            <thead><tr>{head.map((c, i) => <th key={i} dir="auto" className="border border-line-strong bg-elevated px-3 py-2 text-start font-semibold text-fg">{renderInline(c, `th${key}-${i}`)}</th>)}</tr></thead>
+            <tbody>{body.map((r, j) => <tr key={j}>{r.map((c, i) => <td key={i} dir="auto" className="border border-line px-3 py-2 align-top">{renderInline(c, `td${key}-${j}-${i}`)}</td>)}</tr>)}</tbody>
           </table>
         </div>,
       )
@@ -81,7 +85,7 @@ export function Markdown({ content, className }: { content: string; className?: 
       const level = h[1].length
       const sizes = ['text-2xl', 'text-xl', 'text-lg', 'text-base', 'text-base', 'text-sm']
       const Tag = (`h${Math.min(level, 6)}`) as keyof React.JSX.IntrinsicElements
-      blocks.push(<Tag key={key++} className={`${sizes[level - 1]} font-bold text-white mt-5 mb-2`}>{renderInline(h[2], `h${key}`)}</Tag>)
+      blocks.push(<Tag key={key++} dir="auto" className={`${sizes[level - 1]} font-bold text-white mt-5 mb-2`}>{renderInline(h[2], `h${key}`)}</Tag>)
       continue
     }
     const li = line.match(/^\s*([-*+]|\d+[.)])\s+(.*)/)
@@ -89,15 +93,15 @@ export function Markdown({ content, className }: { content: string; className?: 
       const isOrdered = /^\d/.test(li[1])
       if (listItems.length > 0 && isOrdered !== ordered) flushList()
       ordered = isOrdered
-      listItems.push(<li key={key++}>{renderInline(li[2], `li${key}`)}</li>)
+      listItems.push(<li key={key++} dir="auto">{renderInline(li[2], `li${key}`)}</li>)
       continue
     }
     flushList()
     if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) { blocks.push(<hr key={key++} className="my-4 border-slate-800" />); continue }
     const bq = line.match(/^>\s?(.*)/)
-    if (bq) { blocks.push(<blockquote key={key++} className="my-2 ps-3 border-s-2 border-blue-500/50 text-slate-400 italic">{renderInline(bq[1], `q${key}`)}</blockquote>); continue }
+    if (bq) { blocks.push(<blockquote key={key++} dir="auto" className="my-2 ps-3 border-s-2 border-blue-500/50 text-slate-400 italic">{renderInline(bq[1], `q${key}`)}</blockquote>); continue }
     if (line.trim() === '') continue
-    blocks.push(<p key={key++} className="my-2 leading-relaxed">{renderInline(line, `p${key}`)}</p>)
+    blocks.push(<p key={key++} dir="auto" className="my-2 leading-relaxed">{renderInline(line, `p${key}`)}</p>)
   }
   flushList()
   if (codeLines !== null) blocks.push(<pre key={key++} className="my-3 p-3 rounded-lg bg-slate-950 border border-slate-800 overflow-x-auto text-sm text-slate-300"><code>{codeLines.join('\n')}</code></pre>)

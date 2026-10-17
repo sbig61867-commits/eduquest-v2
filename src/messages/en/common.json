@@ -282,7 +282,10 @@
     },
     "nextSection": "Next: {title}",
     "back": "Back to lessons",
-    "open": "Open lesson"
+    "open": "Open lesson",
+    "showAll": "Whole lesson",
+    "showOne": "One section at a time",
+    "previousSection": "Previous: {title}"
   },
   "lessonBuilder": {
     "sections": "Sections",

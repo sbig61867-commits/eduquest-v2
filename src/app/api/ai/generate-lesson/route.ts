@@ -8,6 +8,7 @@ import { getAiRateLimits } from '@/lib/settings'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, PrivacyPendingError } from '@/lib/ai/privacy'
 import { normalizeLessonLevel } from '@/lib/ai/public-input'
+import { normalizeTransliterations } from '@/lib/ai/arabic-transliteration'
 
 export const POST = meteredAiRoute('lesson', async (request: Request) => {
   const supabase = await createClient()
@@ -68,7 +69,7 @@ export const POST = meteredAiRoute('lesson', async (request: Request) => {
   // providers whose keys are not configured.
   try {
     const { content, provider } = await generateLessonContentAI(topic, level, customInstructions)
-    return NextResponse.json({ content, provider })
+    return NextResponse.json({ content: normalizeTransliterations(content), provider })
   } catch (e: unknown) {
     if (e instanceof PrivacyPendingError) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
     const msg = e instanceof Error ? e.message : String(e)
