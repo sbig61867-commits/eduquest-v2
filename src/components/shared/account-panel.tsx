@@ -33,7 +33,7 @@ export function AccountPanel({ user, tenant }: { user: User; tenant: Tenant | nu
         <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
           <p className="text-blue-300 text-xs font-semibold">{t('memberId')}</p>
           <div className="flex items-center gap-2 mt-1">
-            <p className="text-white text-xl font-mono font-bold flex-1" dir="ltr">{code}</p>
+            <p className="text-white text-lg sm:text-xl font-mono font-bold flex-1 min-w-0 whitespace-nowrap overflow-x-auto" dir="ltr">{code}</p>
             <button
               type="button"
               aria-label={copied ? t('copied') : t('copy')}
