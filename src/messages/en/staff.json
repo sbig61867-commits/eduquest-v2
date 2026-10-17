@@ -804,5 +804,11 @@
     "handOver": "Hand it over in person. They will be asked to choose their own password when they sign in.",
     "done": "Done",
     "failed": "Could not reset the password."
+  },
+  "myPermissions": {
+    "title": "What I can do",
+    "intro": "Set by your institution. Ask its administrator to change them.",
+    "on": "Allowed",
+    "off": "Not allowed"
   }
 }
