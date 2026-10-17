@@ -53,7 +53,7 @@ alone, on its own branch, with its own PR, and only after the owner approves tha
 | PS-3 | Links without an accessible name (mobile) | accessibility | high | open |
 | PS-4 | `/` is not edge-cached | performance | high | open |
 | PS-5 | Unused JavaScript on `/` (73 KB) + long main-thread tasks (desktop TBT 360 ms) | performance | high | open |
-| PS-6 | Render-blocking CSS (570 ms mobile / 90 ms desktop) | performance | medium | open |
+| PS-6 | Render-blocking CSS (570 ms mobile / 90 ms desktop) | performance | medium | closed 2026-10-17 — option 3 (accept); inlining measured worse |
 | PS-7 | Legacy JavaScript polyfills (15 KB) | performance | medium | open |
 | PS-8 | `llms.txt` / `ai-catalog.json` (agentic browsing 1/4) | agentic | low | open |
 | PS-9 | Google indexing (Search Console, sitemap, own domain) | discovery | owner action | open |
@@ -224,6 +224,21 @@ groups are `bg-*` 16 KB, `border-*` 11 KB, gradients (`from/via/to`) ≈ 14 KB, 
 `backdrop-*` 3 KB: mostly legacy patterns the design ratchet already shrinks over time. Conclusion: no
 quick, safe CSS diet worth a PR here — the size falls naturally as D3 migration removes raw palette,
 gradients and blur. The remaining decision is option 1 (inline) vs option 3 (accept).
+
+**Option 1 measured (2026-10-17) — rejected.** Same commit (main 10aa2b1) built twice locally,
+`next start`, gzip sizes of the HTML document:
+
+| Page | `<link>` (today) | `inlineCss: true` | Change |
+|---|---|---|---|
+| `/ar` | 41 KB | 117 KB | +76 KB |
+| `/login` | 14 KB | 90 KB | +76 KB |
+| `/demo/student` | 29 KB | 105 KB | +76 KB |
+
+The CSS is 25 KB gzip as files, but inlined it lands twice (the `<style>` tag and the RSC payload,
+as the Next docs warn), so every full page load grows by ~76 KB. On the owner's link (230 ms ping,
+~1.45 Mbps) that is ~0.4 s more transfer on every load, against one saved round trip (~0.23 s) on a
+first visit only; returning students and teachers lose the cached stylesheet. **Decision: option 3,
+keep the `<link>`.** Revisit only if the global CSS shrinks a lot (D3 migration).
 
 ## PS-7 — Legacy JavaScript polyfills
 
