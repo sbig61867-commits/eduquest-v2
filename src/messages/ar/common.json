@@ -245,7 +245,16 @@
     "settings": "الإعدادات",
     "preferences": "التفضيلات",
     "language": "اللغة",
-    "appearance": "المظهر"
+    "appearance": "المظهر",
+    "details": "بياناتي",
+    "changePassword": "تغيير كلمة المرور",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور الجديدة",
+    "passwordHint": "{min} أحرف على الأقل.",
+    "passwordMismatch": "كلمتا المرور الجديدتان غير متطابقتين.",
+    "updatePassword": "تحديث كلمة المرور",
+    "passwordSaved": "تم تغيير كلمة المرور."
   },
   "lessonView": {
     "empty": "لا يوجد محتوى في هذا الدرس بعد.",

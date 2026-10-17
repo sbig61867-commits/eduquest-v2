@@ -9,7 +9,8 @@
     "attendance": "حضوري",
     "grades": "الدرجات",
     "notifications": "الإشعارات",
-    "profile": "الملف الشخصي"
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات"
   },
   "portalTitle": "بوابة الطالب",
   "roleTitle": "طالب",
