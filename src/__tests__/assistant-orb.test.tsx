@@ -8,6 +8,9 @@ import type { LessonSummary } from '@/lib/assistant/lesson-summary'
 
 // The study assistant's orb: cloud messages one at a time, a panel with four tabs.
 
+const prefetch = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({ useRouter: () => ({ prefetch, push: vi.fn(), refresh: vi.fn() }) }))
+
 const render = (ui: React.ReactElement) =>
   rtlRender(<NextIntlClientProvider locale="ar" messages={arMessages}>{ui}</NextIntlClientProvider>)
 
@@ -36,6 +39,7 @@ function respond(body: unknown, ok = true) {
 
 beforeEach(() => {
   vi.useFakeTimers()
+  prefetch.mockReset()
   sessionStorage.clear()
   reduceMotion = false
   vi.stubGlobal('matchMedia', (q: string) => ({
@@ -168,6 +172,17 @@ describe('AssistantOrb — panel', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(orb).toHaveFocus()
+  })
+
+  it('fetches the pages its "Open" links lead to when the panel opens, and a tap closes the panel', async () => {
+    await mountReady()
+    expect(prefetch).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'افتح المساعد الدراسي' }))
+    expect(prefetch.mock.calls.map(c => c[0]).sort()).toEqual(['/student/exams', '/student/lessons/l1'])
+    const dialog = screen.getByRole('dialog', { name: 'المساعد الدراسي' })
+    const open = within(dialog).getAllByRole('link', { name: 'افتح' }).find(a => a.getAttribute('href') === '/student/lessons/l1')!
+    fireEvent.click(open)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('shows the plan with when to start revising', async () => {

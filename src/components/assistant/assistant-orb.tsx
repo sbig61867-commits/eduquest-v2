@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { OrbGraphic } from './orb-graphic'
@@ -156,6 +157,18 @@ export function AssistantOrb({ chatEnabled }: { chatEnabled: boolean }) {
   }, [summaries])
 
   const openTab = (next: Tab) => { setOpen(true); setTab(next) }
+
+  // "Open" links (2026-10-17): on a phone's slower link the page took seconds
+  // to arrive with no visible change, so students tapped again, and each tap
+  // aborted and restarted the request. The pages a nudge can open are fetched
+  // as soon as the panel opens, and a tap closes the panel at once, so the tap
+  // is acknowledged and the page is (mostly) already there. No loading UI.
+  const router = useRouter()
+  const hrefs = nudges.map(n => n.href).filter((h): h is string => !!h).join('|')
+  useEffect(() => {
+    if (!open || !hrefs) return
+    for (const h of new Set(hrefs.split('|'))) router.prefetch(h)
+  }, [open, hrefs, router])
   const current = nudges[index % Math.max(1, nudges.length)]
   const nudgeText = (n: Nudge) => t(`nudge.${n.kind}`, n.params)
   const count = nudges.filter(n => ACTIONABLE.has(n.kind)).length
@@ -184,6 +197,7 @@ export function AssistantOrb({ chatEnabled }: { chatEnabled: boolean }) {
       {n.href && (
         <Link
           href={n.href}
+          onClick={() => setOpen(false)}
           className="rounded-control border border-line px-2 py-0.5 text-label text-fg hover:bg-elevated focus-visible:ring-2 focus-visible:ring-focus"
         >
           {t('open')}
