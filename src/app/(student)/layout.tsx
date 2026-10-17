@@ -29,7 +29,8 @@ export default async function StudentLayout({ children }: { children: React.Reac
         <Sidebar nav={nav} title={t('roleTitle')} centreTraineeTitle={t('centreTraineeTitle')} />
         <ContentShell>
           <Header nav={nav} />
-          <main className="p-4 lg:p-6">{children}</main>
+          {/* pb-24: room under the last section for the fixed assistant button (bottom-4, 56 px). */}
+          <main className="p-4 pb-24 lg:p-6 lg:pb-24">{children}</main>
         </ContentShell>
         <StudentQuickAccessPanel />
         <AnnouncementPopup />
