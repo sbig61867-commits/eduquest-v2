@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import type { Locale } from '@/i18n/config'
+import { DEFAULT_LOCALE, LOCALES, isLocale, type Locale } from '@/i18n/config'
 import { formatDate } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -14,16 +14,19 @@ interface Tenant {
   name: string
   slug: string
   logo_url: string | null
+  default_locale?: string | null
   is_active: boolean
   created_at: string
 }
 
 export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
   const t = useTranslations('admin.settings')
+  const tLocale = useTranslations('common.locale')
   const locale = useLocale() as Locale
   const [form, setForm] = useState({
     name: tenant?.name ?? '',
     logo_url: tenant?.logo_url ?? '',
+    default_locale: isLocale(tenant?.default_locale) ? tenant.default_locale : DEFAULT_LOCALE,
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -43,7 +46,7 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
       const res = await fetch('/api/admin/tenant-branding', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name.trim(), logo_url: form.logo_url.trim() }),
+        body: JSON.stringify({ name: form.name.trim(), logo_url: form.logo_url.trim(), default_locale: form.default_locale }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -120,6 +123,20 @@ export function AdminSettingsClient({ tenant }: { tenant: Tenant | null }) {
           onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))}
           placeholder="https://example.com/logo.png"
         />
+
+        <div className="space-y-2">
+          <label htmlFor="tenant-default-locale" className="block text-sm font-medium text-fg-2">{t('defaultLanguage')}</label>
+          <select
+            id="tenant-default-locale"
+            value={form.default_locale}
+            onChange={e => setForm(p => ({ ...p, default_locale: e.target.value as Locale }))}
+            aria-describedby="tenant-default-locale-hint"
+            className="eq-focus w-full rounded-control border border-line bg-canvas px-3 py-2 text-fg"
+          >
+            {LOCALES.map(l => <option key={l} value={l}>{tLocale(l)}</option>)}
+          </select>
+          <p id="tenant-default-locale-hint" className="text-meta text-fg-muted">{t('defaultLanguageHint')}</p>
+        </div>
 
         {form.logo_url && (
           <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">

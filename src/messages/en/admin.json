@@ -198,7 +198,9 @@
     "logo": "Logo URL (optional)",
     "logoAlt": "Logo preview",
     "logoPreview": "Logo preview",
-    "save": "Save changes"
+    "save": "Save changes",
+    "defaultLanguage": "Institution's default language",
+    "defaultLanguageHint": "Used for invitation and password emails, and for anyone who has not chosen a language yet."
   },
   "academicClient": {
     "requestFailed": "Request failed",

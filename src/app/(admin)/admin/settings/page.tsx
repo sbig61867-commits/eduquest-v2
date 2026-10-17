@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { AdminSettingsClient } from './settings-client'
 import { AccountSettings } from '@/components/shared/account-settings'
 
-type TenantRow = { id: string; name: string; slug: string; logo_url: string | null; is_active: boolean; created_at: string }
+type TenantRow = { id: string; name: string; slug: string; logo_url: string | null; default_locale: string | null; is_active: boolean; created_at: string }
 
 export default async function AdminSettingsPage() {
   const supabase = await createClient()
@@ -16,7 +16,7 @@ export default async function AdminSettingsPage() {
   // only the columns the institution card shows.
   const { data: profile } = await supabase
     .from('users')
-    .select('tenant:tenants(id, name, slug, logo_url, is_active, created_at)')
+    .select('tenant:tenants(id, name, slug, logo_url, default_locale, is_active, created_at)')
     .eq('id', user.id)
     .single()
   const raw = (profile as unknown as { tenant: TenantRow | TenantRow[] | null } | null)?.tenant ?? null
