@@ -298,6 +298,7 @@ Do not add sections that are not requested. Do not ignore sections that are requ
 LANGUAGE
 - Write the ENTIRE lesson in the SAME language as the topic above. If the topic is in Arabic, every heading, sentence, question and option must be in Arabic. Never answer in English for an Arabic topic.
 - Translate the section names into that language too.
+- When you write how a foreign word is pronounced in Arabic letters, use ONLY standard Arabic letters, never the Persian or Urdu ones (zhe, pe, che, gaf, ve, Persian kaf or yeh). Map the sounds: French j or soft g as in "rouge", "jour" -> jeem; p -> beh; v -> feh; ch as in "chat" -> sheen; hard g -> ghain. So "rouge" is written with jeem at the end, never with zhe.
 
 FORMAT
 - Every section MUST start with a Markdown H2 heading (\`## Section Name\`). Each H2 becomes a separate tab in the platform, so use \`##\` ONLY for section boundaries.

@@ -9,6 +9,7 @@ import {
 import { Markdown } from '@/components/shared/markdown'
 import { InteractiveQuiz, speak } from '@/components/shared/lesson-tabs'
 import { parseVideoUrl } from '@/lib/video-embed'
+import { detectLessonLanguage, setLessonSpeechLanguage, warmUpSpeech } from '@/lib/speech'
 import {
   imagePaths, lessonOutline, parseLessonContent, type CalloutTone, type LessonBlock, type LessonDoc, type MapNode,
 } from '@/lib/lesson-doc'
@@ -48,6 +49,8 @@ function useLessonImages(doc: LessonDoc, query: string | null, given: Record<str
 }
 
 const PROGRESS_KEY = (id: string) => `eq-lesson-visited:${id}`
+const VIEW_ALL_KEY = 'eq-lesson-view-all'
+const TOP_ID = 'eq-lesson-top'
 const anchor = (id: string) => `lesson-sec-${id}`
 
 // The whole lesson on one page, read top to bottom: every section in order,
@@ -56,11 +59,20 @@ const anchor = (id: string) => `lesson-sec-${id}`
 export function LessonView({ content, doc: givenDoc, title = '', lessonId, itemId, imageUrls }: Props) {
   const t = useTranslations('common.lessonView')
   const doc = useMemo(() => givenDoc ?? parseLessonContent(content), [givenDoc, content])
+  // Pronunciation buttons speak in the lesson's own language (src/lib/speech.ts).
+  const speechLang = useMemo(() => detectLessonLanguage(JSON.stringify(doc)), [doc])
+  useEffect(() => { setLessonSpeechLanguage(speechLang); warmUpSpeech() }, [speechLang])
   const sections = useMemo(() => doc.sections.filter(s => s.blocks.length > 0 || s.title), [doc])
   const urls = useLessonImages(doc, lessonId ? `lesson=${lessonId}` : itemId ? `item=${itemId}` : null, imageUrls)
   const progressId = lessonId ?? itemId
   const [showMap, setShowMap] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(sections[0]?.id ?? null)
+  // One section per screen by default (2026-10-17, owner); "whole lesson" brings
+  // back the single scrolling page and is remembered in this browser.
+  const [allAtOnce, setAllAtOnce] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    try { return localStorage.getItem(VIEW_ALL_KEY) === '1' } catch { return false }
+  })
   // Sections the reader has reached, remembered per lesson in this browser.
   const [visited, setVisited] = useState<Set<string>>(() => {
     const seen = new Set<string>()
@@ -71,22 +83,25 @@ export function LessonView({ content, doc: givenDoc, title = '', lessonId, itemI
     return seen
   })
 
-  // Scroll-spy: the section crossing the upper part of the screen is "current".
+  const markVisited = (id: string) => setVisited(prev => {
+    if (prev.has(id)) return prev
+    const next = new Set(prev).add(id)
+    if (progressId) { try { localStorage.setItem(PROGRESS_KEY(progressId), JSON.stringify([...next])) } catch { /* ignore */ } }
+    return next
+  })
+
+  // Scroll-spy (whole-lesson view only): the section crossing the upper part
+  // of the screen is "current".
   const sectionKey = sections.map(s => s.id).join('|')
   useEffect(() => {
-    if (!sectionKey.includes('|') || typeof IntersectionObserver === 'undefined') return
+    if (!allAtOnce || !sectionKey.includes('|') || typeof IntersectionObserver === 'undefined') return
     const observer = new IntersectionObserver(entries => {
       for (const e of entries) {
         if (!e.isIntersecting) continue
         const id = (e.target as HTMLElement).dataset.section
         if (!id) continue
         setActiveId(id)
-        setVisited(prev => {
-          if (prev.has(id)) return prev
-          const next = new Set(prev).add(id)
-          if (progressId) { try { localStorage.setItem(PROGRESS_KEY(progressId), JSON.stringify([...next])) } catch { /* ignore */ } }
-          return next
-        })
+        markVisited(id)
       }
     }, { rootMargin: '-15% 0px -65% 0px' })
     for (const id of sectionKey.split('|')) {
@@ -94,20 +109,36 @@ export function LessonView({ content, doc: givenDoc, title = '', lessonId, itemI
       if (el) observer.observe(el)
     }
     return () => observer.disconnect()
-  }, [sectionKey, progressId])
+    // markVisited only writes state; listing it would re-observe on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionKey, progressId, allAtOnce])
 
   if (sections.length === 0) return <p className="text-fg-3 text-body-sm">{t('empty')}</p>
 
   const outline = lessonOutline({ ...doc, sections }, title || t('mapRoot'))
   const done = sections.filter(s => visited.has(s.id)).length
   const multi = sections.length > 1
+  const paged = multi && !allAtOnce
+  const current = sections.find(s => s.id === activeId) ?? sections[0]
   const go = (id: string) => {
     setShowMap(false)
+    if (paged) {
+      setActiveId(id)
+      markVisited(id)
+      document.getElementById(TOP_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
     document.getElementById(anchor(id))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const toggleAll = () => {
+    const next = !allAtOnce
+    setAllAtOnce(next)
+    try { localStorage.setItem(VIEW_ALL_KEY, next ? '1' : '0') } catch { /* private mode */ }
+    if (next && current) requestAnimationFrame(() => document.getElementById(anchor(current.id))?.scrollIntoView({ block: 'start' }))
   }
 
   return (
-    <div className="space-y-4">
+    <div id={TOP_ID} className="space-y-4 scroll-mt-[calc(var(--eq-sticky-offset,0px)+1rem)]">
       {multi && (
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-48">
@@ -123,6 +154,10 @@ export function LessonView({ content, doc: givenDoc, title = '', lessonId, itemI
             className={cn('eq-focus inline-flex items-center gap-2 px-3 py-1.5 rounded-control border text-body-sm transition-colors',
               showMap ? 'border-accent bg-accent-subtle text-accent' : 'border-line-strong text-fg-2 hover:text-fg')}>
             <MapIcon className="w-4 h-4" /> {t('lessonMap')}
+          </button>
+          <button type="button" onClick={toggleAll} aria-pressed={allAtOnce}
+            className="eq-focus inline-flex items-center gap-2 px-3 py-1.5 rounded-control border border-line-strong text-body-sm text-fg-2 hover:text-fg">
+            {allAtOnce ? t('showOne') : t('showAll')}
           </button>
         </div>
       )}
@@ -161,27 +196,45 @@ export function LessonView({ content, doc: givenDoc, title = '', lessonId, itemI
 
         <div className="min-w-0 space-y-12">
           {sections.map((s, i) => {
+            if (paged && s.id !== current?.id) return null
             const next = sections[i + 1]
+            const prev = sections[i - 1]
             return (
               <section key={s.id} id={anchor(s.id)} data-section={s.id} className="scroll-mt-[calc(var(--eq-sticky-offset,0px)+4.5rem)] lg:scroll-mt-[calc(var(--eq-sticky-offset,0px)+1.5rem)] space-y-4">
                 {(s.title || multi) && (
                   <header className="flex items-baseline gap-3 pb-2 border-b border-line">
                     {multi && <span className="eq-section-index">{String(i + 1).padStart(2, '0')}</span>}
-                    <h2 className="text-h2 text-fg">{s.title || t('untitled', { n: i + 1 })}</h2>
+                    <h2 dir="auto" className="text-h2 text-fg">{s.title || t('untitled', { n: i + 1 })}</h2>
                   </header>
                 )}
                 {s.blocks.map(b => <BlockView key={b.id} block={b} urls={urls} />)}
                 {multi && (next
-                  ? <div className="flex justify-end pt-2">
+                  ? <div className="flex items-center justify-between gap-3 pt-2">
+                      {paged && prev
+                        ? <button type="button" onClick={() => go(prev.id)}
+                            className="eq-focus inline-flex items-center gap-2 px-4 py-2 rounded-control border border-line-strong text-fg-2 hover:text-fg text-body-sm">
+                            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                            {t('previousSection', { title: prev.title || t('untitled', { n: i }) })}
+                          </button>
+                        : <span />}
                       <button type="button" onClick={() => go(next.id)}
                         className="eq-focus inline-flex items-center gap-2 px-4 py-2 rounded-control bg-accent hover:bg-accent-hover text-on-accent text-body-sm font-medium">
                         {t('nextSection', { title: next.title || t('untitled', { n: i + 2 }) })}
                         <ChevronLeft className="w-4 h-4 ltr:rotate-180" />
                       </button>
                     </div>
-                  : <p className="flex items-center justify-center gap-2 pt-4 text-success text-body-sm">
-                      <Check className="w-4 h-4" /> {t('finished')}
-                    </p>)}
+                  : <div className="space-y-3 pt-4">
+                      <p className="flex items-center justify-center gap-2 text-success text-body-sm">
+                        <Check className="w-4 h-4" /> {t('finished')}
+                      </p>
+                      {paged && prev && (
+                        <button type="button" onClick={() => go(prev.id)}
+                          className="eq-focus inline-flex items-center gap-2 px-4 py-2 rounded-control border border-line-strong text-fg-2 hover:text-fg text-body-sm">
+                          <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
+                          {t('previousSection', { title: prev.title || t('untitled', { n: i }) })}
+                        </button>
+                      )}
+                    </div>)}
               </section>
             )
           })}
@@ -321,7 +374,7 @@ function MapItem({ node, depth, branch, onPick }: { node: MapNode; depth: number
             depth === 0 ? 'bg-accent text-on-accent border-accent font-semibold'
               : depth === 1 ? cn('bg-surface text-fg font-medium hover:bg-elevated', BRANCH[branch % BRANCH.length])
                 : cn('bg-canvas text-fg-2 hover:text-fg', BRANCH[branch % BRANCH.length]))}>
-          {label}
+          <bdi>{label}</bdi>
         </button>
         {has && depth > 0 && (
           <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label={label}
@@ -351,7 +404,7 @@ function Steps({ items }: { items: { id: string; title: string; md: string }[] }
               isOpen ? 'bg-accent text-on-accent border-accent' : 'bg-surface text-fg-2 border-line-strong')}>{i + 1}</span>
             <button type="button" onClick={() => setOpen(isOpen ? null : it.id)} aria-expanded={isOpen}
               className="eq-focus w-full text-start py-1.5 text-body font-medium text-fg flex items-center justify-between gap-2">
-              {it.title}
+              <span dir="auto" className="flex-1">{it.title}</span>
               {it.md && <ChevronDown className={cn('w-4 h-4 text-fg-3 transition-transform', isOpen && 'rotate-180')} />}
             </button>
             {isOpen && it.md && <div className="pb-2 text-body-sm text-fg-2"><Markdown content={it.md} /></div>}
@@ -390,10 +443,10 @@ function Flashcard({ card, flipped, onFlip }: { card: { front: string; back: str
     <div className={cn('relative min-h-32 rounded-overlay border-2 transition-colors', flipped ? 'border-success bg-success-subtle' : 'border-line-strong bg-surface')}>
       <button type="button" onClick={onFlip} aria-pressed={flipped} className="eq-focus w-full h-full min-h-32 p-4 flex flex-col items-center justify-center text-center gap-1">
         {!flipped
-          ? <span className="text-h3 text-fg">{card.front}</span>
+          ? <span dir="auto" className="text-h3 text-fg">{card.front}</span>
           : <>
-              <span className="text-label text-fg-3">{card.front}</span>
-              <span className="text-body-sm text-fg">{card.back}</span>
+              <span dir="auto" className="text-label text-fg-3">{card.front}</span>
+              <span dir="auto" className="text-body-sm text-fg">{card.back}</span>
               {card.hint && showHint && <span className="text-body-sm text-success font-medium" dir="auto">{card.hint}</span>}
             </>}
       </button>
