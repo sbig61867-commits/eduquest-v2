@@ -63,9 +63,12 @@ export function AskAiMenu({ lessonTitle, groupName }: { lessonTitle: string; gro
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="eq-focus inline-flex items-center gap-2 rounded-control border border-line px-3 py-2 text-body-sm text-fg hover:bg-elevated"
+        aria-label={t('button')}
+        title={t('button')}
+        className="eq-focus inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-control border border-line px-2 py-2 sm:px-3 text-body-sm text-fg hover:bg-elevated"
       >
-        <Sparkles className="w-4 h-4" aria-hidden="true" /> {t('button')}
+        {/* Phones: icon only, so the lesson title keeps the header. */}
+        <Sparkles className="w-4 h-4" aria-hidden="true" /> <span className="hidden sm:inline">{t('button')}</span>
       </button>
 
       {open && (

@@ -134,3 +134,15 @@ describe('lesson page', () => {
     expect(page).toMatch(/<AskAiMenu lessonTitle=\{lesson\.title\} groupName=\{group\?\.name\} \/>/)
   })
 })
+
+describe('phone header', () => {
+  it('the button is icon-only on phones and keeps its accessible name', () => {
+    renderIn('en')
+    const btn = screen.getByRole('button', { name: 'Ask an AI' })
+    expect(btn.className).toContain('shrink-0')
+    expect(btn.className).toContain('whitespace-nowrap')
+    const label = btn.querySelector('span')!
+    expect(label.textContent).toBe('Ask an AI')
+    expect(label.className).toContain('hidden sm:inline')
+  })
+})
