@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n/config'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ResetPasswordButton } from '@/components/shared/reset-password-button'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Search, Trash2, ToggleLeft, Mail, GraduationCap, PenLine } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -158,6 +159,7 @@ export function StudentsClient({ initialStudents, total, page = 1, pageCount = 1
                       ><GraduationCap className="w-4 h-4" /></Button>
                     )}
                     <Button variant="ghost" size="sm" title={tName('correct')} aria-label={tName('correct')} onClick={() => setNaming(student)}><PenLine className="w-4 h-4" /></Button>
+                    <ResetPasswordButton userId={student.id} name={student.full_name} />
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(student)}><ToggleLeft className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteStudent(student.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                   </div>

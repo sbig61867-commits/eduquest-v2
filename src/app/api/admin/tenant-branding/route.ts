@@ -2,8 +2,9 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { isLocale } from '@/i18n/config'
 
-// PATCH /api/admin/tenant-branding  { name, logo_url }
+// PATCH /api/admin/tenant-branding  { name, logo_url, default_locale? }
 //
 // Why this route exists: admin/settings-client.tsx used to update `tenants`
 // straight from the browser, but `tenants` only has a super_admin write
@@ -13,7 +14,9 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 // fix: RLS cannot restrict columns, and `tenants.is_active` must never be
 // writable by the tenant's own admin (a suspended university could un-suspend
 // itself). So the write goes through the service-role client here, and only
-// the two branding columns are ever touched.
+// the branding columns and the institution's default language are ever
+// touched. default_locale (emails, and the interface of anyone who has not
+// picked a language) is optional: left out, it is not changed.
 function adminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +36,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
-  let body: { name?: unknown; logo_url?: unknown }
+  let body: { name?: unknown; logo_url?: unknown; default_locale?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const name = typeof body.name === 'string' ? body.name.trim() : ''
@@ -52,12 +55,18 @@ export async function PATCH(request: Request) {
     logoUrl = parsed.toString()
   }
 
+  if (body.default_locale !== undefined && !isLocale(body.default_locale)) {
+    return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+  }
+  const update: { name: string; logo_url: string | null; default_locale?: string } = { name, logo_url: logoUrl }
+  if (isLocale(body.default_locale)) update.default_locale = body.default_locale
+
   // Tenant comes from the caller's own profile — never from the request body.
   const { data, error } = await adminClient()
     .from('tenants')
-    .update({ name, logo_url: logoUrl })
+    .update(update)
     .eq('id', profile.tenant_id)
-    .select('id, name, logo_url')
+    .select('id, name, logo_url, default_locale')
     .single()
 
   if (error || !data) {

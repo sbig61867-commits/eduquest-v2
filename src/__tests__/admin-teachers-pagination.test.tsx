@@ -33,6 +33,7 @@ const row = (id: string, full_name: string, extra: Record<string, unknown> = {})
 })
 
 // The row's two icon buttons (status, delete) — the course chip has a title.
+// Row actions: [reset password, status toggle, delete].
 const rowButtons = () => [...document.querySelectorAll<HTMLButtonElement>('tbody td:last-child button')]
 
 const fetchMock = vi.fn()
@@ -95,7 +96,8 @@ describe('admin teachers — existing actions unchanged', () => {
 
   it('status toggle → /api/admin/toggle-user', async () => {
     render(<TeachersClient initialTeachers={[row('t1', 'Ali')]} total={1} />)
-    const [toggle] = rowButtons()
+    const [reset, toggle] = rowButtons()
+    expect(reset.getAttribute('aria-label')).toContain('action')
     fireEvent.click(toggle)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/admin/toggle-user', expect.objectContaining({
       method: 'PATCH', body: JSON.stringify({ userId: 't1', isActive: false }),
@@ -105,7 +107,7 @@ describe('admin teachers — existing actions unchanged', () => {
 
   it('delete → /api/admin/delete-user', async () => {
     render(<TeachersClient initialTeachers={[row('t1', 'Ali')]} total={1} />)
-    const del = rowButtons()[1]
+    const del = rowButtons()[2]
     fireEvent.click(del)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/admin/delete-user?id=t1', { method: 'DELETE' }))
     await waitFor(() => expect(screen.queryByText('Ali')).toBeNull())
