@@ -792,5 +792,17 @@
     "elementReset": "Reset",
     "dragHint": "Click any element on the banner to select it, then drag it — or use the arrow keys (Shift for bigger steps).",
     "resetAll": "Reset all positions"
+  },
+  "resetPassword": {
+    "action": "Reset password for {name}",
+    "confirm": "Issue a temporary password for {name}? Their current password stops working at once.",
+    "title": "New password for {name}",
+    "memberId": "Member ID:",
+    "temporary": "Temporary password (shown once)",
+    "copy": "Copy password",
+    "copied": "Copied",
+    "handOver": "Hand it over in person. They will be asked to choose their own password when they sign in.",
+    "done": "Done",
+    "failed": "Could not reset the password."
   }
 }

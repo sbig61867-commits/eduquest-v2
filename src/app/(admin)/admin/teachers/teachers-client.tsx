@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n/config'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ResetPasswordButton } from '@/components/shared/reset-password-button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Search, Trash2, ToggleLeft, UserPlus, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -166,6 +167,7 @@ export function TeachersClient({ initialTeachers, total, page = 1, pageCount = 1
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1 justify-end">
+                    <ResetPasswordButton userId={teacher.id} name={teacher.full_name} />
                     <Button variant="ghost" size="sm" onClick={() => toggleStatus(teacher)}>
                       <ToggleLeft className="w-4 h-4" />
                     </Button>
