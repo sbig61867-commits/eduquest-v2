@@ -162,6 +162,13 @@ Failing audits per page (mapped to existing items):
 - **Done when:** `/` answers `HIT` on the second signed-out full page load, and it serves the same
   HTML for `ar` and `en` visitors (or the plan's PS-1 decision makes that moot).
 
+**Measured (2026-10-17) — no change for now.** `/` renders the cookie's language, and the CDN cannot
+key on the cookie, so the only safe way to cache it is a redirect to `/<locale>`. A redirect is a
+proxy round trip of its own. Owner's link, 6 samples each, median TTFB: `/` today ≈ 1.8 s, a 307
+from the proxy ≈ 1.3 s, `/ar` from the edge ≈ 1.1 s — redirect + HIT ≈ 2.4 s, slower than today.
+On a fast link the gain would be ~0.15 s. Every internal link already points at `/ar` or `/en`;
+`/` is only reached by typing the bare domain. Revisit together with PS-1 (an owner SEO decision).
+
 ## PS-5 — Unused JavaScript on `/` + long main-thread tasks
 
 - **Findings:** unused JS 73 KB (`2p3ep6xv0yt5f.js` 46 KB unused of 74, `0cmvg450bcbw3.js` 27 of 64).
