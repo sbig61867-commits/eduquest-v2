@@ -10,5 +10,5 @@ export function generateMetadata(): Promise<Metadata> {
 
 export default function Pricing() {
   if (!pricingEnabled) notFound()
-  return <MarketingPage><PricingPage /></MarketingPage>
+  return <MarketingPage sections={['pricingPage']}><PricingPage /></MarketingPage>
 }

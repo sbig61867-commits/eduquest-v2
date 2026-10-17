@@ -7,5 +7,5 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default function About() {
-  return <MarketingPage><AboutPage /></MarketingPage>
+  return <MarketingPage sections={['aboutPage']}><AboutPage /></MarketingPage>
 }

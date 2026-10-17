@@ -52,7 +52,8 @@ export function allMessages(locale: Locale): Messages {
  */
 export function clientMessages(
   locale: Locale,
-  namespaces: readonly Namespace[]
+  namespaces: readonly Namespace[],
+  only: SectionPick = {}
 ): MessageTree {
   const dict = DICTIONARIES[locale] as unknown as MessageTree
   const out: MessageTree = {}
@@ -67,8 +68,28 @@ export function clientMessages(
     if (!(ns in dict)) {
       throw new Error(`[i18n] Unknown namespace "${ns}" for locale "${locale}".`)
     }
-    out[ns] = dict[ns]
+    const sections = only[ns]
+    if (!sections) {
+      out[ns] = dict[ns]
+      continue
+    }
+    const tree = dict[ns] as MessageTree
+    const picked: MessageTree = {}
+    for (const key of sections) {
+      if (!(key in tree)) {
+        throw new Error(`[i18n] Unknown section "${ns}.${key}" for locale "${locale}".`)
+      }
+      picked[key] = tree[key]
+    }
+    out[ns] = picked
   }
 
   return out
 }
+
+/**
+ * Optional narrowing of a namespace to some of its top-level sections. The
+ * public pages use it: `public` holds the copy of every marketing page
+ * (≈90 KB in Arabic), and each page needs only its own section plus `shell`.
+ */
+export type SectionPick = { [N in Namespace]?: readonly string[] }

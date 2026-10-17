@@ -7,5 +7,5 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default function ResponsibleAi() {
-  return <MarketingPage><AiPage /></MarketingPage>
+  return <MarketingPage sections={['aiPage']}><AiPage /></MarketingPage>
 }
