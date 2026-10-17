@@ -7,5 +7,5 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default function TermsPage() {
-  return <MarketingPage><PolicyPage kind="terms" /></MarketingPage>
+  return <MarketingPage sections={['policy']}><PolicyPage kind="terms" /></MarketingPage>
 }

@@ -6,7 +6,7 @@ import { ScopedIntlProvider } from '@/i18n/provider'
 // gives the whole tour the public light/dark appearance (src/app/globals.css).
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ScopedIntlProvider namespaces={['common', 'public']}>
+    <ScopedIntlProvider namespaces={['common', 'public']} only={{ public: ['shell', 'demo'] }}>
       <div className="eq-public">{children}</div>
     </ScopedIntlProvider>
   )

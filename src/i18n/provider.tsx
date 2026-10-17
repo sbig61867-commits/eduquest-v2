@@ -2,7 +2,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale } from 'next-intl/server'
 
 import { type Namespace, toLocale } from './config'
-import { clientMessages } from './messages'
+import { clientMessages, type SectionPick } from './messages'
 
 /**
  * The only way a `NextIntlClientProvider` should be created in this app.
@@ -22,15 +22,18 @@ import { clientMessages } from './messages'
  */
 export async function ScopedIntlProvider({
   namespaces,
+  only,
   children,
 }: {
   namespaces: readonly Namespace[]
+  /** Send only these top-level sections of a namespace (see SectionPick). */
+  only?: SectionPick
   children: React.ReactNode
 }) {
   const locale = toLocale(await getLocale())
 
   return (
-    <NextIntlClientProvider locale={locale} messages={clientMessages(locale, namespaces)}>
+    <NextIntlClientProvider locale={locale} messages={clientMessages(locale, namespaces, only)}>
       {children}
     </NextIntlClientProvider>
   )

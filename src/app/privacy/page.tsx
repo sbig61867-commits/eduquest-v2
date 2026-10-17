@@ -7,5 +7,5 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default function PrivacyPage() {
-  return <MarketingPage><PolicyPage kind="privacy" /></MarketingPage>
+  return <MarketingPage sections={['policy']}><PolicyPage kind="privacy" /></MarketingPage>
 }
