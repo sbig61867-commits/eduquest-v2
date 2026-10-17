@@ -245,7 +245,16 @@
     "settings": "Settings",
     "preferences": "Preferences",
     "language": "Language",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "details": "My details",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm the new password",
+    "passwordHint": "At least {min} characters.",
+    "passwordMismatch": "The two new passwords do not match.",
+    "updatePassword": "Update password",
+    "passwordSaved": "Your password has been changed."
   },
   "lessonView": {
     "empty": "This lesson has no content yet.",

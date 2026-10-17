@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatDate } from '@/lib/utils'
-import { User, KeyRound, CheckCircle2, Server, Sparkles, Mail, ShieldCheck, Globe, Eye, Ticket, Gauge, ClipboardCheck, Trash2, AlertTriangle } from 'lucide-react'
+import { User, CheckCircle2, Server, Sparkles, Mail, ShieldCheck, Globe, Eye, Ticket, Gauge, ClipboardCheck, Trash2, AlertTriangle } from 'lucide-react'
 import type { InvitationDefaults, AiRateLimits, ExamPolicies, DeletionPolicy } from '@/lib/settings'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
@@ -93,13 +93,6 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
   const [invSaved, setInvSaved] = useState(false)
   const [invError, setInvError] = useState('')
 
-  // Password form
-  const [password, setPassword] = useState('')
-  const [password2, setPassword2] = useState('')
-  const [savingPw, setSavingPw] = useState(false)
-  const [pwSaved, setPwSaved] = useState(false)
-  const [pwError, setPwError] = useState('')
-
   async function saveName(e: React.FormEvent) {
     e.preventDefault()
     if (!profile) return
@@ -115,22 +108,6 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       setTimeout(() => setNameSaved(false), 3000)
     }
     setSavingName(false)
-  }
-
-  async function savePassword(e: React.FormEvent) {
-    e.preventDefault()
-    setPwError(''); setPwSaved(false)
-    if (password.length < 8) { setPwError(t('passwordTooShort')); return }
-    if (password !== password2) { setPwError(t('passwordMismatch')); return }
-    setSavingPw(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) setPwError(error.message)
-    else {
-      setPassword(''); setPassword2('')
-      setPwSaved(true)
-      setTimeout(() => setPwSaved(false), 3000)
-    }
-    setSavingPw(false)
   }
 
   async function saveAiRateLimits(e: React.FormEvent) {
@@ -229,24 +206,6 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
         </div>
         <p className="text-xs text-slate-500">{t('ownerSince', { date: profile ? formatDate(profile.created_at, locale) : '—' })}</p>
         <Button type="submit" loading={savingName}>{t('save')}</Button>
-      </form>
-
-      {/* Password */}
-      <form onSubmit={savePassword} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-slate-400" /> {t('changePassword')}
-        </h3>
-        {pwError && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{pwError}</p>}
-        {pwSaved && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            <CheckCircle2 className="w-4 h-4" /> {t('passwordSaved')}
-          </div>
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label={t('newPassword')} type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder={t('passwordPlaceholder')} />
-          <Input label={t('confirmPassword')} type="password" value={password2} onChange={e => setPassword2(e.target.value)} required placeholder={t('confirmPlaceholder')} />
-        </div>
-        <Button type="submit" loading={savingPw} disabled={!password || !password2}>{t('updatePassword')}</Button>
       </form>
 
       {/* Invitation defaults */}

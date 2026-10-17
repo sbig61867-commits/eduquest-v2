@@ -9,7 +9,8 @@
     "attendance": "Attendance",
     "grades": "Grades",
     "notifications": "Notifications",
-    "profile": "Profile"
+    "profile": "Profile",
+    "settings": "Settings"
   },
   "portalTitle": "Student Portal",
   "roleTitle": "Student",

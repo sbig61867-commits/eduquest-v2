@@ -140,6 +140,7 @@ export const NAVIGATION: Record<NavRole, RoleNavDef> = {
       { key: 'account', items: [
         { key: 'notifications', href: '/student/notifications', icon: 'Bell' },
         { key: 'profile', href: '/student/profile', icon: 'CircleUser' },
+        { key: 'settings', href: '/student/settings', icon: 'Settings' },
       ] },
     ],
   },

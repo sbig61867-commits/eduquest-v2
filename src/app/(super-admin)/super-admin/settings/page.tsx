@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { SettingsClient } from './settings-client'
 import { getInvitationDefaults, getAiRateLimits, getExamPolicies, getDeletionPolicy } from '@/lib/settings'
 import { PreferencesCard } from '@/components/shared/preferences-card'
+import { PasswordCard } from '@/components/shared/account-settings'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -35,6 +36,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-8">
+      <PasswordCard />
       <PreferencesCard />
       <SettingsClient profile={profile} config={config} invitationDefaults={invitationDefaults} aiRateLimits={aiRateLimits} examPolicies={examPolicies} deletionPolicy={deletionPolicy} />
     </div>
