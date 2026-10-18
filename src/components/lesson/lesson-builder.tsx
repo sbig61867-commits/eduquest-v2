@@ -118,7 +118,7 @@ export function LessonBuilder({ doc, onChange, lessonTitle = '', imageUrls, onIm
       </div>
 
       <div className="border border-line rounded-overlay bg-surface">
-        <div className="flex items-center gap-2 p-3 border-b border-line">
+        <div className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 border-b border-line">
           <input value={section.title} onChange={e => setSection({ ...section, title: e.target.value })}
             placeholder={t('sectionTitlePlaceholder')} dir="auto"
             className="flex-1 min-w-0 bg-transparent text-h3 text-fg placeholder:text-fg-3 focus:outline-none" />
@@ -226,9 +226,10 @@ function BlockCard({ block, lessonTitle, first, last, imageUrls, onImageUploaded
   const colourable = block.type === 'text' || block.type === 'callout'
   return (
     <section className="rounded-overlay border border-line-strong bg-canvas">
-      <header className="flex items-center gap-1 px-2 py-1.5 border-b border-line">
-        <span className="text-accent">{BLOCK_ICON[block.type]}</span>
-        <span className="text-label font-medium text-fg-2 me-auto ms-1">{t(`types.${block.type}.name`)}</span>
+      {/* Wraps onto a second line in a narrow window; nothing leaves the card. */}
+      <header className="flex flex-wrap items-center gap-1 px-2 py-1.5 border-b border-line">
+        <span className="text-accent shrink-0">{BLOCK_ICON[block.type]}</span>
+        <span className="text-label font-medium text-fg-2 me-auto ms-1 min-w-0 truncate">{t(`types.${block.type}.name`)}</span>
         {(block.type === 'text' || block.type === 'callout') && (
           <ImproveBlock block={block} lessonTitle={lessonTitle} onAccept={md => onChange({ ...block, md })} />
         )}
@@ -242,7 +243,7 @@ function BlockCard({ block, lessonTitle, first, last, imageUrls, onImageUploaded
         <button type="button" className={ICON_BTN} onClick={onDuplicate} aria-label={t('duplicate')} title={t('duplicate')}><Copy className="w-4 h-4" /></button>
         <button type="button" className={cn(ICON_BTN, 'hover:text-danger')} onClick={onRemove} aria-label={t('remove')} title={t('remove')}><Trash2 className="w-4 h-4" /></button>
       </header>
-      <div className="p-3">
+      <div className="p-3 min-w-0 overflow-x-auto">
         {preview
           ? (
             <div role="button" tabIndex={0} onClick={() => setPreview(false)} onKeyDown={e => { if (e.key === 'Enter') setPreview(false) }}

@@ -301,14 +301,14 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
+    <div className="space-y-6 max-w-4xl min-w-0">
+      {/* Header: wraps on a narrow window instead of pushing the buttons off screen. */}
+      <div className="flex flex-wrap items-center gap-3">
         <button onClick={() => router.back()} className="text-slate-400 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-white">{lesson.title}</h1>
+        <div className="flex-1 min-w-0 basis-40">
+          <h1 className="text-xl font-bold text-white break-words">{lesson.title}</h1>
           <p className="text-slate-400 text-sm">{lesson.groups?.name ?? '—'}</p>
         </div>
         <Badge variant={published ? 'green' : 'yellow'}>
@@ -320,12 +320,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800">
+      <div className="flex overflow-x-auto [scrollbar-width:thin] border-b border-slate-800">
         {tabs.map(({ id, label, icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`shrink-0 whitespace-nowrap px-3 sm:px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === id ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
             }`}
           >
@@ -341,7 +341,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       {/* ── Tab: Content ── */}
       {tab === 'content' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setFileMode(!fileMode)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
