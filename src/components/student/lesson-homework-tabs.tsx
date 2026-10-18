@@ -34,11 +34,11 @@ export function LessonHomeworkTabs({ homework, children }: { homework: LessonHom
   const open = homework.filter(h => !h.submission || h.can_redo).length
 
   const tabClass = (on: boolean) =>
-    `eq-focus -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-body-sm font-medium sm:px-5 ${on ? 'border-accent text-fg' : 'border-transparent text-fg-3 hover:text-fg'}`
+    `eq-focus inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-body-sm font-medium sm:px-5 ${on ? 'border-accent text-fg' : 'border-transparent text-fg-3 hover:text-fg'}`
 
   return (
     <>
-      <div role="tablist" aria-label={t('tabsLabel')} className="mb-6 flex overflow-x-auto [scrollbar-width:thin] border-b border-line">
+      <div role="tablist" aria-label={t('tabsLabel')} className="mb-6 flex overflow-x-auto overflow-y-hidden [scrollbar-width:thin] border-b border-line">
         <button type="button" role="tab" aria-selected={tab === 'content'} onClick={() => setTab('content')} className={tabClass(tab === 'content')}>
           <BookOpen className="h-4 w-4" aria-hidden="true" /> {t('content')}
         </button>
