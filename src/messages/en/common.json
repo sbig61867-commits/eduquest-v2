@@ -254,7 +254,16 @@
     "passwordHint": "At least {min} characters.",
     "passwordMismatch": "The two new passwords do not match.",
     "updatePassword": "Update password",
-    "passwordSaved": "Your password has been changed."
+    "passwordSaved": "Your password has been changed.",
+    "switched": {
+      "title": "This tab is now signed in to another account",
+      "body": "Someone signed in to a different account in another tab of this browser. A browser keeps one sign-in for all its tabs, so this tab switched too.",
+      "signedOutTitle": "You were signed out",
+      "signedOutBody": "This browser was signed out in another tab.",
+      "tip": "To use two accounts at once, open the second one in a private window or another browser.",
+      "continue": "Continue with the current account",
+      "signIn": "Sign in"
+    }
   },
   "lessonView": {
     "empty": "This lesson has no content yet.",

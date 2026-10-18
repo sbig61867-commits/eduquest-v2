@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
-import { Plus, BookOpen, Sparkles, Pencil, Trash2, Eye, EyeOff, ExternalLink, PenLine, Upload } from 'lucide-react'
+import { Plus, BookOpen, Sparkles, Pencil, Trash2, ExternalLink, PenLine, Upload } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { AiQuota } from '@/components/shared/ai-quota'
 import { useTranslations, useLocale } from 'next-intl'
@@ -170,8 +170,9 @@ export function LessonsClient({ initialLessons, groups, pagination }: Props) {
                   <Button variant="secondary" size="sm" onClick={() => router.push(`/teacher/lessons/${lesson.id}`)}>
                     <ExternalLink className="w-3.5 h-3.5" /> {t('lessons.open')}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => togglePublish(lesson)} title={lesson.is_published ? t('lessons.unpublish') : t('lessons.publish')}>
-                    {lesson.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {/* A plain word, not an eye icon (owner, 2026-10-18: the icon read as a microphone). */}
+                  <Button variant="ghost" size="sm" onClick={() => togglePublish(lesson)}>
+                    {lesson.is_published ? t('lessons.unpublish') : t('lessons.publish')}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(lesson)}><Pencil className="w-4 h-4" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteLesson(lesson.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>

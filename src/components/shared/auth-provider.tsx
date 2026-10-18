@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { Tenant } from '@/types'
 import { toTenantSettings } from '@/lib/structure-mode'
+import { AccountSwitchNotice } from './account-switch-notice'
 
 // Named user columns; the embedded tenant is `*` so its optional settings
 // columns (institution_type, structure_mode, has_center) come through in the
@@ -79,5 +80,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return <>{children}</>
+  return <>{children}<AccountSwitchNotice /></>
 }
