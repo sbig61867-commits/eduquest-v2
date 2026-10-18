@@ -15,6 +15,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { toLessonRow, type TeacherLessonRow } from '@/lib/data/teacher-lessons'
 import { ListPagination } from '@/components/shared/list-pagination'
+import { LessonView } from '@/components/lesson/lesson-view'
 
 type Lesson = TeacherLessonRow
 interface Group { id: string; name: string }
@@ -298,13 +299,29 @@ export function LessonsClient({ initialLessons, groups, pagination }: Props) {
                 )}
               </div>
             )}
-            {!(!editing && method === 'file') && (
+            {/* No raw Markdown here (2026-10-18): a generated lesson is shown as the
+                student will see it, and all editing happens in the block editor the
+                lesson opens in right after it is created. */}
+            {!editing && method !== 'file' && (
+              form.content.trim()
+                ? (
+                  <div className="space-y-1.5">
+                    <p className="text-body-sm font-medium text-fg-2">{t('lessons.modal.previewLabel')}</p>
+                    <div className="max-h-80 overflow-y-auto rounded-control border border-line bg-canvas p-3">
+                      <LessonView content={form.content} title={form.title} />
+                    </div>
+                    <p className="text-meta text-fg-muted">{t('lessons.modal.editAfterCreate')}</p>
+                  </div>
+                )
+                : <p className="text-meta text-fg-muted">{method === 'topic' ? t('lessons.modal.contentPlaceholderTopic') : t('lessons.modal.writeInEditor')}</p>
+            )}
+            {editing && (
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-300">
                   {t('lessons.modal.contentLabel')}
                   <span className="text-slate-500 font-normal"> {t('lessons.modal.contentOptional')}</span>
                 </label>
-                <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={10} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono" placeholder={method === 'topic' ? t('lessons.modal.contentPlaceholderTopic') : t('lessons.modal.contentPlaceholder')} />
+                <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={10} className="w-full px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono" placeholder={t('lessons.modal.contentPlaceholder')} />
               </div>
             )}
             {formError && <p className="text-red-400 text-sm">{formError}</p>}

@@ -126,7 +126,10 @@
       "levelGrad": "دراسات عليا",
       "levelBeginner": "مبتدئ",
       "levelIntermediate": "متوسط",
-      "levelAdvanced": "متقدم"
+      "levelAdvanced": "متقدم",
+      "previewLabel": "كما سيراه الطالب",
+      "editAfterCreate": "ستعدّله لبنةً لبنة في المحرر فور إنشائه.",
+      "writeInEditor": "بعد إنشاء الدرس يُفتح في المحرر، وتكتبه فيه باللبنات الجاهزة."
     }
   },
   "exams": {
@@ -583,7 +586,8 @@
     "partialGeneration": "تم توليد {delivered} من {requested} سؤالاً فريداً — محتوى الملف لا يكفي لأكثر من ذلك بدون تكرار. يمكنك التوليد مجدداً أو الإضافة يدوياً.",
     "generateFailed": "فشل التوليد",
     "connectionError": "خطأ في الاتصال. حاول مجدداً.",
-    "fileSize": "({size} ميجابايت)"
+    "fileSize": "({size} ميجابايت)",
+    "saveFailed": "تعذّر حفظ الدرس. حاول مرة أخرى."
   },
   "appeals": {
     "pendingTitle": "طعونات بانتظار المراجعة",

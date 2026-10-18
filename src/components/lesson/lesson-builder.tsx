@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, type ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import {
   ArrowDown, ArrowUp, Copy, Trash2, Plus, Type, Image as ImageIcon, Video, Link2, Lightbulb, Network, ListOrdered,
@@ -15,6 +16,15 @@ import { prepareImageForUpload } from '@/lib/prepare-image'
 import { BlockView } from './lesson-view'
 import { cn } from '@/lib/utils'
 import { confirmDialog } from '@/lib/confirm-dialog'
+import { richTextFits } from '@/lib/lesson-rich-text'
+import { TEMPLATES, templateBlock } from '@/lib/lesson-templates'
+import { ImproveBlock } from './improve-block'
+
+// The word-processor field loads only when a teacher edits text (TipTap).
+const RichTextField = dynamic(() => import('./rich-text-field'), {
+  ssr: false,
+  loading: () => <div className="min-h-24 rounded-control border border-line-strong bg-canvas" />,
+})
 
 // Block-based lesson editor (owner, 2026-10-09): sections → blocks that can be
 // added anywhere, moved, duplicated and removed. Image blocks hold the
@@ -53,11 +63,13 @@ function cloneBlock(b: LessonBlock): LessonBlock {
 interface Props {
   doc: LessonDoc
   onChange: (doc: LessonDoc) => void
+  /** Sent with "improve this block" so the AI knows the lesson. */
+  lessonTitle?: string
   imageUrls: Record<string, string>
   onImageUploaded: (path: string, url: string) => void
 }
 
-export function LessonBuilder({ doc, onChange, imageUrls, onImageUploaded }: Props) {
+export function LessonBuilder({ doc, onChange, lessonTitle = '', imageUrls, onImageUploaded }: Props) {
   const t = useTranslations('common.lessonBuilder')
   const [active, setActive] = useState(0)
   const idx = Math.min(active, doc.sections.length - 1)
@@ -81,9 +93,9 @@ export function LessonBuilder({ doc, onChange, imageUrls, onImageUploaded }: Pro
     setSections(move(doc.sections, idx, idx + dir))
     setActive(Math.max(0, Math.min(doc.sections.length - 1, idx + dir)))
   }
-  const insertBlock = (at: number, type: BlockType) => {
+  const insertBlock = (at: number, block: LessonBlock) => {
     const blocks = [...section.blocks]
-    blocks.splice(at, 0, emptyBlock(type))
+    blocks.splice(at, 0, block)
     setBlocks(blocks)
   }
 
@@ -122,11 +134,12 @@ export function LessonBuilder({ doc, onChange, imageUrls, onImageUploaded }: Pro
         </div>
 
         <div className="p-3 space-y-1">
-          <Inserter onPick={type => insertBlock(0, type)} />
+          <Inserter onPick={block => insertBlock(0, block)} />
           {section.blocks.map((b, i) => (
             <div key={b.id}>
               <BlockCard
                 block={b}
+                lessonTitle={lessonTitle}
                 first={i === 0}
                 last={i === section.blocks.length - 1}
                 imageUrls={imageUrls}
@@ -136,7 +149,7 @@ export function LessonBuilder({ doc, onChange, imageUrls, onImageUploaded }: Pro
                 onDuplicate={() => { const bl = [...section.blocks]; bl.splice(i + 1, 0, cloneBlock(b)); setBlocks(bl) }}
                 onRemove={() => setBlocks(section.blocks.filter(x => x.id !== b.id))}
               />
-              <Inserter onPick={type => insertBlock(i + 1, type)} />
+              <Inserter onPick={block => insertBlock(i + 1, block)} />
             </div>
           ))}
           {section.blocks.length === 0 && <p className="text-center text-meta text-fg-3 py-6">{t('emptySection')}</p>}
@@ -147,8 +160,9 @@ export function LessonBuilder({ doc, onChange, imageUrls, onImageUploaded }: Pro
 }
 
 // "+" between blocks → the block palette.
-function Inserter({ onPick }: { onPick: (type: BlockType) => void }) {
+function Inserter({ onPick }: { onPick: (block: LessonBlock) => void }) {
   const t = useTranslations('common.lessonBuilder')
+  const tt = useTranslations('common.lessonBuilder.templates')
   const [open, setOpen] = useState(false)
   return (
     <div className="relative py-1">
@@ -162,9 +176,20 @@ function Inserter({ onPick }: { onPick: (type: BlockType) => void }) {
         <div className="flex-1 border-t border-dashed border-line opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
       {open && (
-        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2 p-2 rounded-overlay border border-line bg-canvas">
+        <div className="mt-2 space-y-2 p-2 rounded-overlay border border-line bg-canvas">
+          <p className="text-label text-fg-3 px-1">{tt('heading')}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {TEMPLATES.map(key => (
+              <button key={key} type="button" onClick={() => { onPick(templateBlock(key, k => tt(k))); setOpen(false) }}
+                className="eq-focus flex items-center gap-2 p-2 rounded-control text-start border border-line hover:bg-elevated">
+                <span className="text-body-sm font-medium text-fg">{tt(`${key}.name`)}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-label text-fg-3 px-1 pt-1">{tt('blocks')}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {BLOCK_TYPES.map(type => (
-            <button key={type} type="button" onClick={() => { onPick(type); setOpen(false) }}
+            <button key={type} type="button" onClick={() => { onPick(emptyBlock(type)); setOpen(false) }}
               className="eq-focus flex items-start gap-2 p-2 rounded-control text-start hover:bg-elevated">
               <span className="shrink-0 w-8 h-8 rounded-control bg-accent-subtle text-accent flex items-center justify-center">{BLOCK_ICON[type]}</span>
               <span className="min-w-0">
@@ -174,6 +199,7 @@ function Inserter({ onPick }: { onPick: (type: BlockType) => void }) {
             </button>
           ))}
         </div>
+        </div>
       )}
     </div>
   )
@@ -181,6 +207,7 @@ function Inserter({ onPick }: { onPick: (type: BlockType) => void }) {
 
 interface CardProps {
   block: LessonBlock
+  lessonTitle: string
   first: boolean
   last: boolean
   imageUrls: Record<string, string>
@@ -191,17 +218,24 @@ interface CardProps {
   onRemove: () => void
 }
 
-function BlockCard({ block, first, last, imageUrls, onImageUploaded, onChange, onMove, onDuplicate, onRemove }: CardProps) {
+function BlockCard({ block, lessonTitle, first, last, imageUrls, onImageUploaded, onChange, onMove, onDuplicate, onRemove }: CardProps) {
   const t = useTranslations('common.lessonBuilder')
-  const [preview, setPreview] = useState(false)
+  // View = edit (2026-10-18): a block with content shows as the student sees it;
+  // clicking it opens the editor. A new, empty block opens straight in the editor.
+  const [preview, setPreview] = useState(() => hasContent(block))
+  const colourable = block.type === 'text' || block.type === 'callout'
   return (
     <section className="rounded-overlay border border-line-strong bg-canvas">
       <header className="flex items-center gap-1 px-2 py-1.5 border-b border-line">
         <span className="text-accent">{BLOCK_ICON[block.type]}</span>
         <span className="text-label font-medium text-fg-2 me-auto ms-1">{t(`types.${block.type}.name`)}</span>
-        <button type="button" onClick={() => setPreview(p => !p)} aria-pressed={preview}
-          className={cn('eq-focus px-2 h-7 rounded-control text-label', preview ? 'bg-accent-subtle text-accent' : 'text-fg-3 hover:text-fg')}>
-          {preview ? t('edit') : t('preview')}
+        {(block.type === 'text' || block.type === 'callout') && (
+          <ImproveBlock block={block} lessonTitle={lessonTitle} onAccept={md => onChange({ ...block, md })} />
+        )}
+        {colourable && <ToneMenu block={block} onChange={onChange} />}
+        <button type="button" onClick={() => setPreview(p => !p)} aria-pressed={!preview}
+          className={cn('eq-focus px-2 h-7 rounded-control text-label', !preview ? 'bg-accent-subtle text-accent' : 'text-fg-3 hover:text-fg')}>
+          {preview ? t('edit') : t('done')}
         </button>
         <button type="button" className={ICON_BTN} disabled={first} onClick={() => onMove(-1)} aria-label={t('moveUp')} title={t('moveUp')}><ArrowUp className="w-4 h-4" /></button>
         <button type="button" className={ICON_BTN} disabled={last} onClick={() => onMove(1)} aria-label={t('moveDown')} title={t('moveDown')}><ArrowDown className="w-4 h-4" /></button>
@@ -210,7 +244,13 @@ function BlockCard({ block, first, last, imageUrls, onImageUploaded, onChange, o
       </header>
       <div className="p-3">
         {preview
-          ? <BlockView block={block} urls={imageUrls} />
+          ? (
+            <div role="button" tabIndex={0} onClick={() => setPreview(false)} onKeyDown={e => { if (e.key === 'Enter') setPreview(false) }}
+              title={t('clickToEdit')} aria-label={t('clickToEdit')}
+              className="eq-focus block w-full text-start rounded-control hover:bg-elevated cursor-text">
+              <BlockView block={block} urls={imageUrls} />
+            </div>
+          )
           : <BlockEditor block={block} onChange={onChange} imageUrls={imageUrls} onImageUploaded={onImageUploaded} />}
       </div>
     </section>
@@ -225,9 +265,13 @@ function BlockEditor({ block, onChange, imageUrls, onImageUploaded }: {
     case 'text':
       return (
         <div className="space-y-1">
-          <textarea value={block.md} onChange={e => onChange({ ...block, md: e.target.value })} rows={Math.min(18, Math.max(4, block.md.split('\n').length + 1))}
-            dir="auto" placeholder={t('textPlaceholder')} className={cn(FIELD, 'resize-y font-mono')} />
-          <p className="text-label text-fg-3">{t('textHint')}</p>
+          {richTextFits(block.md)
+            ? <RichTextField value={block.md} onChange={md => onChange({ ...block, md })} placeholder={t('textPlaceholder')} />
+            : <>
+                <textarea value={block.md} onChange={e => onChange({ ...block, md: e.target.value })} rows={Math.min(18, Math.max(4, block.md.split('\n').length + 1))}
+                  dir="auto" placeholder={t('textPlaceholder')} className={cn(FIELD, 'resize-y font-mono')} />
+                <p className="text-label text-fg-3">{t('plainHint')}</p>
+              </>}
         </div>
       )
     case 'image':
@@ -265,7 +309,9 @@ function BlockEditor({ block, onChange, imageUrls, onImageUploaded }: {
               </button>
             ))}
           </div>
-          <textarea value={block.md} onChange={e => onChange({ ...block, md: e.target.value })} rows={3} dir="auto" placeholder={t('calloutPlaceholder')} className={cn(FIELD, 'resize-y')} />
+          {richTextFits(block.md)
+            ? <RichTextField value={block.md} onChange={md => onChange({ ...block, md })} placeholder={t('calloutPlaceholder')} />
+            : <textarea value={block.md} onChange={e => onChange({ ...block, md: e.target.value })} rows={3} dir="auto" placeholder={t('calloutPlaceholder')} className={cn(FIELD, 'resize-y')} />}
         </div>
       )
     case 'mindmap':
@@ -466,5 +512,46 @@ function ImageEditor({ block, onChange, url, onUploaded }: {
       {error && <p className="text-label text-danger">{error}</p>}
       <input value={block.caption} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder={t('captionPlaceholder')} dir="auto" className={FIELD} />
     </div>
+  )
+}
+
+/** True when a block already says something (it then opens in its student look). */
+function hasContent(b: LessonBlock): boolean {
+  switch (b.type) {
+    case 'text': case 'callout': return b.md.trim().length > 0
+    case 'image': return !!b.path
+    case 'video': case 'link': return !!b.url
+    case 'mindmap': return b.root.children.length > 0
+    case 'steps': return b.items.some(i => i.title.trim() || i.md.trim())
+    case 'flashcards': return b.cards.some(c => c.front.trim() || c.back.trim())
+    case 'quiz': return b.questions.length > 0
+  }
+}
+
+/**
+ * Background colour of a text block, as the generated lessons use it: plain
+ * text, or a coloured box (note, tip, warning, remember). Switches the block
+ * between 'text' and 'callout' and keeps what it says.
+ */
+function ToneMenu({ block, onChange }: { block: LessonBlock; onChange: (b: LessonBlock) => void }) {
+  const t = useTranslations('common.lessonBuilder')
+  if (block.type !== 'text' && block.type !== 'callout') return null
+  const current = block.type === 'callout' ? block.tone : 'none'
+  return (
+    <select
+      aria-label={t('tone.label')}
+      title={t('tone.label')}
+      value={current}
+      onChange={e => {
+        const v = e.target.value
+        onChange(v === 'none'
+          ? { id: block.id, type: 'text', md: block.md }
+          : { id: block.id, type: 'callout', tone: v as (typeof CALLOUT_TONES)[number], md: block.md })
+      }}
+      className="eq-focus h-7 rounded-control border border-line bg-canvas px-1 text-label text-fg-2"
+    >
+      <option value="none">{t('tone.none')}</option>
+      {CALLOUT_TONES.map(tone => <option key={tone} value={tone}>{t(`tones.${tone}`)}</option>)}
+    </select>
   )
 }
