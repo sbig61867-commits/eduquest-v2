@@ -1,4 +1,5 @@
 import React from 'react'
+import { normalizeTransliterations } from '@/lib/ai/arabic-transliteration'
 
 // Minimal dependency-free Markdown renderer (headings, lists, bold/italic,
 // inline code, fenced code blocks, blockquotes, hr). Outputs React elements —
@@ -31,7 +32,9 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
 }
 
 export function Markdown({ content, className }: { content: string; className?: string }) {
-  const lines = content.replace(/\r\n/g, '\n').split('\n')
+  // Lessons generated before 2026-10-17 may still spell a pronunciation with
+  // Persian letters ("Rouge (...)"); fixed when shown too, not only at generation.
+  const lines = normalizeTransliterations(content).replace(/\r\n/g, '\n').split('\n')
   const blocks: React.ReactNode[] = []
   let listItems: React.ReactNode[] = []
   let ordered = false

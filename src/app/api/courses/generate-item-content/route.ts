@@ -7,6 +7,7 @@ import { aiChat } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+import { normalizeTransliterations } from '@/lib/ai/arabic-transliteration'
 
 // Course source text is institutional content.
 const AUDIENCES: AiAudience[] = ['institution']
@@ -85,7 +86,7 @@ ${course.source_text.slice(0, 10000)}`
       'Write lesson content in Markdown strictly from the provided source material. Never add outside knowledge.',
       { audiences: AUDIENCES },
     )
-    return NextResponse.json({ content })
+    return NextResponse.json({ content: normalizeTransliterations(content) })
   } catch (e) {
     logAiFailure('[generate-item-content]', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })

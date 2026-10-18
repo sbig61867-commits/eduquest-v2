@@ -151,3 +151,39 @@ describe('LessonView: one section at a time', () => {
     expect(screen.getByRole('button', { name: 'One section at a time' })).toBeTruthy()
   })
 })
+
+describe('everywhere (follow-up 2026-10-18)', () => {
+  it('every AI route that writes learning content applies the letter fix', async () => {
+    const { readFileSync } = await import('node:fs')
+    for (const r of ['ai/generate-lesson', 'ai/generate-lesson-from-file', 'courses/generate-item-content',
+      'ai/generate-exam', 'ai/generate-homework-from-file', 'ai/individual-task']) {
+      expect(readFileSync(`src/app/api/${r}/route.ts`, 'utf8'), r).toMatch(/normalizeTransliterations(Deep)?\(/)
+    }
+  })
+
+  it('the deep fix reaches every string, and keeps an answer equal to its option', async () => {
+    const { normalizeTransliterationsDeep } = await import('@/lib/ai/arabic-transliteration')
+    const q = { text: `Rouge (\u0631\u0648${ZHE})?`, options: [`Rouge (\u0631\u0648${ZHE})`, 'Vert'], correct_answer: `Rouge (\u0631\u0648${ZHE})`, points: 2 }
+    const out = normalizeTransliterationsDeep(q)
+    expect(JSON.stringify(out)).not.toContain(ZHE)
+    expect(out.options[0]).toBe(out.correct_answer)
+    expect(out.points).toBe(2)
+  })
+
+  it('lessons generated before the fix are corrected when shown', () => {
+    const { container } = render(<Markdown content={`- Rouge (\u0631\u0648${ZHE})`} />)
+    expect(container.textContent).toContain(`\u0631\u0648${JEEM}`)
+    expect(container.textContent).not.toContain(ZHE)
+  })
+
+  it('more lesson languages are recognised for pronunciation', () => {
+    expect(detectLessonLanguage('Ciao! Grazie, questo è il libro. Buongiorno anche a te, sono qui.')).toBe('it-IT')
+    expect(detectLessonLanguage('Olá! Obrigado, você é muito gentil. Não, são duas.')).toBe('pt-BR')
+    expect(detectLessonLanguage('Merhaba! Teşekkür ederim, evet bu bir kitap ve ben okuyorum.')).toBe('tr-TR')
+    expect(detectLessonLanguage('Hallo! Dank je, ik ben het niet, wij zijn van hier.')).toBe('nl-NL')
+  })
+
+  it('a link in an English lesson does not make it Portuguese', () => {
+    expect(detectLessonLanguage('Visit example.com and google.com, then read the text at site.com today.')).toBe('en-US')
+  })
+})

@@ -26,3 +26,13 @@ export function normalizeTransliterations(text: string): string {
     HAS_NON_ARABIC.test(inside) ? `${word}(${inside.replace(NON_ARABIC, ch => MAP[ch] ?? ch)})` : all,
   )
 }
+
+/** The same fix on every string inside a generated value (questions, options, tasks). */
+export function normalizeTransliterationsDeep<T>(value: T): T {
+  if (typeof value === 'string') return normalizeTransliterations(value) as T
+  if (Array.isArray(value)) return value.map(v => normalizeTransliterationsDeep(v)) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, normalizeTransliterationsDeep(v)])) as T
+  }
+  return value
+}

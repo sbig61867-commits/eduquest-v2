@@ -10,6 +10,7 @@ import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { parseTaskSuggestion } from '@/lib/individual-task'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+import { normalizeTransliterationsDeep } from '@/lib/ai/arabic-transliteration'
 
 // A student's written answer is personal data; the question and the teacher's notes are institutional.
 const AUDIENCES: AiAudience[] = ['personal', 'institution']
@@ -67,7 +68,7 @@ export const POST = meteredAiRoute('individual_task', async (request: Request) =
     const raw = await groqChat(prompt, prompts.system, 0.4, AUDIENCES)
     const suggestion = parseTaskSuggestion(raw)
     if (!suggestion) return NextResponse.json({ ...(await apiErr('aiNoValidSuggestions')) }, { status: 502 })
-    return NextResponse.json(suggestion)
+    return NextResponse.json(normalizeTransliterationsDeep(suggestion))
   } catch (err) {
     logAiFailure('[api/ai/individual-task]', err)
     return NextResponse.json({ ...(await apiErr('aiUnavailable')) }, { status: 503 })
