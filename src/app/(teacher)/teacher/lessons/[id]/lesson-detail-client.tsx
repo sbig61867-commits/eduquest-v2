@@ -320,7 +320,7 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto [scrollbar-width:thin] border-b border-slate-800">
+      <div className="flex overflow-x-auto overflow-y-hidden [scrollbar-width:thin] border-b border-slate-800">
         {tabs.map(({ id, label, icon }) => (
           <button
             key={id}
