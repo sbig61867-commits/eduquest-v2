@@ -8,9 +8,8 @@
 //                announcement briefs, course analytics
 //   personal     a student's own written answers, grades, groups or announcements
 //
-// Only `public` is approved for the providers in the chain. Approval for
-// institution or personal content needs a reviewed privacy and retention policy
-// for that provider, and it is recorded here explicitly.
+// Approvals are recorded per provider and audience below, with the owner's
+// decision and the provider terms behind them.
 //
 // The check runs inside meterCall() (meter.ts), which every provider call goes
 // through, so a call that forgets its audience is refused before any network I/O.
@@ -20,18 +19,20 @@ export type AiAudience = 'public' | 'institution' | 'personal'
 const AUDIENCES: readonly AiAudience[] = ['public', 'institution', 'personal']
 
 export const PRIVACY_APPROVALS: Readonly<Record<string, Readonly<Record<AiAudience, boolean>>>> = {
-  groq:       { public: true, institution: false, personal: false },
-  // xkiro: no published API data terms found (2026-10-15) — no audience approved.
-  xkiro:      { public: false, institution: false, personal: false },
-  // cohere: prompts and generations train Cohere models unless opted out; opt-out is
-  // for enterprise customers (enterprise data commitments, read 2026-10-15) — none approved.
-  cohere:     { public: false, institution: false, personal: false },
-  // gemini: unpaid quota content may be used by Google to improve products and read
-  // by human reviewers (Gemini API terms, 2026-03-23) — no audience approved.
-  gemini:     { public: false, institution: false, personal: false },
-  // openrouter: defers to each upstream model's terms; free routes are not pinned to one
-  // upstream, so the terms cannot be confirmed — none approved.
-  openrouter: { public: false, institution: false, personal: false },
+  // Owner decision 2026-10-18: teachers' AI features work again as before the gate
+  // (lessons from files and instructions, course content, exams, homework,
+  // announcements, improve-a-block). Institution content is approved for the whole
+  // free chain. Known terms, recorded so the decision stays visible:
+  //   cohere  trains on prompts unless opted out (enterprise only)
+  //   gemini  unpaid quota may be used to improve Google products / human review
+  //   xkiro, openrouter  no confirmed data terms for free routes
+  // Students' own content (personal) stays closed: students use the AI of their
+  // choice with their own account (src/lib/ask-ai.ts), never through the platform.
+  groq:       { public: true, institution: true, personal: false },
+  xkiro:      { public: true, institution: true, personal: false },
+  cohere:     { public: true, institution: true, personal: false },
+  gemini:     { public: true, institution: true, personal: false },
+  openrouter: { public: true, institution: true, personal: false },
 }
 
 /** Thrown when content would have to go to a provider that is not approved for it. */
