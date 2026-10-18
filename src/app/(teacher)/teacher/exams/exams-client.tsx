@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
-import { Plus, ClipboardList, Sparkles, Trash2, Eye, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload, GraduationCap, UserRoundPen, MessageSquareText } from 'lucide-react'
+import { Plus, ClipboardList, Sparkles, Trash2, EyeOff, ShieldCheck, X, BarChart2, AlertTriangle, Users, ChevronDown, ChevronUp, CheckCircle2, XCircle, Save, Send, FileQuestion, Upload, GraduationCap, UserRoundPen, MessageSquareText } from 'lucide-react'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { AiProgress } from '@/components/shared/ai-progress'
 import { SimilarityPanel } from '@/components/teacher/similarity-panel'
@@ -325,7 +325,7 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
                 <div className="flex gap-1 shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => openQuestions(exam)} title={t('exams.viewQuestionsTitle')}><FileQuestion className="w-4 h-4" /></Button>
                   <Button variant="secondary" size="sm" onClick={() => openResults(exam.id)}><BarChart2 className="w-4 h-4" /> {t('exams.resultsBtn')}</Button>
-                  <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => togglePublish(exam)}>{exam.is_published ? t('lessons.unpublish') : t('lessons.publish')}</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteExam(exam.id)} className="hover:text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
