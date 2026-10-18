@@ -282,10 +282,29 @@ function sectionBodyToBlocks(body: string): LessonBlock[] {
     }
     // A ### heading starts a new text block, so the teacher can move parts around.
     if (/^###\s+/.test(line) && text.some(l => l.trim())) flushText()
+    // A blank line ends a paragraph, list or table: each becomes its own small
+    // block the teacher can edit, move or remove (2026-10-18). A heading stays
+    // with the paragraph under it.
+    if (!line.trim()) {
+      const body = text.filter(l => l.trim())
+      if (body.length && !(body.length === 1 && /^###\s+/.test(body[0]))) flushText()
+      else text.push(line)
+      continue
+    }
     text.push(line)
   }
   flushText()
-  return blocks
+  return mergeIfTooMany(blocks)
+}
+
+/** Keep a section under the block limit: rejoin neighbouring text blocks. */
+function mergeIfTooMany(blocks: LessonBlock[]): LessonBlock[] {
+  const out = [...blocks]
+  for (let i = out.length - 2; out.length > LIMITS.blocks && i >= 0; i--) {
+    const a = out[i], b = out[i + 1]
+    if (a.type === 'text' && b.type === 'text') out.splice(i, 2, { ...a, md: `${a.md}\n\n${b.md}` })
+  }
+  return out.slice(0, LIMITS.blocks)
 }
 
 export function markdownToLessonDoc(content: string): LessonDoc {

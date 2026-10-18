@@ -2,6 +2,21 @@
 import type { AiPromptText } from './types'
 
 export const aiText: AiPromptText = {
+  improveBlock: {
+    system:
+      'You help a teacher improve one block of a lesson. Keep every fact correct and do not invent new facts, dates or numbers. ' +
+      'Return ONLY the new text of the block, with no introduction or comment. Keep the same language as the text. Formatting allowed, and nothing else: ### for a sub-heading, - for a list item, 1. for a numbered item, > for a quote, **bold**, *italic*, ==highlight==. Never HTML, never a table, never a code block.',
+    request: (action, text, lessonTitle) => {
+      const what = {
+        simplify: 'Rewrite it in simpler words a younger student understands, keeping the meaning.',
+        expand: 'Explain it a little more fully, with one more sentence of explanation where it helps.',
+        example: 'Keep the text and add one short, concrete example at the end.',
+        fix: 'Fix spelling, grammar and punctuation only; change nothing else.',
+        shorter: 'Make it shorter and clearer, keeping every key idea.',
+      }[action]
+      return `Lesson: "${lessonTitle}"\n\nTask: ${what}\n\nThe block:\n"""\n${text}\n"""`
+    },
+  },
   announcementCopy: {
     system:
       'You write announcements for an educational institution. Write in clear, simple English with a professional, friendly tone, ' +

@@ -381,6 +381,104 @@
         "name": "Quick quiz",
         "desc": "Self-check questions"
       }
+    },
+    "done": "Done",
+    "clickToEdit": "Click to edit",
+    "plainHint": "This block has a table or code, so it keeps the plain editor.",
+    "tone": {
+      "label": "Background",
+      "none": "Plain text"
+    },
+    "rich": {
+      "label": "Text",
+      "toolbar": "Formatting",
+      "heading": "Sub-heading",
+      "bold": "Bold",
+      "italic": "Italic",
+      "highlight": "Highlight",
+      "bullet": "List",
+      "numbered": "Numbered list",
+      "quote": "Quote"
+    },
+    "templates": {
+      "heading": "Ready-made blocks",
+      "blocks": "All block types",
+      "paragraph": {
+        "name": "Paragraph"
+      },
+      "definition": {
+        "name": "Definition",
+        "term": "Term",
+        "body": "its meaning in simple words."
+      },
+      "example": {
+        "name": "Example and solution",
+        "question": "Example:",
+        "questionBody": "write the question here.",
+        "answer": "Solution:",
+        "answerBody": "write the solution step by step."
+      },
+      "rule": {
+        "name": "Rule or law",
+        "title": "Rule:",
+        "body": "write the rule here."
+      },
+      "warning": {
+        "name": "Warning",
+        "body": "A common mistake to avoid: …"
+      },
+      "keyPoints": {
+        "name": "Key points",
+        "title": "Key points",
+        "one": "First idea",
+        "two": "Second idea",
+        "three": "Third idea"
+      },
+      "comparison": {
+        "name": "Comparison table",
+        "aspect": "Aspect",
+        "first": "First",
+        "second": "Second",
+        "row": "Point"
+      },
+      "vocabulary": {
+        "name": "Word, meaning, pronunciation",
+        "word": "Word",
+        "meaning": "Meaning",
+        "pronunciation": "Pronunciation"
+      },
+      "steps": {
+        "name": "Steps",
+        "first": "First step",
+        "second": "Second step"
+      },
+      "practice": {
+        "name": "Practice question",
+        "question": "Write the question",
+        "a": "First answer",
+        "b": "Second answer"
+      }
+    },
+    "improve": {
+      "button": "Improve",
+      "working": "Working…",
+      "simplify": "Simpler words",
+      "expand": "Explain more",
+      "example": "Add an example",
+      "fix": "Fix the language",
+      "shorter": "Make it shorter",
+      "suggestion": "Suggestion",
+      "use": "Use it",
+      "keep": "Keep mine",
+      "close": "Close",
+      "failed": "The suggestion could not be prepared. Try again."
+    },
+    "history": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "draftFound": "You have unsaved changes from earlier on this device.",
+      "restore": "Restore them",
+      "discard": "Discard"
     }
   }
 }

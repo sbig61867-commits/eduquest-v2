@@ -126,7 +126,10 @@
       "levelGrad": "Graduate",
       "levelBeginner": "Beginner",
       "levelIntermediate": "Intermediate",
-      "levelAdvanced": "Advanced"
+      "levelAdvanced": "Advanced",
+      "previewLabel": "How the student will see it",
+      "editAfterCreate": "You will edit it block by block in the editor right after you create it.",
+      "writeInEditor": "After you create the lesson it opens in the editor, where you write it with ready-made blocks."
     }
   },
   "exams": {
@@ -583,7 +586,8 @@
     "partialGeneration": "Generated {delivered} of {requested} unique questions — the file content is not enough for more without repetition. You can generate again or add manually.",
     "generateFailed": "Generation failed",
     "connectionError": "Connection error. Please try again.",
-    "fileSize": "({size} MB)"
+    "fileSize": "({size} MB)",
+    "saveFailed": "The lesson could not be saved. Try again."
   },
   "appeals": {
     "pendingTitle": "Appeals awaiting review",

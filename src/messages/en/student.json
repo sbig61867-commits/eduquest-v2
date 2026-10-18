@@ -411,6 +411,17 @@
       "quiz": "I am a student studying the lesson \"{title}\" ({group}). Ask me five short questions about it, one at a time. Wait for my answer and tell me why it is right or wrong before the next one.",
       "stuck": "I am a student studying the lesson \"{title}\" ({group}) and I am stuck. Ask me what I do not understand, then guide me with hints instead of giving the full answer.",
       "noGroup": "no group"
+    },
+    "selection": {
+      "button": "Ask about this",
+      "title": "Ask an assistant about this part",
+      "whatDoYouWant": "What do you want from the assistant?",
+      "placeholder": "Explain it more simply, give me an example...",
+      "needRequest": "Write what you want first.",
+      "withWhich": "With which assistant?",
+      "ownAccount": "Opens with your own account there. Only your request, this part and the lesson title are sent.",
+      "close": "Close",
+      "compose": "{request}\n\nFrom the lesson \"{title}\":\n\"{passage}\""
     }
   }
 }

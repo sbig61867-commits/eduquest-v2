@@ -14,10 +14,9 @@ vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: co
 
 import { PRIVACY_APPROVALS, PrivacyPendingError, assertProviderApproved, audienceApproved, providerApproved } from '@/lib/ai/privacy'
 import { meterCall, runMetered, type MeterState } from '@/lib/ai/meter'
-import { groqChat, generateLessonContentGroq } from '@/lib/ai/groq'
+import { groqChat } from '@/lib/ai/groq'
 import { aiChat, aiChatDetailed, geminiCompose, generateLessonContentAI } from '@/lib/ai/chat'
-import { generateLessonContent } from '@/lib/ai/gemini'
-import { ExtractionError, extractTextFromFile } from '@/lib/ai/extract'
+import { extractTextFromFile } from '@/lib/ai/extract'
 
 const fetchMock = vi.fn()
 const KEYS = ['GROQ_API_KEY', 'XKIRO_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY']
@@ -38,12 +37,11 @@ afterEach(() => {
 })
 
 describe('privacy table', () => {
-  it('approves only public content, and only for groq', () => {
+  // Owner decision 2026-10-18: teacher (institution) content flows to the free chain
+  // again; students' own (personal) content never goes through the platform.
+  it('approves public and institution content, never personal, for every provider', () => {
     for (const [p, row] of Object.entries(PRIVACY_APPROVALS)) {
-      const expected = p !== 'groq'
-        ? { public: false, institution: false, personal: false }
-        : { public: true, institution: false, personal: false }
-      expect(row, p).toEqual(expected)
+      expect(row, p).toEqual({ public: true, institution: true, personal: false })
     }
   })
 
@@ -53,9 +51,9 @@ describe('privacy table', () => {
     ['not a list', 'public'],
     ['empty', []],
     ['unknown audience', ['public', 'secret']],
-    ['institution', ['institution']],
     ['personal', ['personal']],
-    ['mixed', ['public', 'institution']],
+    ['mixed with personal', ['public', 'personal']],
+    ['institution with personal', ['institution', 'personal']],
   ])('refuses %s', (_label, audiences) => {
     expect(providerApproved('groq', audiences)).toBe(false)
     expect(() => assertProviderApproved('groq', audiences)).toThrow(PrivacyPendingError)
@@ -67,16 +65,17 @@ describe('privacy table', () => {
     expect(providerApproved('constructor', ['public'])).toBe(false)
   })
 
-  it('a key alone is not approval: institution stays refused with every key set', () => {
-    expect(audienceApproved(['institution'])).toBe(false)
+  it('a key alone is not approval: personal stays refused with every key set', () => {
     expect(audienceApproved(['personal'])).toBe(false)
+    expect(audienceApproved(['institution', 'personal'])).toBe(false)
+    expect(audienceApproved(['institution'])).toBe(true)
     expect(audienceApproved(['public'])).toBe(true)
   })
 })
 
 describe('meterCall enforces the audience before run()', () => {
   it.each([
-    [undefined], [[]], [['nope']], [['institution']], [['personal']],
+    [undefined], [[]], [['nope']], [['personal']], [['institution', 'personal']],
   ])('audience %j: run() never starts and nothing is recorded', async (audiences) => {
     const run = vi.fn(async () => ({ value: 'x' }))
     const state: MeterState = { feature: 't', userId: 'u', blocked: false, calls: [] }
@@ -96,14 +95,14 @@ describe('meterCall enforces the audience before run()', () => {
 
 describe('every provider exit point refuses unapproved content with zero requests', () => {
   it('groqChat', async () => {
-    await expect(groqChat('p', undefined, 0.5, ['institution'])).rejects.toThrow(PrivacyPendingError)
+    await expect(groqChat('p', undefined, 0.5, ['personal'])).rejects.toThrow(PrivacyPendingError)
     await expect(groqChat('p', undefined, 0.5, undefined as never)).rejects.toThrow(PrivacyPendingError)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('aiChatDetailed / aiChat (whole chain: groq, xkiro, cohere, gemini, openrouter)', async () => {
-    await expect(aiChatDetailed('p', undefined, { audiences: ['institution'] })).rejects.toThrow(PrivacyPendingError)
     await expect(aiChatDetailed('p', undefined, { audiences: ['personal'] })).rejects.toThrow(PrivacyPendingError)
+    await expect(aiChatDetailed('p', undefined, { audiences: ['institution', 'personal'] })).rejects.toThrow(PrivacyPendingError)
     await expect(aiChatDetailed('p', undefined, { audiences: [] })).rejects.toThrow(PrivacyPendingError)
     await expect(aiChatDetailed('p', undefined, undefined as never)).rejects.toThrow(PrivacyPendingError)
     await expect(aiChat('p', undefined, {} as never)).rejects.toThrow(PrivacyPendingError)
@@ -112,33 +111,25 @@ describe('every provider exit point refuses unapproved content with zero request
   })
 
   it('geminiCompose', async () => {
-    await expect(geminiCompose('p', { audiences: ['institution'] })).rejects.toThrow(PrivacyPendingError)
+    await expect(geminiCompose('p', { audiences: ['personal'] })).rejects.toThrow(PrivacyPendingError)
     await expect(geminiCompose('p', {} as never)).rejects.toThrow(PrivacyPendingError)
     expect(generateContent).not.toHaveBeenCalled()
   })
 
-  it('gemini.ts generateLessonContent (unused, kept)', async () => {
-    await expect(generateLessonContent('t', 'undergraduate', 'internal notes')).rejects.toThrow(PrivacyPendingError)
-    expect(generateContent).not.toHaveBeenCalled()
+})
+
+describe('institution content flows again (owner, 2026-10-18)', () => {
+  it('generateLessonContentAI with free-text instructions reaches Groq once', async () => {
+    fetchMock.mockResolvedValueOnce(okChat('lesson'))
+    const r = await generateLessonContentAI('t', 'undergraduate', 'internal notes')
+    expect(r.provider).toBe('groq')
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
-  it('groq.ts generateLessonContentGroq (unused, kept)', async () => {
-    await expect(generateLessonContentGroq('t', 'undergraduate', 'internal notes')).rejects.toThrow(PrivacyPendingError)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('generateLessonContentAI with free-text instructions is institutional', async () => {
-    await expect(generateLessonContentAI('t', 'undergraduate', 'internal notes')).rejects.toThrow(PrivacyPendingError)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('vision extraction of an image never reaches Gemini', async () => {
-    const file = new File([new Uint8Array([1, 2, 3])], 'scan.png')
-    const err = await extractTextFromFile(file).catch(e => e)
-    expect(err).toBeInstanceOf(ExtractionError)
-    expect((err as ExtractionError).code).toBe('privacy_pending')
-    expect(generateContent).not.toHaveBeenCalled()
-    expect(fetchMock).not.toHaveBeenCalled()
+  it('aiChatDetailed institution reaches the chain', async () => {
+    fetchMock.mockResolvedValueOnce(okChat('ok'))
+    const r = await aiChatDetailed('teacher file text', undefined, { audiences: ['institution'] })
+    expect(r).toEqual({ content: 'ok', provider: 'groq' })
   })
 })
 

@@ -53,8 +53,10 @@ describe('provider failures never carry provider or prompt text', () => {
     generateContent.mockRejectedValue(Object.assign(new Error(`${SDK} [${status}] ${PROMPT}`), { status }))
     const err = await aiChatDetailed(`${PROMPT} topic`, 'sys', { audiences: ['public'] }).catch(e => e)
     expect(err).toBeInstanceOf(AiProviderError)
-    expect(fetchMock).toHaveBeenCalledTimes(1) // groq only: xkiro, cohere, openrouter not approved
-    expect(generateContent).not.toHaveBeenCalled() // gemini not approved
+    // The whole free chain is approved again (owner, 2026-10-18): groq, xkiro,
+    // cohere and openrouter over fetch, gemini through its SDK, and none leaks.
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(generateContent).toHaveBeenCalledOnce()
     expect(captureException).toHaveBeenCalledOnce()
     expectClean([err])
   })

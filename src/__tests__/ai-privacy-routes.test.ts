@@ -97,29 +97,41 @@ async function docxFile(text = 'Hello world') {
 type Handler = (req: Request) => Promise<Response>
 const load = async (path: string) => (await import(path)).POST as Handler
 
-// ── Routes whose content is institutional or personal ────────────
+// ── Routes whose content is institutional (teacher) ──────────────
+// Owner decision 2026-10-18: institution content is approved again, so these
+// routes are no longer stopped by the privacy gate (their own auth still applies).
 const BLOCKED: Array<[string, string, () => Promise<{ req: Request; json: ReturnType<typeof vi.spyOn>; formData: ReturnType<typeof vi.spyOn> }>]> = [
   ['announcement-copy', '@/app/api/ai/announcement-copy/route', async () => jsonRequest({ brief: 'SECRET-BRIEF exam moved' })],
   ['course-suggestions', '@/app/api/ai/course-suggestions/route', async () => jsonRequest({ course_id: 'c1' })],
-  ['individual-task', '@/app/api/ai/individual-task/route', async () => jsonRequest({ answer: 'SECRET-ANSWER', question: 'q' })],
   ['generate-course-pptx', '@/app/api/ai/generate-course-pptx/route', async () => { const fd = new FormData(); fd.set('file', await docxFile()); return formRequest(fd) }],
   ['generate-homework-from-file', '@/app/api/ai/generate-homework-from-file/route', async () => { const fd = new FormData(); fd.set('sourceText', 'SECRET-SOURCE'); return formRequest(fd) }],
   ['generate-lesson-from-file', '@/app/api/ai/generate-lesson-from-file/route', async () => { const fd = new FormData(); fd.set('file', await docxFile()); return formRequest(fd) }],
   ['generate-item-content', '@/app/api/courses/generate-item-content/route', async () => jsonRequest({ course_id: 'c1', title: 'Intro' })],
 ]
 
-describe.each(BLOCKED)('%s is refused before anything else', (_name, path, make) => {
-  it('503 aiPrivacyPending; no allowance check, no body read, no provider request', async () => {
+describe.each(BLOCKED)('%s is not stopped by the privacy gate', (_name, path, make) => {
+  it('never answers aiPrivacyPending', async () => {
+    fetchMock.mockResolvedValue(okChat('[]'))
     const POST = await load(path)
-    const { req, json, formData } = await make()
+    const { req } = await make()
+    // A later failure of this test's partial mocks (no database) still means the
+    // request got past the privacy gate, which is what this checks.
+    const body = await POST(req).then(r => r.json()).catch(() => ({}))
+    expect(body.code).not.toBe('aiPrivacyPending')
+  })
+})
+
+// A specific student's own answer is personal content, still closed.
+describe('individual-task (a student answer is personal) stays refused', () => {
+  it('503 aiPrivacyPending; no allowance check, no body read, no provider request', async () => {
+    const POST = await load('@/app/api/ai/individual-task/route')
+    const { req, json } = jsonRequest({ answer: 'SECRET-ANSWER', question: 'q' })
     const res = await POST(req)
     expect(res.status).toBe(503)
     expect((await res.json()).code).toBe('aiPrivacyPending')
     expect(authorizeAiUsage).not.toHaveBeenCalled()
     expect(json).not.toHaveBeenCalled()
-    expect(formData).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(generateContent).not.toHaveBeenCalled()
   })
 })
 
@@ -177,12 +189,13 @@ describe('generate-lesson (topic only, public)', () => {
     expect((await POST(jsonRequest({ topic: 'Cells', level: 'high_school' }).req)).status).toBe(200)
   })
 
-  it('free-text instructions: 422 with a clear code, never silently dropped, no request', async () => {
+  it('free-text instructions reach the provider (institution approved again)', async () => {
     const POST = await load('@/app/api/ai/generate-lesson/route')
+    fetchMock.mockResolvedValueOnce(okChat('## Lesson'))
     const res = await POST(jsonRequest({ topic: 'Cells', customInstructions: 'use our internal syllabus 2026' }).req)
-    expect(res.status).toBe(422)
-    expect((await res.json()).code).toBe('aiCustomInstructionsUnavailable')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    const user = JSON.parse(fetchMock.mock.calls[0][1].body as string).messages.at(-1).content as string
+    expect(user).toContain('use our internal syllabus 2026')
   })
 
   it.each([['free text level'], ['postdoc'], [42]])('unknown level %j: 400, no request', async (level) => {
@@ -206,23 +219,12 @@ describe('extract-file', () => {
     expect(authorizeAiUsage).not.toHaveBeenCalled()
   })
 
-  it('an image is refused before Gemini', async () => {
+  it('an image is no longer stopped by the privacy gate', async () => {
+    generateContent.mockResolvedValue({ response: { text: () => 'board text', usageMetadata: {} } })
     const POST = await load('@/app/api/ai/extract-file/route')
     const fd = new FormData(); fd.set('file', new File([new Uint8Array([1, 2, 3])], 'board.png'))
     const res = await POST(formRequest(fd).req)
-    expect(res.status).toBe(503)
-    expect((await res.json()).code).toBe('aiPrivacyPending')
-    expect(generateContent).not.toHaveBeenCalled()
-    expect(authorizeAiUsage).not.toHaveBeenCalled()
-  })
-
-  it('a scanned PDF is refused before Gemini with the scanned-file message', async () => {
-    const POST = await load('@/app/api/ai/extract-file/route')
-    const fd = new FormData(); fd.set('file', new File([new Uint8Array([37, 80, 68, 70])], 'scan.pdf'))
-    const res = await POST(formRequest(fd).req)
-    expect(res.status).toBe(503)
-    expect((await res.json()).code).toBe('fileScannedUnsupported')
-    expect(generateContent).not.toHaveBeenCalled()
+    expect((await res.json().catch(() => ({}))).code).not.toBe('aiPrivacyPending')
   })
 
   it('an oversized declared body is refused before formData()', async () => {
