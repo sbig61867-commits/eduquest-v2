@@ -37,7 +37,14 @@ export interface IndividualTaskFacts {
   notes: string
 }
 
+export type ImproveAction = 'simplify' | 'expand' | 'example' | 'fix' | 'shorter'
+
 export interface AiPromptText {
+  /** "Improve this block" in the lesson editor (2026-10-18). */
+  improveBlock: {
+    system: string
+    request: (action: ImproveAction, text: string, lessonTitle: string) => string
+  }
   announcementCopy: {
     system: string
     brief: (brief: string) => string
