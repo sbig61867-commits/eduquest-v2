@@ -7,6 +7,7 @@ import { ChevronRight } from 'lucide-react'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { LessonView } from '@/components/lesson/lesson-view'
 import { AskAiMenu } from '@/components/student/ask-ai-menu'
+import { AskAiSelection } from '@/components/student/ask-ai-selection'
 import { activeExamSince } from '@/lib/ask-ai'
 
 // One lesson, full width, nothing else on screen. Read through the student's
@@ -47,9 +48,10 @@ export default async function StudentLessonPage({ params }: { params: Promise<{ 
           {!runningExams && <AskAiMenu lessonTitle={lesson.title} groupName={group?.name} />}
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-4 py-6 lg:py-8" style={{ ['--eq-sticky-offset' as string]: '3.5rem' }}>
+      <main id="eq-lesson-body" className="max-w-6xl mx-auto px-4 py-6 lg:py-8" style={{ ['--eq-sticky-offset' as string]: '3.5rem' }}>
         <LessonView content={lesson.content as string | null} title={lesson.title} lessonId={lesson.id} />
       </main>
+      {!runningExams && <AskAiSelection containerId="eq-lesson-body" lessonTitle={lesson.title} />}
     </>
   )
 }
