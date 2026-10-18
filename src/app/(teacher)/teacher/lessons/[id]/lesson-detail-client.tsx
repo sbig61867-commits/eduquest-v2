@@ -9,11 +9,11 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/toast'
 import {
   ArrowLeft, BookOpen, ClipboardList, Users, Sparkles, Upload,
-  FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff
-} from 'lucide-react'
+  FileText, Plus, Trash2, Download, Check, X, Eye, EyeOff, Undo2, Redo2 } from 'lucide-react'
 import { LessonBuilder } from '@/components/lesson/lesson-builder'
 import { LessonView } from '@/components/lesson/lesson-view'
 import { markdownToLessonDoc, parseLessonContent, serializeLessonDoc, type LessonDoc } from '@/lib/lesson-doc'
+import { useLessonHistory } from '@/lib/use-lesson-history'
 import { AiProgress } from '@/components/shared/ai-progress'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import { SubmissionsTab } from './submissions-tab'
@@ -50,7 +50,12 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
   const tAi = useTranslations('common.ai')
   const [tab, setTab] = useState<Tab>('content')
 
-  const [doc, setDoc] = useState<LessonDoc>(() => parseLessonContent(lesson.content))
+  // Undo / redo and a local draft of the lesson being edited (use-lesson-history.ts).
+  const [initialDoc] = useState<LessonDoc>(() => parseLessonContent(lesson.content))
+  const history = useLessonHistory(initialDoc, { lessonId: lesson.id, base: lesson.content ?? '' })
+  const doc = history.value
+  const setDoc = history.set
+  const tHist = useTranslations('common.lessonBuilder.history')
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
   // Signed URLs for the images already saved in this lesson (the builder shows them).
   useEffect(() => {
@@ -116,12 +121,15 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
 
   async function saveContent() {
     setSaving(true)
-    await fetch('/api/lessons', {
+    const res = await fetch('/api/lessons', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: lesson.id, title, content: serializeLessonDoc(doc) }),
-    })
-    setSaving(false); setSaved(true)
+    }).catch(() => null)
+    setSaving(false)
+    if (!res?.ok) { toast.error((await res?.json().catch(() => ({})))?.error ?? t('lessonDetail.saveFailed')); return }
+    history.markSaved()
+    setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -432,15 +440,30 @@ export function LessonDetailClient({ lesson, initialHomework }: Props) {
                 {previewMode ? <><EyeOff className="w-3.5 h-3.5" /> {t('lessonDetail.editMode')}</> : <><Eye className="w-3.5 h-3.5" /> {t('lessonDetail.previewMode')}</>}
               </button>
             </div>
+            {history.draft && (
+              <div role="status" className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-surface p-3 text-body-sm text-fg">
+                <span className="me-auto">{tHist('draftFound')}</span>
+                <button type="button" onClick={history.restoreDraft} className="eq-focus rounded-control bg-accent px-3 py-1 text-meta text-on-accent">{tHist('restore')}</button>
+                <button type="button" onClick={history.discardDraft} className="eq-focus rounded-control border border-line-strong px-3 py-1 text-meta text-fg-2">{tHist('discard')}</button>
+              </div>
+            )}
             {previewMode
               ? <div className="min-h-72 p-4 rounded-overlay bg-surface border border-line">
                   <LessonView doc={doc} title={title} lessonId={lesson.id} imageUrls={imageUrls} />
                 </div>
-              : <LessonBuilder doc={doc} onChange={setDoc} imageUrls={imageUrls}
+              : <LessonBuilder doc={doc} onChange={setDoc} lessonTitle={title} imageUrls={imageUrls}
                   onImageUploaded={(path, url) => setImageUrls(u => ({ ...u, [path]: url }))} />}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={history.undo} disabled={!history.canUndo} title={tHist('undo')} aria-label={tHist('undo')}
+              className="eq-focus inline-flex h-9 items-center gap-1 rounded-control border border-line-strong px-3 text-meta text-fg-2 hover:text-fg disabled:opacity-40">
+              <Undo2 className="w-4 h-4 rtl:-scale-x-100" aria-hidden="true" /> {tHist('undo')}
+            </button>
+            <button type="button" onClick={history.redo} disabled={!history.canRedo} title={tHist('redo')} aria-label={tHist('redo')}
+              className="eq-focus inline-flex h-9 items-center gap-1 rounded-control border border-line-strong px-3 text-meta text-fg-2 hover:text-fg disabled:opacity-40">
+              <Redo2 className="w-4 h-4 rtl:-scale-x-100" aria-hidden="true" /> {tHist('redo')}
+            </button>
             <Button onClick={saveContent} loading={saving}>
               {saved ? <><Check className="w-4 h-4" /> {t('lessonDetail.saved')}</> : t('lessonDetail.saveChanges')}
             </Button>
