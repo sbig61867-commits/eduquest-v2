@@ -10,6 +10,7 @@ import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { parseTaskSuggestion } from '@/lib/individual-task'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
+import { redactSensitive } from '@/lib/ai/redact'
 import { normalizeTransliterationsDeep } from '@/lib/ai/arabic-transliteration'
 
 // A student's written answer is personal data; the question and the teacher's notes are institutional.
@@ -51,9 +52,12 @@ export const POST = meteredAiRoute('individual_task', async (request: Request) =
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
   const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
-  const answer = text(body.answer, MAX_ANSWER + 1)
-  if (!answer) return NextResponse.json({ ...(await apiErr('noSourceText')) }, { status: 400 })
-  if (answer.length > MAX_ANSWER) return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
+  const rawAnswer = text(body.answer, MAX_ANSWER + 1)
+  if (!rawAnswer) return NextResponse.json({ ...(await apiErr('noSourceText')) }, { status: 400 })
+  if (rawAnswer.length > MAX_ANSWER) return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
+  // Only the answer's content leaves (owner, 2026-10-18): names, contact details,
+  // identifiers and links are taken out of the answer and the teacher's notes.
+  const answer = redactSensitive(rawAnswer)
 
   const locale = toLocale(await getLocale())
   const prompts = aiPrompts(locale).individualTask
@@ -61,7 +65,7 @@ export const POST = meteredAiRoute('individual_task', async (request: Request) =
     examTitle: text(body.exam_title, 200),
     question: text(body.question, 4000),
     answer,
-    notes: text(body.notes, 2000),
+    notes: redactSensitive(text(body.notes, 2000)),
   })
 
   try {

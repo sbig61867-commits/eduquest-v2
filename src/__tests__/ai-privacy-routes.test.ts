@@ -122,16 +122,25 @@ describe.each(BLOCKED)('%s is not stopped by the privacy gate', (_name, path, ma
 })
 
 // A specific student's own answer is personal content, still closed.
-describe('individual-task (a student answer is personal) stays refused', () => {
-  it('503 aiPrivacyPending; no allowance check, no body read, no provider request', async () => {
+describe('individual-task (a student answer is personal): Groq only, redacted (owner, 2026-10-18)', () => {
+  it('sends the answer without contact details or identifiers, to Groq only, after the allowance check', async () => {
     const POST = await load('@/app/api/ai/individual-task/route')
-    const { req, json } = jsonRequest({ answer: 'SECRET-ANSWER', question: 'q' })
-    const res = await POST(req)
-    expect(res.status).toBe(503)
-    expect((await res.json()).code).toBe('aiPrivacyPending')
-    expect(authorizeAiUsage).not.toHaveBeenCalled()
-    expect(json).not.toHaveBeenCalled()
-    expect(fetchMock).not.toHaveBeenCalled()
+    fetchMock.mockResolvedValue(new Response('down', { status: 500 }))
+    const { req } = jsonRequest({
+      answer: 'Photosynthesis makes glucose. Contact me: student.one@mail.com 0591234567',
+      question: 'q',
+      notes: 'Call parent at +970 59 765 4321',
+    })
+    await POST(req)
+    expect(authorizeAiUsage).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalled()
+    for (const call of fetchMock.mock.calls) {
+      expect(String(call[0])).toContain('api.groq.com')
+      const sent = String(call[1].body)
+      expect(sent).toContain('Photosynthesis makes glucose')
+      expect(sent).not.toMatch(/student\.one|@mail|0591234567|765 4321/)
+    }
+    expect(generateContent).not.toHaveBeenCalled()
   })
 })
 

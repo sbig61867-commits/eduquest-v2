@@ -26,9 +26,15 @@ export const PRIVACY_APPROVALS: Readonly<Record<string, Readonly<Record<AiAudien
   //   cohere  trains on prompts unless opted out (enterprise only)
   //   gemini  unpaid quota may be used to improve Google products / human review
   //   xkiro, openrouter  no confirmed data terms for free routes
-  // Students' own content (personal) stays closed: students use the AI of their
-  // choice with their own account (src/lib/ask-ai.ts), never through the platform.
-  groq:       { public: true, institution: true, personal: false },
+  //
+  // Owner decision 2026-10-18: both ways stay open to students. With their own
+  // account, the AI of their choice (src/lib/ask-ai.ts, free for them as usual);
+  // or the platform's assistant on our free keys. Personal content goes to Groq
+  // ONLY (no other provider in the chain), and only the question travels: every
+  // personal text is passed through redactSensitive() (redact.ts) first, so names,
+  // contact details, identifiers and links never leave, and account data
+  // (grades, groups, announcements) is never sent at all (assistant/student route).
+  groq:       { public: true, institution: true, personal: true },
   xkiro:      { public: true, institution: true, personal: false },
   cohere:     { public: true, institution: true, personal: false },
   gemini:     { public: true, institution: true, personal: false },

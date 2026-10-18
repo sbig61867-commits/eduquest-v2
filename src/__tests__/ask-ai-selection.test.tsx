@@ -14,12 +14,14 @@ import { AskAiSelection, MAX_PASSAGE_CHARS } from '@/components/student/ask-ai-s
 const openSpy = vi.fn()
 const writeText = vi.fn()
 
-function setup(text = 'Photosynthesis turns light into chemical energy.') {
+const LESSON_ID = '0f8e3c2a-1b4d-4e5f-8a9b-0c1d2e3f4a5b'
+
+function setup(text = 'Photosynthesis turns light into chemical energy.', platformEnabled = false) {
   const utils = render(
     <NextIntlClientProvider locale="en" messages={en}>
       <main id="lesson"><p id="para">{text}</p></main>
       <p id="outside">Navigation text outside the lesson</p>
-      <AskAiSelection containerId="lesson" lessonTitle="Plants" />
+      <AskAiSelection containerId="lesson" lessonTitle="Plants" lessonId={LESSON_ID} platformEnabled={platformEnabled} />
     </NextIntlClientProvider>,
   )
   return utils
@@ -90,6 +92,42 @@ describe('AskAiSelection', () => {
     expect(quote.textContent!.length).toBe(MAX_PASSAGE_CHARS)
   })
 
+  it('without approval, the platform assistant is not offered', () => {
+    setup()
+    select('para')
+    fireEvent.click(screen.getByRole('button', { name: /Ask about this/ }))
+    expect(screen.queryByRole('button', { name: 'Ask the platform assistant' })).toBeNull()
+  })
+
+  it('the platform assistant answers in the panel; the request, passage and lesson go to the route', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ answer: 'Like a kitchen solar oven.', notices: [] }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchSpy)
+    setup(undefined, true)
+    select('para')
+    fireEvent.click(screen.getByRole('button', { name: /Ask about this/ }))
+    fireEvent.change(screen.getByLabelText('What do you want from the assistant?'), { target: { value: 'Give me a kitchen example' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Ask the platform assistant' })) })
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/assistant/student')
+    expect(JSON.parse(String(init.body))).toEqual({
+      mode: 'chat', message: 'Give me a kitchen example',
+      selection: 'Photosynthesis turns light into chemical energy.', lessonId: LESSON_ID,
+    })
+    expect(screen.getByRole('status').textContent).toContain('Like a kitchen solar oven.')
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('the platform assistant also needs the student request first', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    setup(undefined, true)
+    select('para')
+    fireEvent.click(screen.getByRole('button', { name: /Ask about this/ }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Ask the platform assistant' })) })
+    expect(screen.getByRole('alert').textContent).toBe('Write what you want first.')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('Escape closes the panel', () => {
     setup()
     select('para')
@@ -103,6 +141,6 @@ describe('lesson page', () => {
   it('offers it only when no exam is running, on the lesson body', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/(student-focus)/student/lessons/[id]/page.tsx'), 'utf8')
     expect(page).toContain('<main id="eq-lesson-body"')
-    expect(page).toContain('{!runningExams && <AskAiSelection containerId="eq-lesson-body" lessonTitle={lesson.title} />}')
+    expect(page).toContain('{!runningExams && <AskAiSelection containerId="eq-lesson-body" lessonTitle={lesson.title} lessonId={lesson.id} platformEnabled={audienceApproved([\'personal\'])} />}')
   })
 })

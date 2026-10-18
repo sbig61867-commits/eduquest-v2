@@ -9,6 +9,7 @@ import { LessonView } from '@/components/lesson/lesson-view'
 import { AskAiMenu } from '@/components/student/ask-ai-menu'
 import { AskAiSelection } from '@/components/student/ask-ai-selection'
 import { activeExamSince } from '@/lib/ask-ai'
+import { audienceApproved } from '@/lib/ai/privacy'
 
 // One lesson, full width, nothing else on screen. Read through the student's
 // own session: RLS (published lessons of their own groups) decides, and an
@@ -51,7 +52,7 @@ export default async function StudentLessonPage({ params }: { params: Promise<{ 
       <main id="eq-lesson-body" className="max-w-6xl mx-auto px-4 py-6 lg:py-8" style={{ ['--eq-sticky-offset' as string]: '3.5rem' }}>
         <LessonView content={lesson.content as string | null} title={lesson.title} lessonId={lesson.id} />
       </main>
-      {!runningExams && <AskAiSelection containerId="eq-lesson-body" lessonTitle={lesson.title} />}
+      {!runningExams && <AskAiSelection containerId="eq-lesson-body" lessonTitle={lesson.title} lessonId={lesson.id} platformEnabled={audienceApproved(['personal'])} />}
     </>
   )
 }

@@ -421,7 +421,13 @@
       "withWhich": "With which assistant?",
       "ownAccount": "Opens with your own account there. Only your request, this part and the lesson title are sent.",
       "close": "Close",
-      "compose": "{request}\n\nFrom the lesson \"{title}\":\n\"{passage}\""
+      "compose": "{request}\n\nFrom the lesson \"{title}\":\n\"{passage}\"",
+      "platform": "Ask the platform assistant",
+      "platformAsking": "Asking…",
+      "platformNote": "Free, here on the platform. Your name, contact details and numbers are removed before your question is sent; your grades are never sent.",
+      "platformAnswer": "The assistant says",
+      "platformFailed": "The assistant could not answer. Try again, or use your own assistant below.",
+      "orOwn": "Or with your own account:"
     }
   }
 }

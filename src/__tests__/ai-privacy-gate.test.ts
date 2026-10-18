@@ -37,11 +37,11 @@ afterEach(() => {
 })
 
 describe('privacy table', () => {
-  // Owner decision 2026-10-18: teacher (institution) content flows to the free chain
-  // again; students' own (personal) content never goes through the platform.
-  it('approves public and institution content, never personal, for every provider', () => {
+  // Owner decisions 2026-10-18: teacher (institution) content flows to the free
+  // chain again; students' own (personal) content, redacted, goes to Groq ONLY.
+  it('approves public and institution content everywhere, personal for Groq only', () => {
     for (const [p, row] of Object.entries(PRIVACY_APPROVALS)) {
-      expect(row, p).toEqual({ public: true, institution: true, personal: false })
+      expect(row, p).toEqual({ public: true, institution: true, personal: p === 'groq' })
     }
   })
 
@@ -51,12 +51,21 @@ describe('privacy table', () => {
     ['not a list', 'public'],
     ['empty', []],
     ['unknown audience', ['public', 'secret']],
-    ['personal', ['personal']],
-    ['mixed with personal', ['public', 'personal']],
-    ['institution with personal', ['institution', 'personal']],
   ])('refuses %s', (_label, audiences) => {
     expect(providerApproved('groq', audiences)).toBe(false)
     expect(() => assertProviderApproved('groq', audiences)).toThrow(PrivacyPendingError)
+  })
+
+  it.each(['xkiro', 'cohere', 'gemini', 'openrouter'])('%s never receives personal content', (p) => {
+    for (const a of [['personal'], ['public', 'personal'], ['institution', 'personal']]) {
+      expect(providerApproved(p, a)).toBe(false)
+      expect(() => assertProviderApproved(p, a)).toThrow(PrivacyPendingError)
+    }
+  })
+
+  it('groq receives personal content, alone or with institution content', () => {
+    expect(providerApproved('groq', ['personal'])).toBe(true)
+    expect(providerApproved('groq', ['institution', 'personal'])).toBe(true)
   })
 
   it('refuses an unknown provider and prototype keys, even for public', () => {
@@ -65,9 +74,10 @@ describe('privacy table', () => {
     expect(providerApproved('constructor', ['public'])).toBe(false)
   })
 
-  it('a key alone is not approval: personal stays refused with every key set', () => {
-    expect(audienceApproved(['personal'])).toBe(false)
-    expect(audienceApproved(['institution', 'personal'])).toBe(false)
+  it('a key alone is not approval: only the table decides', () => {
+    expect(audienceApproved(['personal'])).toBe(true)
+    expect(audienceApproved(['institution', 'personal'])).toBe(true)
+    expect(audienceApproved(['nope'])).toBe(false)
     expect(audienceApproved(['institution'])).toBe(true)
     expect(audienceApproved(['public'])).toBe(true)
   })
@@ -75,11 +85,11 @@ describe('privacy table', () => {
 
 describe('meterCall enforces the audience before run()', () => {
   it.each([
-    [undefined], [[]], [['nope']], [['personal']], [['institution', 'personal']],
-  ])('audience %j: run() never starts and nothing is recorded', async (audiences) => {
+    ['groq', undefined], ['groq', []], ['groq', ['nope']], ['gemini', ['personal']], ['cohere', ['institution', 'personal']],
+  ])('%s with audience %j: run() never starts and nothing is recorded', async (provider, audiences) => {
     const run = vi.fn(async () => ({ value: 'x' }))
     const state: MeterState = { feature: 't', userId: 'u', blocked: false, calls: [] }
-    await expect(runMetered(state, () => meterCall('groq', 'm', 1, audiences as never, run))).rejects.toThrow(PrivacyPendingError)
+    await expect(runMetered(state, () => meterCall(provider as string, 'm', 1, audiences as never, run))).rejects.toThrow(PrivacyPendingError)
     expect(run).not.toHaveBeenCalled()
     expect(state.calls).toHaveLength(0)
   })
@@ -95,14 +105,12 @@ describe('meterCall enforces the audience before run()', () => {
 
 describe('every provider exit point refuses unapproved content with zero requests', () => {
   it('groqChat', async () => {
-    await expect(groqChat('p', undefined, 0.5, ['personal'])).rejects.toThrow(PrivacyPendingError)
+    await expect(groqChat('p', undefined, 0.5, ['nope'] as never)).rejects.toThrow(PrivacyPendingError)
     await expect(groqChat('p', undefined, 0.5, undefined as never)).rejects.toThrow(PrivacyPendingError)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('aiChatDetailed / aiChat (whole chain: groq, xkiro, cohere, gemini, openrouter)', async () => {
-    await expect(aiChatDetailed('p', undefined, { audiences: ['personal'] })).rejects.toThrow(PrivacyPendingError)
-    await expect(aiChatDetailed('p', undefined, { audiences: ['institution', 'personal'] })).rejects.toThrow(PrivacyPendingError)
     await expect(aiChatDetailed('p', undefined, { audiences: [] })).rejects.toThrow(PrivacyPendingError)
     await expect(aiChatDetailed('p', undefined, undefined as never)).rejects.toThrow(PrivacyPendingError)
     await expect(aiChat('p', undefined, {} as never)).rejects.toThrow(PrivacyPendingError)
@@ -116,6 +124,27 @@ describe('every provider exit point refuses unapproved content with zero request
     expect(generateContent).not.toHaveBeenCalled()
   })
 
+})
+
+describe('personal content goes to Groq only (owner, 2026-10-18)', () => {
+  it('reaches Groq once', async () => {
+    fetchMock.mockResolvedValueOnce(okChat('answer'))
+    const r = await aiChatDetailed('redacted question', undefined, { audiences: ['personal'] })
+    expect(r).toEqual({ content: 'answer', provider: 'groq' })
+    expect(String(fetchMock.mock.calls[0][0])).toContain('api.groq.com')
+  })
+
+  it('when Groq fails, no other provider is tried', async () => {
+    fetchMock.mockResolvedValue(new Response('down', { status: 500 }))
+    await expect(aiChatDetailed('redacted question', undefined, { audiences: ['institution', 'personal'] })).rejects.toThrow()
+    for (const call of fetchMock.mock.calls) expect(String(call[0])).toContain('api.groq.com')
+    expect(generateContent).not.toHaveBeenCalled()
+  })
+
+  it('geminiCompose refuses it with zero requests', async () => {
+    await expect(geminiCompose('p', { audiences: ['personal'] })).rejects.toThrow(PrivacyPendingError)
+    expect(generateContent).not.toHaveBeenCalled()
+  })
 })
 
 describe('institution content flows again (owner, 2026-10-18)', () => {

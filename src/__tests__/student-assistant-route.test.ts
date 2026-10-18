@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   approved: ['personal', 'institution'] as string[],
   loadAccount: vi.fn(async () => null as string | null),
   allowanceDenied: null as null | Response,
+  fullName: 'Lina Haddad' as string | null,
 }))
 
 vi.mock('next/server', () => ({
@@ -29,9 +30,11 @@ vi.mock('@/lib/api-error', () => ({
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
-        eq: () => ({ maybeSingle: async () => ({ data: state.lesson, error: null }) }),
+        eq: () => ({
+          maybeSingle: async () => ({ data: table === 'users' ? { full_name: state.fullName } : state.lesson, error: null }),
+        }),
       }),
     }),
   }),
@@ -265,15 +268,27 @@ describe('student assistant route — privacy gate', () => {
     expect(r.body.notices).toEqual([{ code: 'assistantLessonUnavailable', error: 'assistantLessonUnavailable' }])
   })
 
-  it('loads account data and sends the call once as personal, not twice', async () => {
+  it('never loads or sends account data (grades, groups, announcements), even when asked', async () => {
     state.loadAccount.mockResolvedValue('Published grades:\n- Quiz 1: 8/10')
     const r = await call({ message: 'what are my grades?' })
     expect(r.status).toBe(200)
-    expect(state.loadAccount).toHaveBeenCalledTimes(1)
+    expect(state.loadAccount).not.toHaveBeenCalled()
     const [prompt, , opts] = state.chat.mock.calls[0] as [string, string, { audiences: string[] }]
-    expect(prompt).toContain('Quiz 1: 8/10')
+    expect(prompt).not.toContain('Quiz 1')
     expect(opts.audiences).toEqual(['personal'])
-    expect(r.body.notices).toEqual([])
+    expect(r.body.notices).toEqual([{ code: 'assistantAccountUnavailable', error: 'assistantAccountUnavailable' }])
+  })
+
+  it('takes the student name, contact details and identifiers out of the message, selection and history', async () => {
+    await call({
+      message: 'I am Lina, my number is 0599123456 and mail lina.h@school.edu. Explain osmosis?',
+      selection: 'Osmosis moves water. (Lina Haddad notes)',
+      history: [{ role: 'user', content: 'Haddad here, id 402918377' }],
+    })
+    const [prompt] = state.chat.mock.calls[0] as [string]
+    expect(prompt).toContain('Explain osmosis?')
+    expect(prompt).toContain('Osmosis moves water.')
+    expect(prompt).not.toMatch(/Lina|Haddad|0599123456|lina\.h|402918377/)
   })
 
   it('keeps earlier turns only because the message itself is personal-approved', async () => {

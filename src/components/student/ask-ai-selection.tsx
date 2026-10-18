@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { MessageSquareText, X } from 'lucide-react'
+import { MessageSquareText, Sparkles, X } from 'lucide-react'
 import { ProviderList, useAskAiLauncher } from './ask-ai-menu'
 
 /** Longest passage carried to the assistant (the question is also copied in full). */
@@ -14,8 +14,18 @@ const MIN_PASSAGE_CHARS = 2
  * the lesson, a small button appears beside it, and they write THEIR OWN request
  * (nothing fixed), pick the assistant they use, and it opens with their own
  * account. Only the request, the passage and the lesson title leave.
+ *
+ * Or (owner, 2026-10-18) the platform's own assistant, on the platform's free
+ * keys: /api/assistant/student answers in the panel, after taking the student's
+ * name, contact details and identifiers out of what they wrote.
  */
-export function AskAiSelection({ containerId, lessonTitle }: { containerId: string; lessonTitle: string }) {
+export function AskAiSelection({ containerId, lessonTitle, lessonId, platformEnabled = false }: {
+  containerId: string
+  lessonTitle: string
+  lessonId?: string
+  /** True when the platform's assistant may answer (privacy.ts approves personal content). */
+  platformEnabled?: boolean
+}) {
   const t = useTranslations('student.askAi.selection')
   const { launch, providers, hint } = useAskAiLauncher()
   const [spot, setSpot] = useState<{ x: number; y: number } | null>(null)
@@ -23,6 +33,8 @@ export function AskAiSelection({ containerId, lessonTitle }: { containerId: stri
   const [panel, setPanel] = useState(false)
   const [request, setRequest] = useState('')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [answer, setAnswer] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   // Follow the selection while the panel is closed (the panel keeps its passage).
@@ -54,7 +66,26 @@ export function AskAiSelection({ containerId, lessonTitle }: { containerId: stri
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', onDown) }
   }, [panel])
 
-  function close() { setPanel(false); setSpot(null); setRequest(''); setError('') }
+  function close() { setPanel(false); setSpot(null); setRequest(''); setError(''); setAnswer(null); setBusy(false) }
+
+  async function askPlatform() {
+    if (!request.trim()) { setError(t('needRequest')); return }
+    setBusy(true); setError(''); setAnswer(null)
+    try {
+      const res = await fetch('/api/assistant/student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'chat', message: request.trim(), selection: passage, lessonId: lessonId ?? null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || typeof data.answer !== 'string') { setError(typeof data.error === 'string' ? data.error : t('platformFailed')); return }
+      setAnswer(data.answer)
+    } catch {
+      setError(t('platformFailed'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function compose(): string {
     return t('compose', { request: request.trim(), passage, title: lessonTitle })
@@ -102,7 +133,23 @@ export function AskAiSelection({ containerId, lessonTitle }: { containerId: stri
             className="eq-focus mt-1 w-full rounded-control border border-line bg-canvas px-2 py-2 text-body-sm text-fg"
           />
           {error && <p id="ask-ai-request-error" role="alert" className="mt-1 text-meta text-danger">{error}</p>}
+          {answer !== null && (
+            <div role="status" className="mt-3 max-h-56 overflow-y-auto rounded-control border border-line bg-canvas p-2">
+              <p className="text-label text-fg-muted">{t('platformAnswer')}</p>
+              <p dir="auto" className="mt-1 whitespace-pre-wrap text-body-sm text-fg">{answer}</p>
+            </div>
+          )}
           <p className="mt-2 text-label text-fg-muted">{t('withWhich')}</p>
+          {platformEnabled && (
+            <>
+              <button type="button" onClick={() => void askPlatform()} disabled={busy}
+                className="eq-focus mt-2 inline-flex w-full items-center gap-2 rounded-control bg-accent px-3 py-2 text-body-sm text-on-accent hover:bg-accent-hover disabled:opacity-60">
+                <Sparkles className="w-4 h-4" aria-hidden="true" /> {busy ? t('platformAsking') : t('platform')}
+              </button>
+              <p className="mt-1 text-label text-fg-muted">{t('platformNote')}</p>
+              <p className="mt-2 text-label text-fg-muted">{t('orOwn')}</p>
+            </>
+          )}
           <ProviderList
             providers={providers}
             onPick={p => {
