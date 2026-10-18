@@ -246,4 +246,35 @@ describe('AssistantOrb — panel', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'اسأل' }))
     expect(within(screen.getByRole('dialog')).getAllByRole('textbox').length).toBeGreaterThan(0)
   })
+
+  it('opens on a full screen of its own and keeps the page under it still (2026-10-18)', async () => {
+    await mountReady()
+    fireEvent.click(screen.getByRole('button', { name: 'افتح المساعد الدراسي' }))
+    const dialog = screen.getByRole('dialog', { name: 'المساعد الدراسي' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog.className).toContain('fixed inset-0')
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('shows the answer as formatted text, never raw Markdown signs', async () => {
+    fetchMock.mockImplementation((url: string) => {
+      if (url.startsWith('/api/assistant/student/briefing')) return respond({ nudges: NUDGES, plan: PLAN, lessons: LESSONS })
+      if (url === '/api/assistant/student') return respond({ answer: '### الحروف\n\n**عدد الحروف:** 26 حرفًا', notices: [] })
+      return respond({}, false)
+    })
+    await mountReady(true)
+    fireEvent.click(screen.getByRole('button', { name: 'افتح المساعد الدراسي' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'اسأل' }))
+    const dialog = screen.getByRole('dialog')
+    const input = within(dialog).getAllByRole('textbox').at(-1)!
+    fireEvent.change(input, { target: { value: 'اشرح الحروف' } })
+    await act(async () => { fireEvent.submit(input.closest('form')!) })
+    await advance(0)
+    const answer = within(dialog).getByTestId('assistant-answer')
+    expect(answer.textContent).toContain('عدد الحروف:')
+    expect(answer.textContent).not.toMatch(/\*\*|###/)
+    expect(answer.querySelector('strong')?.textContent).toContain('عدد الحروف')
+  })
 })

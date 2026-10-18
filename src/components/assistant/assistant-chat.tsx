@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { Markdown } from '@/components/shared/markdown'
 
 // The "Ask" tab of the study assistant: free questions to an AI provider through
 // /api/assistant/student (privacy gate, allowance and rate limit apply there).
-// Nothing is requested until the student sends a message. Replies are plain text.
+// Nothing is requested until the student sends a message. Replies are shown as
+// formatted text through the shared Markdown renderer (no HTML, ever).
 
 export interface AssistantLessonOption { id: string; title: string }
 
@@ -78,12 +80,13 @@ export function AssistantChat({ lessons }: { lessons: AssistantLessonOption[] })
           <p className="rounded-control bg-elevated px-3 py-2 text-body-sm text-fg">{t('empty')}</p>
         )}
         {turns.map((turn, i) => (
-          <p
-            key={i}
-            className={`whitespace-pre-wrap rounded-control px-3 py-2 text-body-sm ${turn.role === 'user' ? 'ms-8 bg-accent-subtle text-fg' : 'me-8 bg-elevated text-fg'}`}
-          >
-            {turn.content}
-          </p>
+          turn.role === 'user'
+            ? <p key={i} dir="auto" className="ms-8 whitespace-pre-wrap rounded-control bg-accent-subtle px-3 py-2 text-body-sm text-fg">{turn.content}</p>
+            : (
+              <div key={i} dir="auto" data-testid="assistant-answer" className="me-8 rounded-control bg-elevated px-3 py-2 text-body-sm text-fg">
+                <Markdown content={turn.content} />
+              </div>
+            )
         ))}
         {busy && (
           <p className="me-8 rounded-control bg-elevated px-3 py-2 text-body-sm text-fg-muted" role="status">{t('sending')}</p>

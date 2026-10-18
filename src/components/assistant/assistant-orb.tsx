@@ -15,8 +15,9 @@ import type { AssistantLesson } from '@/lib/data/assistant-nudges'
 // The study assistant on every student page: an animated orb in the corner.
 // Short "cloud" messages rise from it one at a time — deadlines, revision before
 // an exam, the week's plan, new lessons and announcements — then fade, and the
-// next one follows. Pressing the orb opens a panel: Today, Study plan, Lesson
-// summary and Ask.
+// next one follows. Pressing the orb opens the assistant on a screen of its
+// own (full screen since 2026-10-18: the corner panel was too small on laptops
+// and unusable on phones): Today, Study plan, Lesson summary and Ask.
 //
 // Nudges, plan and summaries come from the student's own data through their
 // session and never reach an AI provider. Only the Ask tab talks to a provider,
@@ -123,14 +124,17 @@ export function AssistantOrb({ chatEnabled }: { chatEnabled: boolean }) {
     return () => clearTimeout(timer)
   }, [cycling, hovered, bubbleVisible, index, shown, nudges.length])
 
-  // Escape closes the panel and gives focus back to the orb.
+  // Escape closes the assistant and gives focus back to the orb. While it is
+  // open the page under it does not scroll.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setOpen(false); orbRef.current?.focus() }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow }
   }, [open])
 
   const silence = useCallback(() => {
@@ -260,25 +264,27 @@ export function AssistantOrb({ chatEnabled }: { chatEnabled: boolean }) {
         <section
           id={panelId}
           role="dialog"
+          aria-modal="true"
           aria-label={t('label')}
-          className="fixed bottom-24 end-4 z-50 flex max-h-[min(72vh,38rem)] w-[min(26rem,calc(100vw-2rem))] flex-col gap-3 rounded-overlay border border-line bg-surface p-4 shadow-overlay print:hidden"
+          className="fixed inset-0 z-50 flex flex-col bg-canvas print:hidden"
         >
+          <div className="mx-auto flex h-full w-full max-w-3xl flex-col gap-3 p-4 sm:p-6">
           <header className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="h-8 w-8"><OrbGraphic animated={false} /></span>
-              <h2 className="text-body font-semibold text-fg">{t('label')}</h2>
+              <span className="h-9 w-9"><OrbGraphic animated={false} /></span>
+              <h2 className="text-h3 text-fg">{t('label')}</h2>
             </div>
             <button
               type="button"
               onClick={() => { setOpen(false); orbRef.current?.focus() }}
               aria-label={t('closePanel')}
-              className="rounded-control p-1 text-fg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-focus"
+              className="rounded-control p-2 text-fg-muted hover:bg-elevated hover:text-fg focus-visible:ring-2 focus-visible:ring-focus"
             >
-              <X className="h-4 w-4" aria-hidden="true" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </header>
 
-          <div role="tablist" aria-label={t('label')} className="flex gap-1 border-b border-line">
+          <div role="tablist" aria-label={t('label')} className="flex gap-1 overflow-x-auto border-b border-line">
             {TABS.map(k => (
               <button
                 key={k}
@@ -286,14 +292,15 @@ export function AssistantOrb({ chatEnabled }: { chatEnabled: boolean }) {
                 role="tab"
                 aria-selected={tab === k}
                 onClick={() => setTab(k)}
-                className={`-mb-px border-b-2 px-2.5 py-1.5 text-body-sm focus-visible:ring-2 focus-visible:ring-focus ${tab === k ? 'border-accent font-semibold text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
+                className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-body focus-visible:ring-2 focus-visible:ring-focus ${tab === k ? 'border-accent font-semibold text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
               >
                 {t(`tabs.${k}`)}
               </button>
             ))}
           </div>
 
-          <div role="tabpanel" className="flex min-h-0 flex-1 flex-col overflow-y-auto pe-1">
+          {/* Ask scrolls its own conversation; the other tabs scroll here. One scrollbar either way. */}
+          <div role="tabpanel" className={`flex min-h-0 flex-1 flex-col ${tab === 'ask' ? '' : 'overflow-y-auto pe-1'}`}>
             {tab === 'today' && (
               nudges.length === 0
                 ? <p className="text-body-sm text-fg-2">{loaded ? t('nudge.welcome') : t('loading')}</p>
@@ -386,6 +393,7 @@ export function AssistantOrb({ chatEnabled }: { chatEnabled: boolean }) {
                   </div>
                 )
             )}
+          </div>
           </div>
         </section>
       )}
