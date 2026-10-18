@@ -429,5 +429,15 @@
       "platformFailed": "The assistant could not answer. Try again, or use your own assistant below.",
       "orOwn": "Or with your own account:"
     }
+  },
+  "lessonHomework": {
+    "tabsLabel": "Lesson sections",
+    "content": "Content",
+    "homework": "Homework",
+    "empty": "There is no homework for this lesson.",
+    "submitted": "Submitted",
+    "awaitingGrade": "Submitted. Your teacher has not published the grade yet.",
+    "score": "Your grade: {score} / {max}",
+    "due": "Due {date}"
   }
 }
