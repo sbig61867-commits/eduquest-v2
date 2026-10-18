@@ -5,13 +5,17 @@
 // language comes from the word and the lesson around it, the best installed
 // voice for it is picked, and voices are loaded before the first tap.
 
-export type SpeechLang = 'ar-SA' | 'fr-FR' | 'es-ES' | 'de-DE' | 'en-US'
+export type SpeechLang = 'ar-SA' | 'fr-FR' | 'es-ES' | 'de-DE' | 'it-IT' | 'pt-BR' | 'tr-TR' | 'nl-NL' | 'en-US'
 
 const ARABIC = /[؀-ۿ]/
 const MARKERS: [SpeechLang, RegExp][] = [
   ['fr-FR', /[àâçèéêëîïôœùûüÿ]|\b(le|la|les|un|une|des|du|et|est|je|tu|il|elle|nous|vous|bonjour|merci|oui|non|avec|pour|dans|c'est|j'ai|qu'il)\b/i],
   ['es-ES', /[ñ¿¡áíóú]|\b(el|los|las|una|es|está|hola|gracias|por|para|con|qué|señor)\b/i],
   ['de-DE', /[äöüß]|\b(der|die|das|und|ist|ich|nicht|ein|eine|danke|hallo|mit|für)\b/i],
+  ['tr-TR', /[ğışİ]|\b(ve|bir|bu|merhaba|teşekkür|evet|hayır|nasılsın|ben|sen)\b/i],
+  ['pt-BR', /[ãõ]|\b(olá|obrigado|obrigada|não|você|muito|são|uma)\b/i],
+  ['it-IT', /\b(il|gli|della|ciao|grazie|sono|questo|perché|buongiorno|anche)\b/i],
+  ['nl-NL', /\b(het|een|van|dank|hallo|niet|goedemorgen|ik|jij|zijn|wij)\b/i],
 ]
 
 /** The language of a lesson's Latin-script text, from how often each marks it. */

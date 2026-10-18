@@ -8,6 +8,7 @@ import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
 import { normalizeExamType } from '@/lib/ai/public-input'
+import { normalizeTransliterationsDeep } from '@/lib/ai/arabic-transliteration'
 
 // Only the topic, the count and a fixed type reach the provider (public-input.ts).
 const AUDIENCES: AiAudience[] = ['public']
@@ -110,7 +111,7 @@ Rules: MCQ has exactly 4 options and 10 points. true_false has ["True","False"] 
     const raw = JSON.parse(jsonMatch[0])
     const questions = validateQuestions(raw)
 
-    return NextResponse.json({ questions })
+    return NextResponse.json({ questions: normalizeTransliterationsDeep(questions) })
   } catch (e: unknown) {
     // No `detail`: the message could carry provider text.
     logAiFailure('[generate-exam]', e)

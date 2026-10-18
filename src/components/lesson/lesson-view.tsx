@@ -9,6 +9,7 @@ import {
 import { Markdown } from '@/components/shared/markdown'
 import { InteractiveQuiz, speak } from '@/components/shared/lesson-tabs'
 import { parseVideoUrl } from '@/lib/video-embed'
+import { normalizeTransliterations } from '@/lib/ai/arabic-transliteration'
 import { detectLessonLanguage, setLessonSpeechLanguage, warmUpSpeech } from '@/lib/speech'
 import {
   imagePaths, lessonOutline, parseLessonContent, type CalloutTone, type LessonBlock, type LessonDoc, type MapNode,
@@ -443,10 +444,10 @@ function Flashcard({ card, flipped, onFlip }: { card: { front: string; back: str
     <div className={cn('relative min-h-32 rounded-overlay border-2 transition-colors', flipped ? 'border-success bg-success-subtle' : 'border-line-strong bg-surface')}>
       <button type="button" onClick={onFlip} aria-pressed={flipped} className="eq-focus w-full h-full min-h-32 p-4 flex flex-col items-center justify-center text-center gap-1">
         {!flipped
-          ? <span dir="auto" className="text-h3 text-fg">{card.front}</span>
+          ? <span dir="auto" className="text-h3 text-fg">{normalizeTransliterations(card.front)}</span>
           : <>
               <span dir="auto" className="text-label text-fg-3">{card.front}</span>
-              <span dir="auto" className="text-body-sm text-fg">{card.back}</span>
+              <span dir="auto" className="text-body-sm text-fg">{normalizeTransliterations(card.back)}</span>
               {card.hint && showHint && <span className="text-body-sm text-success font-medium" dir="auto">{card.hint}</span>}
             </>}
       </button>

@@ -9,6 +9,7 @@ import { getAiRateLimits } from '@/lib/settings'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
 import { ExtractionError, readFormDataCapped } from '@/lib/ai/extract'
+import { normalizeTransliterationsDeep } from '@/lib/ai/arabic-transliteration'
 
 // Teacher files and the teacher's instructions are institutional content.
 const AUDIENCES: AiAudience[] = ['institution']
@@ -255,7 +256,7 @@ ${sourceText.slice(0, 30000)}`
     }
 
     if (collected.length === 0) throw new Error('No valid questions after validation')
-    return NextResponse.json({ questions: collected, requested: count, delivered: collected.length })
+    return NextResponse.json({ questions: normalizeTransliterationsDeep(collected), requested: count, delivered: collected.length })
   } catch (e) {
     logAiFailure('[generate-homework-from-file] AI:', e)
     return NextResponse.json({ ...(await apiErr('aiGenerationFailed')) }, { status: 500 })
