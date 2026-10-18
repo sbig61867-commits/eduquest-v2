@@ -6,9 +6,9 @@ import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { aiChat } from '@/lib/ai/chat'
 import { audienceApproved, PrivacyPendingError, type AiAudience } from '@/lib/ai/privacy'
 import { aiErrorCode } from '@/lib/ai/meter'
+import { redactSensitive } from '@/lib/ai/redact'
 import { buildAssistantContext } from '@/lib/assistant/context-bundle'
 import {
-  loadAccountText,
   loadLessonIndex,
   matchLessonTitle,
   wantsAccountOverview,
@@ -27,10 +27,10 @@ export const maxDuration = 60
 // Provisional per-student cap. Tune from measured usage before any release.
 const MESSAGES_PER_HOUR = 30
 
-// The student's own question is classified as `personal` until the owner decides
-// otherwise: it can name a person, a grade, or an unpublished concern. With no
-// provider approved for `personal`, the assistant refuses every message
-// (aiPrivacyPending). Changing this to 'public' is a policy decision, not a code fix.
+// The student's own question is `personal`: it can name a person, a grade, or
+// an unpublished concern. Since 2026-10-18 (owner) it goes to the provider
+// approved for personal content, after redactSensitive() has taken out names,
+// contact details, identifiers and links (privacy.ts, redact.ts).
 const MESSAGE_AUDIENCE: AiAudience = 'personal'
 
 type Unavailable = 'lesson' | 'account'
@@ -70,7 +70,16 @@ export const POST = meteredAiRoute('student-assistant', async (request: Request)
   }
   const parsed = parseAssistantBody(raw)
   if (!parsed.ok) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
-  const input = parsed.value
+  // Only the question leaves: the student's name, contact details, identifiers
+  // and links are taken out of everything the student wrote (redact.ts).
+  const { data: me } = await supabase.from('users').select('full_name').eq('id', user.id).maybeSingle()
+  const names = [(me as { full_name?: string | null } | null)?.full_name]
+  const input = {
+    ...parsed.value,
+    message: redactSensitive(parsed.value.message, names),
+    selection: parsed.value.selection === null ? null : redactSensitive(parsed.value.selection, names),
+    history: parsed.value.history.map(h => ({ ...h, content: redactSensitive(h.content, names) })),
+  }
 
   // Which kinds of context may leave the server at all. A provider is approved
   // per audience in chat.ts; with none approved for an audience, that content
@@ -97,13 +106,10 @@ export const POST = meteredAiRoute('student-assistant', async (request: Request)
     lessonModelText = lessonDocToModelText(lesson.content)
   }
 
-  // Account data (grades, groups, announcements) is personal. It is loaded
-  // only when a personal-approved provider exists.
-  let account: string | null = null
-  if (wantsAccountOverview(input.message)) {
-    if (personalOk) account = await loadAccountText(supabase, user.id)
-    else unavailable.add('account')
-  }
+  // Account data (grades, groups, announcements) never goes to a provider (owner,
+  // 2026-10-18): a question about it gets the "not available" notice instead.
+  const account: string | null = null
+  if (wantsAccountOverview(input.message)) unavailable.add('account')
 
   // The policy sees the whole lesson and the selection before anything is cut.
   // It runs even when the text will be withheld, so a refused source still fails closed.
