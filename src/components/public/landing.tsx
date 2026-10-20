@@ -460,7 +460,7 @@ export function Landing() {
             </span>
             <h1 className="mt-7 font-extrabold text-white leading-tight">
               <span className="block text-4xl sm:text-5xl lg:text-6xl">{t.hero.title}</span>
-              <span className="block mt-4 text-xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-400 to-sky-300 bg-clip-text text-transparent leading-snug">
+              <span className="block mt-4 text-xl sm:text-3xl lg:text-4xl font-bold text-blue-300 leading-snug">
                 {t.hero.titleAccent}
               </span>
             </h1>
@@ -522,7 +522,7 @@ export function Landing() {
         <SectionHead eyebrow={t.trust.eyebrow} title={t.trust.title} center />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {t.trust.items.map(item => (
-            <div key={item.title} className={`${PANEL} p-6 border-s-4 border-s-blue-500/70`}>
+            <div key={item.title} className={`${PANEL} p-6 border-s-2 border-s-blue-500/70`}>
               <h3 className="text-white font-semibold text-lg">{item.title}</h3>
               <p className="text-slate-400 text-sm mt-2 leading-relaxed">{item.desc}</p>
             </div>
@@ -554,7 +554,7 @@ export function Landing() {
         <ol className="grid md:grid-cols-3 gap-4">
           {t.steps.items.map((s, i) => (
             <li key={s.title} className={`${PANEL} p-7`}>
-              <span className="text-5xl font-extrabold bg-gradient-to-b from-blue-300 to-blue-600 bg-clip-text text-transparent">{i + 1}</span>
+              <span className="text-5xl font-extrabold text-blue-400">{i + 1}</span>
               <h3 className="text-white font-semibold text-lg mt-4">{s.title}</h3>
               <p className="text-slate-400 text-sm mt-2 leading-relaxed">{s.desc}</p>
             </li>

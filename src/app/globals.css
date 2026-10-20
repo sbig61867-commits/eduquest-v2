@@ -184,15 +184,14 @@ html[data-eq-intro] .eq-intro-run, html[data-eq-intro] .eq-intro-run ~ .eq-intro
 /* The EduQuest wordmark: blue gradient letters (colour flows only during the
    intro). Pale blues on the dark shell; deeper blues on a light public page. */
 .eq-wordmark {
-  background-image: linear-gradient(90deg, #f1e2b8, #c9a24a, #e3c788, #b8892f, #f1e2b8);
-  background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  color: var(--eq-accent);
 }
 :root[data-eq-theme="light"] .eq-public .eq-wordmark {
-  background-image: linear-gradient(90deg, #13224a, #1d2f63, #8a6520, #1d2f63, #13224a);
+  color: var(--eq-accent);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-eq-theme]) .eq-public .eq-wordmark {
-    background-image: linear-gradient(90deg, #13224a, #1d2f63, #8a6520, #1d2f63, #13224a);
+    color: var(--eq-accent);
   }
 }
 
