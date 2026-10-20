@@ -335,7 +335,7 @@ function Callout({ tone, md }: { tone: CalloutTone; md: string }) {
   const t = useTranslations('common.lessonView.tones')
   if (!md.trim()) return null
   return (
-    <aside className={cn('border-s-4 rounded-control px-4 py-3', TONE[tone].box)}>
+    <aside className={cn('border rounded-control px-4 py-3', TONE[tone].box)}>
       <p className="flex items-center gap-2 text-label font-semibold text-fg mb-1">{TONE[tone].icon}{t(tone)}</p>
       <div className="text-body-sm text-fg-2"><Markdown content={md} /></div>
     </aside>

@@ -126,7 +126,7 @@ function IsolationVisual({ v }: { v: Visuals['isolation'] }) {
     <Frame>
       <div className="grid grid-cols-3 gap-0">
         {v.tenants.map((name, i) => (
-          <div key={name} className={`px-3 sm:px-4 py-2 ${i > 0 ? 'border-s-4 border-double border-blue-500/50' : ''}`}>
+          <div key={name} className={`px-3 sm:px-4 py-2 ${i > 0 ? 'border-s-2 border-double border-blue-500/50' : ''}`}>
             <p className="text-white font-semibold text-sm text-center">{name}</p>
             <p className="text-slate-500 text-[11px] text-center mt-1">{v.recordsLabel}</p>
             <div aria-hidden="true" className="mt-4 space-y-2">

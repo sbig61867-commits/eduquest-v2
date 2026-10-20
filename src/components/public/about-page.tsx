@@ -129,7 +129,7 @@ export function AboutPage() {
         <SectionHead eyebrow={t.commitments.eyebrow} title={t.commitments.title} />
         <div className="grid md:grid-cols-2 gap-4">
           {t.commitments.items.map(c => (
-            <article key={c.title} className={`${PANEL} border-s-4 border-s-blue-500/70 p-7`}>
+            <article key={c.title} className={`${PANEL} border-s-2 border-s-blue-500/70 p-7`}>
               <h3 className="text-white font-semibold text-lg">{c.title}</h3>
               <p className="text-slate-400 mt-2 leading-relaxed">{c.desc}</p>
             </article>
