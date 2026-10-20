@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   // Verify exam is published + proctored (service role — students can't SELECT exams).
   const { data: exam } = await adminClient()
     .from('exams')
-    .select('*')
+    .select('proctoring_enabled, group_id, course_id, assigned_student_id')
     .eq('id', examId)
     .eq('is_published', true)
     .single()

@@ -33,7 +33,6 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/api/invitations/[id]/route.ts': 1,
   'app/api/invitations/route.ts': 2,
   'app/api/mail/send/route.ts': 1,
-  'app/api/proctor/events/route.ts': 1,
   'app/api/proctor/evidence/clip/route.ts': 1,
   'app/api/proctor/evidence/route.ts': 1,
   'app/api/proctor/live-token/route.ts': 1,
