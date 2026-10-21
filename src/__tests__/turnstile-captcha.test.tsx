@@ -8,6 +8,18 @@ import { NextIntlClientProvider } from 'next-intl'
 // password check carries a single-use token, and accept-invitation (admin API,
 // outside Supabase's own CAPTCHA) verifies it with Cloudflare itself.
 
+// Shared, hoisted doubles for the two pre-auth routes. Re-registering them per
+// test (vi.doMock + resetModules) let a stale module win on some runs.
+const rl = vi.hoisted(() => ({ allowed: true, calls: [] as { key: string; limit: number }[] }))
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: async (key: string, opts: { limit: number }) => {
+    rl.calls.push({ key, limit: opts.limit })
+    return { allowed: rl.allowed, resetAt: Date.now() }
+  },
+}))
+vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
+
+beforeEach(() => { rl.allowed = true; rl.calls = [] })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('captcha helpers', () => {
@@ -113,18 +125,13 @@ describe('<Turnstile />', () => {
 
 describe('POST /api/auth/login-id', () => {
   const state = {
-    rate: [] as { key: string; limit: number }[],
     signIn: [] as unknown[],
     signInError: null as null | { code?: string; message: string },
   }
 
   beforeEach(() => {
     vi.resetModules()
-    state.rate = []; state.signIn = []; state.signInError = null
-    vi.doMock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
-    vi.doMock('@/lib/rate-limit', () => ({
-      rateLimit: async (key: string, opts: { limit: number }) => { state.rate.push({ key, limit: opts.limit }); return { allowed: true } },
-    }))
+    state.signIn = []; state.signInError = null
     vi.doMock('@supabase/supabase-js', () => ({
       createClient: () => ({
         from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'u1', email: 'QOU-S48203917' } }) }) }) }),
@@ -154,7 +161,7 @@ describe('POST /api/auth/login-id', () => {
 
   it('keeps the per-ID limit tight and lets a whole class share one school IP', async () => {
     await call({ code: 'QOU-S48203917', password: 'pw' })
-    expect(state.rate).toEqual([
+    expect(rl.calls).toEqual([
       { key: 'login-id:code:QOU-S48203917', limit: 10 },
       { key: 'login-id:ip:9.9.9.9', limit: 120 },
     ])
@@ -184,8 +191,6 @@ describe('POST /api/auth/login-id', () => {
 describe('POST /api/auth/accept-invitation', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.doMock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
-    vi.doMock('@/lib/rate-limit', () => ({ rateLimit: async () => ({ allowed: true, resetAt: Date.now() }) }))
   })
 
   it('refuses before touching the database when Cloudflare rejects the token', async () => {
@@ -204,12 +209,9 @@ describe('POST /api/auth/accept-invitation', () => {
   })
 
   it('allows a class-sized burst from one IP', async () => {
-    const seen: { key: string; limit: number }[] = []
-    vi.doMock('@/lib/rate-limit', () => ({
-      rateLimit: async (key: string, opts: { limit: number }) => { seen.push({ key, limit: opts.limit }); return { allowed: false, resetAt: Date.now() } },
-    }))
+    rl.allowed = false
     const { POST } = await import('@/app/api/auth/accept-invitation/route')
     await POST(new Request('http://x/api/auth/accept-invitation', { method: 'POST', headers: { 'x-forwarded-for': '9.9.9.9' }, body: '{}' }))
-    expect(seen).toEqual([{ key: 'accept-invitation:9.9.9.9', limit: 60 }])
+    expect(rl.calls).toEqual([{ key: 'accept-invitation:9.9.9.9', limit: 60 }])
   })
 })
