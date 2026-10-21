@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useSyncExternalStore } from 'react'
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -12,6 +12,8 @@ import { AuthTopBar } from '@/components/public/auth-top-bar'
 import { INTRO_DONE_KEY } from '@/lib/brand-intro-key'
 import { googleSignInEnabled } from '@/lib/google-sign-in'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-code'
+import { Turnstile, type TurnstileHandle } from '@/components/shared/turnstile'
+import { isCaptchaError } from '@/lib/captcha'
 
 // Sign-in shares the public surface's look (`.eq-public`, light and dark —
 // src/app/globals.css): a form on one side and, on large screens, a showcase
@@ -131,6 +133,7 @@ function LoginForm() {
   const router = useRouter()
   const supabase = createClient()
   const hour = useLocalHour()
+  const captcha = useRef<TurnstileHandle>(null)
 
   // Reaching the sign-in page (expired session included) re-arms the logo
   // intro for the next sign-in.
@@ -158,6 +161,7 @@ function LoginForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    const captchaToken = await captcha.current?.take()
 
     // A member ID (QOU-S48203917) is resolved and signed in on the server;
     // anything else is an email, signed in directly.
@@ -165,7 +169,7 @@ function LoginForm() {
       const res = await fetch('/api/auth/login-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: normalizeMemberCode(email), password }),
+        body: JSON.stringify({ code: normalizeMemberCode(email), password, captchaToken }),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { setError(body.error ?? t('errors.default')); setLoading(false); return }
@@ -174,10 +178,10 @@ function LoginForm() {
       return
     }
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
 
     if (authError) {
-      setError(authError.message)
+      setError(isCaptchaError(authError) ? t('errors.captcha') : authError.message)
       setLoading(false)
       return
     }
@@ -287,6 +291,7 @@ function LoginForm() {
                 </div>
                 {capsLock && <p className="mt-2 text-amber-300 text-xs">{t('capsLock')}</p>}
               </div>
+              <Turnstile ref={captcha} />
               <button
                 type="submit"
                 disabled={loading}

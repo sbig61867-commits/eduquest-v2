@@ -2,6 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { rateLimit } from '@/lib/rate-limit'
+import { captchaTokenFrom, verifyTurnstile } from '@/lib/captcha'
 import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 import { checkNameParts, type NameParts } from '@/lib/person-name'
 import { saveStudentName } from '@/lib/student-names'
@@ -16,9 +17,11 @@ function getAdminClient() {
 
 export async function POST(request: Request) {
  try {
-  // Rate-limit by IP: 5 registration attempts per hour per IP to prevent bulk account creation
+  // Rate-limit by IP: a ceiling on bulk account creation, high enough for a
+  // whole class joining from one school network (one public IP). Bots are
+  // stopped by the Turnstile check below, not by this number.
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 5, windowSecs: 3600 })
+  const rl = await rateLimit(`accept-invitation:${ip}`, { limit: 60, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(
       { ...(await apiErr('tooManyRequests')) },
@@ -29,6 +32,12 @@ export async function POST(request: Request) {
   let body: { token?: string; email?: string; password?: string; fullName?: string; nameParts?: unknown }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
+
+  // Accounts are created through the admin API, which Supabase Auth's own
+  // CAPTCHA does not cover, so the token is checked with Cloudflare here.
+  if (!(await verifyTurnstile(captchaTokenFrom(body), ip))) {
+    return NextResponse.json({ ...(await apiErr('captchaFailed')) }, { status: 400 })
+  }
 
   const { token, email, password } = body
 

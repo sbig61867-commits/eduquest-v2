@@ -344,5 +344,6 @@
   "passwordChangeFailed": "تعذّر تغيير كلمة المرور.",
   "currentPasswordWrong": "كلمة المرور الحالية غير صحيحة.",
   "passwordSameAsCurrent": "اختر كلمة مرور جديدة مختلفة عن الحالية.",
-  "memberIdStudentsOnly": "الحساب بالمعرّف متاح للطلاب والمعلمين فقط."
+  "memberIdStudentsOnly": "الحساب بالمعرّف متاح للطلاب والمعلمين فقط.",
+  "captchaFailed": "لم يكتمل التحقق الأمني. انتظر لحظة ثم حاول مجدداً."
 }

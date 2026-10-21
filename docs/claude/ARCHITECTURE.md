@@ -126,3 +126,8 @@ sizes on a rolled-back synthetic institution. Numbers: [PERFORMANCE_BASELINE.md]
 ### Rate limiting
 `src/lib/rate-limit.ts` `rateLimit(key, {limit, windowSecs})` is backed by the Postgres `check_rate_limit` RPC (survives serverless cold starts; fails **open** if the limiter errors). Apply it in AI/expensive route handlers keyed by `feature:userId`.
 
+Pre-auth routes (2026-10-21): a whole class signs in or joins from one school IP, so per-IP limits are only a ceiling (`login-id` 120/15 min, `accept-invitation` 60/h, `forgot-password` 30/h); the per-account limits (`login-id:code` 10/15 min, `forgot-password:email` 3/h) are the brute-force guard.
+
+### CAPTCHA (Cloudflare Turnstile)
+`src/components/shared/turnstile.tsx` on every form that checks a password (login by email and by ID, join, forgot, forced change, settings change); `take()` hands over a single-use token and starts the next. Supabase Auth verifies it on `signInWithPassword` / `resetPasswordForEmail` once **Dashboard → Authentication → Bot and Abuse Protection → CAPTCHA** is on, so routes only pass `captchaToken` through (`src/lib/captcha.ts`). `accept-invitation` creates users through the admin API, which that check skips, so it calls `verifyTurnstile` (Cloudflare siteverify) itself. Keys: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY`; empty = off and nothing renders. Go-live order: deploy with both keys, then flip the Supabase switch (Supabase ignores tokens while it is off; the reverse order locks every sign-in out).
+

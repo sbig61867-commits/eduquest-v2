@@ -344,5 +344,6 @@
   "passwordChangeFailed": "Could not change the password.",
   "currentPasswordWrong": "The current password is not correct.",
   "passwordSameAsCurrent": "Choose a new password different from the current one.",
-  "memberIdStudentsOnly": "Accounts by ID are for students and teachers only."
+  "memberIdStudentsOnly": "Accounts by ID are for students and teachers only.",
+  "captchaFailed": "The security check did not complete. Wait a moment and try again."
 }
