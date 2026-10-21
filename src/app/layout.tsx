@@ -61,6 +61,10 @@ export async function generateMetadata(): Promise<Metadata> {
 // /<locale>/ marketing URL, from the URL itself; absent both it is the
 // platform default (DEFAULT_LOCALE). One shared tree — there is no second
 // layout per language.
+const SUPABASE_ORIGIN = (() => {
+  try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').origin } catch { return '' }
+})()
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = toLocale(await getLocale())
 
@@ -78,6 +82,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             from the eq_theme cookie in the browser — never read on the server,
             so public HTML stays cacheable (src/lib/theme.ts). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        {/* Open the TLS connection to Supabase while the page loads, so the
+            first auth/data request does not pay the handshake's round trips
+            (each costs 0.3–0.8 s on high-latency networks). A hint only:
+            no request, no cookie, public HTML stays cacheable. */}
+        {SUPABASE_ORIGIN && <link rel="preconnect" href={SUPABASE_ORIGIN} crossOrigin="anonymous" />}
       </head>
       <body className="h-full bg-slate-950 antialiased">
         {/* C1: `common` and `auth` are shipped at root level. Every page sits

@@ -14,8 +14,14 @@ import { useLocale } from 'next-intl'
 // 'interaction-only': most visitors never see a widget; it appears only when
 // Cloudflare wants a click. The script loads on the auth pages alone.
 
-// NEXT_PUBLIC_ values are inlined at build time: changing the key needs a rebuild.
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+// Off unless NEXT_PUBLIC_TURNSTILE=on (owner shelved it 2026-10-21: the
+// widget issued no token in testing, and challenges.cloudflare.com took
+// seconds on high-latency networks). Off = no script and no wait; the server
+// then applies its strict per-IP limits (src/lib/captcha.ts). NEXT_PUBLIC_
+// values are inlined at build time: changing either needs a rebuild.
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE === 'on'
+  ? (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '')
+  : ''
 const SCRIPT_SRC ='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 /**
  * How long a submit waits for a token still in flight. Short on purpose: the

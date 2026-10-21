@@ -86,6 +86,17 @@ describe('<Turnstile />', () => {
 
   beforeEach(() => { vi.resetModules(); delete window.turnstile })
 
+  it('stays off with a site key but without NEXT_PUBLIC_TURNSTILE=on', async () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
+    window.turnstile = { render: vi.fn(() => 'w1'), reset: vi.fn(), remove: vi.fn() }
+    const { Turnstile } = await import('@/components/shared/turnstile')
+    const ref = createRef<Handle>()
+    const { container } = render(wrap(<Turnstile ref={ref} />))
+    expect(container.innerHTML).toBe('')
+    expect(window.turnstile.render).not.toHaveBeenCalled()
+    expect(await ref.current!.take()).toBeUndefined()
+  })
+
   it('renders nothing and hands out no token while no site key is set', async () => {
     const { Turnstile } = await import('@/components/shared/turnstile')
     const ref = createRef<Handle>()
@@ -95,7 +106,7 @@ describe('<Turnstile />', () => {
   })
 
   it('hands each token over once and asks for a fresh one', async () => {
-    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE', 'on'); vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
     let onToken: (t: string) => void = () => {}
     const api = {
       render: vi.fn((_el: HTMLElement, opts: Record<string, unknown>) => { onToken = opts.callback as (t: string) => void; return 'w1' }),
@@ -131,7 +142,7 @@ describe('<Turnstile />', () => {
   it('a token that never arrives does not hold the submit for long', async () => {
     vi.useFakeTimers()
     try {
-      vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
+      vi.stubEnv('NEXT_PUBLIC_TURNSTILE', 'on'); vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'site-key')
       window.turnstile = { render: vi.fn(() => 'w1'), reset: vi.fn(), remove: vi.fn() }
       const { Turnstile } = await import('@/components/shared/turnstile')
       const ref = createRef<Handle>()
