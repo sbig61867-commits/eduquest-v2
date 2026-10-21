@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
@@ -97,6 +97,14 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
   // platform issues a member ID + temporary password (shown once, below).
   const [byId, setById]               = useState(false)
   const [createdById, setCreatedById] = useState<{ name: string; code: string; password: string } | null>(null)
+  // Remounts the name fields after a creation, so their "left this field"
+  // marks do not paint the emptied fields red.
+  const [nameFieldsKey, setNameFieldsKey] = useState(0)
+  const createdRef = useRef<HTMLDivElement>(null)
+  // The result sits above the form; bring it into view.
+  useEffect(() => {
+    if (createdById || createdAccount) createdRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  }, [createdById, createdAccount])
 
   function pickMode(next: 'private' | 'public' | 'account') {
     setIsPublic(next === 'public')
@@ -220,6 +228,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
     else setCreatedAccount({ name: data.user?.full_name ?? '', email: data.user?.email ?? email.trim() })
     setNameParts(EMPTY_NAME_PARTS)
     setShowNameErrors(false)
+    setNameFieldsKey(k => k + 1)
     setEmail('')
     setPassword('')
     setGroupId('')
@@ -370,7 +379,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           )}
 
           {createdById && (
-            <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
+            <div ref={createdRef} role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
               <p className="text-emerald-300 text-sm">{t('accountByIdCreated', { name: createdById.name })}</p>
               {[
                 { label: t('memberIdLabel'), value: createdById.code },
@@ -389,7 +398,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
           )}
 
           {createdAccount && (
-            <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 text-emerald-300 text-sm">
+            <div ref={createdRef} role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 text-emerald-300 text-sm">
               {t('accountCreated', createdAccount)}
             </div>
           )}
@@ -429,6 +438,7 @@ export function InvitationsClient({ callerRole, tenants, groups }: Props) {
             {direct && (
               <div className="col-span-2">
                 <FourPartNameFields
+                  key={nameFieldsKey}
                   idPrefix="direct-student-name"
                   value={nameParts}
                   onChange={setNameParts}
