@@ -4,15 +4,17 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-login'
-import { captchaTokenFrom, isCaptchaError } from '@/lib/captcha'
+import { captchaTokenFrom, ipLimitFor, type TieredLimit } from '@/lib/captcha'
 
-// Per ID: the brute-force guard for one account. Per IP: only a ceiling on
-// spraying many IDs, set high enough for a whole class signing in from one
-// school network (one public IP).
-const LIMITS = [
-  { scope: 'code', limit: 10, windowSecs: 900 },
-  { scope: 'ip', limit: 120, windowSecs: 900 },
-] as const
+// Per ID: the brute-force guard for one account, whatever the caller proves.
+const CODE_LIMIT = { limit: 10, windowSecs: 900 }
+// Per IP: a ceiling on spraying many IDs. A whole class signs in from one
+// school IP, so a verified Turnstile token earns the classroom-sized bucket;
+// without one the pre-Turnstile limit applies (src/lib/captcha.ts).
+const IP_LIMITS: TieredLimit = {
+  human: { limit: 120, windowSecs: 900 },
+  strict: { limit: 10, windowSecs: 900 },
+}
 
 // Sign in with a member ID + password. The ID is resolved to the account's
 // auth email on the server only — the response never reveals it, and an
@@ -26,10 +28,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 400 })
   }
 
-  for (const { scope, limit, windowSecs } of LIMITS) {
-    const rl = await rateLimit(`login-id:${scope}:${scope === 'ip' ? ip : code}`, { limit, windowSecs })
-    if (!rl.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
-  }
+  const byCode = await rateLimit(`login-id:code:${code}`, CODE_LIMIT)
+  if (!byCode.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
+  const { key, ...ipLimit } = await ipLimitFor('login-id', ip, captchaTokenFrom(body), IP_LIMITS)
+  const byIp = await rateLimit(key, ipLimit)
+  if (!byIp.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
 
   const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -43,10 +46,7 @@ export async function POST(request: Request) {
   if (!email) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email, password, options: { captchaToken: captchaTokenFrom(body) },
-  })
-  if (isCaptchaError(error)) return NextResponse.json({ ...(await apiErr('captchaFailed')) }, { status: 400 })
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error || !data.user) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
 
   return NextResponse.json({

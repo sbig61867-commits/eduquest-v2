@@ -9,8 +9,7 @@ const state = vi.hoisted(() => ({
   realPassword: 'old-password',
   rateAllowed: true,
   updateError: null as null | { message: string },
-  captchaRejected: false,
-  calls: { signIn: [] as { email: string; password: string; options?: { captchaToken?: string } }[], signOut: [] as unknown[], update: [] as unknown[], rate: [] as string[] },
+  calls: { signIn: [] as { email: string; password: string }[], signOut: [] as unknown[], update: [] as unknown[], rate: [] as string[] },
 }))
 
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
@@ -23,9 +22,8 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     auth: {
-      signInWithPassword: async (creds: { email: string; password: string; options?: { captchaToken?: string } }) => {
+      signInWithPassword: async (creds: { email: string; password: string }) => {
         state.calls.signIn.push(creds)
-        if (state.captchaRejected) return { data: { user: null }, error: { code: 'captcha_failed', message: 'captcha protection: request disallowed' } }
         return creds.password === state.realPassword
           ? { data: { user: { id: state.user?.id } }, error: null }
           : { data: { user: null }, error: { message: 'Invalid login credentials' } }
@@ -45,7 +43,6 @@ beforeEach(() => {
   state.user = { id: 'u1', email: 'owner@example.test' }
   state.rateAllowed = true
   state.updateError = null
-  state.captchaRejected = false
   state.calls = { signIn: [], signOut: [], update: [], rate: [] }
 })
 
@@ -58,20 +55,7 @@ describe('POST /api/account/password', () => {
 
   it('checks the current password against the caller\'s own auth email', async () => {
     await call({ current: 'old-password', next: 'brand-new-pass' })
-    expect(state.calls.signIn).toEqual([{ email: 'owner@example.test', password: 'old-password', options: { captchaToken: undefined } }])
-  })
-
-  it('passes the form Turnstile token on to the password check', async () => {
-    await call({ current: 'old-password', next: 'brand-new-pass', captchaToken: 'tok-1' })
-    expect(state.calls.signIn[0].options).toEqual({ captchaToken: 'tok-1' })
-  })
-
-  it('reports a refused CAPTCHA as such, not as a wrong password, and changes nothing', async () => {
-    state.captchaRejected = true
-    const res = await call({ current: 'old-password', next: 'brand-new-pass', captchaToken: 'stale' })
-    expect(res.status).toBe(400)
-    expect((await res.json()).code).toBe('captchaFailed')
-    expect(state.calls.update).toEqual([])
+    expect(state.calls.signIn).toEqual([{ email: 'owner@example.test', password: 'old-password' }])
   })
 
   it('signs out only the throwaway check session, never the caller', async () => {

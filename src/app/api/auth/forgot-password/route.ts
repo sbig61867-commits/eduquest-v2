@@ -5,7 +5,15 @@ import { rateLimit } from '@/lib/rate-limit'
 import { resetPasswordRedirectTo } from '@/lib/auth-urls'
 import { getLocale } from 'next-intl/server'
 import { isLocale, toLocale } from '@/i18n/config'
-import { captchaTokenFrom, isCaptchaError } from '@/lib/captcha'
+import { captchaTokenFrom, ipLimitFor, type TieredLimit } from '@/lib/captcha'
+
+// Per IP: a ceiling on bulk enumeration. A verified Turnstile token earns a
+// class-sized bucket; without one the pre-Turnstile limit applies
+// (src/lib/captcha.ts). The per-email limit below guards each inbox.
+const IP_LIMITS: TieredLimit = {
+  human: { limit: 30, windowSecs: 3600 },
+  strict: { limit: 5, windowSecs: 3600 },
+}
 
 // Generic message — identical whether email exists or not (prevents enumeration)
 const SENT_MSG = 'If that email is registered, you will receive a reset link shortly.'
@@ -19,14 +27,7 @@ function adminClient() {
 }
 
 export async function POST(request: Request) {
-  // Rate limit by IP — a ceiling on bulk enumeration, high enough for a class
-  // on one school network; the per-email limit below guards each inbox.
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  const ipLimit = await rateLimit(`forgot-password:ip:${ip}`, { limit: 30, windowSecs: 3600 })
-  if (!ipLimit.allowed) {
-    return NextResponse.json({ message: SENT_MSG }, { status: 200 })
-  }
-
   let email: string
   let captchaToken: string | undefined
   try {
@@ -35,6 +36,12 @@ export async function POST(request: Request) {
     captchaToken = captchaTokenFrom(body)
   } catch {
     return NextResponse.json({ ...(await apiErr('badRequest')) }, { status: 400 })
+  }
+
+  const { key, ...ipTier } = await ipLimitFor('forgot-password', ip, captchaToken, IP_LIMITS)
+  const ipLimit = await rateLimit(key, ipTier)
+  if (!ipLimit.allowed) {
+    return NextResponse.json({ message: SENT_MSG }, { status: 200 })
   }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -80,9 +87,7 @@ export async function POST(request: Request) {
 
   // We don't check whether the email exists — always attempt and always return the
   // same message. Supabase itself is a no-op for unknown emails so this is safe.
-  // A refused CAPTCHA says nothing about the email, so it may be reported.
-  const { error: resetError } = await admin.auth.resetPasswordForEmail(email, { redirectTo, captchaToken })
-  if (isCaptchaError(resetError)) return NextResponse.json({ ...(await apiErr('captchaFailed')) }, { status: 400 })
+  await admin.auth.resetPasswordForEmail(email, { redirectTo })
 
   return NextResponse.json({ message: SENT_MSG }, { status: 200 })
 }

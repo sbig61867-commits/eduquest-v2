@@ -109,11 +109,9 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
 
       const registeredEmail = typeof data.email === 'string' ? data.email : email.trim()
 
-      // A second token: the first was spent creating the account.
       const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
         email: registeredEmail,
         password,
-        options: { captchaToken: await captcha.current?.take() },
       })
 
       if (signInError || !session.user) {
