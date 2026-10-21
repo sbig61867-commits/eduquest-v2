@@ -45,7 +45,8 @@ export function ResetPasswordButton({ userId, name, memberCode }: { userId: stri
       <Button variant="ghost" size="sm" onClick={reset} loading={busy} aria-label={t('action', { name })} title={t('action', { name })}>
         <KeyRound className="w-4 h-4" />
       </Button>
-      <Modal open={password !== null || error !== ''} onClose={close} title={t('title', { name })} size="sm">
+      {/* While the password is on screen only "Done" closes it: it cannot be shown again. */}
+      <Modal open={password !== null || error !== ''} onClose={close} title={t('title', { name })} size="sm" dismissible={password === null}>
         {error ? (
           <p role="alert" className="text-body-sm text-danger">{error}</p>
         ) : (

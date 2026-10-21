@@ -345,5 +345,6 @@
   "currentPasswordWrong": "The current password is not correct.",
   "passwordSameAsCurrent": "Choose a new password different from the current one.",
   "memberIdStudentsOnly": "Accounts by ID are for students and teachers only.",
-  "captchaFailed": "The security check did not complete. Wait a moment and try again."
+  "captchaFailed": "The security check did not complete. Wait a moment and try again.",
+  "studentPasswordAlreadySet": "This student has already chosen their own password. Ask the institution or centre administration to reset it."
 }

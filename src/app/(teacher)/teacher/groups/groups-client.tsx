@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Plus, Users, Pencil, Trash2, UserPlus, X, Search, Archive, ArchiveRestore, ClipboardList } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { useTranslations } from 'next-intl'
+import { ResetPasswordButton } from '@/components/shared/reset-password-button'
+import { isMemberCode } from '@/lib/member-code'
 
 interface Group {
   id: string
@@ -333,12 +335,17 @@ export function GroupsClient({ initialGroups }: Props) {
                       <p className="text-white text-sm font-medium">{s.full_name}</p>
                       <p className="text-slate-400 text-xs">{s.email}</p>
                     </div>
+                    <div className="flex items-center gap-1">
+                    {/* Re-issues a lost temporary password; the server allows it only
+                        while the student has not chosen their own. */}
+                    <ResetPasswordButton userId={s.id} name={s.full_name} memberCode={isMemberCode(s.email) ? s.email : null} />
                     <button
                       onClick={() => removeStudentFromGroup(s.id)}
                       className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
+                    </div>
                   </div>
                 ))}
               </div>
