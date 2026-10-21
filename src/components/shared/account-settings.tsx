@@ -1,10 +1,9 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
-import { Turnstile, type TurnstileHandle } from './turnstile'
 import { AccountPanel } from './account-panel'
 import { PreferencesCard } from './preferences-card'
 
@@ -80,9 +79,6 @@ export function PasswordCard() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
-  // The current password is checked by a real sign-in, which Supabase's
-  // CAPTCHA protection covers too.
-  const captcha = useRef<TurnstileHandle>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -95,7 +91,7 @@ export function PasswordCard() {
       const res = await fetch('/api/account/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current, next, captchaToken: await captcha.current?.take() }),
+        body: JSON.stringify({ current, next }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : tState('error')); return }
@@ -115,7 +111,6 @@ export function PasswordCard() {
         <Field label={t('currentPassword')} value={current} onChange={setCurrent} autoComplete="current-password" />
         <Field label={t('newPassword')} value={next} onChange={setNext} autoComplete="new-password" hint={t('passwordHint', { min: MIN_PASSWORD_LENGTH })} />
         <Field label={t('confirmPassword')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
-        <Turnstile ref={captcha} />
         <div role="status" aria-live="polite">
           {error && <p className="text-body-sm text-danger">{error}</p>}
           {saved && <p className="text-body-sm text-success">{t('passwordSaved')}</p>}

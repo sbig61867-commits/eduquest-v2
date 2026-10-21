@@ -3,12 +3,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { useLocale } from 'next-intl'
 
-// Cloudflare Turnstile, the CAPTCHA that Supabase Auth checks once its bot
-// protection is on (Dashboard → Authentication → Bot and Abuse Protection).
-// Supabase verifies the token itself; the app only carries it to the sign-in,
-// reset or password-check call. Without NEXT_PUBLIC_TURNSTILE_SITE_KEY this
-// renders nothing and every token is undefined, which Supabase accepts while
-// its protection is off, so the code can ship before the switch is flipped.
+// Cloudflare Turnstile on the pre-auth forms (sign-in by ID, join, forgot
+// password). The token is a trust signal, never a gate: the server verifies
+// it and, when Cloudflare accepts it, applies a classroom-sized per-IP limit
+// instead of the strict one (src/lib/captcha.ts). A form whose token never
+// arrives (Turnstile blocked on the network, an embedded browser) still
+// submits and simply gets the strict limit. Without
+// NEXT_PUBLIC_TURNSTILE_SITE_KEY this renders nothing.
 //
 // 'interaction-only': most visitors never see a widget; it appears only when
 // Cloudflare wants a click. The script loads on the auth pages alone.
@@ -16,8 +17,11 @@ import { useLocale } from 'next-intl'
 // NEXT_PUBLIC_ values are inlined at build time: changing the key needs a rebuild.
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
 const SCRIPT_SRC ='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-/** How long a submit waits for a token Turnstile has not produced yet. */
-const TOKEN_WAIT_MS = 15_000
+/**
+ * How long a submit waits for a token still in flight. Short on purpose: the
+ * token is optional, so a missing one must not hold the user's submit.
+ */
+const TOKEN_WAIT_MS = 3_000
 
 interface TurnstileApi {
   render(el: HTMLElement, opts: Record<string, unknown>): string

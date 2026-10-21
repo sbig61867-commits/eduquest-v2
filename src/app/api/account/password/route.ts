@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
-import { captchaTokenFrom, isCaptchaError } from '@/lib/captcha'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -35,10 +34,7 @@ export async function POST(request: Request) {
   const verifier = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
-  const { data: check, error: checkError } = await verifier.auth.signInWithPassword({
-    email: user.email, password: current, options: { captchaToken: captchaTokenFrom(body) },
-  })
-  if (isCaptchaError(checkError)) return NextResponse.json({ ...(await apiErr('captchaFailed')) }, { status: 400 })
+  const { data: check, error: checkError } = await verifier.auth.signInWithPassword({ email: user.email, password: current })
   if (checkError || check?.user?.id !== user.id) {
     return NextResponse.json({ ...(await apiErr('currentPasswordWrong')) }, { status: 400 })
   }

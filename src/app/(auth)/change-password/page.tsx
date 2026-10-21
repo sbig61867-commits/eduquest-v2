@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
-import { Turnstile, type TurnstileHandle } from '@/components/shared/turnstile'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
 
@@ -20,7 +19,6 @@ const INPUT =
 export default function ChangePasswordPage() {
   const supabase = createClient()
   const t = useTranslations('auth.changePassword')
-  const captcha = useRef<TurnstileHandle>(null)
   const [memberCode, setMemberCode] = useState<string | null>(null)
   const [role, setRole] = useState<Role | null>(null)
   const [password, setPassword] = useState('')
@@ -47,7 +45,7 @@ export default function ChangePasswordPage() {
     const res = await fetch('/api/auth/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, captchaToken: await captcha.current?.take() }),
+      body: JSON.stringify({ password }),
     })
     if (!res.ok) {
       setError((await res.json().catch(() => ({}))).error ?? t('failed'))
@@ -88,7 +86,6 @@ export default function ChangePasswordPage() {
               <input id="confirm-password" type="password" dir="ltr" autoComplete="new-password" required
                 value={confirm} onChange={e => setConfirm(e.target.value)} className={INPUT} />
             </div>
-            <Turnstile ref={captcha} />
             <button type="submit" disabled={loading}
               className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-on-accent font-semibold rounded-xl transition-colors">
               {loading ? t('submitLoading') : t('submit')}

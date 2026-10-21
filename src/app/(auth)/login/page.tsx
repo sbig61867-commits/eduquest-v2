@@ -13,7 +13,6 @@ import { INTRO_DONE_KEY } from '@/lib/brand-intro-key'
 import { googleSignInEnabled } from '@/lib/google-sign-in'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-code'
 import { Turnstile, type TurnstileHandle } from '@/components/shared/turnstile'
-import { isCaptchaError } from '@/lib/captcha'
 
 // Sign-in shares the public surface's look (`.eq-public`, light and dark —
 // src/app/globals.css): a form on one side and, on large screens, a showcase
@@ -161,11 +160,13 @@ function LoginForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const captchaToken = await captcha.current?.take()
 
     // A member ID (QOU-S48203917) is resolved and signed in on the server;
     // anything else is an email, signed in directly.
     if (isMemberCode(email)) {
+      // A verified Turnstile token lets a whole class share one school IP
+      // (src/lib/captcha.ts); without one the strict limit applies.
+      const captchaToken = await captcha.current?.take()
       const res = await fetch('/api/auth/login-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,10 +179,10 @@ function LoginForm() {
       return
     }
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError) {
-      setError(isCaptchaError(authError) ? t('errors.captcha') : authError.message)
+      setError(authError.message)
       setLoading(false)
       return
     }
