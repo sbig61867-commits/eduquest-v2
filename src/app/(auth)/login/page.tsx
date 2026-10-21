@@ -133,6 +133,9 @@ function LoginForm() {
   const supabase = createClient()
   const hour = useLocalHour()
   const captcha = useRef<TurnstileHandle>(null)
+  // One sign-in at a time: a quick double tap sent two password grants (seen
+  // in the auth logs), each a full round trip on a slow network.
+  const submitting = useRef(false)
 
   // Reaching the sign-in page (expired session included) re-arms the logo
   // intro for the next sign-in.
@@ -158,6 +161,8 @@ function LoginForm() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+    if (submitting.current) return
+    submitting.current = true
     setLoading(true)
     setError('')
 
@@ -173,7 +178,7 @@ function LoginForm() {
         body: JSON.stringify({ code: normalizeMemberCode(email), password, captchaToken }),
       })
       const body = await res.json().catch(() => ({}))
-      if (!res.ok) { setError(body.error ?? t('errors.default')); setLoading(false); return }
+      if (!res.ok) { setError(body.error ?? t('errors.default')); submitting.current = false; setLoading(false); return }
       // A full load, so the browser client picks up the cookies the server set.
       window.location.replace(body.mustChangePassword ? '/change-password' : body.role ? getRoleDashboardPath(body.role as Role) : '/login')
       return
@@ -183,7 +188,7 @@ function LoginForm() {
 
     if (authError) {
       setError(authError.message)
-      setLoading(false)
+      submitting.current = false; setLoading(false)
       return
     }
 
@@ -211,7 +216,7 @@ function LoginForm() {
       setError(t('errors.default'))
     }
 
-    setLoading(false)
+    submitting.current = false; setLoading(false)
   }
 
   const showcase = t.raw('showcase') as Showcase
