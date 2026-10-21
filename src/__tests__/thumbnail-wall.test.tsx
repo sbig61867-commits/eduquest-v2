@@ -24,7 +24,8 @@ vi.mock('@/lib/supabase/client', () => ({
 import { useExamLiveChannel } from '@/hooks/use-exam-live-channel'
 import { useThumbnailSender } from '@/hooks/use-thumbnail-sender'
 
-async function flush() { await act(async () => { await Promise.resolve(); await Promise.resolve() }) }
+// Runs past the hook's random join delay, then lets the subscribe chain settle.
+async function flush() { await act(async () => { await vi.advanceTimersByTimeAsync(10_000) }) }
 
 describe('thumbnail wall — student side', () => {
   beforeEach(() => { vi.useFakeTimers(); for (const k of Object.keys(handlers)) delete handlers[k]; httpSend.mockReset() })

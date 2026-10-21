@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
@@ -9,6 +9,7 @@ import { checkNameParts, EMPTY_NAME_PARTS, JOIN_NAME_COOKIE, type NameParts } fr
 import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 import type { Role } from '@/types'
 import { googleSignInEnabled } from '@/lib/google-sign-in'
+import { Turnstile, type TurnstileHandle } from '@/components/shared/turnstile'
 
 interface Props {
   token: string
@@ -36,6 +37,7 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
   const [googleLoading, setGoogleLoading]   = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const captcha = useRef<TurnstileHandle>(null)
   const isDev = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEV_MODE === 'true'
 
   /** A student's four parts must be valid before either way of signing up. */
@@ -90,8 +92,8 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isStudent
-          ? { token, email: email.trim(), password, nameParts }
-          : { token, email: email.trim(), password, fullName }),
+          ? { token, email: email.trim(), password, nameParts, captchaToken: await captcha.current?.take() }
+          : { token, email: email.trim(), password, fullName, captchaToken: await captcha.current?.take() }),
       })
 
       let data: Record<string, unknown> = {}
@@ -107,9 +109,11 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
 
       const registeredEmail = typeof data.email === 'string' ? data.email : email.trim()
 
+      // A second token: the first was spent creating the account.
       const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
         email: registeredEmail,
         password,
+        options: { captchaToken: await captcha.current?.take() },
       })
 
       if (signInError || !session.user) {
@@ -250,6 +254,8 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
             </p>
           )}
         </div>
+
+        <Turnstile ref={captcha} className="sm:col-span-2" />
 
         <button
           type="submit"

@@ -10,6 +10,10 @@ const state = vi.hoisted(() => ({
   rows: {} as Record<string, Row>,
   rateAllowed: true,
   footprint: { university: false },
+  // The teacher's groups and their students, and who still has a temporary password.
+  teacherGroups: { tea: ['g1'] } as Record<string, string[]>,
+  groupStudents: { g1: ['centreStu', 'fresh'] } as Record<string, string[]>,
+  mustChange: new Set<string>(['fresh']),
   updates: [] as { id: string; attrs: { password: string; app_metadata: Record<string, unknown> } }[],
 }))
 
@@ -32,7 +36,30 @@ vi.mock('@/lib/supabase/server', () => ({
 }))
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
-    auth: { admin: { updateUserById: async (id: string, attrs: never) => { state.updates.push({ id, attrs }); return { error: null } } } },
+    from: (table: string) => {
+      const f: Record<string, unknown> = {}
+      const q = {
+        select: () => q,
+        eq: (c: string, v: unknown) => { f[c] = v; return q },
+        is: () => q,
+        in: (c: string, v: unknown) => { f[c] = v; return q },
+        // groups: …limit(500) is awaited; group_students: …limit(1).maybeSingle().
+        limit: () => ({
+          then: (done: (r: unknown) => void) => done({ data: (state.teacherGroups[f.teacher_id as string] ?? []).map(id => ({ id })) }),
+          maybeSingle: async () => {
+            const hit = (f.group_id as string[]).find(g => (state.groupStudents[g] ?? []).includes(f.student_id as string))
+            return { data: table === 'group_students' && hit ? { group_id: hit } : null }
+          },
+        }),
+      }
+      return q
+    },
+    auth: {
+      admin: {
+        getUserById: async (id: string) => ({ data: { user: { id, app_metadata: { must_change_password: state.mustChange.has(id) } } } }),
+        updateUserById: async (id: string, attrs: never) => { state.updates.push({ id, attrs }); return { error: null } },
+      },
+    },
   }),
 }))
 
@@ -45,6 +72,7 @@ beforeEach(() => {
   state.rateAllowed = true
   state.footprint = { university: false }
   state.updates = []
+  state.mustChange = new Set(['fresh'])
   state.rows = {
     admin1: { id: 'admin1', tenant_id: 'T1', role: 'university_admin', permissions: ALL },
     cm1: { id: 'cm1', tenant_id: 'T1', role: 'center_manager', permissions: ALL },
@@ -53,6 +81,8 @@ beforeEach(() => {
     tea: { id: 'tea', tenant_id: 'T1', role: 'teacher' },
     otherStu: { id: 'otherStu', tenant_id: 'T2', role: 'student', is_university_student: true },
     owner: { id: 'owner', tenant_id: null, role: 'super_admin' },
+    fresh: { id: 'fresh', tenant_id: 'T1', role: 'student', is_university_student: false },
+    pupil: { id: 'pupil', tenant_id: 'T1', role: 'student', is_university_student: false },
   }
 })
 
@@ -98,9 +128,34 @@ describe('POST /api/admin/reset-password', () => {
     expect((await call('tea')).status).toBe(403)
   })
 
-  it('teachers and students cannot reset anyone', async () => {
+  it('a teacher re-issues a lost temporary password for a student of their group who never chose one', async () => {
     state.me = 'tea'
+    const res = await call('fresh')
+    expect(res.status).toBe(200)
+    expect(state.updates.map(u => u.id)).toEqual(['fresh'])
+  })
+
+  it('a teacher may not reset a student who already chose their own password', async () => {
+    state.me = 'tea'
+    const res = await call('centreStu')
+    expect(res.status).toBe(403)
+    expect((await res.json()).code).toBe('studentPasswordAlreadySet')
+    expect(state.updates).toEqual([])
+  })
+
+  it('a teacher may not reset a student outside their groups, nor any staff', async () => {
+    state.me = 'tea'
+    state.mustChange.add('pupil')
+    expect((await call('pupil')).status).toBe(403)
     expect((await call('stu')).status).toBe(403)
+    expect((await call('admin1')).status).toBe(403)
+    expect(state.updates).toEqual([])
+  })
+
+  it('a student cannot reset anyone', async () => {
+    state.me = 'fresh'
+    expect((await call('pupil')).status).toBe(403)
+    expect(state.updates).toEqual([])
   })
 
   it('requires a session and a target', async () => {

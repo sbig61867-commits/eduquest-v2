@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
 import { useRouter } from 'next/navigation'
@@ -18,6 +18,8 @@ import { checkNameParts, EMPTY_NAME_PARTS, type NameParts } from '@/lib/person-n
 import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
 import { StudentNameEditor, type NamedStudent } from '@/components/shared/student-name-editor'
 import { ListPagination } from '@/components/shared/list-pagination'
+import { ResetPasswordButton } from '@/components/shared/reset-password-button'
+import { isMemberCode } from '@/lib/member-code'
 
 export interface PersonRow {
   id: string
@@ -108,6 +110,12 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
   const [busy, setBusy] = useState('')
   const showAffiliation = role === 'student' && canSetAffiliation
   const isStudent = role === 'student'
+  // Remounts the name fields after a creation, so their "left this field"
+  // marks do not paint the emptied fields red.
+  const [nameFieldsKey, setNameFieldsKey] = useState(0)
+  const issuedRef = useRef<HTMLDivElement>(null)
+  // The new credentials sit above the form; bring them into view.
+  useEffect(() => { if (issued) issuedRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) }, [issued])
 
   function close() {
     setOpen(false)
@@ -167,6 +175,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
         setIssued({ name: data.user?.full_name ?? '', code: data.member_code ?? '', password: data.temp_password ?? '' })
         setNameParts(EMPTY_NAME_PARTS)
         setShowNameErrors(false)
+        setNameFieldsKey(k => k + 1)
         router.refresh()
         return
       }
@@ -284,9 +293,13 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
                         <Lock className="w-3.5 h-3.5 shrink-0" /> {t(`locked.${p.locked}`, { admin: terms.institutionAdmin })}
                       </span>
                     ) : (
-                      <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggle(p)}>
-                        <Power className="w-3.5 h-3.5" /> {p.is_active ? t('disable') : t('enable')}
-                      </Button>
+                      <>
+                        {/* Same scope as on/off: a lost or forgotten password is re-issued here. */}
+                        <ResetPasswordButton userId={p.id} name={p.full_name} memberCode={isMemberCode(p.email) ? p.email : null} />
+                        <Button variant="ghost" size="sm" loading={busy === p.id} onClick={() => toggle(p)}>
+                          <Power className="w-3.5 h-3.5" /> {p.is_active ? t('disable') : t('enable')}
+                        </Button>
+                      </>
                     )}
                   </div>
                 </td>
@@ -298,7 +311,8 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
 
       {pagination.pageCount > 1 && <ListPagination page={pagination.page} pageCount={pagination.pageCount} />}
 
-      <Modal open={open} onClose={close} title={t(`${role}.add`)}>
+      {/* While a temporary password is on screen, only the dialog's own buttons close it. */}
+      <Modal open={open} onClose={close} title={t(`${role}.add`)} dismissible={!issued}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {ADD_MODES.map(m => (
@@ -326,7 +340,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
             </div>
           )}
           {issued && (
-            <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
+            <div ref={issuedRef} role="status" className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-3">
               <p className="text-emerald-300 text-sm">{t('byIdCreated', { name: issued.name })}</p>
               {[
                 { label: tInv('memberIdLabel'), value: issued.code },
@@ -345,6 +359,7 @@ export function PeopleClient({ role, initialPeople, canSetAffiliation = false, p
           )}
           {(mode === 'account' || mode === 'byId') && (isStudent ? (
             <FourPartNameFields
+              key={nameFieldsKey}
               idPrefix="new-student-name"
               value={nameParts}
               onChange={setNameParts}

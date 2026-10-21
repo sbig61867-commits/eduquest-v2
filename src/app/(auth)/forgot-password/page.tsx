@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
+import { Turnstile, type TurnstileHandle } from '@/components/shared/turnstile'
 
 // Account recovery. Same public look as sign-in (`.eq-public`, light/dark),
 // told as a journey instead: a three-stage track, an envelope that opens once
@@ -44,6 +45,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('')
   const [remaining, setRemaining] = useState(0)
   const t = useTranslations('auth.forgotPassword')
+  const captcha = useRef<TurnstileHandle>(null)
   const steps = t.raw('steps') as string[]
   const stage = sent ? 1 : 0
 
@@ -62,7 +64,7 @@ export default function ForgotPasswordPage() {
     const res = await fetch('/api/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim() }),
+      body: JSON.stringify({ email: email.trim(), captchaToken: await captcha.current?.take() }),
     })
 
     const data = await res.json().catch(() => ({}))
@@ -155,6 +157,7 @@ export default function ForgotPasswordPage() {
                     className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent transition"
                   />
                 </div>
+                <Turnstile ref={captcha} />
                 <button
                   type="submit"
                   disabled={loading}

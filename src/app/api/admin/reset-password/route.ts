@@ -1,4 +1,4 @@
-import { apiErr } from '@/lib/api-error'
+import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
@@ -13,6 +13,24 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+// A teacher re-issues only what they could have handed over themselves
+// (owner's decision, 2026-10-21): a student in one of their own groups who
+// still has a temporary password (must_change_password), i.e. has never chosen
+// their own. That covers "I created the account and lost the details" without
+// letting a teacher take over an account its student already uses.
+async function teacherRefusal(admin: ReturnType<typeof adminClient>, teacherId: string, studentId: string): Promise<ApiErrorCode | null> {
+  const { data: groups } = await admin
+    .from('groups').select('id').eq('teacher_id', teacherId).is('deleted_at', null).limit(500)
+  const groupIds = (groups ?? []).map(g => g.id as string)
+  if (groupIds.length === 0) return 'forbidden'
+  const { data: link } = await admin
+    .from('group_students').select('group_id').eq('student_id', studentId).in('group_id', groupIds).limit(1).maybeSingle()
+  if (!link) return 'forbidden'
+  const { data } = await admin.auth.admin.getUserById(studentId)
+  if (data?.user?.app_metadata?.must_change_password !== true) return 'studentPasswordAlreadySet'
+  return null
 }
 
 // Staff reset a member's forgotten password (2026-10-17). Accounts created by
@@ -31,7 +49,7 @@ export async function POST(request: Request) {
 
   const { data: caller } = await supabase
     .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!caller || !['university_admin', 'super_admin', 'center_manager'].includes(caller.role)) {
+  if (!caller || !['university_admin', 'super_admin', 'center_manager', 'teacher'].includes(caller.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -51,8 +69,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
   if (target.role === 'super_admin') return NextResponse.json({ ...(await apiErr('cannotEditOwner')) }, { status: 403 })
-  if (!canManageAccountOf(caller, target.role)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  if (caller.role === 'center_manager') {
+  if (caller.role === 'teacher') {
+    const refusal = target.role === 'student' ? await teacherRefusal(adminClient(), user.id, target.id) : 'forbidden'
+    if (refusal) return NextResponse.json({ ...(await apiErr(refusal)) }, { status: 403 })
+  } else if (!canManageAccountOf(caller, target.role)) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  } else if (caller.role === 'center_manager') {
     const block = target.role === 'student'
       ? studentBlock(target.is_university_student)
       : teacherBlock(await loadTeacherFootprint(adminClient(), caller.tenant_id, target.id))

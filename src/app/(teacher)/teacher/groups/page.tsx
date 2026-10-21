@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GroupsClient } from './groups-client'
+import { ScopedIntlProvider } from '@/i18n/provider'
 
 export default async function GroupsPage() {
   const supabase = await createClient()
@@ -29,11 +30,14 @@ export default async function GroupsPage() {
 
   // «إدارة الطلاب» finds students on demand through /api/students/search
   // (≤ 20 per search); the institution's student body is never sent to the page.
+  // 'staff' is the student's reset-password button (src/components/shared/reset-password-button.tsx).
   return (
-    <GroupsClient
-      initialGroups={groups ?? []}
-      teacherId={user.id}
-      tenantId={profile.tenant_id}
-    />
+    <ScopedIntlProvider namespaces={['common', 'teacher', 'terms', 'staff']}>
+      <GroupsClient
+        initialGroups={groups ?? []}
+        teacherId={user.id}
+        tenantId={profile.tenant_id}
+      />
+    </ScopedIntlProvider>
   )
 }

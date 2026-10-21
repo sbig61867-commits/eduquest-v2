@@ -12,6 +12,9 @@ import { CLIP_EVENT, THUMBS_EVENT, THUMBS_TIMEOUT_MS, WATCH_EVENT, liveTopic, wa
 // Realtime messages only.
 
 const PRESENCE_MIN_GAP_MS = 3_000
+// A whole class opens the exam in the same minute; each student waits a random
+// moment before joining so the channel's RLS checks arrive spread out.
+const JOIN_JITTER_MS = 8_000
 
 export function useExamLiveChannel(
   examId: string,
@@ -41,6 +44,8 @@ export function useExamLiveChannel(
     let cancelled = false
 
     ;(async () => {
+      await new Promise(resolve => setTimeout(resolve, Math.random() * JOIN_JITTER_MS))
+      if (cancelled) return
       // A private channel is authorised with the user's own JWT.
       await supabase.realtime.setAuth()
       if (cancelled) return

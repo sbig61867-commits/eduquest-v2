@@ -18,16 +18,19 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 // where data exfiltration and clickjacking actually live.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://storage.googleapis.com",
+  // challenges.cloudflare.com: the Turnstile CAPTCHA on the auth forms
+  // (src/components/shared/turnstile.tsx), script and its iframe.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://storage.googleapis.com https://challenges.cloudflare.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   // Course video items: a direct https video file the teacher linked (see
   // src/lib/video-embed.ts, which only ever produces https URLs).
   "media-src 'self' blob: data: https:",
-  // Only the two video players src/lib/video-embed.ts can produce. Nothing
-  // else may be framed (frame-ancestors below is the reverse direction).
-  "frame-src https://www.youtube-nocookie.com https://player.vimeo.com",
+  // Only the two video players src/lib/video-embed.ts can produce, plus the
+  // Turnstile iframe. Nothing else may be framed (frame-ancestors below is the
+  // reverse direction).
+  "frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://challenges.cloudflare.com",
   "font-src 'self' data:",
   // Supabase (REST/auth/storage/realtime), the AI providers called from the
   // browser, LiveKit signalling, and Sentry ingest. Anything else is blocked,

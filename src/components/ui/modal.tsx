@@ -10,15 +10,21 @@ interface ModalProps {
   title: string
   children: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * false: a click outside or Escape does not close it, only its own buttons
+   * do. For a dialog showing something that cannot be shown again (a
+   * temporary password).
+   */
+  dismissible?: boolean
 }
 
-export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = 'md', dismissible = true }: ModalProps) {
   useEffect(() => {
-    if (!open) return
+    if (!open || !dismissible) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  }, [open, onClose, dismissible])
 
   if (!open) return null
 
@@ -40,7 +46,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     // for any modal taller than the screen. `my-auto` still centres it when
     // it fits, and lets the overlay scroll when it does not.
     <div className="fixed inset-0 z-50 flex justify-center p-4 overflow-y-auto overscroll-contain">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={dismissible ? onClose : undefined} />
       <div className={cn('relative my-auto bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full', sizes[size])}>
         <div className="flex items-center justify-between p-5 border-b border-slate-800">
           <h3 className="text-white font-semibold text-lg">{title}</h3>

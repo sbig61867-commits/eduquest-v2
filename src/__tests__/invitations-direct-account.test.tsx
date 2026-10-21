@@ -91,6 +91,21 @@ describe('InvitationsClient — direct student account', () => {
     expect(createCalls()).toHaveLength(0)
   })
 
+  it('after a creation the emptied name fields are not shown as errors', async () => {
+    await openAccountForm('teacher')
+    fillStudent()
+    // Leaving each field marks it "touched"; that mark must not outlive the form.
+    for (const part of ['first', 'father', 'grandfather', 'family'] as const) fireEvent.blur(screen.getByLabelText(name.parts[part]))
+    fireEvent.change(screen.getByRole('combobox', { name: inv.groupLabel }), { target: { value: 'g1' } })
+    fireEvent.click(screen.getByRole('button', { name: inv.createAccount }))
+    expect(await screen.findByRole('status')).toBeTruthy()
+    for (const part of ['first', 'father', 'grandfather', 'family'] as const) {
+      const input = screen.getByLabelText(name.parts[part]) as HTMLInputElement
+      expect(input.value).toBe('')
+      expect(input.getAttribute('aria-invalid')).toBeNull()
+    }
+  })
+
   it('an institution admin may leave the group empty', async () => {
     await openAccountForm('university_admin')
     fillStudent()

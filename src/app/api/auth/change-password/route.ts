@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { captchaTokenFrom, isCaptchaError } from '@/lib/captcha'
 
 // Replaces the signed-in user's password and clears the
 // `must_change_password` flag that staff-created accounts start with.
@@ -23,9 +24,11 @@ export async function POST(request: Request) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
   // The new password may not be the temporary one.
-  const { data: check } = await createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const { data: check, error: checkError } = await createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
-  }).auth.signInWithPassword({ email: user.email!, password })
+  }).auth.signInWithPassword({ email: user.email!, password, options: { captchaToken: captchaTokenFrom(body) } })
+  // A refused CAPTCHA would otherwise read as "not the old password" and skip the check.
+  if (isCaptchaError(checkError)) return NextResponse.json({ ...(await apiErr('captchaFailed')) }, { status: 400 })
   if (check?.user) return NextResponse.json({ ...(await apiErr('passwordUnchanged')) }, { status: 400 })
 
   const { error } = await admin.auth.admin.updateUserById(user.id, {
