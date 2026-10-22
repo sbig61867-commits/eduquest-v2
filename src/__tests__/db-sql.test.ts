@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import postgres from 'postgres'
 import { run, transaction, one, maybeOne, NotFoundError, dbStats } from '@/lib/db/sql'
