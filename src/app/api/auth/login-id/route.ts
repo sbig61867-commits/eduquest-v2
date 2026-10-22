@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-login'
@@ -34,9 +34,7 @@ export async function POST(request: Request) {
   const byIp = await rateLimit(key, ipLimit)
   if (!byIp.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
 
-  const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const admin = getAdminDb()
   const { data: member } = await admin.from('users').select('id, email').eq('member_code', code).maybeSingle()
   if (!member) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
 

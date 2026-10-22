@@ -2,16 +2,12 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { buildXlsx, type Cell } from '@/lib/xlsx'
 import { IncompleteReadError, readAllByKeyset, READ_PAGE } from '@/lib/data/complete-read'
 
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 // GET /api/grades/export?group_id=xxx&format=csv|json

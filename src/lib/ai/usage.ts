@@ -1,5 +1,5 @@
 import { after, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { apiErr } from '@/lib/api-error'
 import { currentMeter, runMetered, summarizeAiCalls, type MeterState } from './meter'
 import { DEFAULT_AI_PRICING, mergeAiPricing, type AiPricing } from './pricing'
@@ -26,11 +26,7 @@ import { DEFAULT_AI_PRICING, mergeAiPricing, type AiPricing } from './pricing'
 // See supabase/ai_usage_metering_migration.sql.
 
 function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 const RPC_TIMEOUT_MS = 3_000

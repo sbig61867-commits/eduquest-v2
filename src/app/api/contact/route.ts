@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Public endpoint (listed in proxy PUBLIC_PREFIXES): receives contact-form
@@ -32,11 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_message' }, { status: 400 })
   }
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = getAdminDb()
 
   const { error } = await admin.from('contact_messages').insert({ name, email, message })
   if (error) {

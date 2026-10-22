@@ -2,7 +2,7 @@ import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { canManageAccountRole } from '@/lib/staff-auth'
 import { canSetAffiliation } from '@/lib/student-affiliation'
 
@@ -19,11 +19,7 @@ import { canSetAffiliation } from '@/lib/student-affiliation'
 // whoever may not address university students may not move students into that
 // audience either.
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 export async function PATCH(request: Request) {

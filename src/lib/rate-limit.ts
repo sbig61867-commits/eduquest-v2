@@ -1,7 +1,7 @@
 // Persistent rate limiter — backed by the Postgres `rate_limits` table via the
 // atomic `check_rate_limit` RPC. Survives serverless cold starts and works across
 // multiple instances (unlike an in-memory Map, which resets per process).
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 
 interface RateLimitOptions {
   /** Max requests allowed in the window */
@@ -17,11 +17,7 @@ interface RateLimitResult {
 }
 
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 // R-2 Layer 1: the RPC call itself previously had no timeout — a hung DB

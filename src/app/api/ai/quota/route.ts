@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { getAiRateLimits } from '@/lib/settings'
 
 // GET /api/ai/quota — the caller's OWN AI allowances and how much is left.
@@ -58,11 +58,7 @@ export async function GET() {
     ...FIXED_FEATURES,
   ].map(f => ({ ...f, label: t(f.key) }))
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = getAdminDb()
 
   const keys = features.map(f => `${f.key}:${user.id}`)
   const { data: rows, error } = await admin

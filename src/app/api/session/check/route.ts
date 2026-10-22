@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, getAuthUser } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 
 // GET /api/session/check — cheap liveness check for the user's session.
 // Called every 60s by <TenantWatcher>. Returns { ok: true } if the user's
@@ -16,11 +16,7 @@ export async function GET() {
   const user = await getAuthUser(supabase)
   if (!user) return NextResponse.json({ ok: false, reason: 'no_session' }, { status: 401 })
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = getAdminDb()
 
   const { data: profile, error: profileErr } = await admin
     .from('users')

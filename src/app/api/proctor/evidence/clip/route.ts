@@ -1,7 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { isOnExamRoster } from '@/lib/exam-roster'
 import { rateLimit } from '@/lib/rate-limit'
 import {
@@ -21,11 +21,7 @@ import { isEvidenceStoreConfigured, putEvidence } from '@/lib/evidence-store'
 // short event line with the key reaches the attempt. NO AI.
 
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 export async function POST(request: Request) {

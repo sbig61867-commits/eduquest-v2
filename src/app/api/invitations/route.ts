@@ -1,7 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { sendInvitationEmail } from '@/lib/email'
 import { getLocale } from 'next-intl/server'
 import { isLocale, toLocale } from '@/i18n/config'
@@ -13,11 +13,7 @@ import { getTenantSettings } from '@/lib/structure-mode'
 import { checkSeatLimit, getSeatUsage, isSeatRole, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 
 function getAdminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 // Role ceiling: what roles each caller can invite

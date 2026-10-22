@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
 import { JoinForm } from './join-form'
 import { checkSeatLimit, isSeatRole } from '@/lib/seat-limit'
@@ -19,11 +19,7 @@ type InvitationResult =
   | null
 
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 async function getInvitation(token: string): Promise<InvitationResult> {

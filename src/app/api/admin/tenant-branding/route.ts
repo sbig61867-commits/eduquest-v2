@@ -1,7 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { isLocale } from '@/i18n/config'
 
 // PATCH /api/admin/tenant-branding  { name, logo_url, default_locale? }
@@ -18,11 +18,7 @@ import { isLocale } from '@/i18n/config'
 // touched. default_locale (emails, and the interface of anyone who has not
 // picked a language) is optional: left out, it is not changed.
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 export async function PATCH(request: Request) {

@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   EVIDENCE_MAX_BYTES, EVIDENCE_MAX_PER_STUDENT,
@@ -22,11 +22,7 @@ import { verifySecondCameraToken } from '@/lib/second-camera-token'
 const SIDE_TYPES = new Set(['suspicious_activity', 'multiple_faces'])
 
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 export async function POST(request: Request) {

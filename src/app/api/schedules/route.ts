@@ -1,7 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { can } from '@/lib/permissions'
 
 // Weekly timetables. Authoring is gated by the `manage_schedules`
@@ -9,11 +9,7 @@ import { can } from '@/lib/permissions'
 // capability is checked with the user session and the writes then run on
 // the service-role client, matching the codebase's privileged-write pattern.
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 interface Caller { id: string; tenant_id: string }

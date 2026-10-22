@@ -1,7 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import { canManageAccountOf } from '@/lib/staff-auth'
 
@@ -50,11 +50,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = getAdminDb()
 
   const { error } = await admin.auth.admin.deleteUser(id)
   if (error) {

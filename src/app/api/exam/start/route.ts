@@ -1,7 +1,7 @@
 import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { isOnExamRoster } from '@/lib/exam-roster'
 import { signFileMap } from '@/lib/exam-files'
 import { normalizeSebKey, verifySebProof, type SebProof } from '@/lib/seb'
@@ -11,11 +11,7 @@ import { studentQuestions } from '@/lib/exam-delivery'
 // metadata here uses the service-role client; authorization is enforced
 // separately by the enrollment check below.
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 // The refusals start_exam_attempt raises by name (supabase/fix_start_exam_attempt_migration.sql,

@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import {
   canEditPermissionsOf, ungrantableCapabilities, sanitizePermissions, 
 } from '@/lib/permissions'
@@ -12,11 +12,7 @@ import {
 //   university_admin → may configure a center_manager in their own tenant
 // Escalation guard: nobody can grant a capability they do not themselves hold.
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 export async function PATCH(request: Request) {

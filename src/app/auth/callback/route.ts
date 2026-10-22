@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { getRoleDashboardPath } from '@/lib/utils'
 import { rateLimit } from '@/lib/rate-limit'
@@ -31,11 +31,7 @@ interface InvitationRow {
 }
 
 function getAdminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 // A public.users row is only "genuinely created by this very sign-in" if it's

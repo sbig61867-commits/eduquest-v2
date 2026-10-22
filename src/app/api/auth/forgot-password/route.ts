@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import { resetPasswordRedirectTo } from '@/lib/auth-urls'
 import { getLocale } from 'next-intl/server'
@@ -19,11 +19,7 @@ const IP_LIMITS: TieredLimit = {
 const SENT_MSG = 'If that email is registered, you will receive a reset link shortly.'
 
 function adminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 export async function POST(request: Request) {
