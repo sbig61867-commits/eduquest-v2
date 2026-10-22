@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -27,7 +28,7 @@ export const maxDuration = 30
 
 export const POST = meteredAiRoute('extract-file', async (request: Request) => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase

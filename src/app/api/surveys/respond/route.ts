@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -11,7 +12,7 @@ function adminClient() {
 // groups that they haven't answered yet.
 export async function GET() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
@@ -45,7 +46,7 @@ export async function GET() {
 // Body: { survey_id, ease_rating, prefer_platform, best_feature, problem_faced, recommend, comment }
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()

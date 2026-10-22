@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -18,7 +19,7 @@ import { rateLimit } from '@/lib/rate-limit'
 // may manage, then write with the service-role client.
 export async function PATCH(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: caller } = await supabase

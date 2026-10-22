@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { ALLOWED_EVENT_TYPES } from '@/lib/proctoring-events'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -40,7 +41,7 @@ interface IncomingEvent {
 // POST /api/proctor/events  { examId, events: [{type, timestamp, first_at, count, details}] }
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { examId?: string; events?: IncomingEvent[] }

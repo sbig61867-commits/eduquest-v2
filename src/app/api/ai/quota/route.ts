@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -39,7 +40,7 @@ const FIXED_FEATURES: { key: string; limit: number }[] = [
 
 export async function GET() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()

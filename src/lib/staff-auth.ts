@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { apiErr } from '@/lib/api-error'
 import { createClient } from '@/lib/supabase/server'
@@ -21,7 +22,7 @@ export function serviceClient() {
 
 export async function getCaller(): Promise<{ caller: StaffCaller } | { error: NextResponse }> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
 
   const { data: profile } = await supabase

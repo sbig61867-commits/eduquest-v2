@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -22,7 +23,7 @@ async function resolveGroupOwnership(userId: string, groupId: string) {
 // GET /api/surveys?group_id=xxx — teacher/admin view: survey + response count
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const groupId = new URL(request.url).searchParams.get('group_id')
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
 // Body: { group_id }
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { group_id?: string }
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
 // Body: { group_id, is_open }
 export async function PATCH(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { group_id?: string; is_open?: boolean }

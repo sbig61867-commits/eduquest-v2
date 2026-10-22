@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -29,7 +30,7 @@ async function ownsHomework(hwId: string, teacherId: string, tenantId: string) {
 // GET /api/homework?lesson_id=xxx  — list homework for a lesson
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
 // POST /api/homework — create homework for a lesson
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(user.id)
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
 // PATCH /api/homework — update (publish toggle or questions)
 export async function PATCH(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(user.id)
@@ -178,7 +179,7 @@ export async function PATCH(request: Request) {
 // DELETE /api/homework
 export async function DELETE(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(user.id)

@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { getLocale } from 'next-intl/server'
 import { NextResponse } from 'next/server'
 import { aiPrompts } from '@/content/ai'
@@ -31,7 +32,7 @@ function cleanSuggestion(raw: string): string {
 
 export const POST = meteredAiRoute('improve_block', async (request: Request) => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()

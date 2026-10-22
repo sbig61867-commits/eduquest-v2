@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -14,7 +15,7 @@ function adminClient() {
 export async function GET(request: Request) {
   const tc = await getTranslations('common')
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const lessonId = new URL(request.url).searchParams.get('lesson_id')
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
 // Body: { id, score?, grading_status? }
 export async function PATCH(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { id?: string; score?: number; grading_status?: string; teacher_comment?: string | null }

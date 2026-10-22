@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getAdminDb, getAnonDb } from '@/lib/db'
@@ -9,7 +10,7 @@ import { rateLimit } from '@/lib/rate-limit'
 // The client refreshes its session afterwards so the JWT drops the flag.
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const rl = await rateLimit(`change-password:${user.id}`, { limit: 10, windowSecs: 3600 })

@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { aiPrompts } from '@/content/ai'
 import { toLocale, type Locale } from '@/i18n/config'
@@ -85,7 +86,7 @@ function parseSuggestions(raw: string): string[] {
 
 export const POST = meteredAiRoute('course_suggestions', async (request: Request) => {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase

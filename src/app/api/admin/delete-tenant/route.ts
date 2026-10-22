@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -15,7 +16,7 @@ function adminClient() {
 // no manual SQL. Use archive-tenant for reversible suspension instead.
 export async function DELETE(request: Request) {
   const supabase = await createClient()
-  const { data: { user: caller } } = await supabase.auth.getUser()
+  const caller = await getSessionUser(supabase)
   if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: callerProfile } = await supabase

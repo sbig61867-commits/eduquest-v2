@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -31,7 +32,7 @@ async function getProfile(supabase: Awaited<ReturnType<typeof createClient>>, us
 // POST /api/requests — create a request (+ optional first message)
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(supabase, user.id)
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
 // PATCH /api/requests — change status (accept/reject/complete/cancel)
 export async function PATCH(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getProfile(supabase, user.id)

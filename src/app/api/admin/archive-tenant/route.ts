@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -19,7 +20,7 @@ function adminClient() {
 // the suspension stays disabled. A blanket users update here would undo that.
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user: caller } } = await supabase.auth.getUser()
+  const caller = await getSessionUser(supabase)
   if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: callerProfile } = await supabase

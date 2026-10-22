@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { STOPWORDS, QUESTION_PUNCTUATION } from '@/content/ai/stopwords'
 import { NextResponse } from 'next/server'
@@ -120,7 +121,7 @@ const MIN_ROUND_START_MS = 30_000
 export const POST = meteredAiRoute('homework-from-file', async (request: Request) => {
   const deadline = Date.now() + HOMEWORK_BUDGET_MS
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: profile } = await supabase

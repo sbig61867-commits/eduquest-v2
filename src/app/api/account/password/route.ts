@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getAdminDb, getAnonDb } from '@/lib/db'
@@ -17,7 +18,7 @@ const MIN_PASSWORD_LENGTH = 8
 // after the session check, like the other account routes.
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user?.email) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   // Each attempt is a real sign-in against the current password: keep it tight.

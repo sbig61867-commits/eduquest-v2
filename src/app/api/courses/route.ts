@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -13,7 +14,7 @@ type Profile = {
 
 async function loadCaller() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return { supabase, user: null, profile: null }
   const { data } = await supabase
     .from('users').select('role, tenant_id, can_create_courses, permissions').eq('id', user.id).single()

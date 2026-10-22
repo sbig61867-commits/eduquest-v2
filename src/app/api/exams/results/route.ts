@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { isViolation } from '@/lib/proctoring-events'
 import { findSimilarPairs, type SimilarityQuestion } from '@/lib/answer-similarity'
 import { getTranslations } from 'next-intl/server'
@@ -18,7 +19,7 @@ function adminClient() {
 export async function GET(request: Request) {
   const tc = await getTranslations('common')
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const examId = new URL(request.url).searchParams.get('exam_id')

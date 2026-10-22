@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -27,7 +28,7 @@ function adminClient() {
 // POST /api/proctor/evidence  { examId, type, imageBase64 }
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   let body: { examId?: unknown; type?: unknown; imageBase64?: unknown }
@@ -112,7 +113,7 @@ export interface EvidenceItem {
 // GET /api/proctor/evidence?examId=…  → the exam teacher's live snapshot feed
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const examId = new URL(request.url).searchParams.get('examId')

@@ -1,3 +1,4 @@
+import { getSessionUser } from '@/lib/auth'
 import { normalizeSebKey } from '@/lib/seb'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -47,7 +48,7 @@ function validDuration(v: unknown): number | null {
 // POST /api/exams — create exam
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getTeacherProfile(user.id)
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
 // PATCH /api/exams — update exam (publish/unpublish or edit)
 export async function PATCH(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getTeacherProfile(user.id)
@@ -187,7 +188,7 @@ export async function PATCH(request: Request) {
 // DELETE /api/exams — delete exam
 export async function DELETE(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const profile = await getTeacherProfile(user.id)
