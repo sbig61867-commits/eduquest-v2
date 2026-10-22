@@ -17,7 +17,8 @@
     "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "node --env-file-if-exists=.env node_modules/@opennextjs/cloudflare/dist/cli/index.js preview",
-    "cf:deploy": "opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare deploy",
+    "test:neon": "node --env-file-if-exists=.env --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --pool=threads src/__tests__/db-sql.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -44,6 +45,7 @@
     "lucide-react": "^1.21.0",
     "next": "16.4.2",
     "next-intl": "^4.14.9",
+    "postgres": "3.4.5",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
