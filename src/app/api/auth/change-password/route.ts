@@ -1,7 +1,8 @@
 import { getSessionUser } from '@/lib/auth'
+import { setAuthPassword, verifyPassword } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb, getAnonDb } from '@/lib/db'
+import { getAdminDb } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -20,15 +21,10 @@ export async function POST(request: Request) {
   const password = typeof body.password === 'string' ? body.password : ''
   if (password.length < 8) return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
 
-  const admin = getAdminDb()
   // The new password may not be the temporary one.
-  const { data: check } = await getAnonDb().auth.signInWithPassword({ email: user.email!, password })
-  if (check?.user) return NextResponse.json({ ...(await apiErr('passwordUnchanged')) }, { status: 400 })
+  if (await verifyPassword(user.email!, password)) return NextResponse.json({ ...(await apiErr('passwordUnchanged')) }, { status: 400 })
 
-  const { error } = await admin.auth.admin.updateUserById(user.id, {
-    password,
-    app_metadata: { must_change_password: false },
-  })
+  const { error } = await setAuthPassword(getAdminDb(), user.id, password, { mustChangePassword: false })
   if (error) {
     console.error('[change-password]', error)
     return NextResponse.json({ ...(await apiErr('passwordChangeFailed')) }, { status: 400 })

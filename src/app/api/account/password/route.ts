@@ -1,7 +1,8 @@
 import { getSessionUser } from '@/lib/auth'
+import { setAuthPassword, verifyPassword } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb, getAnonDb } from '@/lib/db'
+import { getAdminDb } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -32,15 +33,11 @@ export async function POST(request: Request) {
   if (next.length < MIN_PASSWORD_LENGTH) return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
   if (next === current) return NextResponse.json({ ...(await apiErr('passwordSameAsCurrent')) }, { status: 400 })
 
-  const verifier = getAnonDb()
-  const { data: check, error: checkError } = await verifier.auth.signInWithPassword({ email: user.email, password: current })
-  if (checkError || check?.user?.id !== user.id) {
+  if ((await verifyPassword(user.email, current)) !== user.id) {
     return NextResponse.json({ ...(await apiErr('currentPasswordWrong')) }, { status: 400 })
   }
-  await verifier.auth.signOut({ scope: 'local' })
 
-  const admin = getAdminDb()
-  const { error } = await admin.auth.admin.updateUserById(user.id, { password: next })
+  const { error } = await setAuthPassword(getAdminDb(), user.id, next)
   if (error) {
     console.error('[account-password]', error.message)
     return NextResponse.json({ ...(await apiErr('passwordChangeFailed')) }, { status: 400 })

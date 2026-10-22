@@ -1,3 +1,4 @@
+import { deleteAuthUser } from '@/lib/auth/admin'
 import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
@@ -65,7 +66,7 @@ export async function DELETE(request: Request) {
 
   let failed = 0
   for (const m of members) {
-    const { error } = await admin.auth.admin.deleteUser(m.id)
+    const { error } = await deleteAuthUser(admin, m.id)
     if (error) { failed++; console.error('[delete-tenant] deleteUser', m.id, error.message) }
   }
 

@@ -1,3 +1,4 @@
+import { deleteAuthUser } from '@/lib/auth/admin'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getAdminDb } from '@/lib/db'
@@ -189,7 +190,7 @@ export async function GET(request: Request) {
           // and tell the visitor why instead of a generic "invitation required".
           if (seatRoleFromDbError(rpcErr.message)) {
             if (Date.now() - new Date(profile.created_at).getTime() < FRESH_ACCOUNT_WINDOW_MS) {
-              await admin.auth.admin.deleteUser(user.id).catch(e =>
+              await deleteAuthUser(admin, user.id).catch(e =>
                 console.error('[auth/callback] cleanup deleteUser failed for', user.id, e)
               )
             }
@@ -233,7 +234,7 @@ export async function GET(request: Request) {
   }
 
   const admin = getAdminClient()
-  await admin.auth.admin.deleteUser(user.id).catch(e =>
+  await deleteAuthUser(admin, user.id).catch(e =>
     console.error('[auth/callback] cleanup deleteUser failed for', user.id, e)
   )
 

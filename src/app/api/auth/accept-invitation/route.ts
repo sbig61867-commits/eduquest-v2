@@ -1,3 +1,4 @@
+import { createAuthUser, deleteAuthUser } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getAdminDb } from '@/lib/db'
@@ -122,31 +123,22 @@ export async function POST(request: Request) {
   }
 
   // ── Step 3: create auth user ──────────────────────────────────
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+  const { id: userId, error: authError } = await createAuthUser(admin, {
     email: cleanEmail,
     password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
+    fullName,
   })
 
   if (authError) {
-    const m = (authError.message ?? '').toLowerCase()
-    // Supabase signals a duplicate via several shapes depending on version:
-    // message contains "already"/"registered"/"exists", code 'email_exists', or HTTP 422.
-    const isDuplicate =
-      m.includes('already') || m.includes('registered') || m.includes('exists') ||
-      authError.code === 'email_exists' || authError.status === 422
-    if (isDuplicate) {
+    if (authError.duplicate) {
       return NextResponse.json(
         { ...(await apiErr('accountExists')) },
         { status: 409 }
       )
     }
-    console.error('[accept-invitation] createUser error:', authError)
+    console.error('[accept-invitation] createUser error:', authError.raw)
     return NextResponse.json({ ...(await apiErr('signupFailed')) }, { status: 400 })
   }
-
-  const userId = authData.user.id
 
   try {
     // ── Step 3b: carry the invitation's student population onto the profile.
@@ -184,7 +176,7 @@ export async function POST(request: Request) {
       if (code.includes('INVITATION_INVALID_OR_EXPIRED')) {
         // Someone else consumed the last use (or it expired) between our
         // fail-fast check and this atomic accept — not a server error.
-        await admin.auth.admin.deleteUser(userId).catch(e =>
+        await deleteAuthUser(admin, userId).catch(e =>
           console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
         )
         return NextResponse.json(
@@ -195,7 +187,7 @@ export async function POST(request: Request) {
       // The last seat was taken between the pre-check and the accept.
       const full = seatRoleFromDbError(code)
       if (full) {
-        await admin.auth.admin.deleteUser(userId).catch(e =>
+        await deleteAuthUser(admin, userId).catch(e =>
           console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
         )
         return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[full])) }, { status: 403 })
@@ -203,7 +195,7 @@ export async function POST(request: Request) {
       if (code.includes('GROUP_FULL')) {
         // The invitation's group hit its seat cap (accept_invitation_group_rules_migration.sql).
         // The RPC rolled back, so the invitation use was not consumed.
-        await admin.auth.admin.deleteUser(userId).catch(e =>
+        await deleteAuthUser(admin, userId).catch(e =>
           console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
         )
         return NextResponse.json({ ...(await apiErr('invitationGroupFull')) }, { status: 409 })
@@ -215,7 +207,7 @@ export async function POST(request: Request) {
 
   } catch (err) {
     // Rollback: delete the auth user so the email can be used again
-    await admin.auth.admin.deleteUser(userId).catch(e =>
+    await deleteAuthUser(admin, userId).catch(e =>
       console.error('[accept-invitation] ROLLBACK FAILED, orphaned user:', userId, e)
     )
     const detail = err instanceof Error ? err.message : String(err)

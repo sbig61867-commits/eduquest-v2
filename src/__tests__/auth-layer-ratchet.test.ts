@@ -6,7 +6,7 @@ import { join, relative } from 'node:path'
 // the auth provider directly; it goes through @/lib/auth. The baseline is the
 // number of files that still do. Moving a file lowers the number; adding a new
 // direct call fails this test.
-const BASELINE = 18
+const BASELINE = 11
 const ROOT = join(__dirname, '..')
 const ALLOWED = ['lib/supabase', 'lib/db', 'lib/auth']
 const DIRECT = /\.auth\.(getUser|getClaims|signIn|signOut|updateUser|admin|resetPasswordForEmail|exchangeCodeForSession|onAuthStateChange|getSession|refreshSession)/

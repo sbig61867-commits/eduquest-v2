@@ -1,3 +1,5 @@
+import { getSessionUser } from '@/lib/auth'
+import { getAuthAccount, setAuthPassword } from '@/lib/auth/admin'
 import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -24,8 +26,7 @@ async function teacherRefusal(admin: ReturnType<typeof adminClient>, teacherId: 
   const { data: link } = await admin
     .from('group_students').select('group_id').eq('student_id', studentId).in('group_id', groupIds).limit(1).maybeSingle()
   if (!link) return 'forbidden'
-  const { data } = await admin.auth.admin.getUserById(studentId)
-  if (data?.user?.app_metadata?.must_change_password !== true) return 'studentPasswordAlreadySet'
+  if ((await getAuthAccount(admin, studentId))?.mustChangePassword !== true) return 'studentPasswordAlreadySet'
   return null
 }
 
@@ -40,7 +41,7 @@ async function teacherRefusal(admin: ReturnType<typeof adminClient>, teacherId: 
 // centre manager only for people who exist purely on the centre side.
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(supabase)
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { data: caller } = await supabase
@@ -78,10 +79,7 @@ export async function POST(request: Request) {
   }
 
   const password = generateTempPassword()
-  const { error } = await adminClient().auth.admin.updateUserById(target.id, {
-    password,
-    app_metadata: { must_change_password: true },
-  })
+  const { error } = await setAuthPassword(adminClient(), target.id, password, { mustChangePassword: true })
   if (error) {
     console.error('[reset-password]', error.message)
     return NextResponse.json({ ...(await apiErr('passwordChangeFailed')) }, { status: 500 })

@@ -1,3 +1,4 @@
+import { setAuthEmailLocale } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getAdminDb } from '@/lib/db'
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
       const locale = isLocale(row.locale) ? row.locale
         : isLocale(tenant?.default_locale) ? tenant.default_locale
         : toLocale(await getLocale())
-      await admin.auth.admin.updateUserById(row.id, { user_metadata: { locale } })
+      await setAuthEmailLocale(admin, row.id, locale)
     }
   } catch (e) {
     console.error('[forgot-password] could not set the email language:', e)

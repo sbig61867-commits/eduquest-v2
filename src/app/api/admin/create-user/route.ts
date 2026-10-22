@@ -1,4 +1,5 @@
 import { getSessionUser } from '@/lib/auth'
+import { createAuthUser, deleteAuthUser } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -167,23 +168,21 @@ export async function POST(request: Request) {
     }
 
     // Step 1: create the auth identity (trigger will insert a placeholder profile)
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+    // Staff chose this password: the person must replace it at first sign-in
+    // (src/proxy.ts → /change-password). No role/tenant here — the trigger
+    // always defaults to 'student'/NULL and step 2 sets them.
+    const { id: authUserId, error: authError } = await createAuthUser(adminClient, {
       email: email.trim(),
       password,
-      email_confirm: true,
-      // Staff chose this password: the person must replace it at first
-      // sign-in (src/proxy.ts → /change-password). app_metadata is
-      // service-role only, so they cannot clear the flag themselves.
-      app_metadata: { must_change_password: true },
-      // No role/tenant_id in metadata — trigger now always defaults to 'student'/NULL
-      user_metadata: { full_name },
+      fullName: full_name,
+      mustChangePassword: true,
     })
 
     if (authError) {
-      console.error('[create-user] authError:', authError)
-      const message = extractError(authError)
-      // Supabase's own email check is stricter than ours; say so plainly instead of the raw English message.
-      if (/invalid format/i.test(message)) {
+      console.error('[create-user] authError:', authError.raw)
+      const message = extractError(authError.raw)
+      // The provider's email check is stricter than ours; say so plainly instead of the raw English message.
+      if (authError.invalidEmail) {
         return NextResponse.json(
           { ...(await apiErr('emailFormatRejected', { email: email.trim() })) },
           { status: 400 },
@@ -197,7 +196,7 @@ export async function POST(request: Request) {
     const { data: profile, error: upsertError } = await adminClient
       .from('users')
       .upsert({
-        id: authData.user.id,
+        id: authUserId,
         email: email.trim(),
         full_name,
         role,
@@ -217,7 +216,7 @@ export async function POST(request: Request) {
     if (upsertError) {
       console.error('[create-user] profile upsert error:', upsertError)
       // Rollback: delete the auth user so we don't leave orphaned auth entries
-      await adminClient.auth.admin.deleteUser(authData.user.id)
+      await deleteAuthUser(adminClient, authUserId)
       // The seat filled up between the pre-check and the write (DB trigger).
       const full = seatRoleFromDbError(upsertError.message)
       if (full) return NextResponse.json({ ...(await apiErr(SEAT_LIMIT_CODE[full])) }, { status: 403 })
@@ -229,28 +228,28 @@ export async function POST(request: Request) {
     let created = profile
     try {
       if (studentParts) {
-        const stored = await saveStudentName(adminClient, authData.user.id, studentParts)
+        const stored = await saveStudentName(adminClient, authUserId, studentParts)
         // The short name is stored only once the parts were saved privately.
         created = { ...profile, full_name: stored, name_complete: stored === full_name }
       }
       if (group) {
-        const { error: enrolErr } = await enrolStudentInGroup(adminClient, group, authData.user.id)
+        const { error: enrolErr } = await enrolStudentInGroup(adminClient, group, authUserId)
         if (enrolErr) throw new Error(`group enrolment: ${enrolErr.message}`)
       }
     } catch (e) {
       console.error('[create-user] after profile:', e)
-      await adminClient.auth.admin.deleteUser(authData.user.id)
+      await deleteAuthUser(adminClient, authUserId)
       return NextResponse.json({ ...(await apiErr('userProfileCreateFailed')) }, { status: 500 })
     }
 
     if (byMemberId) {
       // The member code is issued by the users trigger; read it back.
-      const { data: coded } = await adminClient.from('users').select('member_code').eq('id', authData.user.id).single()
+      const { data: coded } = await adminClient.from('users').select('member_code').eq('id', authUserId).single()
       // Show the ID wherever the platform shows an email: the profile copy of
       // the email becomes the ID (the auth email stays the placeholder, which
       // /api/auth/login-id reads from auth, never from here).
       if (coded?.member_code) {
-        await adminClient.from('users').update({ email: coded.member_code }).eq('id', authData.user.id)
+        await adminClient.from('users').update({ email: coded.member_code }).eq('id', authUserId)
         created = { ...created, email: coded.member_code }
       }
       // The temporary password is returned once, to the staff member who

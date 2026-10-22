@@ -1,4 +1,5 @@
 import { getSessionUser } from '@/lib/auth'
+import { deleteAuthUser } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -53,9 +54,9 @@ export async function DELETE(request: Request) {
 
   const admin = getAdminDb()
 
-  const { error } = await admin.auth.admin.deleteUser(id)
+  const { error } = await deleteAuthUser(admin, id)
   if (error) {
-    console.error('[delete-user]', error)
+    console.error('[delete-user]', error.raw)
     return NextResponse.json({ ...(await apiErr('userDeleteFailed')) }, { status: 500 })
   }
 

@@ -1,3 +1,4 @@
+import { getAuthAccount } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getAdminDb } from '@/lib/db'
@@ -39,8 +40,7 @@ export async function POST(request: Request) {
   if (!member) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
 
   // The auth email is the source of truth (public.users.email is a copy).
-  const { data: auth } = await admin.auth.admin.getUserById(member.id)
-  const email = auth?.user?.email ?? member.email
+  const email = (await getAuthAccount(admin, member.id))?.email ?? member.email
   if (!email) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
 
   const supabase = await createClient()
