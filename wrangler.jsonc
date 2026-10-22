@@ -10,7 +10,8 @@
     "binding": "ASSETS"
   },
   "observability": { "enabled": true },
-  // Neon trial database through Hyperdrive (step 8). Query caching is turned
+  // Neon trial database through Hyperdrive (step 8), connecting as app_gateway
+  // (step 9.1: no table rights, no BYPASSRLS). Query caching is turned
   // off on this config: cached reads could show a stale exam or grade.
   // Local dev reads the direct (non-pooler) connection string from .env:
   // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
