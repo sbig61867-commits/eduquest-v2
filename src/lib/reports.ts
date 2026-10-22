@@ -1,4 +1,5 @@
-import { createClient as createAdminClient, SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
+import { getAdminDb } from '@/lib/db'
 import arReports from '@/messages/ar/reports.json'
 import enReports from '@/messages/en/reports.json'
 import {
@@ -37,11 +38,7 @@ export function canAccessReport(profile: CallerProfile): { ok: boolean; reason?:
 }
 
 export function reportsAdminClient(): SupabaseClient {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  return getAdminDb()
 }
 
 // ── Bilingual strings ─────────────────────────────────────────────

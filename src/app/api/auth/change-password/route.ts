@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb, getAnonDb } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -19,13 +19,9 @@ export async function POST(request: Request) {
   const password = typeof body.password === 'string' ? body.password : ''
   if (password.length < 8) return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
 
-  const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const admin = getAdminDb()
   // The new password may not be the temporary one.
-  const { data: check } = await createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  }).auth.signInWithPassword({ email: user.email!, password })
+  const { data: check } = await getAnonDb().auth.signInWithPassword({ email: user.email!, password })
   if (check?.user) return NextResponse.json({ ...(await apiErr('passwordUnchanged')) }, { status: 400 })
 
   const { error } = await admin.auth.admin.updateUserById(user.id, {

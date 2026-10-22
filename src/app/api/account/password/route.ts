@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { getAdminDb, getAnonDb } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -31,18 +31,14 @@ export async function POST(request: Request) {
   if (next.length < MIN_PASSWORD_LENGTH) return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
   if (next === current) return NextResponse.json({ ...(await apiErr('passwordSameAsCurrent')) }, { status: 400 })
 
-  const verifier = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const verifier = getAnonDb()
   const { data: check, error: checkError } = await verifier.auth.signInWithPassword({ email: user.email, password: current })
   if (checkError || check?.user?.id !== user.id) {
     return NextResponse.json({ ...(await apiErr('currentPasswordWrong')) }, { status: 400 })
   }
   await verifier.auth.signOut({ scope: 'local' })
 
-  const admin = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const admin = getAdminDb()
   const { error } = await admin.auth.admin.updateUserById(user.id, { password: next })
   if (error) {
     console.error('[account-password]', error.message)

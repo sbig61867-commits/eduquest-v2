@@ -8,3 +8,11 @@ export function createAdminClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
+
+// Public-key client with no session. Used only to check a password (sign in on a
+// throwaway client, then sign it out) so the caller's own session is untouched.
+export function createAnonClient() {
+  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}

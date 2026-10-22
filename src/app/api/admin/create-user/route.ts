@@ -1,7 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import { checkSeatLimit, isSeatRole, seatRoleFromDbError, SEAT_LIMIT_CODE } from '@/lib/seat-limit'
 import { canManageAccountOf } from '@/lib/staff-auth'
@@ -14,12 +14,8 @@ import { randomUUID } from 'crypto'
 import { enrolStudentInGroup, groupHasRoom, type EnrolmentGroup } from '@/lib/group-enrolment'
 
 function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) throw new Error('Missing SUPABASE env vars')
-  return createAdminClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  })
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing SUPABASE env vars')
+  return getAdminDb()
 }
 
 function extractError(err: unknown): string {

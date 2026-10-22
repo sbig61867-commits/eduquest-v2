@@ -8,7 +8,7 @@
 //   getDb()      the caller's own session: row-level security applies
 //   getAdminDb() privileged server work: bypasses row-level security, server only
 export { createClient as getDb } from '@/lib/supabase/server'
-export { createAdminClient as getAdminDb } from '@/lib/supabase/admin'
+export { createAdminClient as getAdminDb, createAnonClient as getAnonDb } from '@/lib/supabase/admin'
 export { getAuthUser, type AuthUser } from '@/lib/supabase/server'
 
 // Types only (erased at build time; no runtime import). Code that needs the

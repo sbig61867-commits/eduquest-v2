@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiErr } from '@/lib/api-error'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getAdminDb } from '@/lib/db'
 import { can, type Capability } from '@/lib/permissions'
 
 // Shared caller resolution for staff route handlers. Identity and capability
@@ -16,11 +16,7 @@ export interface StaffCaller {
 }
 
 export function serviceClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  )
+  return getAdminDb()
 }
 
 export async function getCaller(): Promise<{ caller: StaffCaller } | { error: NextResponse }> {
