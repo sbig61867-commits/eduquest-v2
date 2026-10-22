@@ -69,3 +69,6 @@ public/models/human/
 
 # isolated local Playwright run (playwright.local.config.ts)
 /tests-local/.out/
+
+# local Cloudflare dev secrets (never commit)
+.dev.vars

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { reportClientError } from '@/lib/sentry-client'
 import { useTranslations } from 'next-intl'
 import { RefreshCw, Home } from 'lucide-react'
 
@@ -22,8 +21,7 @@ export default function ErrorFallback({ error, reset, homeHref, homeLabel }: Err
   const t = useTranslations('common.error')
   useEffect(() => {
     console.error('[error-boundary]', error.digest ?? '', error)
-    reportClientError(error)
-  }, [error])
+    }, [error])
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">

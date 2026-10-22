@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 import createNextIntlPlugin from "next-intl/plugin";
 
 // next-intl is used as a message/formatting layer ONLY: no routing, no
@@ -35,7 +34,7 @@ const CSP = [
   // Supabase (REST/auth/storage/realtime), the AI providers called from the
   // browser, LiveKit signalling, and Sentry ingest. Anything else is blocked,
   // so an injected script cannot POST stolen data to an attacker's host.
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://generativelanguage.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://generativelanguage.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -45,6 +44,16 @@ const CSP = [
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+
+  // Cloudflare (OpenNext): the middleware bundler resolves the ESM and esnext
+  // builds of @opentelemetry/api, which Next's file tracing does not copy by
+  // itself (it only follows the CJS entry). Without these the Workers build fails.
+  outputFileTracingIncludes: {
+    '/*': [
+      './node_modules/@opentelemetry/api/build/esm/**/*',
+      './node_modules/@opentelemetry/api/build/esnext/**/*',
+    ],
+  },
 
   // Do not advertise the framework. Free reconnaissance otherwise.
   poweredByHeader: false,
@@ -91,22 +100,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Composition order is load-bearing: next-intl is applied to the plain config
-// first, and Sentry wraps the result, so withSentryConfig still sees (and
-// keeps) every setting it did before — headers, source-map deletion, the lot.
-// Inverting this would hand next-intl an already-instrumented config to
-// re-wrap. Sentry behaviour is unchanged by this commit.
-export default withSentryConfig(withNextIntl(nextConfig), {
-  org: "eduquest-20",
-  project: "eduquest-v2",
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  disableLogger: true,
-  sourcemaps: {
-    // Sentry generates source maps to symbolicate stack traces. Without this,
-    // a build that emits them into .next/static would serve the original
-    // TypeScript to anyone who opens devtools. Delete them after the upload
-    // step so they exist only long enough to reach Sentry.
-    deleteSourcemapsAfterUpload: true,
-  },
-});
+// Error monitoring (Sentry) was removed on 2026-10-22: not needed before launch.
+export default withNextIntl(nextConfig)

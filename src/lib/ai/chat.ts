@@ -1,5 +1,4 @@
 import { INTERACTIVE_BLOCKS } from '@/content/ai/lesson-from-file'
-import * as Sentry from '@sentry/nextjs'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { QUIZ_SECTION_NAMES } from '@/content/ai'
 import { groqChat } from './groq'
@@ -255,15 +254,10 @@ export async function aiChatDetailed(
     }
   }
 
-  // Every configured provider failed — this is the "all AI quota exhausted"
-  // case that previously only showed up as a generic 500 to the end user
-  // with nothing surfaced to an operator. Report it so it pages someone
-  // instead of waiting for a user complaint. Names only: the original errors
-  // could carry provider text, so they never go to Sentry.
-  Sentry.captureException(new Error(`AI provider chain failed: ${failed.join(', ')}`), {
-    tags: { feature: 'ai-provider-chain' },
-    extra: { attemptedProviders: failed },
-  })
+  // Every configured provider failed ("all AI quota exhausted"). Error
+  // monitoring was removed (2026-10-22); the failure surfaces as the thrown
+  // error and the route's own log line. Names only are logged, never provider text.
+  console.error(`[ai-provider-chain] all providers failed: ${failed.join(', ')}`)
   throw lastError
 }
 

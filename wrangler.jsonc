@@ -1,14 +1,13 @@
 {
+  // Stage-2 PREVIEW worker. Production stays on Vercel until the migration is finished.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "eduquest-v2",
-  "compatibility_date": "2026-09-17",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "main": "vinext/server/fetch-handler",
+  "name": "tilmoo-preview",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
-    "directory": "dist/client",
-    "not_found_handling": "none",
+    "directory": ".open-next/assets",
     "binding": "ASSETS"
-  }
+  },
+  "observability": { "enabled": true }
 }

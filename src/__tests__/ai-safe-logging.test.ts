@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Markers planted in every place provider or user text can come from. None of
-// them may reach console, Sentry, a thrown error's message or an HTTP body.
+// them may reach console, a thrown error's message or an HTTP body.
 const BODY = 'MARKER-PROVIDER-BODY'
 const SDK = 'MARKER-SDK-MESSAGE'
 const PROMPT = 'MARKER-PROMPT'
@@ -12,8 +12,6 @@ const generateContent = vi.fn()
 vi.mock('@google/generative-ai', () => ({
   GoogleGenerativeAI: class { getGenerativeModel() { return { generateContent } } },
 }))
-const captureException = vi.fn()
-vi.mock('@sentry/nextjs', () => ({ captureException: (...a: unknown[]) => captureException(...a) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 
 import { aiChatDetailed } from '@/lib/ai/chat'
@@ -29,7 +27,7 @@ function dump(v: unknown): string {
   try { return JSON.stringify(v) ?? String(v) } catch { return String(v) }
 }
 function everything(extra: unknown[] = []): string {
-  return [...logged.flat(), ...captureException.mock.calls.flat(), ...extra].map(dump).join('\n')
+  return [...logged.flat(), ...extra].map(dump).join('\n')
 }
 function expectClean(extra: unknown[] = []) {
   const all = everything(extra)
@@ -38,7 +36,7 @@ function expectClean(extra: unknown[] = []) {
 
 beforeEach(() => {
   logged = []
-  fetchMock.mockReset(); generateContent.mockReset(); captureException.mockReset()
+  fetchMock.mockReset(); generateContent.mockReset()
   vi.stubGlobal('fetch', fetchMock)
   for (const k of ['GROQ_API_KEY', 'XKIRO_API_KEY', 'COHERE_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY']) vi.stubEnv(k, 'test-key')
   for (const level of ['error', 'warn', 'log', 'info', 'debug'] as const) {
@@ -48,7 +46,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('provider failures never carry provider or prompt text', () => {
-  it.each([400, 401, 429, 500, 503])('whole chain fails with HTTP %i: console, Sentry and the thrown error are clean', async (status) => {
+  it.each([400, 401, 429, 500, 503])('whole chain fails with HTTP %i: console and the thrown error are clean', async (status) => {
     fetchMock.mockImplementation(async () => new Response(`${BODY} you said: ${PROMPT}`, { status }))
     generateContent.mockRejectedValue(Object.assign(new Error(`${SDK} [${status}] ${PROMPT}`), { status }))
     const err = await aiChatDetailed(`${PROMPT} topic`, 'sys', { audiences: ['public'] }).catch(e => e)
@@ -57,7 +55,8 @@ describe('provider failures never carry provider or prompt text', () => {
     // cohere and openrouter over fetch, gemini through its SDK, and none leaks.
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(generateContent).toHaveBeenCalledOnce()
-    expect(captureException).toHaveBeenCalledOnce()
+    // The only log line names the providers that failed, never their text.
+    expect(logged.some(a => String(a[0]).includes('[ai-provider-chain] all providers failed'))).toBe(true)
     expectClean([err])
   })
 

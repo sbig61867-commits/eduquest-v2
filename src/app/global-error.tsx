@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { reportClientError } from '@/lib/sentry-client'
 import arCommon from '@/messages/ar/common.json'
 import enCommon from '@/messages/en/common.json'
 import { LOCALE_COOKIE, dirFor, toLocale, type Locale } from '@/i18n/config'
@@ -24,7 +23,6 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   // Server render has no cookie access here; Arabic is the platform default.
   const [locale, setLocale] = useState<Locale>('ar')
   useEffect(() => {
-    reportClientError(error)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-hydration cookie read
     setLocale(cookieLocale())
   }, [error])
