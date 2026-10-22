@@ -56,3 +56,14 @@
   3. `trusted_origins` is empty: add the production domain(s).
   4. **Open sign-up**: anyone can create a Neon Auth account directly (the tests did). The platform is invitation-only. Such an account is a tenant-less student and RLS shows it nothing, but it breaks the "no self-registration" rule: 6d must disable public sign-up and create accounts server-side only.
 - Open issues: items 1–4 above.
+
+## Step 8: Hyperdrive to the Neon trial — done
+- What I did: created Hyperdrive config `tilmoo-trial-db` (id `4f0f384a2ed04edf9bfc048483cbfd48`) on the owner's Cloudflare account with the **direct** (non-pooler) Neon connection string, as Cloudflare's Neon guide requires (Hyperdrive pools itself). The string was built in memory and never printed. Turned **query caching off** on the config. Added the `HYPERDRIVE` binding to `wrangler.jsonc`. Local dev: the direct string lives in a git-ignored `.env` as `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`; wrangler does not read it from `.dev.vars`, and ignores `.env` when `.dev.vars` exists, so `cf:preview` now runs `node --env-file-if-exists=.env …/opennextjs-cloudflare preview`.
+- Measured (probe Worker in scratchpad `neon/hd-probe`, run with `wrangler dev --remote` = real Cloudflare edge + real Hyperdrive, not a public deploy; edge location `ZDM`; 3 runs × 10 samples):
+  - With caching on, `select 1` took 1 ms: Hyperdrive answered from its cache without asking the database. Cached reads can show a stale exam state or grade for up to a minute, so caching stays off.
+  - With caching off: one round trip to Neon (Frankfurt) ≈ **60–63 ms**. An RLS read written as a normal transaction (begin, set claims, set role, select, commit = 5 round trips) ≈ **300–317 ms**. The same work sent as **one** message ≈ **60–63 ms**.
+  - Conclusion for step 9: every request must reach the database in one message (claims + role + query together), or it pays ~60 ms per extra statement.
+- Checks run and their result: `npm run cf:preview` starts with the binding ("Hyperdrive will connect to this database during local development"); `GET /` 200, `GET /login` 200.
+- Limits (Cloudflare pricing page, read 2026-10-22): Hyperdrive is on the Free plan with **100,000 queries/day**; Paid is unlimited. Production will need the Paid Workers plan.
+- Not yet measured: Smart Placement (running the Worker next to the database, which would cut each extra round trip from ~60 ms to a few ms). It only applies to a deployed Worker, so it needs the owner's approval for a deploy and is left for step 16.
+- Open issues: while freeing ports I stopped 2 leftover `workerd` processes and 9 `node` processes whose command line matched `opennextjs-cloudflare|wrangler` (my preview runs); none should belong to the owner, but if a wrangler session of theirs stopped, that is why.

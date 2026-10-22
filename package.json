@@ -16,7 +16,7 @@
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
     "deploy:vinext": "vinext-cloudflare deploy --config dist/server/wrangler.json",
     "cf:build": "opennextjs-cloudflare build",
-    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:preview": "node --env-file-if-exists=.env node_modules/@opennextjs/cloudflare/dist/cli/index.js preview",
     "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
