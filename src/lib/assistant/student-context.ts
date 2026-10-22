@@ -3,7 +3,7 @@
 // announcements, all through the student's session (RLS). Lists are capped,
 // bodies are cut, and the result goes through the same answer policy as lessons.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { isScoreVisible } from '@/lib/score-visibility'
 import { pickExamMetaForAssistant, sanitizeLessonForAssistant } from './context-policy'
 import { foldArabic, OVERVIEW_RE } from '@/content/assistant/patterns'

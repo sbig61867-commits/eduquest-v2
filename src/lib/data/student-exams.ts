@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 /**
  * The student's exam list — metadata only (PERFORMANCE_CONTRACT.md P3, P10).

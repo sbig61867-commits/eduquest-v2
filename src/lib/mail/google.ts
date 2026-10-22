@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { decrypt, encrypt } from './crypto'
 
 // Google mailbox linking. A dedicated OAuth client ("EduQuest Mail") — NOT the

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { fourPartName, shortStudentName, type NameParts } from '@/lib/person-name'
 
 // Where a student's name lives (owner's rule, 2026-09-28): the four parts only

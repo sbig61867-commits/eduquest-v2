@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import type { InstitutionType, StructureMode } from '@/types'
 import { isInstitutionType } from '@/lib/terminology'
 

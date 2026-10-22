@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import type { ApiErrorCode } from '@/lib/api-error'
 
 // Optional group settings added by group_course_transfer_migration.sql:

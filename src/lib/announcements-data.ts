@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { IncompleteReadError, readAllByKeyset, READ_PAGE } from '@/lib/data/complete-read'
 import { can } from '@/lib/permissions'
 import { getTenantSettings } from '@/lib/structure-mode'

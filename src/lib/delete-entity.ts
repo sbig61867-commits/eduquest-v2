@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { getDeletionPolicy } from './settings'
 
 const TABLE: Record<string, string> = {

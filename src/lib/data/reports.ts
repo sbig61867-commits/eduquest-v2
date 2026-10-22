@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 // ── Report reads (PERFORMANCE_CONTRACT.md P1, P2, P5, P10) ──────────────────
 //

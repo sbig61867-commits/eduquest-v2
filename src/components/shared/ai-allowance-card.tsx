@@ -1,6 +1,6 @@
 import { getTranslations, getLocale } from 'next-intl/server'
 import { Sparkles, AlertTriangle, Ban } from 'lucide-react'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import type { Locale } from '@/i18n/config'
 import { cn } from '@/lib/utils'
 import { usageFormatters } from '@/lib/ai/usage-format'

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import type { ApiErrorCode } from '@/lib/api-error'
 
 // Plan seat caps set by the owner on each institution:

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 // Adding a student to a group, shared by /api/group-students and direct
 // account creation (/api/admin/create-user): the group's seat cap and the

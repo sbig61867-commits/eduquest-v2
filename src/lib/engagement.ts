@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 // Platform engagement ("الحضور على المنصة") — how much a student actually
 // works on what their teacher set, as opposed to attending a session in

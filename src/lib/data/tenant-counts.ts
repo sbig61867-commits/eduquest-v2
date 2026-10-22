@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 /**
  * Owner Counts (Batch 2): accounts per institution for /super-admin/users —

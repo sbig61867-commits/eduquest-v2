@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 // An exam belongs to exactly one group OR one course (the DB enforces it with
 // CHECK exam_must_belong_to_group_or_course). Its roster is therefore either

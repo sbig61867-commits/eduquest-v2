@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 // Per-institution file storage limit set by the owner:
 //   tenants.storage_limit_mb — MB of files in the exam-files and

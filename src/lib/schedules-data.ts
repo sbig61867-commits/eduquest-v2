@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { can } from '@/lib/permissions'
 import type { ScheduleRow, ScheduleSlot, TargetOption } from '@/components/schedules/types'
 

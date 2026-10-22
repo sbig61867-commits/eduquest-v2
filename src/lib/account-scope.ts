@@ -14,7 +14,7 @@
 //             course-linked group). A teacher with neither is not claimed by
 //             the centre yet, so the institution admin decides.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 export type ScopeBlock = 'universityStudent' | 'sharedTeacher' | 'unassignedTeacher'
 

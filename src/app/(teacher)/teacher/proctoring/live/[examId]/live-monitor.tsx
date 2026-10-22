@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import type { RealtimeChannel } from '@/lib/db'
 import type { Room, RemoteTrack, RemoteParticipant } from 'livekit-client'
 import { ArrowLeft, Eye, EyeOff, MicOff, Radio, ShieldCheck, Video, VideoOff, Volume2, Users, WifiOff, AlertTriangle, Camera, History, LayoutGrid } from 'lucide-react'
 import { toast } from '@/components/ui/toast'

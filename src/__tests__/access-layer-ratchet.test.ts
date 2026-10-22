@@ -6,7 +6,7 @@ import { join, relative } from 'node:path'
 // Supabase directly; it reaches the database through @/lib/db. The baseline is
 // the number of files that still import it. Migrating a file lowers the number;
 // adding a new direct import fails this test.
-const BASELINE = 42
+const BASELINE = 6
 const ROOT = join(__dirname, '..')
 const ALLOWED = ['lib/supabase', 'lib/db']
 

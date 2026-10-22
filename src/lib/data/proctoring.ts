@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { parsePage } from '@/lib/data/people'
 import { VIOLATION_TYPES } from '@/lib/proctoring-events'
 import type { ProctoringEvent } from '@/types'

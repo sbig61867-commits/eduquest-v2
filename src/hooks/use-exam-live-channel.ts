@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import type { RealtimeChannel } from '@/lib/db'
 import { createClient } from '@/lib/supabase/client'
 import { CLIP_EVENT, THUMBS_EVENT, THUMBS_TIMEOUT_MS, WATCH_EVENT, liveTopic, watchPayloadIncludes, type StudentPresence } from '@/lib/live-channel'
 

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 /**
  * Who a /center/mail message goes to (Batch 2): the students the sender picked

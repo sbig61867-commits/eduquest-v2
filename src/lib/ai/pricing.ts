@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 
 // ── AI model prices ──────────────────────────────────────────────
 // Every provider in the chain runs on its FREE tier, so nothing is actually

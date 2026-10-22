@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { IncompleteReadError, inBatches, readAllByKeyset, readAllPages, READ_PAGE } from '@/lib/data/complete-read'
 import {
   groupStudentRows, isShared, summarizeAttendance,

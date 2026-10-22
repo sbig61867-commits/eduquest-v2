@@ -10,3 +10,7 @@
 export { createClient as getDb } from '@/lib/supabase/server'
 export { createAdminClient as getAdminDb } from '@/lib/supabase/admin'
 export { getAuthUser, type AuthUser } from '@/lib/supabase/server'
+
+// Types only (erased at build time; no runtime import). Code that needs the
+// handle's shape imports it from here, not from the vendor package.
+export type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'

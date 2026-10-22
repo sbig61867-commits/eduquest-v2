@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@/lib/db'
 import { loadStudentExamList } from '@/lib/data/student-exams'
 import { buildNudges, buildStudyPlan, type Nudge, type NudgeExam, type PlanItem } from '@/lib/assistant/nudges'
 
