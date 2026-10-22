@@ -73,3 +73,10 @@
 - Finding 2: writes to `groups` with a user token → "permission denied". Production grants the same (authenticated has only SELECT on `groups`, read-only check of production grants); writes go through the service-role client after the route authorizes. So this is correct, not drift.
 - Finding 3 (scratchpad `neon/rolecl.mjs`): Neon Auth always issues `role: "authenticated"` in the token, even after the user row's `role` is changed; a user cannot escalate through it, but Neon Auth tokens cannot act as a service role either.
 - The open question: the service-role client (`getAdminDb()`, 71 files, ~250 `.from()` and ~21 `.rpc()` calls, plus route tests that mock its query chains) has no equivalent on Neon yet. The Data API has no service key; a custom JWT provider is registered only in the Neon Console, and the docs do not say whether a `role` claim switches the Postgres role or whether it can coexist with Neon Auth. Options are listed for the owner.
+
+## Step 9.0: Proof of concept — done (results in `docs/claude/STEP9_SQL_PLAN.md` §10)
+- Isolated Next.js app in scratchpad `poc90` (same versions + `postgres@3.4.5`); repo code/deps untouched; every DB test ran in rolled-back transactions and left nothing.
+- `postgres` runs inside the OpenNext bundle on workerd. The OpenNext bundle could not open a `wrangler dev --remote` preview (2 timeouts at createPreviewToken), so real-Hyperdrive timings come from the small probe Worker with the same code and driver.
+- Hyperdrive (ZDM → Frankfurt, medians): RTT 62 ms; naive transaction 310 ms (~5 trips); `begin([...])` 190; proposed pipelined unit 128 (~2 trips); 5 reads naive 500 vs pipelined 136. `prepare: false` roughly doubles every pattern: keep prepared statements.
+- Identity leak test: 240/240 (60 concurrent requests × local/Hyperdrive × prepare on/off, half failing mid-unit).
+- Role proof: service role pinned to `app.tenant_id` cannot cross tenants; existing user policies `TO public` stack on any role and leaked tenant B to a service request carrying super_admin claims; retargeting them to `authenticated` closed it. Required for 9.1.
