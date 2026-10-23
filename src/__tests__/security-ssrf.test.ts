@@ -36,6 +36,16 @@ vi.mock('@/lib/supabase/server', () => ({
     }),
   }),
 }))
+// Step 9: the route reads its author (live row, capability) through the SQL layer.
+vi.mock('@/lib/announcement-author', async () => {
+  const { can } = await vi.importActual<typeof import('@/lib/permissions')>('@/lib/permissions')
+  const { NextResponse } = await vi.importActual<typeof import('next/server')>('next/server')
+  return {
+    loadAnnouncementAuthor: async () => can(role, {}, 'manage_announcements')
+      ? { author: { id: 'u1', role, tenant_id: 't1', permissions: {}, mayTargetUniversity: true }, existing: null, validGroups: 0 }
+      : { error: NextResponse.json({ error: 'forbidden', code: 'forbidden' }, { status: 403 }) },
+  }
+})
 vi.mock('@/lib/rate-limit', () => ({ rateLimit: async () => ({ allowed: true, resetAt: 0 }) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 

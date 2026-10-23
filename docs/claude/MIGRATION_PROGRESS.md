@@ -173,3 +173,11 @@
 - Found on the trial: `array(...)` comes back as text with this driver setup → use `json_agg`.
 - Trial e2e `admin-routes-trial` 9/9 (two institutions: other-institution accounts not found for toggle/affiliation/name/teacher/staff capabilities; seat limit; demoted admin; centre-manager scope; no escalation; branding never touches is_active or another institution; restore of another institution's archive refused; owner tools refused to an admin; suspend cascades and restores).
 - Full suite green (1,741).
+
+## Step 9 — data batch 7: announcements (2026-10-23)
+- New `src/lib/announcement-author.ts` `loadAnnouncementAuthor()`: the author's LIVE row and capability, the institution's centre flag, the announcement being edited (only if it is in this institution) and how many of the given groups are this institution's — ONE unit.
+- `api/announcements` POST 2 trips (was 3–4): announcement + its groups in one unit, only while the author is live; the id is chosen in the route because the RLS check on announcement_groups cannot see a row inserted by the same statement (found on the trial). PATCH 2 (was up to 6: no second read of the window, group set + row in one unit). DELETE 2 (was 3).
+- `events`: the student's live row and the announcement from their own feed in one unit read as the student, then the write (was 3). `interested`: one unit read as the author, names in the same join (was 4 + batches). `preview-url`: through the author helper. `upload` stays for step 11 (storage).
+- 0003: INSERT on `announcements` and `announcement_events` for app_service (dry-run, then applied to the trial).
+- Trial e2e `announcements-trial` 6/6 (two institutions: another institution's group refused; teacher and demoted admin refused; another institution's admin does not find it; student events only on their own feed; interested list per institution; delete).
+- `b-c1-routes.test.ts` replaced by `announcements-interested-route.test.ts` (its other cases had already moved). Full suite green (1,743).

@@ -81,7 +81,7 @@ const INTENTIONALLY_PUBLIC_ROUTES = new Set([
  * Shared helpers that authenticate with the user session (auth.getUser)
  * before returning the caller — a route calling one of these is authenticated.
  */
-const AUTH_CALL = /auth\.getUser\(|auth\.getClaims\(|getAuthUser\(|getSessionUser\(|currentCtx\(|currentUser\(|getCaller\(|getMailCaller\(|aiCaller\(/
+const AUTH_CALL = /auth\.getUser\(|auth\.getClaims\(|getAuthUser\(|getSessionUser\(|currentCtx\(|currentUser\(|getCaller\(|getMailCaller\(|aiCaller\(|loadAnnouncementAuthor\(/
 
 describe('I1 — every API route authenticates the caller', () => {
   it('found the route handlers to check', () => {

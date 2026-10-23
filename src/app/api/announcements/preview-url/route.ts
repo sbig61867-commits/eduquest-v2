@@ -1,11 +1,9 @@
-import { getSessionUser } from '@/lib/auth'
+import { loadAnnouncementAuthor } from '@/lib/announcement-author'
 import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { BlockedAddressError, fetchPublic, isBlockedAddress } from '@/lib/public-fetch'
-import { createClient } from '@/lib/supabase/server'
-import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
 import { APP_NAME } from '@/lib/brand'
 
@@ -62,17 +60,11 @@ function extractMeta(html: string) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
   // Only announcement authors get to make the server fetch a URL. Previously
   // any signed-in account — a student's included — could drive this.
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
+  const auth = await loadAnnouncementAuthor()
+  if ('error' in auth) return auth.error
+  const user = { id: auth.author.id }
 
   const rl = await rateLimit(`preview-url:${user.id}`, { limit: 30, windowSecs: 3600 })
   if (!rl.allowed) {

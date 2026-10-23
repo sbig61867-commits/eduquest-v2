@@ -1,71 +1,64 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { can } from '@/lib/permissions'
-import { getTenantSettings } from '@/lib/structure-mode'
+import { run, maybeOne } from '@/lib/db/sql'
+import { can, type PermissionMap } from '@/lib/permissions'
 import { canEditAnnouncement, canTargetUniversity, AUDIENCE_DENIED } from '@/lib/announcement-audience'
-import { IncompleteReadError, inBatches, rowsOf } from '@/lib/data/complete-read'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const LIST_LIMIT = 5000
 
 // GET /api/announcements/interested?id=… — the students who pressed
 // "I'm interested" on one announcement, for its authors. Same gate as editing
 // the announcement: `manage_announcements`, same tenant, and an author pinned
 // to the centre cannot read an announcement that reaches university students.
-// Read through the user session: announcement_events' SELECT policy already
+// One unit, read as the caller: announcement_events' SELECT policy already
 // limits staff to their own tenant, and users are tenant-readable for staff.
+// The names come with the events in one join (no batched second read).
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const tenantId = ctx.tenant_id
 
   const id = new URL(request.url).searchParams.get('id')
   if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('announcementNotFound')) }, { status: 404 })
 
-  const { data: ann } = await supabase
-    .from('announcements').select('id, tenant_id, audience, center_students_only').eq('id', id).maybeSingle()
-  if (!ann || ann.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ ...(await apiErr('announcementNotFound')) }, { status: 404 })
+  let me: { role: string; permissions: PermissionMap; has_center: boolean | null } | null
+  let ann: { audience: string; center_students_only: boolean | null } | null
+  let events: { student_id: string; created_at: string; full_name: string | null; email: string | null }[]
+  try {
+    const rows = await run({ as: 'user', userId: ctx.sub }, sql => [
+      sql`select u.role, u.permissions, t.has_center
+            from public.users u join public.tenants t on t.id = u.tenant_id
+           where u.id = ${ctx.sub} and u.tenant_id = ${tenantId} and u.is_active is not false`,
+      sql`select audience, center_students_only from public.announcements where id = ${id} and tenant_id = ${tenantId}`,
+      sql`select e.student_id, e.created_at, u.full_name, u.email
+            from public.announcement_events e
+            left join public.users u on u.id = e.student_id and u.tenant_id = ${tenantId}
+           where e.announcement_id = ${id} and e.tenant_id = ${tenantId} and e.kind = 'interest'
+           order by e.created_at desc
+           limit ${LIST_LIMIT}`,
+    ])
+    me = maybeOne(rows[0])
+    ann = maybeOne(rows[1])
+    events = rows[2] as unknown as typeof events
+  } catch (e) {
+    console.error('[announcements/interested]', e instanceof Error ? e.message : e)
+    return NextResponse.json({ ...(await apiErr('announcementEventFailed')) }, { status: 503 })
   }
-  const mayTargetUniversity = !(await getTenantSettings(supabase, profile.tenant_id)).has_center
-    || canTargetUniversity(profile.role, profile.permissions)
+
+  if (!me || !can(me.role, me.permissions, 'manage_announcements')) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  }
+  if (!ann) return NextResponse.json({ ...(await apiErr('announcementNotFound')) }, { status: 404 })
+  const mayTargetUniversity = me.has_center === false || canTargetUniversity(me.role, me.permissions)
   if (!canEditAnnouncement(ann, mayTargetUniversity)) {
     return NextResponse.json({ ...(await apiErr(AUDIENCE_DENIED)) }, { status: 403 })
   }
 
-  const { data: events, error } = await supabase
-    .from('announcement_events')
-    .select('student_id, created_at')
-    .eq('announcement_id', id).eq('tenant_id', profile.tenant_id).eq('kind', 'interest')
-    .order('created_at', { ascending: false })
-  if (error) return NextResponse.json({ ...(await apiErr('announcementEventFailed')) }, { status: 503 })
-
-  // Names in short `.in()` batches: one list of every interested student can pass
-  // the API's URL limit (~640 ids), which used to come back as "no names".
-  const ids = (events ?? []).map(e => e.student_id as string)
-  let people: { id: string; full_name: string; email: string }[]
-  try {
-    people = await inBatches(ids, async batch => rowsOf(
-      await supabase.from('users').select('id, full_name, email').eq('tenant_id', profile.tenant_id).in('id', batch),
-      'interested students'))
-  } catch (e) {
-    if (!(e instanceof IncompleteReadError)) throw e
-    console.error('[announcements/interested]', e.message, e.detail ?? '')
-    return NextResponse.json({ ...(await apiErr('announcementEventFailed')) }, { status: 503 })
-  }
-  const byId = new Map(people.map(p => [p.id, p]))
-
   return NextResponse.json({
-    students: (events ?? []).map(e => ({
-      id: e.student_id,
-      full_name: byId.get(e.student_id)?.full_name ?? '',
-      email: byId.get(e.student_id)?.email ?? '',
-      at: e.created_at,
-    })),
+    students: events.map(e => ({ id: e.student_id, full_name: e.full_name ?? '', email: e.email ?? '', at: e.created_at })),
   })
 }
