@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import { decrypt, encrypt } from './crypto'
 
 // Google mailbox linking. A dedicated OAuth client ("EduQuest Mail") — NOT the
@@ -83,7 +83,7 @@ export interface ConnectionRow {
 }
 
 /** A valid access token, refreshing (and persisting) it when needed. */
-export async function getAccessToken(admin: SupabaseClient, conn: ConnectionRow): Promise<string> {
+export async function getAccessToken(conn: ConnectionRow): Promise<string> {
   if (conn.access_token_enc && conn.access_expires_at && new Date(conn.access_expires_at).getTime() > Date.now() + 60_000) {
     return decrypt(conn.access_token_enc)
   }
@@ -100,20 +100,21 @@ export async function getAccessToken(admin: SupabaseClient, conn: ConnectionRow)
   const data = (await res.json()) as TokenResponse
   if (!res.ok || !data.access_token) {
     // invalid_grant = the user revoked access or changed their password: needs relinking.
-    await admin.from('mail_connections').update({
-      status: data.error === 'invalid_grant' ? 'revoked' : 'error',
-      last_error: data.error_description ?? data.error ?? `HTTP ${res.status}`,
-      updated_at: new Date().toISOString(),
-    }).eq('id', conn.id)
+    const status = data.error === 'invalid_grant' ? 'revoked' : 'error'
+    const lastError = data.error_description ?? data.error ?? `HTTP ${res.status}`
+    await run({ as: 'service', tenantId: conn.tenant_id }, sql => [
+      sql`update public.mail_connections set status = ${status}, last_error = ${lastError}, updated_at = now()
+           where id = ${conn.id} and tenant_id = ${conn.tenant_id}`,
+    ])
     throw new Error(data.error === 'invalid_grant' ? 'RELINK_REQUIRED' : 'TOKEN_REFRESH_FAILED')
   }
-  await admin.from('mail_connections').update({
-    access_token_enc: encrypt(data.access_token),
-    access_expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-    status: 'active',
-    last_error: null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', conn.id)
+  const accessEnc = encrypt(data.access_token)
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString()
+  await run({ as: 'service', tenantId: conn.tenant_id }, sql => [
+    sql`update public.mail_connections
+           set access_token_enc = ${accessEnc}, access_expires_at = ${expiresAt}, status = 'active', last_error = null, updated_at = now()
+         where id = ${conn.id} and tenant_id = ${conn.tenant_id}`,
+  ])
   return data.access_token
 }
 

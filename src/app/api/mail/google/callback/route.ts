@@ -1,7 +1,7 @@
 import { getTranslations, getLocale } from 'next-intl/server'
 import { dirFor, toLocale } from '@/i18n/config'
 import { resolveAppUrl } from '@/lib/auth-urls'
-import { serviceClient } from '@/lib/staff-auth'
+import { run } from '@/lib/db/sql'
 import { getMailCaller } from '@/lib/mail/access'
 import { encrypt, verifyState } from '@/lib/mail/crypto'
 import { GMAIL_SEND_SCOPE, emailFromIdToken, exchangeCode, revokeToken } from '@/lib/mail/google'
@@ -60,21 +60,21 @@ export async function GET(request: Request) {
   const email = emailFromIdToken(tokens.id_token)
   if (!email) return popupResult(false, 'noEmail')
 
-  const { error } = await serviceClient().from('mail_connections').upsert({
-    user_id: caller.id,
-    tenant_id: caller.tenant_id,
-    provider: 'google',
-    email,
-    refresh_token_enc: encrypt(tokens.refresh_token),
-    access_token_enc: encrypt(tokens.access_token),
-    access_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    status: 'active',
-    last_error: null,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,provider' })
-
-  if (error) {
-    console.error('[mail/google/callback] save failed', error)
+  const refreshEnc = encrypt(tokens.refresh_token)
+  const accessEnc = encrypt(tokens.access_token)
+  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+  try {
+    await run({ as: 'service', tenantId: caller.tenant_id }, sql => [
+      sql`insert into public.mail_connections (user_id, tenant_id, provider, email, refresh_token_enc, access_token_enc,
+                                               access_expires_at, status, last_error, updated_at)
+          values (${caller.id}, ${caller.tenant_id}, 'google', ${email}, ${refreshEnc}, ${accessEnc}, ${expiresAt}, 'active', null, now())
+          on conflict (user_id, provider) do update set
+            tenant_id = excluded.tenant_id, email = excluded.email, refresh_token_enc = excluded.refresh_token_enc,
+            access_token_enc = excluded.access_token_enc, access_expires_at = excluded.access_expires_at,
+            status = 'active', last_error = null, updated_at = now()`,
+    ])
+  } catch (e) {
+    console.error('[mail/google/callback] save failed', e instanceof Error ? e.message : e)
     return popupResult(false, 'saveFailed')
   }
   return popupResult(true, 'linked', { email })

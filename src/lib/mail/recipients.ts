@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 
 /**
  * Who a /center/mail message goes to (Batch 2): the students the sender picked
@@ -11,7 +11,8 @@ import type { SupabaseClient } from '@/lib/db'
  * member ids (`recipients.some(…)`). The union is de-duplicated; the caller
  * then applies the unchanged rules of /api/mail/send (≤ MAX_RECIPIENTS per
  * request, daily cap, active student/teacher of the tenant, an address on file,
- * mail_messages log). Runs with the service-role client AFTER getMailCaller.
+ * mail_messages log). One unit, as app_service pinned to the sender's
+ * institution, AFTER getMailCaller.
  */
 
 export const MAX_RECIPIENTS = 50
@@ -33,7 +34,6 @@ export type ResolveResult =
   | { ok: false; error: 'invalidData' | 'groupNotFound' | 'loadFailed' }
 
 export async function resolveMailRecipients(
-  admin: SupabaseClient,
   tenantId: string,
   recipientIds: string[],
   groupIds: string[],
@@ -41,24 +41,30 @@ export async function resolveMailRecipients(
   if (groupIds.length === 0) return { ok: true, ids: recipientIds }
   if (groupIds.length > MAX_GROUPS || !groupIds.every(id => UUID_RE.test(id))) return { ok: false, error: 'invalidData' }
 
-  const { data: groups, error: gErr } = await admin
-    .from('groups').select('id')
-    .in('id', groupIds).eq('tenant_id', tenantId).eq('is_active', true).is('deleted_at', null)
-    .limit(MAX_GROUPS)
-  if (gErr) return { ok: false, error: 'loadFailed' }
-  if ((groups ?? []).length !== groupIds.length) return { ok: false, error: 'groupNotFound' }
-
-  const { data: members, error: mErr } = await admin
-    .from('group_students')
-    .select('student_id, users!group_students_student_id_fkey!inner(id)')
-    .in('group_id', groupIds)
-    .eq('users.tenant_id', tenantId)
-    .eq('users.role', 'student')
-    .eq('users.is_active', true)
-    .limit(ROW_BOUND)
-  if (mErr) return { ok: false, error: 'loadFailed' }
+  let groups: unknown[]
+  let members: { student_id: string }[]
+  try {
+    const rows = await run({ as: 'service', tenantId }, sql => [
+      sql`select id from public.groups
+           where tenant_id = ${tenantId} and is_active and deleted_at is null
+             and id in (select (jsonb_array_elements_text(${sql.json(groupIds)}))::uuid)
+           limit ${MAX_GROUPS}`,
+      sql`select gs.student_id from public.group_students gs
+            join public.users u on u.id = gs.student_id
+            join public.groups g on g.id = gs.group_id
+           where g.tenant_id = ${tenantId} and g.is_active and g.deleted_at is null
+             and gs.group_id in (select (jsonb_array_elements_text(${sql.json(groupIds)}))::uuid)
+             and u.tenant_id = ${tenantId} and u.role = 'student' and u.is_active
+           limit ${ROW_BOUND}`,
+    ])
+    groups = rows[0]
+    members = rows[1] as unknown as { student_id: string }[]
+  } catch {
+    return { ok: false, error: 'loadFailed' }
+  }
+  if (groups.length !== groupIds.length) return { ok: false, error: 'groupNotFound' }
 
   const ids = new Set(recipientIds)
-  for (const m of (members ?? []) as { student_id: string }[]) ids.add(m.student_id)
+  for (const m of members) ids.add(m.student_id)
   return { ok: true, ids: [...ids] }
 }

@@ -153,7 +153,7 @@ DECLARE
     ['groups',                'SELECT, UPDATE, DELETE',           'tenant_id'],
     ['invitations',           'SELECT, UPDATE, DELETE',           'tenant_id'],
     ['lessons',               'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
-    ['mail_connections',      'SELECT, DELETE',                   'tenant_id'],
+    ['mail_connections',      'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['mail_messages',         'SELECT, INSERT',                   'tenant_id'],
     ['request_messages',      'SELECT, INSERT',                   'public.svc_parent_tenant(''request'', request_id)'],
     ['schedule_slots',        'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],

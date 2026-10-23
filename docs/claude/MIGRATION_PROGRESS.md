@@ -181,3 +181,11 @@
 - 0003: INSERT on `announcements` and `announcement_events` for app_service (dry-run, then applied to the trial).
 - Trial e2e `announcements-trial` 6/6 (two institutions: another institution's group refused; teacher and demoted admin refused; another institution's admin does not find it; student events only on their own feed; interested list per institution; delete).
 - `b-c1-routes.test.ts` replaced by `announcements-interested-route.test.ts` (its other cases had already moved). Full suite green (1,743).
+
+## Step 9 — data batch 8: centre mail + the shared staff caller (2026-10-23)
+- `getCaller()` (staff-auth, shared by mail, academic terms/units, group-transfers, teachers/search) reads the caller's LIVE row on the SQL layer, scoped to the session's institution (an account moved elsewhere is refused).
+- `resolveMailRecipients` one unit (groups + members). `mail/send`: the daily count, the caller's mailbox, the recipients and the sender name in ONE unit (was 4 reads), the log as one insert from a JSON set. `mail/recipients` search read as the caller (bound parameter). `connection` GET/DELETE and the Google `callback` upsert on the SQL layer, scoped to the caller's institution; `getAccessToken` persists refreshed tokens on the SQL layer.
+- This is the existing "link a Gmail mailbox to email students" feature (gmail.send) — not Google sign-in, which stays deferred.
+- 0003: INSERT, UPDATE on `mail_connections` for app_service (dry-run, then applied to the trial).
+- Trial e2e `mail-trial` 4/4 (two institutions; Gmail and token revocation are stand-ins — no email leaves): a teacher refused; search and count inside the institution, another institution's group 404; only the institution's own active people receive, every attempt logged in that institution; another institution's admin has no mailbox and cannot unlink the caller's; tokens never returned.
+- Full suite green (1,744).

@@ -36,6 +36,20 @@ function fakeClient() {
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(async () => fakeClient()) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
+// getCaller reads the caller's live row on the SQL layer (step 9): answered
+// here from the same profile — no session 401; no institution or disabled 403.
+vi.mock('@/lib/staff-auth', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/staff-auth')>('@/lib/staff-auth')
+  const { NextResponse } = await vi.importActual<typeof import('next/server')>('next/server')
+  return {
+    ...actual,
+    getCaller: async () => {
+      if (!authUser) return { error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
+      if (!profile?.tenant_id || profile.is_active === false) return { error: NextResponse.json({ error: 'forbidden' }, { status: 403 }) }
+      return { caller: { id: authUser.id, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions } }
+    },
+  }
+})
 
 import { GET } from '@/app/api/teachers/search/route'
 

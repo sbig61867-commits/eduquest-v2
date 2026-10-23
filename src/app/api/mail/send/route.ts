@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { serviceClient } from '@/lib/staff-auth'
+import { run, maybeOne } from '@/lib/db/sql'
 import { rateLimit } from '@/lib/rate-limit'
 import { getMailCaller } from '@/lib/mail/access'
 import { buildMime, getAccessToken, sendGmail, type ConnectionRow } from '@/lib/mail/google'
@@ -39,10 +39,8 @@ export async function POST(request: Request) {
   const limit = await rateLimit(`mail-send:${caller.id}`, { limit: 60, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ ...(await apiErr('tooManyRequests')) }, { status: 429 })
 
-  const admin = serviceClient()
-
   // Groups → their active students of this institution; the limits apply to the whole set.
-  const resolved = await resolveMailRecipients(admin, caller.tenant_id, picked, groupIds)
+  const resolved = await resolveMailRecipients(caller.tenant_id, picked, groupIds)
   if (!resolved.ok) {
     if (resolved.error === 'groupNotFound') return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
     if (resolved.error === 'invalidData') return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
@@ -52,44 +50,58 @@ export async function POST(request: Request) {
   if (ids.length === 0) return NextResponse.json({ ...(await apiErr('noValidRecipients')) }, { status: 400 })
   if (ids.length > MAX_RECIPIENTS) return NextResponse.json({ ...(await apiErr('tooManyRecipients', { max: MAX_RECIPIENTS })) }, { status: 400 })
 
-  // Gmail's own daily cap is ~500 (personal) / ~2000 (Workspace); stay well under
-  // it. One request carries up to 50 recipients, so the cap is on MESSAGES sent
-  // in the last 24 h — every attempt is logged in mail_messages below.
-  const since = new Date(Date.now() - 86_400_000).toISOString()
-  const { count: sentToday, error: countErr } = await admin
-    .from('mail_messages').select('id', { count: 'exact', head: true })
-    .eq('sender_id', caller.id).gte('created_at', since)
-  if (countErr) {
-    console.error('[mail/send] daily count', countErr)
+  // One unit, pinned to the caller's institution: the messages sent in the
+  // last 24 h, the caller's linked mailbox, the recipients (active students
+  // and teachers of this institution only) and the sender's name.
+  // Gmail's own daily cap is ~500 (personal) / ~2000 (Workspace); stay well
+  // under it. One request carries up to 50 recipients, so the cap is on
+  // MESSAGES — every attempt is logged in mail_messages below.
+  const scope = { as: 'service', tenantId: caller.tenant_id } as const
+  const validIds = ids.filter(id => /^[0-9a-f-]{36}$/i.test(id))
+  let sentToday: number
+  let conn: (ConnectionRow & { id: string }) | null
+  let found: { id: string; email: string | null; full_name: string | null }[]
+  let senderName: string | null
+  try {
+    const rows = await run(scope, sql => [
+      sql`select count(*)::int as n from public.mail_messages
+           where sender_id = ${caller.id} and tenant_id = ${caller.tenant_id} and created_at >= now() - interval '24 hours'`,
+      sql`select id, user_id, tenant_id, email, refresh_token_enc, access_token_enc, access_expires_at, status
+            from public.mail_connections
+           where user_id = ${caller.id} and tenant_id = ${caller.tenant_id} and provider = 'google'`,
+      sql`select id, email, full_name from public.users
+           where tenant_id = ${caller.tenant_id} and role in ('student', 'teacher') and is_active
+             and id in (select (jsonb_array_elements_text(${sql.json(validIds)}))::uuid)`,
+      sql`select full_name from public.users where id = ${caller.id}`,
+    ])
+    sentToday = maybeOne<{ n: number }>(rows[0])?.n ?? 0
+    conn = maybeOne(rows[1])
+    found = rows[2] as unknown as typeof found
+    senderName = maybeOne<{ full_name: string | null }>(rows[3])?.full_name ?? null
+  } catch (e) {
+    console.error('[mail/send] read', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('unexpected')) }, { status: 500 })
   }
-  const remaining = DAILY_MESSAGE_CAP - (sentToday ?? 0)
+
+  const remaining = DAILY_MESSAGE_CAP - sentToday
   if (ids.length > remaining) {
     return NextResponse.json(
       remaining > 0 ? { ...(await apiErr('dailySendLimitRemaining', { remaining })) } : { ...(await apiErr('dailySendLimit')) },
       { status: 429 },
     )
   }
-
-  const { data: conn } = await admin
-    .from('mail_connections').select('*')
-    .eq('user_id', caller.id).eq('provider', 'google').maybeSingle()
   if (!conn || conn.status === 'revoked') {
     return NextResponse.json({ ...(await apiErr('linkMailboxFirst')), code: 'NOT_LINKED' }, { status: 409 })
   }
 
-  const { data: found } = await admin
-    .from('users').select('id, email, full_name, role')
-    .in('id', ids).eq('tenant_id', caller.tenant_id).in('role', ['student', 'teacher']).eq('is_active', true)
   // Accounts created by member ID hold their ID, not an address, in `email`.
-  const recipients = (found ?? []).filter(r => typeof r.email === 'string' && r.email.includes('@'))
-  if (!recipients?.length) return NextResponse.json({ ...(await apiErr('noValidRecipients')) }, { status: 400 })
-
-  const { data: sender } = await admin.from('users').select('full_name').eq('id', caller.id).maybeSingle()
+  const recipients = found.filter((r): r is { id: string; email: string; full_name: string | null } =>
+    typeof r.email === 'string' && r.email.includes('@'))
+  if (!recipients.length) return NextResponse.json({ ...(await apiErr('noValidRecipients')) }, { status: 400 })
 
   let token: string
   try {
-    token = await getAccessToken(admin, conn as ConnectionRow)
+    token = await getAccessToken(conn)
   } catch (e) {
     const relink = (e as Error).message === 'RELINK_REQUIRED'
     return NextResponse.json(
@@ -103,11 +115,11 @@ export async function POST(request: Request) {
   // used to take ~50 × (Gmail round-trip + a log insert) ≈ 20 s and could hit
   // the function time limit half-way. The log is written once, at the end.
   const results: { id: string; ok: boolean }[] = []
-  const log: Record<string, unknown>[] = []
+  const log: Record<string, string | null>[] = []
   for (let i = 0; i < recipients.length; i += SEND_CONCURRENCY) {
     const batch = recipients.slice(i, i + SEND_CONCURRENCY)
     const sent = await Promise.all(batch.map(r => sendGmail(token, buildMime({
-      fromEmail: conn.email, fromName: sender?.full_name ?? undefined, to: r.email, subject, html,
+      fromEmail: conn.email, fromName: senderName ?? undefined, to: r.email, subject, html,
     }))))
     batch.forEach((r, k) => {
       const s = sent[k]
@@ -119,8 +131,17 @@ export async function POST(request: Request) {
       })
     })
   }
-  const { error: logErr } = await admin.from('mail_messages').insert(log)
-  if (logErr) console.error('[mail/send] log insert', logErr)
+  try {
+    await run(scope, sql => [
+      sql`insert into public.mail_messages (tenant_id, sender_id, connection_id, from_email, recipient_id, to_email, subject, status, error)
+          select tenant_id, sender_id, connection_id, from_email, recipient_id, to_email, subject, status, error
+            from jsonb_to_recordset(${sql.json(log)})
+              as x(tenant_id uuid, sender_id uuid, connection_id uuid, from_email text, recipient_id uuid,
+                   to_email text, subject text, status text, error text)`,
+    ])
+  } catch (e) {
+    console.error('[mail/send] log insert', e instanceof Error ? e.message : e)
+  }
 
   const sentCount = results.filter(r => r.ok).length
   return NextResponse.json({ sent: sentCount, failed: results.length - sentCount, skipped: ids.length - recipients.length })

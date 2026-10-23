@@ -1,12 +1,12 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { NextResponse } from 'next/server'
 import { apiErr } from '@/lib/api-error'
-import { createClient } from '@/lib/supabase/server'
+import { run, maybeOne } from '@/lib/db/sql'
 import { getAdminDb } from '@/lib/db'
 import { can, type Capability } from '@/lib/permissions'
 
 // Shared caller resolution for staff route handlers. Identity and capability
-// are read through the USER session (RLS-scoped); the service-role client is
+// are read from the live row (scoped to the session's institution); the service client is
 // handed back only for the privileged write that follows the check.
 
 export interface StaffCaller {
@@ -20,17 +20,25 @@ export function serviceClient() {
   return getAdminDb()
 }
 
+/**
+ * The staff caller from their LIVE row (role, capabilities, active), read as
+ * app_service pinned to the session's institution — an account moved to
+ * another institution is not visible there and is refused.
+ */
 export async function getCaller(): Promise<{ caller: StaffCaller } | { error: NextResponse }> {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  const ctx = await currentCtx()
+  if (!ctx) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  const forbidden = async () => ({ error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) })
+  if (!ctx.tenant_id) return forbidden()
+  const tenantId = ctx.tenant_id
 
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions, is_active').eq('id', user.id).single()
-  if (!profile?.tenant_id || profile.is_active === false) {
-    return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
-  }
-  return { caller: { id: user.id, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions } }
+  const [rows] = await run({ as: 'service', tenantId }, sql => [
+    sql`select role, tenant_id, permissions from public.users
+         where id = ${ctx.sub} and tenant_id = ${tenantId} and is_active is not false`,
+  ])
+  const profile = maybeOne<{ role: string; tenant_id: string; permissions: Record<string, unknown> | null }>(rows)
+  if (!profile) return forbidden()
+  return { caller: { id: ctx.sub, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions } }
 }
 
 /** Staff capability check (role defaults resolved in permissions.ts; teachers/students never pass). */
