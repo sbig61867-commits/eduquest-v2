@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@/lib/db'
+import type { Sql } from '@/lib/db/sql'
 import { teacherFootprints, type TeacherFootprint } from '@/lib/account-scope'
 
 /**
@@ -257,6 +258,36 @@ const MEMBERSHIP = {
  * filters are defence in depth and keep the result to students. An empty `q`
  * returns nothing and touches no table.
  */
+/**
+ * The same search as a SQL fragment (step 9), for a route to send in the same
+ * unit as its authorization reads: at most STUDENT_SEARCH_LIMIT active
+ * students of the institution matching `search` (by name, or name/email),
+ * minus the target's current members. The term is a bound parameter;
+ * sanitizeSearch already removed the LIKE wildcards.
+ */
+export function studentSearchSql(
+  sql: Sql,
+  tenantId: string,
+  search: string,
+  target: { kind: 'group' | 'course'; id: string },
+  opts: { nameOnly?: boolean } = {},
+) {
+  const pattern = `%${search}%`
+  const notMember = target.kind === 'group'
+    ? sql`not exists (select 1 from public.group_students m where m.group_id = ${target.id} and m.student_id = u.id)`
+    : sql`not exists (select 1 from public.course_enrollments m where m.course_id = ${target.id} and m.student_id = u.id)`
+  const matches = opts.nameOnly
+    ? sql`u.full_name ilike ${pattern}`
+    : sql`(u.full_name ilike ${pattern} or u.email ilike ${pattern})`
+  return opts.nameOnly
+    ? sql`select u.id, u.full_name from public.users u
+           where u.tenant_id = ${tenantId} and u.role = 'student' and u.is_active and ${matches} and ${notMember}
+           order by u.full_name, u.id limit ${STUDENT_SEARCH_LIMIT}`
+    : sql`select u.id, u.full_name, u.email from public.users u
+           where u.tenant_id = ${tenantId} and u.role = 'student' and u.is_active and ${matches} and ${notMember}
+           order by u.full_name, u.id limit ${STUDENT_SEARCH_LIMIT}`
+}
+
 export async function searchStudents(
   db: SupabaseClient,
   tenantId: string,

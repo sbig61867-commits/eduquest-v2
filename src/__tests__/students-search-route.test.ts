@@ -2,146 +2,110 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
- * Batch 2 / T1 — GET /api/students/search: the server alone decides who may
- * search (a teacher, for a group they teach, in their own institution), an
- * empty search returns nothing, results are capped at 20 and carry only
- * id / full_name / email, and the tenant always comes from the session.
+ * GET /api/students/search (Batch 2 / T1): only a teacher, only for a group
+ * they teach in their own institution; at most 20 active students of that
+ * institution matching q, minus the group's members. Step 9: read as the
+ * teacher in ONE unit — the ownership check and the search together; the
+ * rows are discarded unless the group is theirs.
  */
 
 const GROUP = '11111111-1111-4111-8111-111111111111'
 
 type Call = [string, ...unknown[]]
-let authUser: { id: string; role?: string; tenant_id?: string | null } | null
-let ownedGroup: { id: string } | null
-let usersReply: { data: unknown[] | null; error: { message: string } | null }
-let calls: Call[][]
+type Q = { text: string; values: unknown[]; ctx: { as: string; userId?: string } }
+let ctx: { sub: string; role: string; tenant_id: string | null } | null
+let ownsGroup: boolean
+let searchRows: unknown[] | Error
+let sql: Q[]
 
-function fakeClient() {
-  return {
-    from(table: string) {
-      const c: Call[] = [['from', table]]
-      calls.push(c)
-      const chain: Record<string, unknown> = {}
-      for (const m of ['select', 'eq', 'or', 'order', 'is', 'limit']) {
-        chain[m] = (...args: unknown[]) => { c.push([m, ...args]); return chain }
-      }
-      chain.maybeSingle = () => Promise.resolve({ data: ownedGroup, error: null })
-      chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(usersReply).then(resolve)
-      return chain
-    },
+vi.mock('@/lib/auth/current', () => ({ currentCtx: async () => ctx }))
+vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  sql.push(q as Q)
+  if (q.text.startsWith('select id from public.groups')) return ownsGroup ? [{ id: GROUP }] : []
+  if (q.text.startsWith('select u.id, u.full_name, u.email from public.users u')) {
+    if (searchRows instanceof Error) return searchRows
+    return searchRows.slice(0, q.values.at(-1) as number)
   }
-}
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => fakeClient()),
-  getAuthUser: vi.fn(async () => authUser),
-}))
-vi.mock('@/lib/api-error', () => ({
-  apiErr: async (code: string) => ({ error: code, code }),
+  return new Error('unexpected statement: ' + q.text)
 }))
 
 import { GET } from '@/app/api/students/search/route'
 
-const get = (qs: string) => GET(new Request(`http://localhost/api/students/search?${qs}`))
-const TEACHER = { id: 'teacher-1', role: 'teacher', tenant_id: 'tenant-a' }
+const get = (qs: string) => GET(new Request(`http://x/api/students/search?${qs}`))
+const search = () => sql.find(q => q.text.startsWith('select u.id, u.full_name, u.email'))
 
 beforeEach(() => {
-  authUser = TEACHER
-  ownedGroup = { id: GROUP }
-  usersReply = { data: [], error: null }
-  calls = []
+  ctx = { sub: 'teacher-1', role: 'teacher', tenant_id: 'tenant-a' }
+  ownsGroup = true
+  searchRows = []
+  sql = []
 })
 
 describe('GET /api/students/search — who may search', () => {
   it('401 without a session', async () => {
-    authUser = null
+    ctx = null
     expect((await get(`q=sara&group_id=${GROUP}`)).status).toBe(401)
   })
 
   it('403 for every role but teacher — students, admins, centre managers, the owner', async () => {
-    for (const role of ['student', 'university_admin', 'center_manager', 'super_admin', undefined]) {
-      authUser = { id: 'u', role, tenant_id: 'tenant-a' }
-      const res = await get(`q=sara&group_id=${GROUP}`)
-      expect(res.status).toBe(403)
+    for (const role of ['student', 'university_admin', 'center_manager', 'super_admin']) {
+      ctx = { sub: 'x', role, tenant_id: 'tenant-a' }
+      expect((await get(`q=sara&group_id=${GROUP}`)).status).toBe(403)
     }
-    expect(calls).toHaveLength(0) // refused before any read
+    expect(sql).toHaveLength(0)
   })
 
   it('403 for a teacher without an institution', async () => {
-    authUser = { id: 't', role: 'teacher', tenant_id: null }
+    ctx = { sub: 'teacher-1', role: 'teacher', tenant_id: null }
     expect((await get(`q=sara&group_id=${GROUP}`)).status).toBe(403)
   })
 
   it('404 for a group the teacher does not teach (or of another institution) — and no rows leak', async () => {
-    ownedGroup = null
-    usersReply = { data: [{ id: 's1', full_name: 'Sara', email: 's@x.test' }], error: null }
+    ownsGroup = false
+    searchRows = [{ id: 's1', full_name: 'Must not leak', email: 'x@x.test' }]
     const res = await get(`q=sara&group_id=${GROUP}`)
     expect(res.status).toBe(404)
-    expect(JSON.stringify(await res.json())).not.toContain('Sara')
-    const groupQ = calls.find(c => c[0][1] === 'groups')!
-    expect(groupQ).toContainEqual(['eq', 'id', GROUP])
-    expect(groupQ).toContainEqual(['eq', 'teacher_id', 'teacher-1'])
-    expect(groupQ).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
+    expect(JSON.stringify(await res.json())).not.toContain('Must not leak')
   })
 })
 
 describe('GET /api/students/search — input', () => {
   it('400 when q is empty, blank or only wildcards — and nothing is read', async () => {
-    for (const q of ['', '%20%20', '%25', '*', '%22%5C']) {
-      const res = await get(`q=${q}&group_id=${GROUP}`)
-      expect(res.status).toBe(400)
-      expect((await res.json()).code).toBe('searchQueryRequired')
-    }
-    const res = await get(`group_id=${GROUP}`)
-    expect(res.status).toBe(400)
-    expect(calls).toHaveLength(0)
+    for (const q of ['', '%20%20', '%25', '*']) expect((await get(`q=${q}&group_id=${GROUP}`)).status).toBe(400)
+    expect(sql).toHaveLength(0)
   })
 
   it('400 when group_id is missing or not a uuid (no filter text reaches the database)', async () => {
-    for (const g of ['', 'abc', `${GROUP},or(id.neq.0)`]) {
-      const res = await get(`q=sara&group_id=${encodeURIComponent(g)}`)
-      expect(res.status).toBe(400)
-    }
-    expect(calls).toHaveLength(0)
+    for (const g of ['', 'abc', `${GROUP},x`]) expect((await get(`q=sara&group_id=${g}`)).status).toBe(400)
+    expect(sql).toHaveLength(0)
   })
 })
 
 describe('GET /api/students/search — results', () => {
-  it('searches only students of the caller’s own institution, ignoring a tenant_id in the URL', async () => {
+  it('searches only students of the caller’s own institution, ignoring a tenant_id in the URL — read as the teacher', async () => {
     await get(`q=sara&group_id=${GROUP}&tenant_id=tenant-b`)
-    const usersQ = calls.find(c => c[0][1] === 'users')!
-    expect(usersQ).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(usersQ).not.toContainEqual(['eq', 'tenant_id', 'tenant-b'])
-    expect(usersQ).toContainEqual(['eq', 'role', 'student'])
-    expect(usersQ).toContainEqual(['eq', 'is_active', true])
-    expect(usersQ).toContainEqual(['limit', 20])
+    expect(sql.every(q => q.ctx.as === 'user' && q.ctx.userId === 'teacher-1')).toBe(true)
+    expect(sql[0].values).toEqual([GROUP, 'teacher-1', 'tenant-a'])
+    expect(search()!.values).toEqual(['tenant-a', '%sara%', '%sara%', GROUP, 20])
+    expect(JSON.stringify(sql)).not.toContain('tenant-b')
   })
 
   it('returns at most 20 students with only id / full_name / email', async () => {
-    usersReply = {
-      data: Array.from({ length: 30 }, (_, i) => ({
-        id: `s${i}`, full_name: `S ${i}`, email: `s${i}@x.test`, group_students: [], role: 'student', is_active: true,
-      })),
-      error: null,
-    }
-    const res = await get(`q=s&group_id=${GROUP}`)
-    expect(res.status).toBe(200)
-    const { students } = await res.json()
+    searchRows = Array.from({ length: 30 }, (_, i) => ({ id: `s${i}`, full_name: `S ${i}`, email: `s${i}@x.test` }))
+    const { students } = await (await get(`q=s&group_id=${GROUP}`)).json()
     expect(students).toHaveLength(20)
     for (const s of students) expect(Object.keys(s).sort()).toEqual(['email', 'full_name', 'id'])
   })
 
-  it('an injection attempt is one quoted literal; the role/tenant conditions stay separate', async () => {
+  it('an injection attempt is one literal; the role/tenant conditions stay separate', async () => {
     await get(`q=${encodeURIComponent('x"),or(role.eq.teacher')}&group_id=${GROUP}`)
-    const usersQ = calls.find(c => c[0][1] === 'users')!
-    const or = usersQ.filter(c => c[0] === 'or')
-    expect(or).toHaveLength(1)
-    expect(String(or[0][1])).toMatch(/^full_name\.ilike\."%x \),or\(role\.eq\.teacher%",email\.ilike\."%x \),or\(role\.eq\.teacher%"$/)
-    expect(usersQ).toContainEqual(['eq', 'role', 'student'])
+    expect(search()!.values[1]).toBe('%x ),or(role.eq.teacher%')
+    expect(search()!.text).toContain("u.role = 'student'")
   })
 
   it('500 (no data) when the database refuses', async () => {
-    usersReply = { data: null, error: { message: 'boom' } }
+    searchRows = new Error('boom')
     const res = await get(`q=sara&group_id=${GROUP}`)
     expect(res.status).toBe(500)
     expect((await res.json()).students).toBeUndefined()

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { parsePage } from '@/lib/data/people'
 
 /**
@@ -8,22 +8,16 @@ import { parsePage } from '@/lib/data/people'
  * used to receive and render all of them.
  *
  * Opt-in: the membership routes use it only when the caller sends `page`
- * (rosterPageParam); without it they answer exactly as before, because
+ * (rosterPageParam); without it they answer with the whole roster, because
  * /teacher/groups (T1) still reads its group's whole roster.
  *
- * Runs with the service-role client the membership routes already use for this
- * read, AFTER their authorization — it adds no access of its own.
+ * Read as app_service pinned to the institution, AFTER the membership route's
+ * authorization — it adds no access of its own. One statement: the total, the
+ * page (a page past the end — e.g. after a removal — becomes the last page)
+ * and its members.
  */
 
 export const ROSTER_PAGE_SIZE = 50
-
-/** PostgREST: the requested range starts past the last row. */
-const RANGE_NOT_SATISFIABLE = 'PGRST103'
-
-const ROSTERS = {
-  group: { table: 'group_students', key: 'group_id', fk: 'group_students_student_id_fkey', joined: 'joined_at' },
-  course: { table: 'course_enrollments', key: 'course_id', fk: 'course_enrollments_student_id_fkey', joined: 'enrolled_at' },
-} as const
 
 export interface RosterMember { id: string; full_name: string; email: string }
 export interface RosterPage { students: RosterMember[]; total: number; page: number; pageCount: number }
@@ -33,44 +27,38 @@ export function rosterPageParam(params: URLSearchParams): number | null {
   return params.has('page') ? parsePage(params.get('page')) : null
 }
 
-type Row = { users: RosterMember | RosterMember[] | null }
-const toMembers = (rows: unknown[] | null): RosterMember[] =>
-  ((rows ?? []) as Row[]).map(r => (Array.isArray(r.users) ? r.users[0] : r.users)).filter((u): u is RosterMember => !!u)
-
 /**
  * One page of a target's members, newest first (then by student id, so pages
- * never overlap), with the exact total. A page past the end (e.g. after a
- * removal) is answered with the last page.
+ * never overlap), with the exact total.
  */
 export async function readRosterPage(
-  admin: SupabaseClient,
-  kind: keyof typeof ROSTERS,
+  tenantId: string,
+  kind: 'group' | 'course',
   targetId: string,
   requestedPage: number,
-): Promise<{ data: RosterPage; error: { message: string } | null }> {
-  const r = ROSTERS[kind]
-  const fetchPage = (page: number) => {
-    const from = (page - 1) * ROSTER_PAGE_SIZE
-    return admin
-      .from(r.table)
-      .select(`student_id, users!${r.fk}(id, full_name, email)`, { count: 'exact' })
-      .eq(r.key, targetId)
-      .order(r.joined, { ascending: false })
-      .order('student_id', { ascending: true })
-      .range(from, from + ROSTER_PAGE_SIZE - 1)
-  }
-
-  let page = requestedPage
-  let res = await fetchPage(page)
-  if (res.error?.code === RANGE_NOT_SATISFIABLE) {
-    const { count } = await admin.from(r.table).select('student_id', { count: 'exact', head: true }).eq(r.key, targetId)
-    page = Math.max(1, Math.ceil((count ?? 0) / ROSTER_PAGE_SIZE))
-    res = await fetchPage(page)
-  }
-  if (res.error) return { data: { students: [], total: 0, page: 1, pageCount: 1 }, error: res.error }
-  const total = res.count ?? 0
-  return {
-    data: { students: toMembers(res.data), total, page, pageCount: Math.max(1, Math.ceil(total / ROSTER_PAGE_SIZE)) },
-    error: null,
-  }
+): Promise<RosterPage> {
+  const size = ROSTER_PAGE_SIZE
+  const [rows] = await run({ as: 'service', tenantId }, sql => [
+    kind === 'group'
+      ? sql`with total as (select count(*)::int as n from public.group_students where group_id = ${targetId}),
+                 pg as (select least(${requestedPage}, greatest(1, ceil(n / ${size}::numeric)::int)) as p from total)
+            select (select n from total) as total, (select p from pg) as page,
+                   coalesce((select json_agg(json_build_object('id', m.id, 'full_name', m.full_name, 'email', m.email))
+                               from (select u.id, u.full_name, u.email
+                                       from public.group_students x join public.users u on u.id = x.student_id
+                                      where x.group_id = ${targetId}
+                                      order by x.joined_at desc, x.student_id
+                                      limit ${size} offset ((select p from pg) - 1) * ${size}) m), '[]') as students`
+      : sql`with total as (select count(*)::int as n from public.course_enrollments where course_id = ${targetId}),
+                 pg as (select least(${requestedPage}, greatest(1, ceil(n / ${size}::numeric)::int)) as p from total)
+            select (select n from total) as total, (select p from pg) as page,
+                   coalesce((select json_agg(json_build_object('id', m.id, 'full_name', m.full_name, 'email', m.email))
+                               from (select u.id, u.full_name, u.email
+                                       from public.course_enrollments x join public.users u on u.id = x.student_id
+                                      where x.course_id = ${targetId}
+                                      order by x.enrolled_at desc, x.student_id
+                                      limit ${size} offset ((select p from pg) - 1) * ${size}) m), '[]') as students`,
+  ])
+  const r = maybeOne<{ total: number; page: number; students: RosterMember[] }>(rows) ?? { total: 0, page: 1, students: [] }
+  return { students: r.students, total: r.total, page: r.page, pageCount: Math.max(1, Math.ceil(r.total / size)) }
 }

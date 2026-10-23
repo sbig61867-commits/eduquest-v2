@@ -200,3 +200,11 @@
 - `lessons/files` and `lessons/media` stay for step 11 (storage).
 - Trial e2e `teaching-structure-trial` 6/6 (two institutions: another institution's teacher/group/course/unit/term refused or not found; colleague cannot edit/delete a lesson; create-full builds 2 units + 2 items; one current term; group placement; transfer inside the institution only).
 - Full suite green (1,744).
+
+## Step 9 — data batch 10: group membership, course enrolment, rosters, student pickers (2026-10-23)
+- `group-students`: the caller (live) and the group in one unit; adding a student is ONE unit (student of this institution + seat check, the membership written only while both hold and the caller is still live/owner, and the course enrolment when the group is a course section) — was up to 6 trips. GET whole roster bounded (5,000).
+- `course-enrollments`: caller + course in one unit, then one write unit (student check + enrolment) with the live check repeated.
+- `readRosterPage`: total, page clamp and members in ONE statement (was a page read + a count read when past the end).
+- `roster/candidates`: the caller, the target and the search in ONE unit, the rows discarded unless the gate passes (was 3 trips). `students/search`: ownership + search in one unit read as the teacher. New `studentSearchSql` fragment (people.ts).
+- Removed `src/lib/group-enrolment.ts` (no callers left).
+- Trial e2e `membership-trial` 5/5 (two institutions: another institution's student/group/course refused or not found; seat cap; course section enrols in the course; colleague cannot add/remove; pickers exclude members and other institutions).

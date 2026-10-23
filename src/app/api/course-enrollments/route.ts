@@ -1,34 +1,38 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { serviceClient, staffCan } from '@/lib/staff-auth'
+import { run, maybeOne } from '@/lib/db/sql'
+import { staffCan } from '@/lib/staff-auth'
 import { readRosterPage, rosterPageParam } from '@/lib/data/rosters'
 
 // Enrol / unenrol students in a structured course. Allowed for the course's
-// own teacher, or staff holding manage_courses in the same tenant. Checked
-// with the user session; written with the service-role client.
+// own teacher, or staff holding manage_courses in the same tenant. The caller
+// (live) and the course are read in one unit; the write runs as app_service
+// pinned to the institution and repeats the live check.
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ROSTER_LIMIT = 5000
 
 async function authorize(courseId: string) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  const ctx = await currentCtx()
+  if (!ctx) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  if (!ctx.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
+  const tenantId = ctx.tenant_id
 
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!profile?.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
-
-  const admin = serviceClient()
-  const { data: course } = await admin
-    .from('courses').select('id, teacher_id, tenant_id').eq('id', courseId).is('deleted_at', null).maybeSingle()
-  if (!course || course.tenant_id !== profile.tenant_id) {
-    return { error: NextResponse.json({ ...(await apiErr('courseNotFound')) }, { status: 404 }) }
-  }
+  const [me, courses] = await run({ as: 'service', tenantId }, sql => [
+    sql`select role, permissions from public.users where id = ${ctx.sub} and tenant_id = ${tenantId} and is_active is not false`,
+    sql`select teacher_id from public.courses
+         where id = ${UUID.test(courseId) ? courseId : null}::uuid and tenant_id = ${tenantId} and deleted_at is null`,
+  ])
+  const profile = maybeOne<{ role: string; permissions: Record<string, unknown> | null }>(me)
+  if (!profile) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
+  const course = maybeOne<{ teacher_id: string }>(courses)
+  if (!course) return { error: NextResponse.json({ ...(await apiErr('courseNotFound')) }, { status: 404 }) }
   const staff = profile.role !== 'teacher' && staffCan(profile, 'manage_courses')
-  if (course.teacher_id !== user.id && !staff) {
+  if (course.teacher_id !== ctx.sub && !staff) {
     return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   }
-  return { admin, tenantId: profile.tenant_id as string }
+  return { userId: ctx.sub, tenantId, role: profile.role, staff }
 }
 
 // GET /api/course-enrollments?course_id=…
@@ -38,31 +42,23 @@ export async function GET(request: Request) {
   const auth = await authorize(courseId)
   if ('error' in auth) return auth.error
 
-  // RosterModal asks for one page (?page=); without it the whole list comes back as before.
-  const page = rosterPageParam(new URL(request.url).searchParams)
-  if (page !== null) {
-    const { data, error: pageErr } = await readRosterPage(auth.admin, 'course', courseId, page)
-    if (pageErr) {
-      console.error('[course-enrollments GET page]', pageErr)
-      return NextResponse.json({ ...(await apiErr('enrollmentsLoadFailed')) }, { status: 500 })
-    }
-    return NextResponse.json(data)
-  }
+  try {
+    // RosterModal asks for one page (?page=); without it the whole list comes back.
+    const page = rosterPageParam(new URL(request.url).searchParams)
+    if (page !== null) return NextResponse.json(await readRosterPage(auth.tenantId, 'course', courseId, page))
 
-  const { data, error } = await auth.admin
-    .from('course_enrollments')
-    .select('student_id, enrolled_at, users!course_enrollments_student_id_fkey(id, full_name, email)')
-    .eq('course_id', courseId)
-    .order('enrolled_at', { ascending: false })
-  if (error) {
-    console.error('[course-enrollments GET]', error)
+    const [rows] = await run({ as: 'service', tenantId: auth.tenantId }, sql => [
+      sql`select u.id, u.full_name, u.email
+            from public.course_enrollments e join public.users u on u.id = e.student_id
+           where e.course_id = ${courseId}
+           order by e.enrolled_at desc
+           limit ${ROSTER_LIMIT}`,
+    ])
+    return NextResponse.json({ students: rows })
+  } catch (e) {
+    console.error('[course-enrollments GET]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('enrollmentsLoadFailed')) }, { status: 500 })
   }
-  type U = { id: string; full_name: string; email: string }
-  const students = ((data ?? []) as unknown as { users: U | U[] | null }[])
-    .map(r => (Array.isArray(r.users) ? r.users[0] : r.users))
-    .filter(Boolean)
-  return NextResponse.json({ students })
 }
 
 // POST /api/course-enrollments { course_id, student_id }
@@ -74,23 +70,31 @@ export async function POST(request: Request) {
 
   const auth = await authorize(course_id)
   if ('error' in auth) return auth.error
-  const { admin, tenantId } = auth
+  const a = auth
+  if (!UUID.test(student_id)) return NextResponse.json({ ...(await apiErr('studentNotInTenant')) }, { status: 404 })
 
-  const { data: student } = await admin
-    .from('users').select('id, full_name, email').eq('id', student_id)
-    .eq('role', 'student').eq('tenant_id', tenantId).maybeSingle()
-  if (!student) return NextResponse.json({ ...(await apiErr('studentNotInTenant')) }, { status: 404 })
-
-  // Enrolment does not consume a plan seat — the seat is the account itself,
-  // already capped in create-user / accept-invitation.
-  const { error } = await admin
-    .from('course_enrollments')
-    .upsert({ course_id, student_id, tenant_id: tenantId }, { onConflict: 'course_id,student_id', ignoreDuplicates: true })
-  if (error) {
-    console.error('[course-enrollments POST]', error)
+  // One unit: the student (a student of this institution), then the enrolment
+  // — written only while the caller is still allowed. Enrolment does not
+  // consume a plan seat — the seat is the account itself, already capped in
+  // create-user / accept-invitation.
+  try {
+    const [studentRows] = await run({ as: 'service', tenantId: a.tenantId }, sql => [
+      sql`select id, full_name, email from public.users where id = ${student_id} and tenant_id = ${a.tenantId} and role = 'student'`,
+      sql`insert into public.course_enrollments (course_id, student_id, tenant_id)
+          select c.id, u.id, ${a.tenantId} from public.courses c, public.users u
+           where c.id = ${course_id} and c.tenant_id = ${a.tenantId} and c.deleted_at is null
+             and u.id = ${student_id} and u.tenant_id = ${a.tenantId} and u.role = 'student'
+             and exists (select 1 from public.users where id = ${a.userId} and tenant_id = ${a.tenantId} and is_active is not false and role = ${a.role})
+             and (${a.staff} or c.teacher_id = ${a.userId})
+          on conflict (course_id, student_id) do nothing`,
+    ])
+    const student = maybeOne<{ id: string; full_name: string; email: string }>(studentRows)
+    if (!student) return NextResponse.json({ ...(await apiErr('studentNotInTenant')) }, { status: 404 })
+    return NextResponse.json({ student }, { status: 201 })
+  } catch (e) {
+    console.error('[course-enrollments POST]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('enrollFailed')) }, { status: 500 })
   }
-  return NextResponse.json({ student }, { status: 201 })
 }
 
 // DELETE /api/course-enrollments { course_id, student_id }
@@ -102,11 +106,17 @@ export async function DELETE(request: Request) {
 
   const auth = await authorize(course_id)
   if ('error' in auth) return auth.error
+  const a = auth
+  if (!UUID.test(student_id)) return NextResponse.json({ ok: true })
 
-  const { error } = await auth.admin
-    .from('course_enrollments').delete().eq('course_id', course_id).eq('student_id', student_id)
-  if (error) {
-    console.error('[course-enrollments DELETE]', error)
+  try {
+    await run({ as: 'service', tenantId: a.tenantId }, sql => [
+      sql`delete from public.course_enrollments e
+           where e.course_id = ${course_id} and e.student_id = ${student_id} and e.tenant_id = ${a.tenantId}
+             and exists (select 1 from public.users where id = ${a.userId} and tenant_id = ${a.tenantId} and is_active is not false and role = ${a.role})`,
+    ])
+  } catch (e) {
+    console.error('[course-enrollments DELETE]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('unenrollFailed')) }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
