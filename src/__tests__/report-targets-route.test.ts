@@ -41,6 +41,18 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => sessionClient()),
   getAuthUser: vi.fn(async () => (signedIn ? { id: 'me', role: profile?.role } : null)),
 }))
+// The route searches on the SQL layer (step 9), as the owner: every statement is
+// recorded with its context; the answer is the same `reply` the session gets.
+const db = vi.hoisted(() => ({ sql: [] as { text: string; values: unknown[]; ctx: { as: string } }[] }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  db.sql.push(q)
+  if (reply.error) return new Error(reply.error.message)
+  return (reply.data ?? []) as unknown[]
+}))
+vi.mock('@/lib/auth/current', async () => ({
+  ...(await vi.importActual<object>('@/lib/auth/current')),
+  currentCtx: async () => (signedIn ? { sub: 'me', role: profile?.role ?? null, tenant_id: null, email: null, is_active: true, must_change_password: false } : null),
+}))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 const redirect = vi.fn((to: string) => { throw new Error('REDIRECT ' + to) })
 vi.mock('next/navigation', () => ({ redirect: (to: string) => redirect(to) }))
@@ -49,11 +61,12 @@ import { searchReportTargets, REPORT_TARGET_LIMIT } from '@/lib/data/report-targ
 import { GET } from '@/app/api/admin/report-targets/route'
 
 const person = (i: number) => ({ id: `u${i}`, full_name: `Person ${i}`, email: `p${i}@x.test`, role: 'student', permissions: { secret: true } })
-const searches = () => calls.filter(c => c[0][1] !== 'users' || !c.some(x => x[0] === 'single'))
+const searches = () => db.sql
 const get = (qs: string) => GET(new Request(`http://x/api/admin/report-targets?${qs}`))
 
 beforeEach(() => {
   calls = []
+  db.sql = []
   reply = {}
   profile = { role: 'super_admin' }
   signedIn = true
@@ -116,14 +129,14 @@ describe('GET /api/admin/report-targets', () => {
   it('signed out → 401, nothing searched', async () => {
     signedIn = false
     expect((await get(`kind=student&tenant_id=${TENANT}&q=a`)).status).toBe(401)
-    expect(calls).toHaveLength(0)
+    expect(searches()).toHaveLength(0)
   })
 
   it.each(['university_admin', 'center_manager', 'teacher', 'student'])('%s → 403 before any search', async role => {
     profile = { role }
     const res = await get(`kind=student&tenant_id=${TENANT}&q=a`)
     expect(res.status).toBe(403)
-    expect(calls.every(c => c.some(x => x[0] === 'single'))).toBe(true)   // only the caller's own profile
+    expect(searches()).toHaveLength(0)
   })
 
   it('no profile row → 403', async () => {
@@ -144,18 +157,21 @@ describe('GET /api/admin/report-targets', () => {
     expect(searches()).toHaveLength(0)
   })
 
-  it('owner → 200 { results } from the chosen institution, ≤ 20, on the session (never the service role)', async () => {
-    reply = { data: Array.from({ length: 22 }, (_, i) => person(i)) }
+  it('owner → 200 { results } from the chosen institution, ≤ 20, as the owner (never the service scope)', async () => {
+    reply = { data: Array.from({ length: 20 }, (_, i) => person(i)) }
     const res = await get(`kind=student&tenant_id=${TENANT}&q=Person`)
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(Object.keys(body)).toEqual(['results'])
     expect(body.results).toHaveLength(20)
     expect(Object.keys(body.results[0]).sort()).toEqual(['email', 'id', 'label'])
-    expect(searches()[0]).toContainEqual(['eq', 'tenant_id', TENANT])
+    const [q] = searches()
+    expect(q.ctx).toEqual({ as: 'user', userId: 'me' })
+    expect(q.text).toMatch(/^select id, full_name, email from public\.users where tenant_id = \$ and role = \$ .* limit \$$/)
+    expect(q.values).toEqual([TENANT, 'student', '%Person%', '%Person%', 20])
     expect(createAdmin).not.toHaveBeenCalled()
-    // read-only: no write method was ever called
-    expect(calls.flat().some(x => ['insert', 'update', 'upsert', 'delete', 'rpc'].includes(x[0] as string))).toBe(false)
+    // read-only: one select, nothing written
+    expect(searches().every(x => x.text.startsWith('select '))).toBe(true)
   })
 
   it('a database error → 500', async () => {

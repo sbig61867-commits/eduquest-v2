@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@/lib/db'
 import { nameOrEmailFilter, sanitizeSearch } from '@/lib/data/people'
+import { run } from '@/lib/db/sql'
 
 /**
  * The owner's report picker (/super-admin/reports, R1): the teacher, student or
@@ -21,6 +22,37 @@ export type ReportTargetKind = 'teacher' | 'student' | 'group'
 export const REPORT_TARGET_KINDS: readonly ReportTargetKind[] = ['teacher', 'student', 'group']
 
 export interface ReportTarget { id: string; label: string; email?: string }
+
+/**
+ * The same search on the SQL layer (step 9), read as the owner — RLS stays the
+ * boundary. The term is a bound parameter; sanitizeSearch already removed the
+ * LIKE wildcards, so a lone `%` cannot match everyone.
+ */
+export async function searchReportTargetsAs(
+  userId: string,
+  tenantId: string,
+  kind: ReportTargetKind,
+  q: string,
+): Promise<ReportTarget[]> {
+  const search = sanitizeSearch(q)
+  if (!search) return []
+  const pattern = `%${search}%`
+  if (kind === 'group') {
+    const [rows] = await run({ as: 'user', userId }, sql => [
+      sql`select id, name from public.groups
+           where tenant_id = ${tenantId} and name ilike ${pattern}
+           order by name, id limit ${REPORT_TARGET_LIMIT}`,
+    ])
+    return (rows as unknown as { id: string; name: string }[]).map(g => ({ id: g.id, label: g.name }))
+  }
+  const [rows] = await run({ as: 'user', userId }, sql => [
+    sql`select id, full_name, email from public.users
+         where tenant_id = ${tenantId} and role = ${kind} and (full_name ilike ${pattern} or email ilike ${pattern})
+         order by full_name, id limit ${REPORT_TARGET_LIMIT}`,
+  ])
+  return (rows as unknown as { id: string; full_name: string | null; email: string | null }[])
+    .map(u => ({ id: u.id, label: u.full_name ?? '', email: u.email ?? '' }))
+}
 
 export async function searchReportTargets(
   db: SupabaseClient,

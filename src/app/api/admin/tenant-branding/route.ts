@@ -1,8 +1,7 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { isLocale } from '@/i18n/config'
 
 // PATCH /api/admin/tenant-branding  { name, logo_url, default_locale? }
@@ -14,22 +13,14 @@ import { isLocale } from '@/i18n/config'
 // 2026-09-13 in a rolled-back transaction). A plain RLS policy is not the
 // fix: RLS cannot restrict columns, and `tenants.is_active` must never be
 // writable by the tenant's own admin (a suspended university could un-suspend
-// itself). So the write goes through the service-role client here, and only
-// the branding columns and the institution's default language are ever
-// touched. default_locale (emails, and the interface of anyone who has not
-// picked a language) is optional: left out, it is not changed.
-function adminClient() {
-  return getAdminDb()
-}
-
+// itself). So the write runs here as app_service, and only the branding
+// columns and the institution's default language are ever touched.
+// default_locale (emails, and the interface of anyone who has not picked a
+// language) is optional: left out, it is not changed.
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id || profile.role !== 'university_admin') {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!ctx.tenant_id || ctx.role !== 'university_admin') {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -55,20 +46,28 @@ export async function PATCH(request: Request) {
   if (body.default_locale !== undefined && !isLocale(body.default_locale)) {
     return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   }
-  const update: { name: string; logo_url: string | null; default_locale?: string } = { name, logo_url: logoUrl }
-  if (isLocale(body.default_locale)) update.default_locale = body.default_locale
+  const locale = isLocale(body.default_locale) ? body.default_locale : null
 
-  // Tenant comes from the caller's own profile — never from the request body.
-  const { data, error } = await adminClient()
-    .from('tenants')
-    .update(update)
-    .eq('id', profile.tenant_id)
-    .select('id, name, logo_url, default_locale')
-    .single()
-
-  if (error || !data) {
-    console.error('[api/admin/tenant-branding PATCH]', error)
+  // One statement, pinned to the caller's institution: the tenant is the
+  // caller's own LIVE institution (never the request body), and only while
+  // they are still its active admin.
+  try {
+    const [rows] = await run({ as: 'service', tenantId: ctx.tenant_id }, sql => [
+      sql`with me as (
+            select tenant_id from public.users
+             where id = ${ctx.sub} and role = 'university_admin' and is_active is not false
+          )
+          update public.tenants t
+             set name = ${name}, logo_url = ${logoUrl}, default_locale = coalesce(${locale}::text, t.default_locale)
+            from me
+           where t.id = me.tenant_id
+          returning t.id, t.name, t.logo_url, t.default_locale`,
+    ])
+    const tenant = maybeOne(rows)
+    if (!tenant) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+    return NextResponse.json({ tenant })
+  } catch (e) {
+    console.error('[api/admin/tenant-branding PATCH]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('settingsSaveFailed')) }, { status: 500 })
   }
-  return NextResponse.json({ tenant: data })
 }

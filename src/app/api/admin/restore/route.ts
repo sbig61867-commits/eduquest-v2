@@ -1,24 +1,16 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-
-function adminClient() {
-  return getAdminDb()
-}
+import { run } from '@/lib/db/sql'
 
 const KINDS = new Set(['group', 'lesson', 'exam', 'course'])
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // POST /api/admin/restore — un-archive an entity (university_admin / super_admin).
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile || !['university_admin', 'super_admin'].includes(profile.role ?? '')) {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!['university_admin', 'super_admin'].includes(ctx.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -26,7 +18,7 @@ export async function POST(request: Request) {
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  if (!body.id || !body.kind || !KINDS.has(body.kind)) {
+  if (!body.id || !body.kind || !KINDS.has(body.kind) || !UUID.test(body.id)) {
     return NextResponse.json({ ...(await apiErr('invalidTypeOrId')) }, { status: 400 })
   }
 
@@ -36,19 +28,23 @@ export async function POST(request: Request) {
   // always scoped to their own tenant — a client-supplied tenant_id in the
   // body is ignored for that role, not honored, so they can never target
   // another tenant by tampering with the request.
-  const tenant_id = profile.role === 'super_admin'
-    ? (body.tenant_id ?? null)
-    : profile.tenant_id
-
-  if (!tenant_id) {
+  const isOwner = ctx.role === 'super_admin'
+  const tenant_id = isOwner ? (body.tenant_id ?? null) : ctx.tenant_id
+  if (!tenant_id || !UUID.test(tenant_id)) {
     return NextResponse.json({ ...(await apiErr('tenantIdRequired')) }, { status: 400 })
   }
 
-  const { error } = await adminClient().rpc('restore_entity', {
-    p_kind: body.kind, p_id: body.id, p_tenant_id: tenant_id, p_actor: user.id,
-  })
-  if (error) {
-    console.error('[api/admin/restore]', error)
+  // restore_entity re-derives the actor's role and institution from
+  // public.users and refuses a mismatch; the owner runs in platform scope,
+  // an institution admin pinned to their own institution.
+  const kind = body.kind
+  const id = body.id
+  try {
+    await run(isOwner ? { as: 'service', platform: true } : { as: 'service', tenantId: tenant_id }, sql => [
+      sql`select public.restore_entity(p_kind => ${kind}, p_id => ${id}, p_tenant_id => ${tenant_id}, p_actor => ${ctx.sub})`,
+    ])
+  } catch (e) {
+    console.error('[api/admin/restore]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('restoreFailed')) }, { status: 500 })
   }
   return NextResponse.json({ ok: true })

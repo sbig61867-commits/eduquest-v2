@@ -14,7 +14,6 @@
 //             course-linked group). A teacher with neither is not claimed by
 //             the centre yet, so the institution admin decides.
 
-import type { SupabaseClient } from '@/lib/db'
 import { run } from '@/lib/db/sql'
 
 export type ScopeBlock = 'universityStudent' | 'sharedTeacher' | 'unassignedTeacher'
@@ -54,20 +53,10 @@ export function teacherFootprints(groups: Row[], courses: Row[]): Map<string, Te
   return out
 }
 
-/** Loads one teacher's footprint (live rows only). Errors fail closed — the teacher counts as shared. */
-export async function loadTeacherFootprint(client: SupabaseClient, tenantId: string, teacherId: string): Promise<TeacherFootprint> {
-  const [groups, courses] = await Promise.all([
-    client.from('groups').select('teacher_id, course_id').eq('tenant_id', tenantId).eq('teacher_id', teacherId).is('deleted_at', null),
-    client.from('courses').select('teacher_id').eq('tenant_id', tenantId).eq('teacher_id', teacherId).is('deleted_at', null),
-  ])
-  if (groups.error || courses.error) return { universityGroups: 1, centreItems: 0 }
-  return teacherFootprints(groups.data ?? [], courses.data ?? []).get(teacherId) ?? { universityGroups: 0, centreItems: 0 }
-}
-
 /**
- * The same footprint on the SQL layer (step 9), read as app_service pinned to
- * the institution: groups and courses of one teacher, in one unit. Replaces
- * loadTeacherFootprint once its last caller has moved.
+ * One teacher's footprint (live rows only), read as app_service pinned to the
+ * institution: groups and courses of that teacher, in one unit. Errors fail
+ * closed — the teacher counts as shared.
  */
 export async function loadTeacherFootprintSql(tenantId: string, teacherId: string): Promise<TeacherFootprint> {
   try {

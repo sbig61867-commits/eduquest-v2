@@ -1,17 +1,14 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne, type Row } from '@/lib/db/sql'
 
-function adminClient() {
-  return getAdminDb()
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // POST /api/admin/archive-tenant  body: { tenant_id, archive: boolean }
 // Archiving deactivates the university AND every user inside it, so none of them
-// can log in (is_active flows into the JWT via the sync_user_claims trigger, which
-// the auth proxy enforces). No data is deleted.
+// can sign in (is_active is checked live by the proxy on every write and on the
+// session refresh). No data is deleted.
 //
 // The user cascade is done by the DB trigger on_tenant_active_change
 // (supabase/fix_admin_user_escalation_migration.sql), NOT here: it marks the
@@ -19,13 +16,9 @@ function adminClient() {
 // restore re-activates only those — an account disabled individually before
 // the suspension stays disabled. A blanket users update here would undo that.
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const caller = await getSessionUser(supabase)
-  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: callerProfile } = await supabase
-    .from('users').select('role').eq('id', caller.id).single()
-  if (callerProfile?.role !== 'super_admin') {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (ctx.role !== 'super_admin') {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -37,17 +30,22 @@ export async function POST(request: Request) {
   if (!tenant_id || typeof archive !== 'boolean') {
     return NextResponse.json({ ...(await apiErr('tenantIdAndArchiveRequired')) }, { status: 400 })
   }
+  if (!UUID.test(tenant_id)) return NextResponse.json({ ...(await apiErr('tenantUpdateFailed')) }, { status: 500 })
 
-  const admin = adminClient()
-  const nextActive = !archive  // archive=true -> is_active=false
-
-  // 1. Flip the tenant's active flag
-  const { data: tenant, error: tenantErr } = await admin
-    .from('tenants').update({ is_active: nextActive }).eq('id', tenant_id).select().single()
-  if (tenantErr || !tenant) {
-    console.error('[archive-tenant] tenant update:', tenantErr)
+  // One unit, platform scope (the owner is cross-tenant): the flag flips only
+  // while the caller is still an active super_admin.
+  try {
+    const [rows] = await run({ as: 'service', platform: true }, sql => [
+      sql`update public.tenants set is_active = ${!archive}
+           where id = ${tenant_id}
+             and exists (select 1 from public.users where id = ${ctx.sub} and role = 'super_admin' and is_active is not false)
+          returning *`,
+    ])
+    const tenant = maybeOne<Row>(rows)
+    if (!tenant) return NextResponse.json({ ...(await apiErr('tenantUpdateFailed')) }, { status: 500 })
+    return NextResponse.json({ tenant, archived: archive })
+  } catch (e) {
+    console.error('[archive-tenant] tenant update:', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('tenantUpdateFailed')) }, { status: 500 })
   }
-
-  return NextResponse.json({ tenant, archived: archive })
 }

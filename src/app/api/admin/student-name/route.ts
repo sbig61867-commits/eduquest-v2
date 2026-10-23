@@ -1,12 +1,15 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx, serviceScopeFor } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { canManageAccountOf, serviceClient } from '@/lib/staff-auth'
+import { run, maybeOne } from '@/lib/db/sql'
+import { canManageAccountOf } from '@/lib/staff-auth'
 import { studentBlock } from '@/lib/account-scope'
-import { checkNameParts } from '@/lib/person-name'
-import { saveStudentName } from '@/lib/student-names'
+import { checkNameParts, shortStudentName } from '@/lib/person-name'
+import { loadStaffTarget } from '@/lib/staff-target'
 import { rateLimit } from '@/lib/rate-limit'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const STAFF = ['university_admin', 'super_admin', 'center_manager']
 
 // PATCH /api/admin/student-name  { userId, nameParts: { first, father, grandfather, family } }
 //
@@ -14,24 +17,13 @@ import { rateLimit } from '@/lib/rate-limit'
 // (users_update pins full_name for students — supabase/student_name_lock_migration.sql),
 // so correcting it is the institution's job. Staff cannot READ the middle names
 // (only the student can), so a correction is written whole from the
-// institution's records. Same shape as toggle-user: authorize with the USER
-// session, verify the target is a student of the caller's tenant that the caller
-// may manage, then write with the service-role client.
+// institution's records. Same shape as toggle-user: the caller (live) and the
+// target in one unit, then the write in the caller's institution.
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: caller } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-
-  if (!caller || !['university_admin', 'super_admin', 'center_manager'].includes(caller.role)) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
-  // Student management capability, for admins as well as centre managers.
-  if (!canManageAccountOf(caller, 'student')) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!STAFF.includes(ctx.role ?? '')) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const rl = await rateLimit(`student-name:${user.id}`, { limit: 120, windowSecs: 3600 })
   if (!rl.allowed) {
@@ -53,9 +45,17 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ...(await apiErr('studentNameInvalid')), fields: name.errors }, { status: 400 })
   }
 
-  const { data: target } = await supabase
-    .from('users').select('id, tenant_id, role, is_university_student').eq('id', body.userId).single()
-
+  if (!UUID.test(body.userId)) return NextResponse.json({ ...(await apiErr('studentNotFound')) }, { status: 404 })
+  const loaded = await loadStaffTarget(ctx, body.userId)
+  const caller = loaded?.me
+  if (!caller || !STAFF.includes(caller.role)) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  }
+  // Student management capability, for admins as well as centre managers.
+  if (!canManageAccountOf(caller, 'student')) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  }
+  const target = loaded.target
   if (!target || target.role !== 'student') {
     return NextResponse.json({ ...(await apiErr('studentNotFound')) }, { status: 404 })
   }
@@ -71,11 +71,31 @@ export async function PATCH(request: Request) {
 
   // The four parts go to the student's private row; staff get back only the
   // short name their screens show (src/lib/student-names.ts).
+  // One unit: the private row and the short name, written only while the
+  // caller is still a live staff member of the student's institution.
+  const stored = shortStudentName(name.parts)
+  const p = name.parts
   try {
-    const stored = await saveStudentName(serviceClient(), target.id, name.parts)
+    const [, rows] = await run(serviceScopeFor(ctx)!, sql => [
+      sql`insert into public.student_names (user_id, first_name, father_name, grandfather_name, family_name, updated_at)
+          select u.id, ${p.first}, ${p.father}, ${p.grandfather}, ${p.family}, now()
+            from public.users u, public.users me
+           where u.id = ${target.id} and u.role = 'student'
+             and me.id = ${user.id} and me.is_active is not false and me.role in ('university_admin', 'super_admin', 'center_manager')
+             and (me.role = 'super_admin' or me.tenant_id = u.tenant_id)
+          on conflict (user_id) do update set first_name = excluded.first_name, father_name = excluded.father_name,
+            grandfather_name = excluded.grandfather_name, family_name = excluded.family_name, updated_at = excluded.updated_at`,
+      sql`update public.users u set full_name = ${stored}, name_complete = true
+            from public.users me
+           where u.id = ${target.id} and u.role = 'student'
+             and me.id = ${user.id} and me.is_active is not false and me.role in ('university_admin', 'super_admin', 'center_manager')
+             and (me.role = 'super_admin' or me.tenant_id = u.tenant_id)
+          returning u.id`,
+    ])
+    if (!maybeOne(rows)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     return NextResponse.json({ ok: true, full_name: stored, name_complete: stored === name.shortName })
   } catch (e) {
-    console.error('[student-name]', e)
+    console.error('[student-name]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('studentNameUpdateFailed')) }, { status: 500 })
   }
 }

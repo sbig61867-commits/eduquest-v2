@@ -1,50 +1,50 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentCtx } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 
 const PAGE_SIZE = 50
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
-  if (!user || user.role !== 'super_admin') {
+  const ctx = await currentCtx()
+  if (!ctx || ctx.role !== 'super_admin') {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   const { searchParams } = new URL(request.url)
   const tenantId = searchParams.get('tenant_id')
-  const role     = searchParams.get('role') ?? undefined
+  const role     = searchParams.get('role') || null
   const search   = searchParams.get('search') ?? ''
-  const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1)
 
   if (!tenantId) return NextResponse.json({ ...(await apiErr('tenantIdRequired')) }, { status: 400 })
+  if (!UUID.test(tenantId)) return NextResponse.json({ users: [], total: 0, page, pageSize: PAGE_SIZE })
 
-  let query = supabase
-    .from('users')
-    // Exactly the fields the owner's users table reads (users-client.tsx `User`);
-    // member_code is live (member_code_migration.sql applied).
-    .select('id, full_name, email, role, is_active, created_at, tenant_id, member_code', { count: 'exact' })
-    .eq('tenant_id', tenantId)
-
-  if (role) query = query.eq('role', role)
-  if (search) {
-    // `search` is interpolated into a PostgREST filter string, where `,` `.`
-    // `(` `)` and `"` are syntax — an unescaped value can inject extra filter
-    // conditions and widen the query beyond the tenant scope. Strip them, and
-    // strip the LIKE wildcards too so a lone `%` can't turn into "match all".
-    const safe = search.replace(/[,.()"%\\*:]/g, ' ').trim().slice(0, 100)
-    if (safe) query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%`)
-  }
-
+  // The search is a bound parameter (no filter string to inject into); the
+  // LIKE wildcards are still stripped so a lone `%` cannot match everyone.
+  const safe = search.replace(/[%\\*_]/g, ' ').trim().slice(0, 100)
+  const pattern = safe ? `%${safe}%` : null
   const from = (page - 1) * PAGE_SIZE
-  const { data, count, error } = await query
-    .order('created_at', { ascending: false })
-    .range(from, from + PAGE_SIZE - 1)
 
-  if (error) {
-    console.error('[tenant-users]', error)
+  // One statement, read as the owner (RLS: super_admin sees every account):
+  // exactly the fields the owner's users table reads (users-client.tsx `User`)
+  // and the total of the filtered set.
+  try {
+    const [rows] = await run({ as: 'user', userId: ctx.sub }, sql => [
+      sql`select id, full_name, email, role, is_active, created_at, tenant_id, member_code, count(*) over () as total
+            from public.users
+           where tenant_id = ${tenantId}
+             and (${role}::text is null or role = ${role}::text)
+             and (${pattern}::text is null or full_name ilike ${pattern}::text or email ilike ${pattern}::text)
+           order by created_at desc
+           limit ${PAGE_SIZE} offset ${from}`,
+    ])
+    const list = rows as unknown as ({ total: number | string } & Record<string, unknown>)[]
+    const total = list.length ? Number(list[0].total) : 0
+    return NextResponse.json({ users: list.map(({ total: _t, ...u }) => (void _t, u)), total, page, pageSize: PAGE_SIZE })
+  } catch (e) {
+    console.error('[tenant-users]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('usersLoadFailed')) }, { status: 500 })
   }
-
-  return NextResponse.json({ users: data ?? [], total: count ?? 0, page, pageSize: PAGE_SIZE })
 }

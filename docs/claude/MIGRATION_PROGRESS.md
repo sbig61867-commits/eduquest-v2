@@ -165,3 +165,11 @@
 - Found on the trial: `check_ai_allowance` and `record_ai_usage` were SECURITY INVOKER (fine under Supabase's service_role, which bypasses RLS; 42501 under app_service). Migration `neon/migrations/0009_ai_ledger_definer.sql` makes them SECURITY DEFINER (already schema-qualified, search_path pinned, tenant re-derived inside), execution app_service only — dry-run, then applied to the trial.
 - Trial e2e `ai-metering-trial` 5/5 (two institutions: usage recorded in the caller's institution only; AI-off institution refused before any call and recorded as blocked; stale session of another institution refused; deactivated account refused; another user's id not authorized; quota panel). No provider is called in the test.
 - Full suite green.
+
+## Step 9 — data batch 6: institution administration (2026-10-23)
+- New `src/lib/staff-target.ts` `loadStaffTarget()`: the caller's LIVE row, the target account (visible only inside the caller's institution; the owner: platform scope), and on request the teacher footprint, seat usage and institution settings — ONE unit. Every write that follows repeats its conditions in the statement (`me` CTE: live, staff role, same institution; target role).
+- `toggle-user` (was up to 5 trips → 2), `student-affiliation` (4 → 2), `student-name` (3 → 2, private row + short name in one unit), `teacher-permissions` (3 → 2), `permissions` (3 → 2, write bound to the checked role), `tenant-branding` (2 → 1, the institution is the caller's live row, never the body), `archive-tenant` (2 → 1), `restore` (2 → 1; restore_entity re-derives the actor), `tenant-users` (count + page in one statement), `member-lookup` (3 → 1, names via json_agg), `report-targets` (`searchReportTargetsAs`).
+- Removed the Supabase `loadTeacherFootprint` (no callers left).
+- Found on the trial: `array(...)` comes back as text with this driver setup → use `json_agg`.
+- Trial e2e `admin-routes-trial` 9/9 (two institutions: other-institution accounts not found for toggle/affiliation/name/teacher/staff capabilities; seat limit; demoted admin; centre-manager scope; no escalation; branding never touches is_active or another institution; restore of another institution's archive refused; owner tools refused to an admin; suspend cascades and restores).
+- Full suite green (1,741).
