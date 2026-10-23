@@ -1,8 +1,7 @@
-import { getAuthAccount } from '@/lib/auth/admin'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/db'
-import { createClient } from '@/lib/supabase/server'
+import { run, maybeOne } from '@/lib/db/sql'
+import { startSession } from '@/lib/auth/sign-in'
 import { rateLimit } from '@/lib/rate-limit'
 import { isMemberCode, normalizeMemberCode } from '@/lib/member-login'
 import { captchaTokenFrom, ipLimitFor, type TieredLimit } from '@/lib/captcha'
@@ -21,7 +20,7 @@ const IP_LIMITS: TieredLimit = {
 // auth email on the server only — the response never reveals it, and an
 // unknown ID fails exactly like a wrong password.
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   const body = await request.json().catch(() => ({}))
   const code = normalizeMemberCode(typeof body.code === 'string' ? body.code : '')
   const password = typeof body.password === 'string' ? body.password : ''
@@ -35,20 +34,10 @@ export async function POST(request: Request) {
   const byIp = await rateLimit(key, ipLimit)
   if (!byIp.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
 
-  const admin = getAdminDb()
-  const { data: member } = await admin.from('users').select('id, email').eq('member_code', code).maybeSingle()
-  if (!member) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
-
-  // The auth email is the source of truth (public.users.email is a copy).
-  const email = (await getAuthAccount(admin, member.id))?.email ?? member.email
+  // member_login_email() is the only lookup sign-in needs, callable by app_system only
+  const [rows] = await run({ as: 'system' }, sql => [sql`select public.member_login_email(${code}) as email`])
+  const email = maybeOne<{ email: string | null }>(rows)?.email
   if (!email) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
 
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error || !data.user) return NextResponse.json({ ...(await apiErr('invalidLogin')) }, { status: 401 })
-
-  return NextResponse.json({
-    role: data.user.app_metadata?.user_role ?? null,
-    mustChangePassword: data.user.app_metadata?.must_change_password === true,
-  })
+  return startSession(email, password, request, 'invalidLogin')
 }

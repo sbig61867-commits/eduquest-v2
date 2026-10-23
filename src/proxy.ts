@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { readSession } from '@/lib/auth/proxy-session'
+import { loadCtx, type SessionCtx } from '@/lib/auth/session'
+import { run, maybeOne } from '@/lib/db/sql'
 import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS } from '@/i18n/config'
 import { resolveLocale } from '@/i18n/resolve'
 import { LOCALE_HEADER, isMarketingPath, splitLocalizedPath } from '@/i18n/public-routes'
@@ -18,7 +20,7 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // scripts/copy-human-models.mjs); the proxy matcher only skips images.
 // /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
 // and is gated by CRON_SECRET inside the route instead.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/auth/sign-in', '/api/contact', '/api/auth/forgot-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true
@@ -34,10 +36,6 @@ function isMutatingApiRequest(request: NextRequest, pathname: string): boolean {
 }
 
 const CHANGE_PASSWORD_PATH = '/change-password'
-
-function mustChangePassword(user: { app_metadata?: Record<string, unknown> }): boolean {
-  return user.app_metadata?.must_change_password === true
-}
 
 const ROLE_ROUTES: Record<string, Role[]> = {
   '/super-admin': ['super_admin'],
@@ -55,51 +53,29 @@ const ROLE_DASHBOARDS: Record<Role, string> = {
   student: '/student/dashboard',
 }
 
-// Identity (role + is_active) is carried in the JWT's app_metadata, synced from
-// public.users by the `on_user_claims_change` trigger. getClaims() validates the
-// token locally (cached JWKS — no network round-trip) and returns app_metadata,
-// so the proxy gets both with NO extra network call on every request — the main
-// per-navigation latency win.
-// A one-time DB fallback covers legacy users whose claims were never backfilled.
-type Claims = { role: Role | undefined; isActive: boolean | undefined }
-
-function claimsFromUser(user: { app_metadata?: Record<string, unknown> }): Claims {
-  const meta = user.app_metadata ?? {}
-  return {
-    role: meta.user_role as Role | undefined,
-    isActive: typeof meta.is_active === 'boolean' ? meta.is_active : undefined,
-  }
-}
+// Identity (role, is_active, institution, must_change_password) comes from
+// tm_ctx, a token we sign and refresh every 15 minutes (src/lib/auth). Reading
+// it costs no network call and no query on a normal request.
 
 /**
  * Establish the `eq_locale` cookie — once, not per request.
  *
  * The locale chain (user → tenant → platform) lives in the database, but
- * reading it on every navigation would undo the whole reason the proxy uses
- * getClaims() instead of getUser(): no per-request DB round-trip. So the chain
- * is collapsed exactly once, on the first authenticated request that arrives
- * without the cookie (i.e. right after login, or after the user clears it),
+ * reading it on every navigation would undo the no-query fast path. So the
+ * chain is collapsed exactly once, on the first authenticated request that
+ * arrives without the cookie (right after login, or after the user clears it),
  * and every request afterwards reads the cookie alone — zero queries.
  *
- * The cookie is written even when the query fails or returns nothing. That is
- * deliberate: it caps the cost of the exceptional path at one query per
- * session rather than one per request, and the value it falls back to is the
- * platform default, which is what would have been rendered anyway.
+ * The cookie is written even when the query fails or returns nothing: that
+ * caps the cost of the exceptional path at one query per session, and the
+ * fallback is the platform default, which would have been rendered anyway.
  *
- * Tolerating a failed query also makes this safe to ship BEFORE
- * supabase/locale_preferences_migration.sql is applied — `users.locale` and
- * `tenants.default_locale` do not exist yet, PostgREST 400s, and the platform
- * default stands. Same pattern as src/lib/structure-mode.ts.
- *
- * Not in the JWT: locale is a display preference with no authorization value,
- * and app_metadata only re-mints on token refresh (~1h), so a language switch
- * would appear to do nothing for an hour. A cookie is both cheaper and
- * immediate.
+ * Not in tm_ctx: locale is a display preference with no authorization value,
+ * and a cookie makes a language switch immediate.
  */
 async function ensureLocaleCookie(
   request: NextRequest,
   response: NextResponse,
-  supabase: Awaited<ReturnType<typeof updateSession>>['supabase'],
   userId: string
 ): Promise<void> {
   if (request.cookies.get(LOCALE_COOKIE)) return
@@ -107,16 +83,14 @@ async function ensureLocaleCookie(
   let user: unknown
   let tenant: unknown
   try {
-    const { data } = await supabase
-      .from('users')
-      .select('locale, tenants(default_locale)')
-      .eq('id', userId)
-      .single()
-    const row = data as { locale?: unknown; tenants?: { default_locale?: unknown } | null } | null
+    const [rows] = await run({ as: 'user', userId }, sql => [
+      sql`select u.locale, t.default_locale from public.users u left join public.tenants t on t.id = u.tenant_id where u.id = ${userId}`,
+    ])
+    const row = maybeOne<{ locale?: unknown; default_locale?: unknown }>(rows)
     user = row?.locale
-    tenant = row?.tenants?.default_locale
+    tenant = row?.default_locale
   } catch {
-    // Pre-migration, or a transient Supabase error. Fall through to default.
+    // A transient database error. Fall through to default.
   }
 
   response.cookies.set(LOCALE_COOKIE, resolveLocale({ user, tenant }), LOCALE_COOKIE_OPTIONS)
@@ -182,7 +156,7 @@ function withEdgeCache(request: NextRequest, response: NextResponse, signedIn: b
 }
 
 export async function proxy(request: NextRequest) {
-  const { supabaseResponse, claims: user, supabase } = await updateSession(request)
+  const { response: sessionResponse, ctx: user } = await readSession(request)
   // `/en/pricing` is handled as `/pricing` in English; see src/i18n/public-routes.ts.
   const localized = splitLocalizedPath(request.nextUrl.pathname)
   const pathname = localized?.path ?? request.nextUrl.pathname
@@ -194,18 +168,12 @@ export async function proxy(request: NextRequest) {
     // /privacy and /terms must stay readable while logged in, and /api/ public
     // routes must never be turned into a dashboard redirect.
     if (user && (pathname === '/' || pathname === '/login')) {
-      let { role, isActive } = claimsFromUser(user)
-      if (!role || isActive === undefined) {
-        const { data: profile } = await supabase
-          .from('users').select('role, is_active').eq('id', user.sub).single()
-        role     = (profile?.role as Role | undefined) ?? role
-        isActive = profile?.is_active ?? isActive
-      }
+      const role = user.role as Role | null
       // Don't redirect disabled users — they stay on /login to see the error message
-      if (isActive === false) {
-        return localized ? rewriteLocalized(request, supabaseResponse, localized.locale, localized.path) : supabaseResponse
+      if (!user.is_active) {
+        return localized ? rewriteLocalized(request, sessionResponse, localized.locale, localized.path) : sessionResponse
       }
-      if (mustChangePassword(user)) {
+      if (user.must_change_password) {
         return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
       }
       if (role && ROLE_DASHBOARDS[role]) {
@@ -214,10 +182,10 @@ export async function proxy(request: NextRequest) {
     }
     if (localized) {
       const marketing = isMarketingPath(localized.path)
-      const rewritten = rewriteLocalized(request, supabaseResponse, localized.locale, localized.path, !!user || !marketing)
+      const rewritten = rewriteLocalized(request, sessionResponse, localized.locale, localized.path, !!user || !marketing)
       return marketing ? withEdgeCache(request, rewritten, !!user) : rewritten
     }
-    return supabaseResponse
+    return sessionResponse
   }
 
   // ── Protected routes — must be logged in ──
@@ -225,39 +193,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Read role + is_active + tenant_id from JWT claims; fall back to DB only if absent.
-  let { role, isActive } = claimsFromUser(user)
-  let tenantId: string | null | undefined = (user.app_metadata?.tenant_id as string | null) ?? undefined
+  const role = user.role as Role | null
+  const tenantId = user.tenant_id
 
-  if (role === undefined || isActive === undefined) {
-    const { data: profile } = await supabase
-      .from('users').select('role, is_active, tenant_id').eq('id', user.sub).single()
-    role     = (profile?.role as Role | undefined) ?? role
-    isActive = profile?.is_active ?? isActive
-    tenantId = profile?.tenant_id ?? tenantId
-  }
-
-  if (isActive === false) {
+  if (!user.is_active) {
     return NextResponse.redirect(new URL('/login?error=account_disabled', request.url))
   }
 
-  // `is_active` above came from the JWT, which is only re-minted when the
-  // access token refreshes (~1h). So an account disabled a minute ago still
-  // presents is_active: true, and every API route handler trusts the session
-  // without re-reading the flag — a suspended teacher could keep creating and
-  // grading for up to an hour with a stale-but-valid token. <TenantWatcher>
-  // catches this in ~60s, but only for a real browser sitting on a page; a
-  // script holding the token ignores it entirely.
-  //
-  // Re-read the live flag from the DB for WRITES only. Reads stay on the
-  // pure-JWT fast path, so the per-navigation latency win that motivated
-  // getClaims() is preserved — mutations are rare and already do DB work.
+  // `is_active` above came from tm_ctx, which is up to 15 minutes old. Reads
+  // are safe anyway (the database denies a deactivated account on every query),
+  // but routes authorize with the session and then write as app_service, so a
+  // suspended account must be stopped before a write, not 15 minutes later.
+  // Re-read the live flag for WRITES only; reads keep the no-query fast path.
   if (isMutatingApiRequest(request, pathname)) {
-    const { data: live } = await supabase
-      .from('users').select('is_active').eq('id', user.sub).single()
+    const live: SessionCtx | null = await loadCtx(user.sub).catch(() => null)
     // Fail closed on an explicit false; a missing row or query error leaves
-    // the JWT verdict standing rather than locking everyone out on a blip.
-    if (live?.is_active === false) {
+    // the session verdict standing rather than locking everyone out on a blip.
+    if (live && !live.is_active) {
       return NextResponse.json({ error: 'Account disabled' }, { status: 403 })
     }
   }
@@ -272,15 +224,15 @@ export async function proxy(request: NextRequest) {
   }
 
   // A temporary password set by staff must be replaced before anything else.
-  // The flag lives in app_metadata (service-role only), so it rides in the JWT
-  // and costs no query; /api/auth/change-password clears it.
-  if (mustChangePassword(user) && pathname !== CHANGE_PASSWORD_PATH && pathname !== '/api/auth/change-password') {
+  // The flag rides in tm_ctx and costs no query; /api/auth/change-password
+  // clears it and issues a fresh tm_ctx.
+  if (user.must_change_password && pathname !== CHANGE_PASSWORD_PATH && pathname !== '/api/auth/change-password') {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Password change required' }, { status: 403 })
     }
     return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
   }
-  if (pathname === CHANGE_PASSWORD_PATH) return supabaseResponse
+  if (pathname === CHANGE_PASSWORD_PATH) return sessionResponse
 
   // RBAC check
   for (const [routePrefix, allowedRoles] of Object.entries(ROLE_ROUTES)) {
@@ -291,9 +243,9 @@ export async function proxy(request: NextRequest) {
 
   // Last thing before the response leaves: no-op on every request that already
   // carries the cookie, which is all of them after the first.
-  await ensureLocaleCookie(request, supabaseResponse, supabase, user.sub)
+  await ensureLocaleCookie(request, sessionResponse, user.sub)
 
-  return supabaseResponse
+  return sessionResponse
 }
 
 export const config = {

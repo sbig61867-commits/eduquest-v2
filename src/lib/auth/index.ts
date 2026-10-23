@@ -1,17 +1,19 @@
 import type { SupabaseClient } from '@/lib/db'
+import { currentUser } from './current'
 
 // Stage 4 (step 6) access layer for identity. Code outside this folder asks
 // "who is signed in" here instead of calling the auth provider directly, so
-// the provider (Supabase Auth today, Neon Auth next) is swapped in one place.
+// the provider (Better Auth inside our Worker, src/lib/auth/better.ts) is
+// swapped in one place.
 // See docs/MIGRATION_CLOUDFLARE_NEON.md.
 
 export type SessionUser = { id: string; email?: string }
 
-// Confirms the session with the auth server, not just the token signature.
-// Use it before privileged writes; server components that only render can use
-// getAuthUser (local token check) instead.
-export async function getSessionUser(db: SupabaseClient): Promise<SessionUser | null> {
-  const { data: { user } } = await db.auth.getUser()
+// The signed-in user for a route handler (id and email). The client argument
+// is kept so existing call sites stay unchanged; it is not used. Writes are
+// re-checked against the live account by the proxy before the handler runs.
+export async function getSessionUser(_db?: SupabaseClient): Promise<SessionUser | null> {
+  const user = await currentUser()
   return user ? { id: user.id, email: user.email } : null
 }
 

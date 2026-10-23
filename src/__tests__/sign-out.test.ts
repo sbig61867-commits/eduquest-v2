@@ -1,16 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const localSignOut = vi.fn()
-vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({ auth: { signOut: localSignOut } }) }))
-
-// Route dependencies
+// Route dependencies: the Better Auth revoke, and the cookies of the request
 const serverSignOut = vi.fn()
-vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { signOut: serverSignOut } }) }))
+vi.mock('@/lib/auth/better', () => ({ authSignOut: (...a: unknown[]) => serverSignOut(...a) }))
 vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
   cookies: async () => ({
     getAll: () => [
-      { name: 'sb-abc-auth-token.0', value: 'x' },
-      { name: 'sb-abc-auth-token.1', value: 'y' },
+      { name: 'tm.session_token', value: 'x' },
+      { name: '__Secure-tm.session_data', value: 'y' },
+      { name: 'tm_ctx', value: 'z' },
       { name: 'eq_locale', value: 'ar' },
     ],
   }),
@@ -24,7 +23,6 @@ describe('signOutAndLeave', () => {
   const replace = vi.fn()
   beforeEach(() => {
     replace.mockReset()
-    localSignOut.mockReset().mockResolvedValue({ error: null })
     vi.stubGlobal('location', { ...window.location, replace })
     useAuthStore.setState({ user: { id: 'u1' } as never, tenant: { id: 't1' } as never })
   })
@@ -41,7 +39,6 @@ describe('signOutAndLeave', () => {
 
   it('still leaves when the network fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
-    localSignOut.mockRejectedValue(new Error('offline'))
     await signOutAndLeave('/login?reason=user_disabled')
     expect(replace).toHaveBeenCalledWith('/login?reason=user_disabled')
   })
@@ -49,7 +46,6 @@ describe('signOutAndLeave', () => {
   it('never hangs on a stuck request', async () => {
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
-    localSignOut.mockImplementation(() => new Promise(() => {}))
     const done = signOutAndLeave()
     await vi.advanceTimersByTimeAsync(7000)
     await done
@@ -58,11 +54,11 @@ describe('signOutAndLeave', () => {
 })
 
 describe('POST /auth/signout', () => {
-  it('deletes every Supabase auth cookie even when the revoke call fails', async () => {
+  it('deletes every session cookie even when the revoke call fails', async () => {
     serverSignOut.mockRejectedValue(new Error('network'))
     const res = await POST()
     const cleared = res.cookies.getAll().filter(c => c.value === '').map(c => c.name).sort()
-    expect(cleared).toEqual(['sb-abc-auth-token.0', 'sb-abc-auth-token.1'])
+    expect(cleared).toEqual(['__Secure-tm.session_data', 'tm.session_token', 'tm_ctx'])
     expect(res.cookies.get('eq_locale')).toBeUndefined() // the language preference survives
   })
 })

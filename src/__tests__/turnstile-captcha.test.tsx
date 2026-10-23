@@ -168,23 +168,19 @@ describe('POST /api/auth/login-id', () => {
   beforeEach(() => {
     vi.resetModules()
     state.signIn = []; state.signInError = null
-    vi.doMock('@supabase/supabase-js', () => ({
-      createClient: () => ({
-        from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'u1', email: 'QOU-S48203917' } }) }) }) }),
-        auth: { admin: { getUserById: async () => ({ data: { user: { email: 'u1@no-email.invalid' } } }) } },
-      }),
+    // the member code resolves to the account's sign-in email (member_login_email, app_system)
+    vi.doMock('@/lib/db/sql', () => ({
+      run: async () => [[{ email: 'u1@no-email.invalid' }]],
+      maybeOne: (rows: unknown[]) => rows[0] ?? null,
     }))
-    vi.doMock('@/lib/supabase/server', () => ({
-      createClient: async () => ({
-        auth: {
-          signInWithPassword: async (creds: unknown) => {
-            state.signIn.push(creds)
-            return state.signInError
-              ? { data: { user: null }, error: state.signInError }
-              : { data: { user: { app_metadata: { user_role: 'student' } } }, error: null }
-          },
-        },
-      }),
+    vi.doMock('@/lib/auth/sign-in', () => ({
+      startSession: async (email: string, password: string, _request: Request, invalid: string) => {
+        state.signIn.push({ email, password })
+        const { NextResponse } = await import('next/server')
+        return state.signInError
+          ? NextResponse.json({ code: invalid }, { status: 401 })
+          : NextResponse.json({ role: 'student', mustChangePassword: false })
+      },
     }))
   })
 
@@ -223,7 +219,7 @@ describe('POST /api/auth/login-id', () => {
     expect(rl.calls[1]).toEqual({ key: 'login-id:ip:9.9.9.9', limit: 10 })
   })
 
-  it('never forwards the token to Supabase (its own CAPTCHA stays off)', async () => {
+  it('never forwards the token to the sign-in itself', async () => {
     await call({ code: 'QOU-S48203917', password: 'pw', captchaToken: 'good' })
     expect(state.signIn).toEqual([{ email: 'u1@no-email.invalid', password: 'pw' }])
   })

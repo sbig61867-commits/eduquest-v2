@@ -4,7 +4,6 @@ import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'rea
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
 import type enAuth from '@/messages/en/auth.json'
@@ -18,7 +17,7 @@ import { Turnstile, type TurnstileHandle } from '@/components/shared/turnstile'
 // src/app/globals.css): a form on one side and, on large screens, a showcase
 // panel with a rotating spotlight on the other.
 
-const KNOWN_ERRORS = ['account_disabled', 'university_removed', 'invitation_required', 'auth_callback_failed', 'institution_full']
+const KNOWN_ERRORS = ['account_disabled', 'university_removed', 'invitation_required', 'auth_callback_failed', 'institution_full', 'google_unavailable']
 type Showcase = typeof enAuth.login.showcase
 /** How long each spotlight slide stays up. */
 const SLIDE_MS = 6500
@@ -130,7 +129,6 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
   const hour = useLocalHour()
   const captcha = useRef<TurnstileHandle>(null)
   // One sign-in at a time: a quick double tap sent two password grants (seen
@@ -145,18 +143,12 @@ function LoginForm() {
   const greeting =
     hour === null ? null : hour < 12 ? t('greeting.morning') : hour < 17 ? t('greeting.afternoon') : t('greeting.evening')
 
-  async function handleGoogleSignIn() {
+  // Google sign-in needs the platform's own Google client (an owner step before
+  // go-live); until then the button explains that instead of failing.
+  function handleGoogleSignIn() {
     setError('')
-    setGoogleLoading(true)
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (oauthError) {
-      setError(oauthError.message)
-      setGoogleLoading(false)
-    }
-    // On success the browser is redirected to Google — no further action here.
+    setGoogleLoading(false)
+    router.replace('/login?error=google_unavailable')
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -184,37 +176,21 @@ function LoginForm() {
       return
     }
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (authError) {
-      setError(authError.message)
-      submitting.current = false; setLoading(false)
+    const res = await fetch('/api/auth/sign-in', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(body.error ?? t('errors.default')); submitting.current = false; setLoading(false); return }
+    if (body.mustChangePassword) { window.location.replace('/change-password'); return }
+    if (body.role) {
+      // Leave the button in its loading state until the dashboard replaces this
+      // page; a full load, so the server renders with the cookies it just set.
+      window.location.replace(getRoleDashboardPath(body.role as Role))
       return
     }
-
-    if (data.user) {
-      // The role is already in the new session's JWT (app_metadata.user_role,
-      // kept in sync by the sync_user_claims trigger) — no extra query needed.
-      // The DB is only asked for accounts whose claims were never backfilled.
-      let role = data.user.app_metadata?.user_role as Role | undefined
-      if (!role) {
-        const { data: profile } = await supabase
-          .from('users').select('role').eq('id', data.user.id).single()
-        role = profile?.role as Role | undefined
-      }
-      if (data.user.app_metadata?.must_change_password === true) {
-        router.replace('/change-password')
-        return
-      }
-      if (role) {
-        // Leave the button in its loading state until the dashboard replaces
-        // this page: re-enabling it here made the wait look like a freeze.
-        // replace, not push — Back should not return to the login form.
-        router.replace(getRoleDashboardPath(role))
-        return
-      }
-      setError(t('errors.default'))
-    }
+    setError(t('errors.default'))
 
     submitting.current = false; setLoading(false)
   }

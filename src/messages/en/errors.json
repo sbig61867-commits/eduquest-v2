@@ -345,5 +345,7 @@
   "currentPasswordWrong": "The current password is not correct.",
   "passwordSameAsCurrent": "Choose a new password different from the current one.",
   "memberIdStudentsOnly": "Accounts by ID are for students and teachers only.",
-  "studentPasswordAlreadySet": "This student has already chosen their own password. Ask the institution or centre administration to reset it."
+  "studentPasswordAlreadySet": "This student has already chosen their own password. Ask the institution or centre administration to reset it.",
+  "invalidCredentials": "Incorrect email or password.",
+  "accountDisabled": "This account is disabled. Contact your institution."
 }

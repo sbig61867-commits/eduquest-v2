@@ -22,30 +22,35 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Role } from '@/types'
 
 // ── Mock the session layer ────────────────────────────────────────────────
-// `proxy()` calls updateSession() for the JWT claims. We control exactly what
-// claims come back, plus a `from().select().eq().single()` chain for the
-// legacy DB-fallback path (users whose claims were never backfilled).
+// `proxy()` reads the signed session context through readSession(). The tests
+// describe a session as claims (role, is_active, tenant_id), as before; the
+// mock turns them into that context. `dbProfile` fills what the claims leave
+// out, as the profile read behind a refreshed context would.
 const sessionState: {
   claims: { sub: string; app_metadata?: Record<string, unknown> } | null
   dbProfile: { role?: string; is_active?: boolean; tenant_id?: string | null } | null
 } = { claims: null, dbProfile: null }
 
-vi.mock('@/lib/supabase/middleware', () => ({
-  updateSession: async (request: unknown) => {
+vi.mock('@/lib/auth/proxy-session', () => ({
+  readSession: async (request: unknown) => {
     const { NextResponse } = await import('next/server')
-    return {
-      supabaseResponse: NextResponse.next({ request: request as Request }),
-      claims: sessionState.claims,
-      supabase: {
-        from: () => ({
-          select: () => ({
-            eq: () => ({ single: async () => ({ data: sessionState.dbProfile }) }),
-          }),
-        }),
-      },
-    }
+    const c = sessionState.claims
+    const m = c?.app_metadata ?? {}
+    const p = sessionState.dbProfile ?? {}
+    const ctx = c ? {
+      sub: c.sub,
+      email: null,
+      role: (m.user_role ?? p.role ?? null) as string | null,
+      tenant_id: ('tenant_id' in m ? m.tenant_id : p.tenant_id ?? null) as string | null,
+      is_active: (m.is_active ?? p.is_active ?? true) !== false,
+      must_change_password: m.must_change_password === true,
+    } : null
+    return { response: NextResponse.next({ request: request as Request }), ctx }
   },
 }))
+// no database in these tests: the live re-check and the locale read find nothing
+vi.mock('@/lib/auth/session', () => ({ loadCtx: async () => null }))
+vi.mock('@/lib/db/sql', () => ({ run: async () => [[]], maybeOne: () => null }))
 
 const BASE = 'https://eduquest.test'
 

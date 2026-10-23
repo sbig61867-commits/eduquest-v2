@@ -2,11 +2,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 
-// A signed-out or signed-in session without touching Supabase.
+// A signed-out or signed-in session without touching the database.
 const session = vi.hoisted(() => ({ claims: null as null | Record<string, unknown> }))
-vi.mock('@/lib/supabase/middleware', () => ({
-  updateSession: async () => ({ supabaseResponse: NextResponse.next(), claims: session.claims, supabase: {} }),
+vi.mock('@/lib/auth/proxy-session', () => ({
+  readSession: async () => {
+    const c = session.claims as null | { sub: string; app_metadata: Record<string, unknown> }
+    const m = c?.app_metadata ?? {}
+    return {
+      response: NextResponse.next(),
+      ctx: c ? { sub: c.sub, email: null, role: (m.user_role ?? null) as string | null, tenant_id: (m.tenant_id ?? null) as string | null, is_active: m.is_active !== false, must_change_password: false } : null,
+    }
+  },
 }))
+vi.mock('@/lib/auth/session', () => ({ loadCtx: async () => null }))
+vi.mock('@/lib/db/sql', () => ({ run: async () => [[]], maybeOne: () => null }))
 
 import { proxy } from '@/proxy'
 

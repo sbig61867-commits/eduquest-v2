@@ -70,6 +70,7 @@ const INTENTIONALLY_PUBLIC_ROUTES = new Set([
   'src/app/api/auth/accept-invitation/route.ts',
   'src/app/api/auth/forgot-password/route.ts',
   'src/app/api/auth/login-id/route.ts',          // sign-in itself; rate-limited per IP and per ID
+  'src/app/api/auth/sign-in/route.ts',           // email sign-in itself; rate-limited per IP and per account
   'src/app/api/contact/route.ts',
   'src/app/api/proctor/evidence/cleanup/route.ts', // cron, CRON_SECRET bearer token
   'src/app/api/proctor/second-camera/event/route.ts', // signed short-lived token + rate limit
@@ -79,7 +80,7 @@ const INTENTIONALLY_PUBLIC_ROUTES = new Set([
  * Shared helpers that authenticate with the user session (auth.getUser)
  * before returning the caller — a route calling one of these is authenticated.
  */
-const AUTH_CALL = /auth\.getUser\(|auth\.getClaims\(|getAuthUser\(|getSessionUser\(|getCaller\(|getMailCaller\(/
+const AUTH_CALL = /auth\.getUser\(|auth\.getClaims\(|getAuthUser\(|getSessionUser\(|currentCtx\(|currentUser\(|getCaller\(|getMailCaller\(/
 
 describe('I1 — every API route authenticates the caller', () => {
   it('found the route handlers to check', () => {
@@ -101,7 +102,9 @@ describe('I1 — every API route authenticates the caller', () => {
     for (const relPath of INTENTIONALLY_PUBLIC_ROUTES) {
       const full = join(ROOT, relPath)
       const src = read(full)
-      const guarded = /rateLimit\(|aiRateLimit\(|token|timingSafeEqual\(/i.test(src)
+      // startSession() signs in through authSignIn(), which applies the per-IP
+      // and per-account limits itself (src/lib/auth/better.ts, SIGN_IN_LIMITS)
+      const guarded = /rateLimit\(|aiRateLimit\(|startSession\(|token|timingSafeEqual\(/i.test(src)
       expect(guarded, `${relPath} is public with no rate limit and no token check`).toBe(true)
     }
   })

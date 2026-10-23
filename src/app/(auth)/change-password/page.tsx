@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
 import { getRoleDashboardPath } from '@/lib/utils'
 import type { Role } from '@/types'
 
 // First sign-in with a temporary password set by staff: the proxy sends the
 // user here until they choose their own (/api/auth/change-password clears
-// app_metadata.must_change_password). Also shows the member ID they will
+// users.must_change_password and opens a fresh session). Also shows the member ID they will
 // sign in with from now on.
 
 const MIN_PW_LEN = 8
@@ -17,7 +16,6 @@ const INPUT =
   'w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition'
 
 export default function ChangePasswordPage() {
-  const supabase = createClient()
   const t = useTranslations('auth.changePassword')
   const [memberCode, setMemberCode] = useState<string | null>(null)
   const [role, setRole] = useState<Role | null>(null)
@@ -27,13 +25,12 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { window.location.href = '/login'; return }
-      const { data } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle()
-      setMemberCode((data?.member_code as string | undefined) ?? null)
-      setRole((data?.role as Role | undefined) ?? null)
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetch('/api/auth/me', { cache: 'no-store' }).then(async res => {
+      if (!res.ok) { window.location.href = '/login'; return }
+      const me = await res.json() as { role: Role | null; memberCode: string | null }
+      setMemberCode(me.memberCode)
+      setRole(me.role)
+    }).catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -52,8 +49,7 @@ export default function ChangePasswordPage() {
       setLoading(false)
       return
     }
-    // Re-mint the JWT so it no longer carries must_change_password.
-    await supabase.auth.refreshSession()
+    // The response already carried a fresh session without the flag.
     window.location.href = role ? `${getRoleDashboardPath(role)}?welcome=1` : '/login'
   }
 
