@@ -80,7 +80,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/api/mail/send/route.ts': 1,
   'app/api/surveys/respond/route.ts': 3,
   'components/student/quick-access-panel.tsx': 2,
-  'lib/account-scope.ts': 2,
   'lib/announcements-data.ts': 2,
   // 1 — listByRole (listStudents / listTeachers / listCenterStudents / listCenterTeachers):
   //     bounded by .range() on the same builder, built over two statements
