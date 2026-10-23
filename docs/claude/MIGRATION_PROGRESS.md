@@ -225,3 +225,9 @@
 ## Step 9 — data batch 13: weekly schedules (2026-10-23)
 - `schedules` and `schedules/slots`: the caller's live row via `getCaller()` (capability `manage_schedules`), then each write ONE unit as app_service pinned to the institution — the target (group / teacher / schedule / slot) and the slot's teacher checked inside the write, the end-after-start rule checked against the stored values in the update itself, the live caller repeated (was 3–4 trips each).
 - Trial e2e `schedules-trial` 4/4 (two institutions: a teacher cannot author; another institution's group/teacher/timetable/slot not found; one timetable per group; slot teacher of the same institution only; end after start; delete cascades).
+
+## Step 9 — data batch 14: attendance (2026-10-23)
+- `attendance` GET: ONE unit — the gate (caller's live row + live group of the institution), the roster, the day's session, its records and the last 10 sessions with their counts (aggregated in SQL); the data is discarded unless the gate passes (was 5 trips, two of them sequential).
+- POST: the gate + the non-member count in one unit; then the session (update-or-insert in one statement) and the records (upsert from a JSON set) in one unit, each only while the caller is still live with the allowed role (was 6+).
+- DELETE: the session's group + caller in one unit, then the guarded delete (was 4).
+- Trial e2e `attendance-trial` 4/4 (two institutions: non-members refused; re-marking updates the same session; roster sorted, counts per status; a colleague 403 and another institution 404 on read/mark/delete; the institution admin with manage_attendance reads and deletes).
