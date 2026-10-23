@@ -1,7 +1,6 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { checkStorageQuota } from '@/lib/storage-quota'
 import {
@@ -14,12 +13,15 @@ import {
 // only accepts paths under that prefix, so nobody can attach someone else's
 // file. Returns the path (stored on the task) and a signed preview URL.
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
-  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
+  // Role and institution from the session context; the upload itself is
+  // storage work (moves to R2 in step 11), and the file only becomes part of an
+  // exam through the exam routes, which check the caller against live rows.
+  const profile = { role: ctx.role, tenant_id: ctx.tenant_id }
+  if (!profile.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 

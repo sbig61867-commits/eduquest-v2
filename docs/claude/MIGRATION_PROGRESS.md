@@ -140,3 +140,10 @@
 - The phone token now carries the institution inside its signed part (it cannot be changed without breaking the signature), so the phone's events need no lookup; its fallback signing key derives from APP_SESSION_SECRET instead of the Supabase service key. Tests: forging another student, exam or institution fails.
 - Tests moved to the SQL layer with cases unchanged: live-token 6, evidence clips 16, second camera 9, evidence GET (new file, 4: 700 names, failed read 503, other teacher 403, foreign key ignored). perf state lowered (no `select('*')` left in proctoring). Full suite 1,740 passed; tsc 0.
 - Still to cover end to end on the trial: proctoring events/evidence (with the teacher batch).
+
+## Step 9 — data batch 3: teacher exam management (2026-10-23)
+- `api/exams` POST/PATCH: one unit each (was 3 trips); the write itself checks the caller's live role/institution/active and ownership (`me` CTE), a side read gives the precise refusal.
+- `api/exams` DELETE: ownership read + `deleteEntityAs` (archive by default).
+- `api/exams/results`: one unit (was 2); `api/exams/individual`: one unit (was 5); `api/exams/files`: ctx instead of a profile read (storage stays for step 11).
+- 0003 grants completed (DELETE on courses/exams/groups/lessons, INSERT group_students, soft_delete_entity); iso91 32/32.
+- Trial e2e `teacher-exams-trial` 7/7 (two institutions: colleague and other-institution teacher refused on create/edit/results/individual/delete; demoted teacher refused; proctoring events appended, outsider refused). Full suite 1,740 passed.

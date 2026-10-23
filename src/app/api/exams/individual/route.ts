@@ -1,9 +1,9 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { run, maybeOne } from '@/lib/db/sql'
 import { rateLimit } from '@/lib/rate-limit'
-import { examFilesAdmin, isOwnTaskAttachment, isUuid, MAX_ATTACHMENTS } from '@/lib/exam-files'
+import { isOwnTaskAttachment, isUuid, MAX_ATTACHMENTS } from '@/lib/exam-files'
 import type { Question } from '@/types'
 
 // POST /api/exams/individual — send ONE student a follow-up task of their own
@@ -44,15 +44,15 @@ function cleanQuestions(raw: unknown, graded: boolean): Question[] | null {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
-  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
+  if (!ctx.tenant_id || !['teacher', 'university_admin'].includes(ctx.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
-  const tenantId = profile.tenant_id as string
+  const tenantId = ctx.tenant_id
+  const profile = { role: ctx.role }
 
   const limit = await rateLimit(`individual_task:${user.id}`, { limit: 120, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
@@ -88,47 +88,53 @@ export async function POST(request: Request) {
   }
 
   // Ownership and membership, read through the user's own session (RLS).
-  const { data: group } = await supabase
-    .from('groups').select('id, teacher_id, tenant_id').eq('id', groupId).is('deleted_at', null).maybeSingle()
-  if (!group || group.tenant_id !== tenantId) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
-  if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-    return NextResponse.json({ ...(await apiErr('notYourGroup')) }, { status: 403 })
-  }
-  const { data: member } = await supabase
-    .from('group_students').select('student_id').eq('group_id', groupId).eq('student_id', studentId).maybeSingle()
-  if (!member) return NextResponse.json({ ...(await apiErr('studentsNotInGroup')) }, { status: 400 })
+  // One unit (it used to be five round trips), as app_service pinned to the
+  // institution: the group, the membership and the source exam as they stand
+  // (for a precise refusal), then the insert, which happens ONLY when the group
+  // is live and in this institution — the caller's own, for a teacher — the
+  // student is in it, the source exam (if any) is the caller's, and the
+  // caller's LIVE role still allows it.
+  type Group = { teacher_id: string | null; tenant_id: string }
+  const [groupRows, memberRows, sourceRows, createdRows] = await run({ as: 'service', tenantId }, sql => [
+    sql`select teacher_id, tenant_id from public.groups where id = ${groupId} and deleted_at is null`,
+    sql`select 1 as ok from public.group_students where group_id = ${groupId} and student_id = ${studentId}`,
+    sql`select tenant_id, teacher_id from public.exams where id = ${sourceId}`,
+    sql`
+      with me as (
+        select role, tenant_id from public.users where id = ${user.id} and is_active is not false
+      ), g as (
+        select id, teacher_id, tenant_id from public.groups where id = ${groupId} and deleted_at is null
+      )
+      insert into public.exams (type, title, group_id, teacher_id, tenant_id, assigned_student_id, source_exam_id,
+                                instructions, attachments, counts_toward_grade, questions, duration_minutes, ends_at,
+                                proctoring_enabled, is_published)
+      select 'homework', ${title}, g.id, coalesce(g.teacher_id, ${user.id}), g.tenant_id, ${studentId}, ${sourceId},
+             ${instructions || null}, ${sql.json(attachments as string[])}, ${graded}, ${sql.json(questions as unknown as Parameters<typeof sql.json>[0])},
+             ${TASK_MINUTES}, ${due ? due.toISOString() : null}, false, true
+        from me, g
+       where g.tenant_id = me.tenant_id
+         and me.role in ('teacher', 'university_admin')
+         and (me.role <> 'teacher' or g.teacher_id = ${user.id})
+         and exists (select 1 from public.group_students gs where gs.group_id = g.id and gs.student_id = ${studentId})
+         and (${sourceId}::uuid is null or exists (
+               select 1 from public.exams x where x.id = ${sourceId} and x.tenant_id = me.tenant_id
+                  and (me.role <> 'teacher' or x.teacher_id = ${user.id})))
+      returning id, title, created_at`,
+  ])
 
-  if (sourceId) {
-    const { data: source } = await supabase
-      .from('exams').select('id, tenant_id, teacher_id').eq('id', sourceId).maybeSingle()
-    if (!source || source.tenant_id !== tenantId || (profile.role === 'teacher' && source.teacher_id !== user.id)) {
+  const data = maybeOne<{ id: string; title: string; created_at: string }>(createdRows)
+  if (!data) {
+    const group = maybeOne<Group>(groupRows)
+    if (!group || group.tenant_id !== tenantId) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
+    if (profile.role === 'teacher' && group.teacher_id !== user.id) {
+      return NextResponse.json({ ...(await apiErr('notYourGroup')) }, { status: 403 })
+    }
+    if (!maybeOne(memberRows)) return NextResponse.json({ ...(await apiErr('studentsNotInGroup')) }, { status: 400 })
+    const source = maybeOne<{ tenant_id: string; teacher_id: string }>(sourceRows)
+    if (sourceId && (!source || source.tenant_id !== tenantId || (profile.role === 'teacher' && source.teacher_id !== user.id))) {
       return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
     }
-  }
-
-  const { data, error } = await examFilesAdmin()
-    .from('exams')
-    .insert({
-      type: 'homework',
-      title,
-      group_id: groupId,
-      teacher_id: group.teacher_id ?? user.id,
-      tenant_id: tenantId,
-      assigned_student_id: studentId,
-      source_exam_id: sourceId,
-      instructions: instructions || null,
-      attachments,
-      counts_toward_grade: graded,
-      questions,
-      duration_minutes: TASK_MINUTES,
-      ends_at: due ? due.toISOString() : null,
-      proctoring_enabled: false,
-      is_published: true,
-    })
-    .select('id, title, created_at')
-    .single()
-
-  if (error) {
+    const error = new Error('insert refused')
     console.error('[api/exams/individual]', error.message)
     return NextResponse.json({ ...(await apiErr('homeworkCreateFailed')) }, { status: 500 })
   }

@@ -125,6 +125,7 @@ REVOKE ALL ON FUNCTION public.svc_parent_tenant(text, uuid) FROM PUBLIC, anon, a
 GRANT EXECUTE ON FUNCTION public.svc_tenant_ok(uuid), public.svc_parent_tenant(text, uuid) TO app_service;
 
 -- 5. app_service: rights per table, from the inventory of service-role code
+--    (DELETE on courses/exams/groups/lessons: the owner's hard-delete policy, 9.4)
 --    (refined table by table in 9.4 as each query is rewritten; the grants
 --    matrix test pins the result). UPDATE/DELETE with a WHERE clause and
 --    INSERT ... RETURNING need SELECT, so SELECT goes with them.
@@ -143,15 +144,15 @@ DECLARE
     ['attendance_sessions',   'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['course_enrollments',    'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['course_units',          'SELECT, INSERT',                   'tenant_id'],
-    ['courses',               'SELECT, INSERT, UPDATE',           'tenant_id'],
+    ['courses',               'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['exam_appeals',          'SELECT, UPDATE',                   'tenant_id'],
     ['exam_submissions',      'SELECT, UPDATE',                   'tenant_id'],
-    ['exams',                 'SELECT, INSERT, UPDATE',           'tenant_id'],
+    ['exams',                 'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['grades',                'SELECT, UPDATE',                   'tenant_id'],
     ['group_students',        'SELECT, INSERT, DELETE',           'public.svc_parent_tenant(''group'', group_id)'],
-    ['groups',                'SELECT, UPDATE',                   'tenant_id'],
+    ['groups',                'SELECT, UPDATE, DELETE',           'tenant_id'],
     ['invitations',           'SELECT, UPDATE, DELETE',           'tenant_id'],
-    ['lessons',               'SELECT, INSERT, UPDATE',           'tenant_id'],
+    ['lessons',               'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['mail_connections',      'SELECT, DELETE',                   'tenant_id'],
     ['mail_messages',         'SELECT, INSERT',                   'tenant_id'],
     ['request_messages',      'SELECT, INSERT',                   'public.svc_parent_tenant(''request'', request_id)'],
@@ -202,7 +203,7 @@ BEGIN
      WHERE n.nspname = 'public' AND p.proname IN (
        'accept_invitation', 'append_proctoring_events', 'check_ai_allowance', 'check_email_in_auth',
        'finalize_exam_submission', 'get_invitation_by_token', 'record_ai_usage', 'restore_entity',
-       'start_exam_attempt', 'transfer_student_group', 'get_student_announcements')
+       'start_exam_attempt', 'transfer_student_group', 'get_student_announcements', 'soft_delete_entity')
   LOOP
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO app_service', r.sig);
   END LOOP;
