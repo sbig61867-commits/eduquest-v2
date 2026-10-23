@@ -1,17 +1,18 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { run, maybeOne } from '@/lib/db/sql'
-import { neonSessionUser } from './neon'
+import { authSessionUser } from './better'
 
 // Step 9.6: the session on our own domain (docs/claude/STEP9_SQL_PLAN.md §11).
-//   tm_session  Neon Auth's opaque session token (HttpOnly, 7 days)
-//   tm_ctx      a token WE sign (HS256, APP_SESSION_SECRET) with the profile the
-//               proxy and pages need for routing; 15 minutes
-// A normal request verifies tm_ctx locally: no call to Neon Auth, no database.
-// When it expires, refreshCtx() confirms the Neon session (one call) and reads
-// the profile (one unit), then a new tm_ctx is issued. Isolation never depends
-// on this cookie: the database denies a deactivated account on its next query.
+//   tm.session_token  Better Auth's session cookie (HttpOnly, 7 days), set by
+//                     our sign-in route
+//   tm_ctx            a token WE sign (HS256, APP_SESSION_SECRET) with the
+//                     profile the proxy and pages need for routing; 15 minutes
+// A normal request verifies tm_ctx locally: no auth lookup, no database. When
+// it expires, refreshCtx() confirms the Better Auth session (one unit as
+// app_auth) and reads the profile (one unit as the user), then a new tm_ctx is
+// issued. Isolation never depends on this cookie: the database denies a
+// deactivated account on its next query.
 
-export const SESSION_COOKIE = 'tm_session'
 export const CTX_COOKIE = 'tm_ctx'
 export const CTX_TTL_SECONDS = 15 * 60
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 3600
@@ -82,9 +83,9 @@ export async function loadCtx(userId: string): Promise<SessionCtx | null> {
   }
 }
 
-/** A fresh profile for a live Neon session; null when the session was revoked or the account is inactive. */
-export async function refreshCtx(session: string): Promise<SessionCtx | null> {
-  const user = await neonSessionUser(session)
+/** A fresh profile for the live session in these request headers; null when it ended or the account is inactive. */
+export async function refreshCtx(requestHeaders: Headers): Promise<SessionCtx | null> {
+  const user = await authSessionUser(requestHeaders)
   if (!user) return null
   const ctx = await loadCtx(user.userId)
   return ctx && ctx.is_active ? ctx : null

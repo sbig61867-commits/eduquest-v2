@@ -15,5 +15,10 @@
   // off on this config: cached reads could show a stale exam or grade.
   // Local dev reads the direct (non-pooler) connection string from .env:
   // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
-  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4f0f384a2ed04edf9bfc048483cbfd48" }]
+  // HYPERDRIVE_AUTH: Better Auth's own login role app_auth (schema `ba` only,
+  // step 9.6); local dev reads CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE_AUTH.
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE", "id": "4f0f384a2ed04edf9bfc048483cbfd48" },
+    { "binding": "HYPERDRIVE_AUTH", "id": "0ce994ae39bf45a1a9dad28e0b350dca" }
+  ]
 }

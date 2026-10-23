@@ -37,7 +37,7 @@ const TYPES = {
   numeric: { to: 1700, from: [1700, 20], serialize: (x: unknown) => String(x), parse: (x: string) => Number(x) },
 }
 
-const onWorkers = typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers'
+export const onWorkers = typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers'
 
 async function connectionString(): Promise<string> {
   if (onWorkers) {
@@ -52,26 +52,65 @@ async function connectionString(): Promise<string> {
   return url
 }
 
-// A connection used by one unit only, start to end.
-//  - Workers may not share a socket between requests: a fresh one-connection
-//    client per unit is exclusive by itself; the pool lives in Hyperdrive.
-//    fetch_types stays off, or every request would pay one more round trip.
-//  - Node (next dev, tests) keeps one pool for the process and reserves a
-//    connection per unit. fetch_types stays on there: with it off, the first
-//    reserve() on a new pool never resolves (measured, postgres 3.4.5).
-let nodePool: Sql | null = null
-const workerClient = async () =>
-  postgres(await connectionString(), { max: 1, prepare: true, fetch_types: false, types: TYPES, onnotice: () => {} })
-const pool = async () =>
-  (nodePool ??= postgres(await connectionString(), { max: 10, prepare: true, types: TYPES, onnotice: () => {} }))
+// One connection per unit of work, used by that unit only, start to end.
+//  - Workers: a fresh one-connection client per unit (Workers may not share a
+//    socket between requests; the pool lives in Hyperdrive).
+//  - Node (next dev, tests): up to NODE_POOL_SIZE one-connection clients, each
+//    lent to one unit at a time. postgres.js reserve() is not used: under
+//    contention it left 71 of 72 units waiting forever (measured, 3.4.5).
+// fetch_types stays off: no extra round trip when a connection opens.
+// A unit that takes longer than UNIT_TIMEOUT_MS fails and its connection is
+// closed (Postgres rolls the open transaction back); the next unit gets a new
+// one. Ending a one-connection client mid-query rejects the pending
+// statements cleanly (measured).
+const UNIT_TIMEOUT_MS = 20_000
+const NODE_POOL_SIZE = 10
 
-async function exclusive(): Promise<{ conn: postgres.Sql; done: () => Promise<void> }> {
+export class DbTimeoutError extends Error {
+  constructor() { super(`db: unit of work took longer than ${UNIT_TIMEOUT_MS} ms`); this.name = 'DbTimeoutError' }
+}
+
+const newClient = async (): Promise<Sql> =>
+  postgres(await connectionString(), { max: 1, prepare: true, fetch_types: false, types: TYPES, onnotice: () => {} })
+
+const idle: Sql[] = []
+const waiting: ((c: Sql) => void)[] = []
+let open = 0
+
+function giveBack(c: Sql | null): void {
+  const next = waiting.shift()
+  if (!next) { if (c) idle.push(c); return }
+  if (c) { next(c); return }
+  // the broken connection was dropped: open a replacement for the waiter
+  open++
+  newClient().then(next, () => { open--; waiting.unshift(next) })
+}
+
+async function borrow(): Promise<{ conn: Sql; release: (broken: boolean) => Promise<void> }> {
   if (onWorkers) {
-    const sql = await workerClient()
-    return { conn: sql, done: () => sql.end({ timeout: 1 }) }
+    const conn = await newClient()
+    return { conn, release: broken => conn.end({ timeout: broken ? 0 : 1 }) }
   }
-  const conn = await (await pool()).reserve()
-  return { conn, done: async () => conn.release() }
+  let conn = idle.pop()
+  if (!conn && open < NODE_POOL_SIZE) {
+    open++
+    try { conn = await newClient() } catch (e) { open--; throw e }
+  }
+  conn ??= await new Promise<Sql>(resolve => waiting.push(resolve))
+  const lent = conn
+  return {
+    conn: lent,
+    release: async broken => {
+      if (broken) { open--; await lent.end({ timeout: 0 }).catch(() => {}); giveBack(null) }
+      else giveBack(lent)
+    },
+  }
+}
+
+async function withinLimit<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const limit = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new DbTimeoutError()), UNIT_TIMEOUT_MS) })
+  try { return await Promise.race([work, limit]) } finally { clearTimeout(timer) }
 }
 
 // Checked before a connection is taken: a statement built on a reserved
@@ -101,7 +140,8 @@ function contextStatement(sql: postgres.Sql, ctx: DbContext): Pending {
  */
 export async function run(ctx: DbContext, build: (sql: postgres.Sql) => Pending[]): Promise<Row[][]> {
   validate(ctx)
-  const { conn, done } = await exclusive()
+  const { conn, release } = await borrow()
+  let broken = false
   try {
     // begin and context first: nothing may be built before them on this connection
     const head = [conn`begin`, contextStatement(conn, ctx)]
@@ -118,15 +158,18 @@ export async function run(ctx: DbContext, build: (sql: postgres.Sql) => Pending[
     dbStats.units++
     dbStats.statements += queries.length
     // attaching the handlers in this order is what sends the statements, in this order
-    const results = await Promise.all(all.map(q => q.catch((e: unknown) => (e instanceof Error ? e : new Error(String(e))))))
+    const results = await withinLimit(Promise.all(all.map(q => q.catch((e: unknown) => (e instanceof Error ? e : new Error(String(e)))))))
     const failed = results.find((r): r is Error => r instanceof Error)
     if (failed) {
-      await conn`rollback`.catch(() => {})
+      await withinLimit(conn`rollback`).catch(() => { broken = true })
       throw failed
     }
     return results.slice(2, 2 + queries.length) as unknown as Row[][]
+  } catch (e) {
+    if (e instanceof DbTimeoutError) broken = true
+    throw e
   } finally {
-    await done()
+    await release(broken)
   }
 }
 
@@ -137,18 +180,20 @@ export async function run(ctx: DbContext, build: (sql: postgres.Sql) => Pending[
  */
 export async function transaction<T>(ctx: DbContext, work: (tx: postgres.TransactionSql) => Promise<T>): Promise<T> {
   validate(ctx)
-  // begin() takes its own connection for the whole transaction (on Node it
-  // reserves one from the pool), so no extra reservation is needed here
-  const sql = onWorkers ? await workerClient() : await pool()
+  const { conn, release } = await borrow()
+  let broken = false
   try {
     dbStats.units++
-    return (await sql.begin(async tx => {
+    return (await withinLimit(conn.begin(async tx => {
       // TransactionSql has the same tagged-template call shape as Sql
       await contextStatement(tx as unknown as postgres.Sql, ctx)
       return work(tx)
-    })) as T
+    }))) as T
+  } catch (e) {
+    if (e instanceof DbTimeoutError) broken = true
+    throw e
   } finally {
-    if (onWorkers) await sql.end({ timeout: 1 })
+    await release(broken)
   }
 }
 

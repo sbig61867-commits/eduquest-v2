@@ -1,7 +1,8 @@
 // Persistent rate limiter — backed by the Postgres `rate_limits` table via the
-// atomic `check_rate_limit` RPC. Survives serverless cold starts and works across
-// multiple instances (unlike an in-memory Map, which resets per process).
-import { getAdminDb } from '@/lib/db'
+// atomic `check_rate_limit` function, run as app_system (step 9.4: the only
+// role with rights on rate_limits). Survives serverless cold starts and works
+// across multiple instances (unlike an in-memory Map, which resets per process).
+import { run } from '@/lib/db/sql'
 
 interface RateLimitOptions {
   /** Max requests allowed in the window */
@@ -16,10 +17,6 @@ interface RateLimitResult {
   resetAt: number
 }
 
-function adminClient() {
-  return getAdminDb()
-}
-
 // R-2 Layer 1: the RPC call itself previously had no timeout — a hung DB
 // connection could hold a request open far longer than the rate-limit
 // decision is worth waiting for. Bounding this also means a stuck dependency
@@ -30,10 +27,24 @@ function fallbackAllow(opts: RateLimitOptions): RateLimitResult {
   return { allowed: true, remaining: opts.limit, resetAt: Date.now() + opts.windowSecs * 1000 }
 }
 
+async function checkRateLimit(key: string, opts: RateLimitOptions): Promise<{ data: unknown; error: unknown }> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('rate limit timeout')), RATE_LIMIT_RPC_TIMEOUT_MS) })
+  try {
+    const [rows] = await Promise.race([
+      run({ as: 'system' }, sql => [sql`select public.check_rate_limit(${key}, ${opts.limit}, ${opts.windowSecs}) as r`]),
+      timeout,
+    ])
+    return { data: rows[0]?.r ?? null, error: null }
+  } catch (error) {
+    return { data: null, error }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function rateLimit(key: string, opts: RateLimitOptions): Promise<RateLimitResult> {
-  const { data, error } = await adminClient()
-    .rpc('check_rate_limit', { p_key: key, p_limit: opts.limit, p_window_secs: opts.windowSecs })
-    .abortSignal(AbortSignal.timeout(RATE_LIMIT_RPC_TIMEOUT_MS))
+  const { data, error } = await checkRateLimit(key, opts)
 
   // Fail-open: if the limiter itself errors, do not block legitimate traffic.
   // This is deliberate for cheap/session endpoints (login, dashboards) — see
@@ -110,9 +121,7 @@ type CheckOutcome = { ok: true; result: RateLimitResult } | { ok: false }
 /** One call to the RPC. Any error, malformed row or thrown exception counts as a failure. */
 async function checkRpc(key: string, opts: RateLimitOptions): Promise<CheckOutcome> {
   try {
-    const { data, error } = await adminClient()
-      .rpc('check_rate_limit', { p_key: key, p_limit: opts.limit, p_window_secs: opts.windowSecs })
-      .abortSignal(AbortSignal.timeout(RATE_LIMIT_RPC_TIMEOUT_MS))
+    const { data, error } = await checkRateLimit(key, opts)
     if (error || !data) return { ok: false }
     const row = data as Record<string, unknown>
     if (typeof row.allowed !== 'boolean' || typeof row.remaining !== 'number' || typeof row.reset_at !== 'string') {

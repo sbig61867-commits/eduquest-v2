@@ -34,12 +34,14 @@ const OWNER = process.env.NEON_DATABASE_URL
 describe.skipIf(!GATEWAY || !OWNER)('SQL layer on the Neon trial', () => {
   const owner = postgres(OWNER ?? 'postgres://unused', { max: 1, prepare: false, onnotice: () => {} })
   const ids = { A: '', B: '', tA: '', tB: '', gA: '', gB: '' }
+  // institution codes are unique: a random one per run
+  const code = () => Math.random().toString(36).slice(2, 7).toUpperCase().replace(/[^A-Z0-9]/g, 'X').padEnd(5, 'X')
   const tag = `dbsql${Date.now()}`
 
   beforeAll(async () => {
-    const [A] = await owner`insert into public.tenants (name, slug, code) values ('DA', ${tag + 'a'}, 'DA9') returning id`
-    const [B] = await owner`insert into public.tenants (name, slug, code) values ('DB', ${tag + 'b'}, 'DB9') returning id`
-    const mk = async (t: string) => (await owner`insert into neon_auth."user" (id, name, email, "emailVerified", "createdAt", "updatedAt") values (gen_random_uuid(), ${t}, ${t + tag + '@dbsql.test'}, true, now(), now()) returning id`)[0].id as string
+    const [A] = await owner`insert into public.tenants (name, slug, code) values ('DA', ${tag + 'a'}, ${code()}) returning id`
+    const [B] = await owner`insert into public.tenants (name, slug, code) values ('DB', ${tag + 'b'}, ${code()}) returning id`
+    const mk = async (t: string) => (await owner`insert into ba."user" (id, name, email, "emailVerified") values (gen_random_uuid(), ${t}, ${t + tag + '@dbsql.test'}, true) returning id`)[0].id as string
     ids.A = A.id; ids.B = B.id
     ids.tA = await mk('ta'); ids.tB = await mk('tb')
     await owner`update public.users set role='teacher', tenant_id=${ids.A} where id=${ids.tA}`
@@ -50,7 +52,7 @@ describe.skipIf(!GATEWAY || !OWNER)('SQL layer on the Neon trial', () => {
 
   afterAll(async () => {
     await owner`delete from public.groups where tenant_id in (${ids.A}, ${ids.B})`
-    await owner`delete from neon_auth."user" where email like ${'%' + tag + '@dbsql.test'}`
+    await owner`delete from ba."user" where email like ${'%' + tag + '@dbsql.test'}`
     await owner`delete from public.tenants where id in (${ids.A}, ${ids.B})`
     await owner.end()
   }, 60_000)
@@ -113,6 +115,15 @@ describe.skipIf(!GATEWAY || !OWNER)('SQL layer on the Neon trial', () => {
     const results = await Promise.all(Array.from({ length: 12 }, () => run({ as: 'system' }, sql => [sql`select current_user::text u, coalesce(current_setting('request.jwt.claims', true), '') c, coalesce(current_setting('app.tenant_id', true), '') t`])))
     for (const [[r]] of results) expect(r).toEqual({ u: 'app_system', c: '', t: '' })
   }, 60_000)
+
+  it('more units than connections all complete, each with its own identity', async () => {
+    // postgres.js reserve() left 71 of 72 units waiting under this kind of load
+    const results = await Promise.all(Array.from({ length: 30 }, (_, i) => {
+      const uid = i % 2 ? ids.tA : ids.tB
+      return run({ as: 'user', userId: uid }, sql => [sql`select auth.uid()::text uid, ${i}::int n`]).then(([[r]]) => ({ r, uid, i }))
+    }))
+    for (const { r, uid, i } of results) expect(r).toEqual({ uid, n: i })
+  }, 120_000)
 
   it('keeps the PostgREST shapes: ISO timestamps and numeric as numbers', async () => {
     const [[r]] = await run({ as: 'user', userId: ids.tA }, sql => [sql`select now() ts, 12.5::numeric n, 7::bigint b, current_date d`])

@@ -182,3 +182,39 @@ export async function sendInvitationEmail({
     html,
   })
 }
+
+/**
+ * The password-reset email (Better Auth calls it with a one-time link; see
+ * src/lib/auth/better.ts). `locale` is the account holder's language.
+ */
+export async function sendPasswordResetEmail({ to, resetUrl, locale }: { to: string; resetUrl: string; locale: Locale }) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY not set, skipping email')
+    return
+  }
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const t = await getTranslations({ locale, namespace: 'email.passwordReset' })
+  const arrow = dirFor(locale) === 'rtl' ? '←' : '→'
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 16px;color:#f1f5f9;font-size:22px;font-weight:700;">${escapeHtml(t('title'))}</h1>
+    <p style="margin:0 0 28px;color:#94a3b8;font-size:15px;line-height:1.6;">${escapeHtml(t('intro', { app: APP_NAME }))}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr>
+        <td align="center">
+          <a href="${escapeHtml(resetUrl)}"
+             style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;
+                    font-size:16px;font-weight:700;padding:14px 40px;border-radius:10px;
+                    letter-spacing:0.3px;">
+            ${escapeHtml(t('cta'))} ${arrow}
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0 0 16px;color:#fbbf24;font-size:13px;text-align:center;">${escapeHtml(t('expires'))}</p>
+    <p style="margin:0;color:#475569;font-size:12px;text-align:center;word-break:break-all;">
+      ${escapeHtml(t('copyLink'))} <a href="${escapeHtml(resetUrl)}" style="color:#60a5fa;">${escapeHtml(resetUrl)}</a>
+    </p>
+  `, locale, `© ${new Date().getFullYear()} ${APP_NAME}. ${escapeHtml(t('rights'))}<br/>${escapeHtml(t('ignore'))}`)
+
+  await resend.emails.send({ from: FROM_EMAIL, to, subject: t('subject', { app: APP_NAME }), html })
+}

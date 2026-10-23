@@ -14,5 +14,15 @@
     "rights": "All rights reserved.",
     "ignore": "If you did not expect this invitation, you can safely ignore this email.",
     "fallbackInstitution": "your institution"
+  },
+  "passwordReset": {
+    "subject": "Reset your {app} password",
+    "title": "Reset your password",
+    "intro": "We received a request to reset the password for your {app} account.",
+    "cta": "Choose a new password",
+    "expires": "This link expires in one hour and can be used once.",
+    "copyLink": "Or copy this link:",
+    "ignore": "If you did not ask to reset your password, you can ignore this email; your password stays the same.",
+    "rights": "All rights reserved."
   }
 }

@@ -18,21 +18,17 @@ type Reply = { data: unknown; error: unknown } | 'throw'
 const rpcQueue: Array<() => Promise<Reply>> = []
 const rpcCalls = vi.fn()
 
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    rpc: (...args: unknown[]) => {
-      rpcCalls(...args)
-      return {
-        abortSignal: async () => {
-          const next = rpcQueue.shift()
-          if (!next) throw new Error('no rpc reply queued')
-          const reply = await next()
-          if (reply === 'throw') throw new Error('network down')
-          return reply
-        },
-      }
-    },
-  }),
+// check_rate_limit runs through the SQL layer as app_system (one unit, one row).
+vi.mock('@/lib/db/sql', () => ({
+  run: async (...args: unknown[]) => {
+    rpcCalls(...args)
+    const next = rpcQueue.shift()
+    if (!next) throw new Error('no rpc reply queued')
+    const reply = await next()
+    if (reply === 'throw') throw new Error('network down')
+    if (reply.error) throw reply.error
+    return [[{ r: reply.data }]]
+  },
 }))
 
 const OK = { data: { allowed: true, remaining: 5, reset_at: new Date(Date.now() + 60_000).toISOString() }, error: null }
