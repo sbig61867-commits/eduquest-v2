@@ -1,65 +1,56 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 
-function adminClient() {
-  return getAdminDb()
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // ── PATCH /api/invitations/[id] ──────────────────────────────
-// Revokes a pending invitation. Only the creator or a higher-role
-// admin in the same tenant can revoke.
+// Revokes a pending invitation. Only the creator, a university_admin in the
+// same tenant, or super_admin. One unit, pinned to the caller's institution
+// (the owner: platform scope): the invitation as it stands (for a precise
+// refusal), then the revoke — only while it is pending (race guard) and the
+// caller, checked live, may revoke it.
 export async function PATCH(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
 
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const scope = ctx.role === 'super_admin'
+    ? { as: 'service', platform: true } as const
+    : ctx.tenant_id ? { as: 'service', tenantId: ctx.tenant_id } as const : null
+  if (!scope) return NextResponse.json({ ...(await apiErr('profileNotFound')) }, { status: 403 })
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('invitationNotFound')) }, { status: 404 })
 
-  const { data: caller } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!caller) return NextResponse.json({ ...(await apiErr('profileNotFound')) }, { status: 403 })
-
-  // Fetch the invitation to check ownership and current state
-  const { data: invitation } = await supabase
-    .from('invitations').select('*').eq('id', id).single()
-
-  if (!invitation) {
-    return NextResponse.json({ ...(await apiErr('invitationNotFound')) }, { status: 404 })
-  }
-
-  if (invitation.status !== 'pending') {
-    return NextResponse.json(
-      { error: `Cannot revoke an invitation with status: ${invitation.status}` },
-      { status: 409 }
-    )
-  }
-
-  // Authorization: must be the creator, or a university_admin in the same tenant, or super_admin
-  const canRevoke =
-    caller.role === 'super_admin' ||
-    invitation.invited_by === user.id ||
-    (caller.role === 'university_admin' && invitation.tenant_id === caller.tenant_id)
-
-  if (!canRevoke) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
-
-  const { error } = await adminClient()
-    .from('invitations')
-    .update({ status: 'revoked' })
-    .eq('id', id)
-    .eq('status', 'pending') // extra guard against race
-
-  if (error) {
-    console.error('[invitations/revoke]', error)
+  let invitation: { status: string; invited_by: string | null; tenant_id: string } | null
+  let revoked: unknown
+  try {
+    const [found, done] = await run(scope, sql => [
+      sql`select status, invited_by, tenant_id from public.invitations where id = ${id}`,
+      sql`update public.invitations i set status = 'revoked'
+            from public.users me
+           where i.id = ${id} and i.status = 'pending'
+             and me.id = ${ctx.sub} and me.is_active is not false
+             and (me.role = 'super_admin'
+                  or i.invited_by = me.id
+                  or (me.role = 'university_admin' and i.tenant_id = me.tenant_id))
+          returning i.id`,
+    ])
+    invitation = maybeOne(found)
+    revoked = maybeOne(done)
+  } catch (e) {
+    console.error('[invitations/revoke]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('invitationRevokeFailed')) }, { status: 500 })
   }
+  if (revoked) return NextResponse.json({ ok: true })
 
-  return NextResponse.json({ ok: true })
+  // Nothing was written: say why.
+  if (!invitation) return NextResponse.json({ ...(await apiErr('invitationNotFound')) }, { status: 404 })
+  if (invitation.status !== 'pending') {
+    return NextResponse.json({ error: `Cannot revoke an invitation with status: ${invitation.status}` }, { status: 409 })
+  }
+  return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 }

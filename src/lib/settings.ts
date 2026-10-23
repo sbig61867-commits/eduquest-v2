@@ -96,7 +96,12 @@ export async function getInvitationDefaults(supabase: SupabaseClient): Promise<I
     .select('value')
     .eq('key', 'invitation_defaults')
     .maybeSingle()
-  const v = (data?.value ?? {}) as Partial<InvitationDefaults>
+  return invitationDefaultsFrom(data?.value)
+}
+
+/** The invitation expiry defaults from a platform_settings value, with the fallbacks. */
+export function invitationDefaultsFrom(value: unknown): InvitationDefaults {
+  const v = (value ?? {}) as Partial<InvitationDefaults>
   return {
     university_admin: v.university_admin ?? FALLBACK_INVITATION_DEFAULTS.university_admin,
     teacher: v.teacher ?? FALLBACK_INVITATION_DEFAULTS.teacher,

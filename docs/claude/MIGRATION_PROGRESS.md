@@ -208,3 +208,10 @@
 - `roster/candidates`: the caller, the target and the search in ONE unit, the rows discarded unless the gate passes (was 3 trips). `students/search`: ownership + search in one unit read as the teacher. New `studentSearchSql` fragment (people.ts).
 - Removed `src/lib/group-enrolment.ts` (no callers left).
 - Trial e2e `membership-trial` 5/5 (two institutions: another institution's student/group/course refused or not found; seat cap; course section enrols in the course; colleague cannot add/remove; pickers exclude members and other institutions).
+
+## Step 9 — data batch 11: invitations (2026-10-23)
+- `invitations` GET: the caller's live row, the list (scoped in the statement: owner all, others their institution, a teacher only their own; bounded 1,000) and the seat usage in ONE unit (was 3).
+- POST: the caller's live row, the institution (active, centre, seats, language, name), the group, the address checks (users + `check_email_in_auth`) in ONE unit, with the expiry defaults read as the user in parallel; then the insert, only while the caller is live with the checked role (was up to 9 sequential reads + insert + 2 reads for the email). The email uses the data already read.
+- `invitations/[id]` PATCH: one unit (the invitation for a precise refusal + the guarded revoke).
+- `invitationDefaultsFrom` (settings). 0003: INSERT on `invitations` for app_service (dry-run, then applied to the trial).
+- Trial e2e `invitations-trial` 5/5 (two institutions; no email sent — stand-in): another institution's group refused; full teacher seat; staff never by public link; no centre → no centre manager; a teacher only to their own group; demoted admin refused; duplicate address 409; lists per role; another institution's admin cannot revoke; revoke once.
