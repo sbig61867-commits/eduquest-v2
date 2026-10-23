@@ -63,7 +63,10 @@ async function connectionString(): Promise<string> {
 // closed (Postgres rolls the open transaction back); the next unit gets a new
 // one. Ending a one-connection client mid-query rejects the pending
 // statements cleanly (measured).
-const UNIT_TIMEOUT_MS = 20_000
+// DB_UNIT_TIMEOUT_MS overrides it for the trial tests run from a PC far from
+// the database (each statement crosses the link; a many-statement report unit
+// can pass 20 s there, while the same unit takes milliseconds next to it).
+const UNIT_TIMEOUT_MS = Number(process.env.DB_UNIT_TIMEOUT_MS) > 0 ? Number(process.env.DB_UNIT_TIMEOUT_MS) : 20_000
 const NODE_POOL_SIZE = 10
 
 export class DbTimeoutError extends Error {

@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@/lib/db'
-import { getAdminDb } from '@/lib/db'
 import arReports from '@/messages/ar/reports.json'
 import enReports from '@/messages/en/reports.json'
 import {
@@ -35,10 +33,6 @@ export interface CallerProfile { role: string; tenant_id: string | null }
 export function canAccessReport(profile: CallerProfile): { ok: boolean; reason?: string } {
   if (profile.role === 'super_admin') return { ok: true }
   return { ok: false, reason: 'reportsRestricted' }
-}
-
-export function reportsAdminClient(): SupabaseClient {
-  return getAdminDb()
 }
 
 // ── Bilingual strings ─────────────────────────────────────────────
@@ -146,9 +140,9 @@ function gradeMatrix(
 // ══════════════════════════════════════════════════════════════════
 // University report
 // ══════════════════════════════════════════════════════════════════
-export async function buildUniversityReport(admin: SupabaseClient, tenantId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+export async function buildUniversityReport(tenantId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const data = await loadUniversityData(admin, tenantId)
+  const data = await loadUniversityData(tenantId)
   if (!data) return null
   const { tenant, teachers, studentCount, groups, exams: examRows, lessonCount, subs: subRows, memberships } = data
 
@@ -231,9 +225,9 @@ export async function buildUniversityReport(admin: SupabaseClient, tenantId: str
 // ══════════════════════════════════════════════════════════════════
 // Teacher report
 // ══════════════════════════════════════════════════════════════════
-export async function buildTeacherReport(admin: SupabaseClient, teacherId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+export async function buildTeacherReport(teacherId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const data = await loadTeacherData(admin, teacherId)
+  const data = await loadTeacherData(teacherId)
   if (!data) return null
   const { teacher, groups, exams: examRows, lessonCount, members: memberRows, subs: subRows } = data
   const universityName = teacher.tenants?.name ?? undefined
@@ -328,9 +322,9 @@ export async function buildTeacherReport(admin: SupabaseClient, teacherId: strin
 // ══════════════════════════════════════════════════════════════════
 // Group report
 // ══════════════════════════════════════════════════════════════════
-export async function buildGroupReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+export async function buildGroupReport(groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const data = await loadGroupReportData(admin, groupId)
+  const data = await loadGroupReportData(groupId)
   if (!data) return null
   const { group, exams, members, subs } = data
   const universityName = group.tenants?.name ?? undefined
@@ -352,9 +346,9 @@ export async function buildGroupReport(admin: SupabaseClient, groupId: string, l
 // ══════════════════════════════════════════════════════════════════
 const MINUTES_SAVED_PER_AUTO_GRADED = 5
 
-export async function buildPilotReport(admin: SupabaseClient, groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+export async function buildPilotReport(groupId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const data = await loadPilotData(admin, groupId)
+  const data = await loadPilotData(groupId)
   if (!data) return null
   const { group, exams: examRows, members, lessonCount, subs: subRows, responses } = data
   const universityName = group.tenants?.name ?? undefined
@@ -439,9 +433,9 @@ export async function buildPilotReport(admin: SupabaseClient, groupId: string, l
 // ══════════════════════════════════════════════════════════════════
 // Student report
 // ══════════════════════════════════════════════════════════════════
-export async function buildStudentReport(admin: SupabaseClient, studentId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
+export async function buildStudentReport(studentId: string, lang: ReportLang = 'ar'): Promise<Report | null> {
   const d = STR[lang]
-  const data = await loadStudentData(admin, studentId)
+  const data = await loadStudentData(studentId)
   if (!data) return null
   const { student, activeGroups, exams: examRows, peerSubs, ownSubs: subRows } = data
   const universityName = student.tenants?.name ?? undefined

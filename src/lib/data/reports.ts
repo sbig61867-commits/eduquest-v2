@@ -1,130 +1,43 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run, maybeOne, type Sql } from '@/lib/db/sql'
 
 // ── Report reads (PERFORMANCE_CONTRACT.md P1, P2, P5, P10) ──────────────────
 //
-// The reports run with the service-role client behind the super_admin gate in
-// /api/reports, so RLS does not apply here: every read is scoped explicitly by
-// the report's subject (institution, teacher, group or student).
+// The reports run behind the super_admin gate in /api/reports, as app_service
+// in platform scope, so every read is scoped explicitly by the report's
+// subject (institution, teacher, group or student).
 //
-// The API answers at most `max_rows` (1000 on this project) rows per request
-// and says nothing when it cuts a result short, so a report read whole could
-// silently be built from a partial set. A read that fails, or comes back with
-// fewer rows than the database counted, throws ReportReadError instead (D1), so
-// /api/reports answers an error, never a partial report. Every list read is paged: submissions
-// (the large sets) by keyset on their primary key — readAllById(), linear in the
-// set's size; an OFFSET page re-sorts the whole filtered set (measured: 72 000
-// submissions = 1.7–4.9 s of database time paged by OFFSET, 0.1 s by keyset) —
-// and the smaller ordered sets with readAll(), counted pages read a few at a
-// time, so their display order (created_at) is kept. Submissions are filtered by
-// their exam's teacher / group through a filter-only embed (`exams!inner()`)
-// rather than a list of exam ids, so the request stays one URL of fixed size.
+// Step 9: each report is ONE unit of complete reads. There is no row cap per
+// statement on the SQL layer, so the old paging (counted pages, keyset pages,
+// and the count-vs-rows check that guarded against a silently cut response)
+// is gone; a failed statement fails the whole unit, which is turned into
+// ReportReadError, so /api/reports still answers an error — never a report
+// built from a partial set (D1).
 //
-// Exams are read without `questions`: a submission's own max_score is the sum
-// of its exam's points (finalize_exam_submission writes it with the same rule),
-// and the questions were ~97% of the bytes. The one case without a max_score (a
-// score set before finalisation) reads its exams' questions on demand — see
-// withFallbackMax().
-
-/** The API's max_rows: a larger page would be cut to this anyway. */
-export const PAGE_SIZE = 1000
-/** Pages read at once after the first (which carries the exact count). */
-const PAGE_CONCURRENCY = 4
-
-interface ReadError { message: string; code?: string }
-type Result = { data: unknown[] | null; count?: number | null; error?: ReadError | null }
-type Page = PromiseLike<Result>
+// Exams are read without `questions`. A submission scored before it was
+// finalised (a score but no max_score) falls back to its exam's question-point
+// total, computed in the statement — and, as before, only for an exam in the
+// report's own (live) exam list; anything else keeps no maximum.
 
 /**
- * A report read failed, or came back with fewer (or more) rows than the
- * database counted. The report is then not built at all: /api/reports answers
- * an error instead of a report computed from a partial set. This also catches
- * a max_rows lowered below PAGE_SIZE (pages come back short) and rows changing
- * while the report is read (the counts stop matching) — both fail on purpose.
+ * A report read failed. The report is then not built at all: /api/reports
+ * answers an error instead of a report computed from a partial set.
  */
 export class ReportReadError extends Error {
-  constructor(message: string, readonly detail?: ReadError | null) {
+  constructor(message: string, readonly detail?: { message: string; code?: string } | null) {
     super(message)
     this.name = 'ReportReadError'
   }
 }
 
-/** The exact count of a head-only (or counted) read; a failed or missing count is an error, never 0. */
-function countOf(r: Result, what: string): number {
-  if (r.error) throw new ReportReadError(`${what}: count failed`, r.error)
-  if (r.count == null) throw new ReportReadError(`${what}: no count returned`)
-  return r.count
-}
-
-/** A subject row read with .single(): no row (PGRST116) is null — the route's 404 — any other failure is an error. */
-function subjectRow<T>(r: { data: T | null; error: ReadError | null }, what: string): T | null {
-  if (r.error && r.error.code !== 'PGRST116') throw new ReportReadError(`${what}: read failed`, r.error)
-  return r.data
-}
-
-/**
- * The rows of one counted page, which must hold exactly what is left of the
- * count from `from` (PAGE_SIZE, or the remainder on the last page) — anything
- * else is an error, including a page cut short by a lower max_rows.
- */
-function pageRows(r: Result, from: number, total: number): unknown[] {
-  if (r.error) throw new ReportReadError(`page at ${from}: read failed`, r.error)
-  const rows = r.data ?? []
-  const expected = Math.min(PAGE_SIZE, Math.max(total - from, 0))
-  if (rows.length !== expected) throw new ReportReadError(`page at ${from}: ${rows.length} rows, expected ${expected} of ${total}`)
-  return rows
-}
-
-/**
- * Every row of a read, page by page. `page(from, to, withCount)` must order by a
- * unique key, so the pages neither overlap nor skip; the first page asks for the
- * exact count and the rest are read a few at a time. Every page must be complete
- * against that count; a failed page, a missing count or a short page throws
- * ReportReadError.
- */
-export async function readAll<T>(page: (from: number, to: number, withCount: boolean) => Page): Promise<T[]> {
-  const first = await page(0, PAGE_SIZE - 1, true)
-  if (first.error) throw new ReportReadError('first page: read failed', first.error)
-  const total = countOf(first, 'first page')
-  const rows = [...pageRows(first, 0, total)] as T[]
-  const starts: number[] = []
-  for (let from = PAGE_SIZE; from < total; from += PAGE_SIZE) starts.push(from)
-  for (let i = 0; i < starts.length; i += PAGE_CONCURRENCY) {
-    const slice = starts.slice(i, i + PAGE_CONCURRENCY)
-    const batch = await Promise.all(slice.map(from => page(from, from + PAGE_SIZE - 1, false)))
-    batch.forEach((r, k) => rows.push(...(pageRows(r, slice[k], total) as T[])))
+/** One report's reads in one unit; any failure becomes ReportReadError. */
+async function readUnit(what: string, build: Parameters<typeof run>[1]) {
+  try {
+    return await run({ as: 'service', platform: true }, build)
+  } catch (e) {
+    const err = e as { message?: string; code?: string }
+    throw new ReportReadError(`${what}: read failed (${err.code ?? "?"}: ${err.message ?? String(e)})`, { message: err.message ?? String(e), code: err.code })
   }
-  return rows
 }
-
-/** Every uuid sorts after the nil uuid, so `id > FIRST_ID` is the first keyset page. */
-export const FIRST_ID = '00000000-0000-0000-0000-000000000000'
-
-/**
- * Every row of a large read, by keyset on `id`: each page is the next PAGE_SIZE
- * rows after the last id seen (`page(afterId)` filters `id > afterId`, orders by
- * id and limits to PAGE_SIZE; the first call gets FIRST_ID). Pages follow one
- * another; the read ends on a short page. `count()` is the same read as a
- * head-only exact count, run alongside the first page: the rows read must equal
- * it, so a failed page or count, or a short page (e.g. a lower max_rows), throws
- * ReportReadError.
- */
-export async function readAllById<T extends { id: string }>(page: (afterId: string) => Page, count: () => Page): Promise<T[]> {
-  const [firstPage, counted] = await Promise.all([page(FIRST_ID), count()])
-  const expected = countOf(counted, 'keyset count')
-  const rows: T[] = []
-  let res = firstPage
-  for (;;) {
-    if (res.error) throw new ReportReadError(`keyset page after ${rows.length} rows: read failed`, res.error)
-    const batch = (res.data ?? []) as T[]
-    rows.push(...batch)
-    if (batch.length < PAGE_SIZE) break
-    res = await page(batch[batch.length - 1].id)
-  }
-  if (rows.length !== expected) throw new ReportReadError(`keyset read: ${rows.length} rows, expected ${expected}`)
-  return rows
-}
-
-const withCount = (on: boolean) => (on ? { count: 'exact' as const } : undefined)
 
 // ── Row shapes ──────────────────────────────────────────────────────────────
 
@@ -136,188 +49,164 @@ export interface ReportSub {
   id: string; exam_id: string; student_id: string; score: number | null; max_score: number | null
   is_graded: boolean; is_flagged: boolean; submitted_at: string | null
 }
-/** The pre-P-07 fallback maximum of a submission: its exam's question-point total (same expression as the old examMax). */
-function questionPointTotal(questions: unknown): number {
-  if (!Array.isArray(questions)) return 0
-  return (questions as Array<{ points?: number }>).reduce((s, q) => s + (q.points ?? 0), 0)
-}
-
-/** Exam ids per fallback read: well under max_rows, and a short URL. */
-export const FALLBACK_CHUNK = 100
-
-/**
- * A submission scored before it was finalised (a score but no max_score — e.g. a
- * teacher scoring a homework attempt that was never submitted) has no stored
- * maximum, and the reports used its exam's question-point total instead. Exams are
- * no longer read with their questions, so for exactly those exams — and only when
- * such a submission exists — read the questions in bounded chunks and fill that
- * maximum in. As before, only exams in the report's own exam list count; anything
- * else keeps no maximum (0).
- */
-async function withFallbackMax(admin: SupabaseClient, subs: ReportSub[], reportExamIds: Iterable<string>): Promise<ReportSub[]> {
-  const listed = new Set(reportExamIds)
-  const ids = [...new Set(subs.filter(s => s.score != null && s.max_score == null && listed.has(s.exam_id)).map(s => s.exam_id))]
-  if (!ids.length) return subs
-  const chunks: string[][] = []
-  for (let i = 0; i < ids.length; i += FALLBACK_CHUNK) chunks.push(ids.slice(i, i + FALLBACK_CHUNK))
-  const pages = await Promise.all(chunks.map(chunk =>
-    admin.from('exams').select('id, questions').in('id', chunk).limit(FALLBACK_CHUNK)))
-  const total = new Map<string, number>()
-  for (const { data, error } of pages) {
-    if (error) throw new ReportReadError('fallback exam questions: read failed', error)
-    for (const e of (data ?? []) as { id: string; questions: unknown }[]) total.set(e.id, questionPointTotal(e.questions))
-  }
-  return subs.map(s => (s.score != null && s.max_score == null && total.has(s.exam_id) ? { ...s, max_score: total.get(s.exam_id)! } : s))
-}
 
 interface Person { id: string; full_name: string; email: string }
 interface Member { group_id: string; student_id: string; users: { full_name: string; email: string } | null }
 
+/**
+ * The submission columns, with the fallback maximum: the stored max_score, or —
+ * for a scored, unfinalised submission of a live exam in `listed` — the
+ * exam's question-point total (the same rule finalize_exam_submission uses).
+ */
+const subColumns = (sql: Sql, listed: ReturnType<Sql>) => sql`
+  s.id, s.exam_id, s.student_id, s.score, s.is_graded, s.is_flagged, s.submitted_at,
+  case when s.max_score is null and s.score is not null and ${listed}
+       then (select coalesce(sum(coalesce((q->>'points')::numeric, 0)), 0)
+               from jsonb_array_elements(case when jsonb_typeof(e.questions) = 'array' then e.questions else '[]'::jsonb end) q)
+       else s.max_score end as max_score`
+
+const memberColumns = (sql: Sql) => sql`
+  gs.group_id, gs.student_id,
+  case when u.id is null then null else json_build_object('full_name', u.full_name, 'email', u.email) end as users`
+
 // ── University ──────────────────────────────────────────────────────────────
 
-export const UNIVERSITY_EXAM_COLUMNS = 'id, title, group_id, teacher_id, created_at'
-export const UNIVERSITY_SUB_COLUMNS = 'id, exam_id, score, max_score, is_flagged, submitted_at'
-
-export async function loadUniversityData(admin: SupabaseClient, tenantId: string) {
-  const tenant = subjectRow(await admin.from('tenants').select('id, name').eq('id', tenantId).single(), 'institution')
-  if (!tenant) return null
-  const [teachers, studentRes, groups, exams, lessonRes, subs, memberships] = await Promise.all([
-    readAll<Person>((f, t, c) => admin.from('users').select('id, full_name, email', withCount(c))
-      .eq('tenant_id', tenantId).eq('role', 'teacher').order('created_at').order('id').range(f, t)),
-    // Students are only counted.
-    admin.from('users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
-    readAll<{ id: string; name: string; teacher_id: string }>((f, t, c) => admin.from('groups').select('id, name, teacher_id', withCount(c))
-      .eq('tenant_id', tenantId).is('deleted_at', null).order('created_at').order('id').range(f, t)),
-    readAll<ReportExam>((f, t, c) => admin.from('exams').select(UNIVERSITY_EXAM_COLUMNS, withCount(c))
-      .eq('tenant_id', tenantId).is('deleted_at', null).order('id').range(f, t)),
-    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_published', true).is('deleted_at', null),
-    readAllById<ReportSub>(after => admin.from('exam_submissions').select(UNIVERSITY_SUB_COLUMNS)
-      .eq('tenant_id', tenantId).gt('id', after).order('id').limit(PAGE_SIZE),
-    () => admin.from('exam_submissions').select(UNIVERSITY_SUB_COLUMNS, { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)),
+export async function loadUniversityData(tenantId: string) {
+  const rows = await readUnit('institution', sql => [
+    sql`select id, name from public.tenants where id = ${tenantId}`,
+    sql`select id, full_name, email from public.users where tenant_id = ${tenantId} and role = 'teacher' order by created_at, id`,
+    sql`select count(*)::int as n from public.users where tenant_id = ${tenantId} and role = 'student'`,
+    sql`select id, name, teacher_id from public.groups where tenant_id = ${tenantId} and deleted_at is null order by created_at, id`,
+    sql`select id, title, group_id, teacher_id, created_at from public.exams where tenant_id = ${tenantId} and deleted_at is null order by id`,
+    sql`select count(*)::int as n from public.lessons where tenant_id = ${tenantId} and is_published and deleted_at is null`,
+    sql`select ${subColumns(sql, sql`e.tenant_id = ${tenantId} and e.deleted_at is null`)}
+          from public.exam_submissions s join public.exams e on e.id = s.exam_id
+         where s.tenant_id = ${tenantId} order by s.id`,
     // Members of the institution's live groups, counted per group.
-    readAll<{ group_id: string; student_id: string }>((f, t, c) => admin.from('group_students').select('group_id, student_id, groups!inner()', withCount(c))
-      .eq('groups.tenant_id', tenantId).is('groups.deleted_at', null).order('group_id').order('student_id').range(f, t)),
+    sql`select gs.group_id, gs.student_id from public.group_students gs join public.groups g on g.id = gs.group_id
+         where g.tenant_id = ${tenantId} and g.deleted_at is null order by gs.group_id, gs.student_id`,
   ])
-  const studentCount = countOf(studentRes, 'students')
-  const lessonCount = countOf(lessonRes, 'lessons')
+  const tenant = maybeOne<{ id: string; name: string }>(rows[0])
+  if (!tenant) return null
   return {
-    tenant: tenant as { id: string; name: string }, teachers, studentCount, groups, exams, lessonCount,
-    subs: await withFallbackMax(admin, subs, exams.map(e => e.id)), memberships,
+    tenant,
+    teachers: rows[1] as unknown as Person[],
+    studentCount: maybeOne<{ n: number }>(rows[2])!.n,
+    groups: rows[3] as unknown as { id: string; name: string; teacher_id: string }[],
+    exams: rows[4] as unknown as ReportExam[],
+    lessonCount: maybeOne<{ n: number }>(rows[5])!.n,
+    subs: rows[6] as unknown as ReportSub[],
+    memberships: rows[7] as unknown as { group_id: string; student_id: string }[],
   }
 }
 
 // ── Teacher ─────────────────────────────────────────────────────────────────
 
-export const TEACHER_EXAM_COLUMNS = 'id, title, type, group_id'
-export const TEACHER_SUB_COLUMNS = 'id, exam_id, student_id, score, max_score, is_graded, exams!inner()'
-
-export async function loadTeacherData(admin: SupabaseClient, teacherId: string) {
-  const teacher = subjectRow(await admin.from('users').select('id, full_name, email, tenant_id, tenants(name)').eq('id', teacherId).single(), 'teacher')
-  if (!teacher) return null
-  const [groups, exams, lessonRes, members, subs] = await Promise.all([
-    readAll<{ id: string; name: string }>((f, t, c) => admin.from('groups').select('id, name', withCount(c))
-      .eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
-    readAll<ReportExam>((f, t, c) => admin.from('exams').select(TEACHER_EXAM_COLUMNS, withCount(c))
-      .eq('teacher_id', teacherId).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
-    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId).eq('is_published', true).is('deleted_at', null),
+export async function loadTeacherData(teacherId: string) {
+  const rows = await readUnit('teacher', sql => [
+    sql`select u.id, u.full_name, u.email, u.tenant_id,
+               case when t.id is null then null else json_build_object('name', t.name) end as tenants
+          from public.users u left join public.tenants t on t.id = u.tenant_id where u.id = ${teacherId}`,
+    sql`select id, name from public.groups where teacher_id = ${teacherId} and deleted_at is null order by created_at, id`,
+    sql`select id, title, type, group_id from public.exams where teacher_id = ${teacherId} and deleted_at is null order by created_at, id`,
+    sql`select count(*)::int as n from public.lessons where teacher_id = ${teacherId} and is_published and deleted_at is null`,
     // Members of the teacher's live groups.
-    readAll<Member>((f, t, c) => admin.from('group_students').select('group_id, student_id, users(full_name, email), groups!inner()', withCount(c))
-      .eq('groups.teacher_id', teacherId).is('groups.deleted_at', null).order('group_id').order('student_id').range(f, t)),
+    sql`select ${memberColumns(sql)} from public.group_students gs
+          join public.groups g on g.id = gs.group_id left join public.users u on u.id = gs.student_id
+         where g.teacher_id = ${teacherId} and g.deleted_at is null order by gs.group_id, gs.student_id`,
     // Submissions to the teacher's live exams.
-    readAllById<ReportSub>(after => admin.from('exam_submissions').select(TEACHER_SUB_COLUMNS)
-      .eq('exams.teacher_id', teacherId).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE),
-    () => admin.from('exam_submissions').select(TEACHER_SUB_COLUMNS, { count: 'exact', head: true })
-      .eq('exams.teacher_id', teacherId).is('exams.deleted_at', null)),
+    sql`select ${subColumns(sql, sql`true`)} from public.exam_submissions s join public.exams e on e.id = s.exam_id
+         where e.teacher_id = ${teacherId} and e.deleted_at is null order by s.id`,
   ])
+  const teacher = maybeOne<Person & { tenants: { name: string } | null }>(rows[0])
+  if (!teacher) return null
   return {
-    teacher: teacher as unknown as Person & { tenants: { name: string } | null }, groups, exams, lessonCount: countOf(lessonRes, 'lessons'), members,
-    subs: await withFallbackMax(admin, subs, exams.map(e => e.id)),
+    teacher,
+    groups: rows[1] as unknown as { id: string; name: string }[],
+    exams: rows[2] as unknown as ReportExam[],
+    lessonCount: maybeOne<{ n: number }>(rows[3])!.n,
+    members: rows[4] as unknown as Member[],
+    subs: rows[5] as unknown as ReportSub[],
   }
 }
 
 // ── Group and pilot (one group) ─────────────────────────────────────────────
 
-export const GROUP_EXAM_COLUMNS = 'id, title, type, created_at, proctoring_enabled'
-export const GROUP_SUB_COLUMNS = 'id, exam_id, student_id, score, max_score, is_graded, is_flagged, submitted_at, exams!inner()'
+interface GroupRow { id: string; name: string; created_at?: string; users: { full_name: string } | null; tenants: { name: string } | null }
 
-const groupExams = (admin: SupabaseClient, groupId: string) =>
-  readAll<ReportExam>((f, t, c) => admin.from('exams').select(GROUP_EXAM_COLUMNS, withCount(c))
-    .eq('group_id', groupId).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t))
-const groupMembers = (admin: SupabaseClient, groupId: string) =>
-  readAll<Member>((f, t, c) => admin.from('group_students').select('group_id, student_id, users(full_name, email)', withCount(c))
-    .eq('group_id', groupId).order('joined_at').order('student_id').range(f, t))
-const groupSubs = (admin: SupabaseClient, groupId: string) =>
-  readAllById<ReportSub>(after => admin.from('exam_submissions').select(GROUP_SUB_COLUMNS)
-    .eq('exams.group_id', groupId).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE),
-  () => admin.from('exam_submissions').select(GROUP_SUB_COLUMNS, { count: 'exact', head: true })
-    .eq('exams.group_id', groupId).is('exams.deleted_at', null))
+const groupSql = (sql: Sql, groupId: string) => [
+  sql`select g.id, g.name, g.tenant_id, g.created_at,
+             case when u.id is null then null else json_build_object('full_name', u.full_name) end as users,
+             case when t.id is null then null else json_build_object('name', t.name) end as tenants
+        from public.groups g left join public.users u on u.id = g.teacher_id left join public.tenants t on t.id = g.tenant_id
+       where g.id = ${groupId}`,
+  sql`select id, title, type, created_at, proctoring_enabled from public.exams
+       where group_id = ${groupId} and deleted_at is null order by created_at, id`,
+  sql`select ${memberColumns(sql)} from public.group_students gs left join public.users u on u.id = gs.student_id
+       where gs.group_id = ${groupId} order by gs.joined_at, gs.student_id`,
+  sql`select ${subColumns(sql, sql`true`)} from public.exam_submissions s join public.exams e on e.id = s.exam_id
+       where e.group_id = ${groupId} and e.deleted_at is null order by s.id`,
+]
 
-export async function loadGroupReportData(admin: SupabaseClient, groupId: string) {
-  const group = subjectRow(await admin.from('groups').select('id, name, tenant_id, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single(), 'group')
+export async function loadGroupReportData(groupId: string) {
+  const rows = await readUnit('group', sql => groupSql(sql, groupId))
+  const group = maybeOne<GroupRow>(rows[0])
   if (!group) return null
-  const [exams, members, subs] = await Promise.all([groupExams(admin, groupId), groupMembers(admin, groupId), groupSubs(admin, groupId)])
-  return { group: group as unknown as GroupRow, exams, members, subs: await withFallbackMax(admin, subs, exams.map(e => e.id)) }
+  return { group, exams: rows[1] as unknown as ReportExam[], members: rows[2] as unknown as Member[], subs: rows[3] as unknown as ReportSub[] }
 }
 
 export interface SurveyResponse {
   ease_rating: number; prefer_platform: boolean; recommend: boolean
   best_feature: string | null; problem_faced: string | null; comment: string | null
 }
-interface GroupRow { id: string; name: string; created_at?: string; users: { full_name: string } | null; tenants: { name: string } | null }
 
-export async function loadPilotData(admin: SupabaseClient, groupId: string) {
-  const group = subjectRow(await admin.from('groups').select('id, name, tenant_id, created_at, users:teacher_id(full_name), tenants(name)').eq('id', groupId).single(), 'group')
-  if (!group) return null
-  const [exams, members, lessonRes, subs, responses] = await Promise.all([
-    groupExams(admin, groupId),
-    groupMembers(admin, groupId),
-    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('group_id', groupId).eq('is_published', true).is('deleted_at', null),
-    groupSubs(admin, groupId),
+export async function loadPilotData(groupId: string) {
+  const rows = await readUnit('group', sql => [
+    ...groupSql(sql, groupId),
+    sql`select count(*)::int as n from public.lessons where group_id = ${groupId} and is_published and deleted_at is null`,
     // The group's survey answers (a group has at most one survey; none = no answers).
-    readAll<SurveyResponse>((f, t, c) => admin.from('survey_responses')
-      .select('ease_rating, prefer_platform, recommend, best_feature, problem_faced, comment, surveys!inner()', withCount(c))
-      .eq('surveys.group_id', groupId).order('id').range(f, t)),
+    sql`select r.ease_rating, r.prefer_platform, r.recommend, r.best_feature, r.problem_faced, r.comment
+          from public.survey_responses r join public.surveys sv on sv.id = r.survey_id
+         where sv.group_id = ${groupId} order by r.id`,
   ])
+  const group = maybeOne<GroupRow & { created_at: string }>(rows[0])
+  if (!group) return null
   return {
-    group: group as unknown as GroupRow & { created_at: string }, exams, members, lessonCount: countOf(lessonRes, 'lessons'),
-    subs: await withFallbackMax(admin, subs, exams.map(e => e.id)), responses,
+    group, exams: rows[1] as unknown as ReportExam[], members: rows[2] as unknown as Member[],
+    lessonCount: maybeOne<{ n: number }>(rows[4])!.n, subs: rows[3] as unknown as ReportSub[],
+    responses: rows[5] as unknown as SurveyResponse[],
   }
 }
 
 // ── Student ─────────────────────────────────────────────────────────────────
 
-export const STUDENT_EXAM_COLUMNS = 'id, title, type, group_id, created_at'
-export const STUDENT_SUB_COLUMNS = 'id, exam_id, student_id, score, max_score, is_flagged, submitted_at, exams!inner()'
-
 interface Membership { group_id: string; groups: { id: string; name: string; deleted_at: string | null; users: { full_name: string } | null } | null }
 
-export async function loadStudentData(admin: SupabaseClient, studentId: string) {
-  const [studentRes, memberships] = await Promise.all([
-    admin.from('users').select('id, full_name, email, created_at, tenant_id, tenants(name)').eq('id', studentId).single(),
-    readAll<Membership>((f, t, c) => admin.from('group_students')
-      .select('group_id, joined_at, groups(id, name, deleted_at, users:teacher_id(full_name))', withCount(c))
-      .eq('student_id', studentId).order('joined_at').order('group_id').range(f, t)),
+export async function loadStudentData(studentId: string) {
+  // The student's live groups decide the exam set; every statement below
+  // filters through the same membership, so the whole report is one unit.
+  const liveGroups = (sql: Sql) => sql`(select gs.group_id from public.group_students gs
+      join public.groups g on g.id = gs.group_id where gs.student_id = ${studentId} and g.deleted_at is null)`
+  const rows = await readUnit('student', sql => [
+    sql`select u.id, u.full_name, u.email, u.created_at, u.tenant_id,
+               case when t.id is null then null else json_build_object('name', t.name) end as tenants
+          from public.users u left join public.tenants t on t.id = u.tenant_id where u.id = ${studentId}`,
+    sql`select gs.group_id,
+               case when g.id is null then null else json_build_object('id', g.id, 'name', g.name, 'deleted_at', g.deleted_at,
+                 'users', case when t.id is null then null else json_build_object('full_name', t.full_name) end) end as groups
+          from public.group_students gs
+          left join public.groups g on g.id = gs.group_id left join public.users t on t.id = g.teacher_id
+         where gs.student_id = ${studentId} order by gs.joined_at, gs.group_id`,
+    sql`select id, title, type, group_id, created_at from public.exams
+         where group_id in ${liveGroups(sql)} and is_published and deleted_at is null order by created_at, id`,
+    // Every submission to those exams: the student's own are among them (read once).
+    sql`select ${subColumns(sql, sql`true`)} from public.exam_submissions s join public.exams e on e.id = s.exam_id
+         where e.group_id in ${liveGroups(sql)} and e.is_published and e.deleted_at is null order by s.id`,
   ])
-  const student = subjectRow(studentRes, 'student')
+  const student = maybeOne<Person & { created_at: string; tenants: { name: string } | null }>(rows[0])
   if (!student) return null
-  const activeGroups = memberships.filter(m => m.groups && !m.groups.deleted_at)
-  const groupIds = activeGroups.map(m => m.group_id)
-  const [exams, readSubs] = groupIds.length
-    ? await Promise.all([
-        readAll<ReportExam>((f, t, c) => admin.from('exams').select(STUDENT_EXAM_COLUMNS, withCount(c))
-          .in('group_id', groupIds).eq('is_published', true).is('deleted_at', null).order('created_at', { ascending: true }).order('id').range(f, t)),
-        // Every submission to those exams: the student's own are among them (read once).
-        readAllById<ReportSub>(after => admin.from('exam_submissions').select(STUDENT_SUB_COLUMNS)
-          .in('exams.group_id', groupIds).eq('exams.is_published', true).is('exams.deleted_at', null).gt('id', after).order('id').limit(PAGE_SIZE),
-        () => admin.from('exam_submissions').select(STUDENT_SUB_COLUMNS, { count: 'exact', head: true })
-          .in('exams.group_id', groupIds).eq('exams.is_published', true).is('exams.deleted_at', null)),
-      ])
-    : [[] as ReportExam[], [] as ReportSub[]]
-  const peerSubs = await withFallbackMax(admin, readSubs, exams.map(e => e.id))
-  return {
-    student: student as unknown as Person & { created_at: string; tenants: { name: string } | null },
-    activeGroups: activeGroups as (Membership & { groups: NonNullable<Membership['groups']> })[],
-    exams, peerSubs, ownSubs: peerSubs.filter(s => s.student_id === studentId),
-  }
+  const memberships = rows[1] as unknown as Membership[]
+  const activeGroups = memberships.filter(m => m.groups && !m.groups.deleted_at) as (Membership & { groups: NonNullable<Membership['groups']> })[]
+  const peerSubs = rows[3] as unknown as ReportSub[]
+  return { student, activeGroups, exams: rows[2] as unknown as ReportExam[], peerSubs, ownSubs: peerSubs.filter(s => s.student_id === studentId) }
 }

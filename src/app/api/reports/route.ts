@@ -1,9 +1,9 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { run, maybeOne } from '@/lib/db/sql'
 import {
-  canAccessReport, reportsAdminClient, reportToCsv, reportChrome,
+  canAccessReport, reportToCsv, reportChrome,
   buildUniversityReport, buildTeacherReport, buildGroupReport, buildStudentReport, buildPilotReport,
   type ReportScope, type ReportLang,
 } from '@/lib/reports'
@@ -11,12 +11,13 @@ import { ReportReadError } from '@/lib/data/reports'
 
 // GET /api/reports?scope=university|teacher|group|student|pilot&id=<uuid>&format=json|csv&lang=ar|en
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  // The gate decides on the caller's LIVE row (owner only), read as the caller.
+  const [me] = await run({ as: 'user', userId: ctx.sub }, sql => [
+    sql`select role, tenant_id from public.users where id = ${ctx.sub} and is_active is not false`,
+  ])
+  const profile = maybeOne<{ role: string; tenant_id: string | null }>(me)
   if (!profile) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
@@ -29,19 +30,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ ...(await apiErr('invalidReportScope')) }, { status: 400 })
   }
   if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
+  }
 
   const access = canAccessReport(profile)
   if (!access.ok) return NextResponse.json({ ...(await apiErr('reportsRestricted')) }, { status: 403 })
 
-  const admin = reportsAdminClient()
   let report: Awaited<ReturnType<typeof buildGroupReport>>
   try {
     report =
-      scope === 'university' ? await buildUniversityReport(admin, id, lang) :
-      scope === 'teacher'    ? await buildTeacherReport(admin, id, lang) :
-      scope === 'student'    ? await buildStudentReport(admin, id, lang) :
-      scope === 'pilot'      ? await buildPilotReport(admin, id, lang) :
-                               await buildGroupReport(admin, id, lang)
+      scope === 'university' ? await buildUniversityReport(id, lang) :
+      scope === 'teacher'    ? await buildTeacherReport(id, lang) :
+      scope === 'student'    ? await buildStudentReport(id, lang) :
+      scope === 'pilot'      ? await buildPilotReport(id, lang) :
+                               await buildGroupReport(id, lang)
   } catch (e) {
     // A failed or incomplete read never becomes a partial report (D1).
     if (!(e instanceof ReportReadError)) throw e

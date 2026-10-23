@@ -1,17 +1,13 @@
 /**
- * Shared fixture for the report tests (P-07): a deterministic institution and a
- * mock Supabase client that behaves like PostgREST where the reports depend on
- * it — eq / in / is / gt filters (also on an embedded relation, `exams.teacher_id`),
- * `order` (ascending, nulls last), `range` / `limit`, `count: 'exact'` / `head`,
- * `single` / `maybeSingle`, and the
- * project's API cap: a response never carries more than `MAX_ROWS` rows.
+ * Shared fixture for the report tests: a deterministic institution (two live
+ * groups of 42, a deleted group, deleted and unpublished exams, a survey).
  *
- * reports-golden.json holds what the pre-P-07 builders produced from this
- * world with no cap (every row read), so it is the reference for "the same
- * report, read correctly".
+ * reports-golden.json holds what the original builders produced from this
+ * world (every row read), so it is the reference for "the same report, read
+ * correctly" — reports-golden-trial.test.ts loads the world into the Neon
+ * trial and checks the SQL-layer reports against it.
  */
 
-export const MAX_ROWS = 1000
 export const FIXED_NOW = new Date('2026-10-01T12:00:00Z')
 
 const DAY = 86_400_000
@@ -107,72 +103,6 @@ export function buildWorld(opts: { missingMax?: boolean } = {}): World {
   }))
 
   return { tenants, users: [...teachers, ...students], groups, group_students: memberships, exams, exam_submissions: subs, lessons, surveys, survey_responses }
-}
-
-// Embedded-relation lookups the reports filter through (`<relation>.<column>`).
-const RELATIONS: Record<string, Record<string, (w: World, row: Row) => Row | undefined>> = {
-  group_students: { groups: (w, r) => w.groups.find(g => g.id === r.group_id) },
-  exam_submissions: { exams: (w, r) => w.exams.find(e => e.id === r.exam_id) },
-  survey_responses: { surveys: (w, r) => w.surveys.find(s => s.id === r.survey_id) },
-}
-
-export interface MockCall { table: string; columns: string; filters: unknown[][]; range: [number, number] | null; limit: number | null; head: boolean; count: boolean }
-
-/**
- * A Supabase-like client over `world`. With `cap`, a response carries at most MAX_ROWS rows, as the live API does
- * (`capRows` lowers that cap, as a smaller max_rows would). `fail(call, n)` makes the n-th request (0-based) fail the
- * way PostgREST does — no data, no count, an error — and `.single()` without a row answers PGRST116, as live.
- */
-export function mockAdmin(world: World, opts: {
-  cap?: boolean; capRows?: number; calls?: MockCall[]; gate?: (call: MockCall) => Promise<void>
-  fail?: (call: MockCall, n: number) => boolean
-} = {}) {
-  let requests = 0
-  return {
-    from: (table: string) => ({
-      select: (columns: string, selectOpts?: { count?: string; head?: boolean }) => {
-        const call: MockCall = { table, columns, filters: [], range: null, limit: null, head: !!selectOpts?.head, count: selectOpts?.count === 'exact' }
-        opts.calls?.push(call)
-        const n = requests++
-        const preds: ((r: Row) => boolean)[] = []
-        const sorts: string[] = []
-        let single: false | 'single' | 'maybe' = false
-        const value = (r: Row, col: string) => {
-          if (!col.includes('.')) return r[col]
-          const [rel, field] = col.split('.')
-          const parent = RELATIONS[table]?.[rel]?.(world, r)
-          return parent ? parent[field] : Symbol.for('no-parent')   // an inner join drops the row
-        }
-        const chain: Record<string, unknown> = {}
-        chain.eq = (c: string, v: unknown) => { call.filters.push(['eq', c, v]); preds.push(r => value(r, c) === v); return chain }
-        chain.in = (c: string, v: unknown[]) => { call.filters.push(['in', c, v]); preds.push(r => v.includes(value(r, c))); return chain }
-        chain.is = (c: string, v: unknown) => { call.filters.push(['is', c, v]); preds.push(r => { const x = value(r, c); return v === null ? x === null || x === undefined : x === v }); return chain }
-        chain.gt = (c: string, v: string) => { call.filters.push(['gt', c, v]); preds.push(r => String(value(r, c)) > v); return chain }
-        chain.order = (c: string, o?: unknown) => { call.filters.push(['order', c, o ?? null]); sorts.push(c); return chain }
-        chain.range = (from: number, to: number) => { call.range = [from, to]; return chain }
-        chain.limit = (n: number) => { call.limit = n; return chain }
-        chain.single = () => { single = 'single'; return chain }
-        chain.maybeSingle = () => { single = 'maybe'; return chain }
-        const run = () => {
-          if (opts.fail?.(call, n)) return { data: null, count: null, error: { code: 'PGRST000', message: 'injected failure' } }
-          const rows = (world[table] ?? []).filter(r => preds.every(p => p(r)))
-          // ORDER BY as the database applies it: ascending, nulls last, stable.
-          const cmp = (a: unknown, b: unknown) => (a == null ? (b == null ? 0 : 1) : b == null ? -1 : a < b ? -1 : a > b ? 1 : 0)
-          if (sorts.length) rows.sort((a, b) => { for (const c of sorts) { const d = cmp(a[c], b[c]); if (d) return d } return 0 })
-          if (call.head) return { data: null, count: rows.length, error: null }
-          if (single === 'single' && !rows.length) return { data: null, error: { code: 'PGRST116', message: 'no rows' } }
-          if (single) return { data: rows[0] ?? null, error: null }
-          let out = call.range ? rows.slice(call.range[0], call.range[1] + 1) : rows
-          if (call.limit != null) out = out.slice(0, call.limit)
-          if (opts.cap) out = out.slice(0, opts.capRows ?? MAX_ROWS)
-          return { data: out, count: call.count ? rows.length : null, error: null }
-        }
-        chain.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
-          (opts.gate ? opts.gate(call) : Promise.resolve()).then(run).then(res, rej)
-        return chain
-      },
-    }),
-  } as never
 }
 
 /** The reports the golden file covers: every scope in Arabic, two in English (labels). */
