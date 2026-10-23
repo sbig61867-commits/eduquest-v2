@@ -231,3 +231,9 @@
 - POST: the gate + the non-member count in one unit; then the session (update-or-insert in one statement) and the records (upsert from a JSON set) in one unit, each only while the caller is still live with the allowed role (was 6+).
 - DELETE: the session's group + caller in one unit, then the guarded delete (was 4).
 - Trial e2e `attendance-trial` 4/4 (two institutions: non-members refused; re-marking updates the same session; roster sorted, counts per status; a colleague 403 and another institution 404 on read/mark/delete; the institution admin with manage_attendance reads and deletes).
+
+## Step 9 — data batch 15: surveys + a handler return-type fix (2026-10-23)
+- `surveys` GET/POST/PATCH: ONE unit each — the caller's live row and the group (for a precise refusal) and the read/write, which repeats the same conditions (was 3–4).
+- `surveys/respond` GET: ONE statement — the first open survey of the student's ACTIVE groups not yet answered (was 4 sequential reads). POST: ONE unit — survey state + membership side read and the answer written only while open, group active, caller a live member (was 4).
+- Fix: helpers returning `{ error } | { …data }` were checked with `'error' in x`; TypeScript widens such inferred unions (the data branch gets `error?: undefined`), so the handlers' type included `undefined`. Switched to value checks (`if (x.error) return x.error`) in 7 routes (incl. the pre-existing `exam/answer-file`) and explicit result types in attendance. A one-off probe over all 135 exported handlers now finds none that can resolve to anything but a Response.
+- Trial e2e `surveys-trial` 3/3 (two institutions: colleague / other institution refused; member answers once, non-member and other institution's student refused; counts; closed survey takes no answers). Membership, attendance, teaching-structure and announcements trials re-run green after the fix.

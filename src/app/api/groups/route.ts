@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   catch { body = {} }
 
   const auth = await loadGroupCaller({ teacherId: body.teacher_id, courseId: body.course_id })
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   const { userId, tenantId, profile } = auth
   if (!Object.keys(body).length) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
 
@@ -135,7 +135,7 @@ export async function PATCH(request: Request) {
     groupId: UUID.test(id) ? id : undefined, teacherId: teacher_id, courseId: parsed.update.course_id,
     unitId: academic_unit_id, termId: term_id,
   })
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   const { userId, tenantId, profile, group } = auth
 
   if (!group) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
@@ -205,7 +205,7 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
   const auth = await loadGroupCaller({ groupId: UUID.test(id) ? id : undefined })
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   const { userId, tenantId, profile, group } = auth
   if (!group) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
   if (profile.role === 'teacher' && group.teacher_id !== userId) {

@@ -25,7 +25,9 @@ const gateSql = (sql: Sql, userId: string, tenantId: string, groupId: string) =>
 ]
 
 /** The gate's decision: an error response, or the role it allowed. */
-async function decide(userId: string, me: Me | null, group: Group | null) {
+type Refused = { error: Response }
+
+async function decide(userId: string, me: Me | null, group: Group | null): Promise<Refused | { error?: undefined; role: string; staff: boolean }> {
   if (!me) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   if (!group) return { error: NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 }) }
   const staff = me.role !== 'teacher' && staffCan(me, 'manage_attendance')
@@ -34,7 +36,7 @@ async function decide(userId: string, me: Me | null, group: Group | null) {
   return { role: me.role, staff }
 }
 
-async function session() {
+async function session(): Promise<Refused | { error?: undefined; userId: string; tenantId: string }> {
   const ctx = await currentCtx()
   if (!ctx) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
   if (!ctx.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
@@ -44,12 +46,12 @@ async function session() {
 // GET /api/attendance?group_id=…&date=YYYY-MM-DD
 // ONE unit: the gate, the roster, the day's session with its records, and the
 // last 10 sessions with their counts — the data is discarded unless the gate passes.
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams
   const groupId = params.get('group_id')
   const date = params.get('date')
   const s = await session()
-  if ('error' in s) return s.error
+  if (s.error) return s.error
   if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
   if (!isValidSessionDate(date)) return NextResponse.json({ ...(await apiErr('invalidDate')) }, { status: 400 })
   if (!UUID.test(groupId)) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
@@ -84,7 +86,7 @@ export async function GET(request: Request) {
   }
 
   const gate = await decide(s.userId, maybeOne<Me>(rows[0]), maybeOne<Group>(rows[1]))
-  if ('error' in gate) return gate.error
+  if (gate.error) return gate.error
 
   type U = { id: string; full_name: string; email: string; is_active: boolean }
   const roster = (rows[2] as unknown as U[]).sort((a, b) => a.full_name.localeCompare(b.full_name, 'ar'))
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
   }
 
   const s = await session()
-  if ('error' in s) return s.error
+  if (s.error) return s.error
   if (!UUID.test(group_id)) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
   if (records.some(r => !UUID.test(r.student_id))) return NextResponse.json({ ...(await apiErr('studentsNotInGroup')) }, { status: 400 })
 
@@ -139,7 +141,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('attendanceUnavailable')) }, { status: 503 })
   }
   const gate = await decide(s.userId, maybeOne<Me>(gateRows[0]), maybeOne<Group>(gateRows[1]))
-  if ('error' in gate) return gate.error
+  if (gate.error) return gate.error
   // Only students actually enrolled in this group can be marked.
   if ((maybeOne<{ n: number }>(gateRows[2])?.n ?? 0) > 0) {
     return NextResponse.json({ ...(await apiErr('studentsNotInGroup')) }, { status: 400 })
@@ -194,7 +196,7 @@ export async function DELETE(request: Request) {
   const sessionId = body.session_id
 
   const s = await session()
-  if ('error' in s) return s.error
+  if (s.error) return s.error
   if (!UUID.test(sessionId)) return NextResponse.json({ ...(await apiErr('sessionNotFound')) }, { status: 404 })
 
   // 1) the session (this institution's), the caller and the session's group
@@ -212,7 +214,7 @@ export async function DELETE(request: Request) {
   const group = maybeOne<Group>(rows[1])
   if (!group) return NextResponse.json({ ...(await apiErr('sessionNotFound')) }, { status: 404 })
   const gate = await decide(s.userId, maybeOne<Me>(rows[0]), group)
-  if ('error' in gate) return gate.error
+  if (gate.error) return gate.error
 
   // 2) the delete, repeating the live check
   try {

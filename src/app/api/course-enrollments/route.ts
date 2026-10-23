@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   const courseId = new URL(request.url).searchParams.get('course_id')
   if (!courseId) return NextResponse.json({ ...(await apiErr('missingCourseId')) }, { status: 400 })
   const auth = await authorize(courseId)
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
 
   try {
     // RosterModal asks for one page (?page=); without it the whole list comes back.
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   if (!course_id || !student_id) return NextResponse.json({ ...(await apiErr('missingCourseOrStudent')) }, { status: 400 })
 
   const auth = await authorize(course_id)
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   const a = auth
   if (!UUID.test(student_id)) return NextResponse.json({ ...(await apiErr('studentNotInTenant')) }, { status: 404 })
 
@@ -105,7 +105,7 @@ export async function DELETE(request: Request) {
   if (!course_id || !student_id) return NextResponse.json({ ...(await apiErr('missingCourseOrStudent')) }, { status: 400 })
 
   const auth = await authorize(course_id)
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   const a = auth
   if (!UUID.test(student_id)) return NextResponse.json({ ok: true })
 

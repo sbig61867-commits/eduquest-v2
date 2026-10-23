@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   const requestedTeacher = typeof body.teacher_id === 'string' && UUID.test(body.teacher_id) ? body.teacher_id : undefined
   const auth = await loadCourseCaller({ teacherId: requestedTeacher })
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   const { userId, tenantId, profile } = auth
 
   const staff = isCourseStaff(profile)
@@ -117,7 +117,7 @@ export async function PATCH(request: Request) {
 
   const newTeacher = typeof rest.teacher_id === 'string' && UUID.test(rest.teacher_id) ? rest.teacher_id : undefined
   const auth = await loadCourseCaller({ courseId: id, teacherId: newTeacher })
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   if (!mayManage(auth)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   const { userId, tenantId, profile } = auth
 
@@ -171,7 +171,7 @@ export async function DELETE(request: Request) {
   if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const auth = await loadCourseCaller({ courseId: id })
-  if ('error' in auth) return auth.error
+  if (auth.error) return auth.error
   if (!mayManage(auth)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   // Archive by default; hard delete only when the owner enabled it — same

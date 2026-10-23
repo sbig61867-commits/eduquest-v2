@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   if (file.size > MAX_FILE_BYTES) return NextResponse.json({ ...(await apiErr('imageTooLarge4')) }, { status: 400 })
 
   const auth = await authorize({ examId, questionId })
-  if ('fail' in auth) return auth.fail
+  if (auth.fail) return auth.fail
   const { user, exam, sub, admin } = auth
 
   const limit = await rateLimit(`answer_file:${user.id}`, { limit: 40, windowSecs: 3600 })
@@ -103,7 +103,7 @@ export async function DELETE(request: Request) {
   }
 
   const auth = await authorize({ examId: body.examId, questionId: body.questionId })
-  if ('fail' in auth) return auth.fail
+  if (auth.fail) return auth.fail
   const { sub, admin } = auth
 
   const files = { ...((sub.answer_files as Record<string, string> | null) ?? {}) }

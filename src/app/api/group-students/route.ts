@@ -43,7 +43,7 @@ export async function GET(request: Request) {
   if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
 
   const auth = await resolveGroupOwnership(groupId)
-  if ('response' in auth) return auth.response
+  if (auth.response) return auth.response
 
   try {
     // RosterModal asks for one page (?page=); without it the whole roster comes
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   }
 
   const auth = await resolveGroupOwnership(group_id)
-  if ('response' in auth) return auth.response
+  if (auth.response) return auth.response
   const { group, tenantId, userId, role } = auth
   if (!UUID.test(student_id)) return NextResponse.json({ ...(await apiErr('studentNotInTenant')) }, { status: 404 })
 
@@ -143,7 +143,7 @@ export async function DELETE(request: Request) {
   }
 
   const auth = await resolveGroupOwnership(group_id)
-  if ('response' in auth) return auth.response
+  if (auth.response) return auth.response
   if (!UUID.test(student_id)) return NextResponse.json({ ok: true })
 
   try {

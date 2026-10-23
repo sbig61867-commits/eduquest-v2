@@ -89,7 +89,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }))
 // /api/exam/start is on the SQL layer: its one check statement and the attempt
 // are answered from the same state (the survey route still uses the chain above).
-const db = vi.hoisted(() => ({ answer: (_q: { text: string; ctx: { tenantId?: string } }): unknown[] | Error => [] }))
+const db = vi.hoisted(() => ({ answer: (_q: { text: string; values: unknown[]; ctx: { tenantId?: string } }): unknown[] | Error => [] }))
 vi.mock('@/lib/auth/current', () => ({
   currentCtx: async () => (state.user ? { sub: state.user.id, email: null, role: state.role, tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', is_active: true, must_change_password: false } : null),
   currentUser: async () => (state.user ? { id: state.user.id, role: state.role, tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' } : null),
@@ -118,8 +118,28 @@ db.answer = q => {
     state.rpcCalls++
     return [{ r: { started_at: '2026-10-05T10:00:00.000Z', resumed: state.inProgress.size > 0, answers_draft: {} } }]
   }
+  // /api/surveys/respond on the SQL layer: the same rules over the same state.
+  const student = state.user?.id ?? ''
+  if (q.text.startsWith('select s.id, s.title, g.name as group_name')) {
+    const pending = state.surveys.find(sv => sv.is_open && (state.groupActive[sv.group_id] ?? true)
+      && state.members.has(`${sv.group_id}:${student}`) && !state.answered.has(sv.id))
+    return pending ? [{ id: pending.id, title: pending.title, group_name: pending.group_id }] : []
+  }
+  const surveyOf = () => state.surveys.find(sv => q.values.includes(sv.id))
+  if (q.text.startsWith('select s.is_open, g.is_active')) {
+    const sv = surveyOf()
+    return sv ? [{ is_open: sv.is_open, is_active: state.groupActive[sv.group_id] ?? true, member: state.members.has(`${sv.group_id}:${student}`) }] : []
+  }
+  if (q.text.startsWith('insert into public.survey_responses')) {
+    const sv = surveyOf()
+    if (!sv || !sv.is_open || state.groupActive[sv.group_id] === false || !state.members.has(`${sv.group_id}:${student}`)) return []
+    state.inserts.push({ survey_id: sv.id })
+    return [{ id: 'r1' }]
+  }
   return new Error('not answered here: ' + q.text)
 }
+const S1 = '51515151-5151-4151-8151-515151515151'
+const S2 = '52525252-5252-4252-8252-525252525252'
 const groupExam = (over: Record<string, unknown> = {}) => ({
   id: EXAM, tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', group_id: 'group-a', course_id: null, assigned_student_id: null,
   starts_at: null, ends_at: null, seb_config_key: null, questions: [{ id: 'q1', type: 'mcq', text: 'Q', options: ['a'], correct_answer: 'a', points: 1 }],
@@ -187,7 +207,7 @@ describe('/api/exam/start — archived group', () => {
 describe('/api/surveys/respond — archived group', () => {
   it('GET offers no survey of an archived group', async () => {
     state.groupActive['group-a'] = false
-    state.surveys = [{ id: 's1', title: 'Pilot', group_id: 'group-a', is_open: true }]
+    state.surveys = [{ id: S1, title: 'Pilot', group_id: 'group-a', is_open: true }]
     const res = await surveyGet()
     expect(await res.json()).toEqual({ survey: null })
   })
@@ -196,11 +216,11 @@ describe('/api/surveys/respond — archived group', () => {
     state.groupActive['group-a'] = false
     state.members.add('group-b:student-a')
     state.surveys = [
-      { id: 's1', title: 'Archived', group_id: 'group-a', is_open: true },
-      { id: 's2', title: 'Active', group_id: 'group-b', is_open: true },
+      { id: S1, title: 'Archived', group_id: 'group-a', is_open: true },
+      { id: S2, title: 'Active', group_id: 'group-b', is_open: true },
     ]
     const res = await surveyGet()
-    expect(await res.json()).toMatchObject({ survey: { id: 's2', title: 'Active' } })
+    expect(await res.json()).toMatchObject({ survey: { id: S2, title: 'Active' } })
   })
 
   const answer = (survey_id: string) => surveyPost(new Request('https://eduquest.test/api/surveys/respond', {
@@ -209,16 +229,16 @@ describe('/api/surveys/respond — archived group', () => {
 
   it('POST refuses an answer to an archived group\'s survey (404 surveyNotOpen) and writes nothing', async () => {
     state.groupActive['group-a'] = false
-    state.surveys = [{ id: 's1', title: 'Pilot', group_id: 'group-a', is_open: true }]
-    const res = await answer('s1')
+    state.surveys = [{ id: S1, title: 'Pilot', group_id: 'group-a', is_open: true }]
+    const res = await answer(S1)
     expect(res.status).toBe(404)
     expect(await res.json()).toMatchObject({ code: 'surveyNotOpen' })
     expect(state.inserts).toHaveLength(0)
   })
 
   it('POST accepts an answer to an active group\'s survey as before', async () => {
-    state.surveys = [{ id: 's1', title: 'Pilot', group_id: 'group-a', is_open: true }]
-    const res = await answer('s1')
+    state.surveys = [{ id: S1, title: 'Pilot', group_id: 'group-a', is_open: true }]
+    const res = await answer(S1)
     expect(res.status).toBe(201)
     expect(state.inserts).toHaveLength(1)
   })

@@ -51,7 +51,7 @@ async function resolve(request: Request) {
 
 export async function POST(request: Request) {
   const r = await resolve(request)
-  if ('error' in r) return r.error
+  if (r.error) return r.error
   try {
     await run({ as: 'service', tenantId: r.tenantId }, sql => [
       sql`insert into public.announcement_events (announcement_id, tenant_id, student_id, kind)
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 /** Withdraw "I'm interested". Views and clicks are never deleted by the student. */
 export async function DELETE(request: Request) {
   const r = await resolve(request)
-  if ('error' in r) return r.error
+  if (r.error) return r.error
   if (r.kind !== 'interest') return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   try {
     await run({ as: 'service', tenantId: r.tenantId }, sql => [

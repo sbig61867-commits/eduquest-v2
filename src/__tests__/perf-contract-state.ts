@@ -65,7 +65,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(teacher)/teacher/lessons/page.tsx': 1,
   'app/(teacher)/teacher/proctoring/live/[examId]/live-monitor.tsx': 1,
   'app/(teacher)/teacher/proctoring/page.tsx': 2,
-  'app/api/surveys/respond/route.ts': 3,
   'components/student/quick-access-panel.tsx': 2,
   'lib/announcements-data.ts': 2,
   // 1 — listByRole (listStudents / listTeachers / listCenterStudents / listCenterTeachers):
