@@ -1,13 +1,10 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import { rateLimit } from '@/lib/rate-limit'
 
-function adminClient() {
-  return getAdminDb()
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * POST /api/exam/draft
@@ -17,9 +14,9 @@ function adminClient() {
  * Only for timed exams (homework doesn't need this — it has no time pressure).
  */
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
   // Each save rewrites up to ~10 MB of JSONB; the client autosaves every few
   // seconds at most, so 240/hour is generous and stops a scripted flood.
@@ -46,15 +43,17 @@ export async function POST(request: Request) {
   }
 
   // Only update if the attempt is still in_progress (never overwrite a submitted attempt)
-  const { error } = await adminClient()
-    .from('exam_submissions')
-    .update({ answers_draft: answers })
-    .eq('exam_id', examId)
-    .eq('student_id', user.id)
-    .eq('status', 'in_progress')   // grading_status is pending|reviewing|published — never in_progress
+  if (!UUID.test(examId) || !ctx.tenant_id) return NextResponse.json({ ...(await apiErr('missingExamOrAnswers')) }, { status: 400 })
 
-  if (error) {
-    console.error('[exam/draft] error', error)
+  // Only the caller's own attempt, only while it is in progress; as app_service
+  // pinned to the student's institution (students cannot write submissions).
+  try {
+    await run({ as: 'service', tenantId: ctx.tenant_id }, sql => [sql`
+      update public.exam_submissions set answers_draft = ${sql.json(answers)}
+       where exam_id = ${examId} and student_id = ${user.id}
+         and status = 'in_progress'`])  // grading_status is pending|reviewing|published — never in_progress
+  } catch (error) {
+    console.error('[exam/draft] error', error instanceof Error ? error.message : error)
     return NextResponse.json({ ...(await apiErr('draftSaveFailed')) }, { status: 500 })
   }
 

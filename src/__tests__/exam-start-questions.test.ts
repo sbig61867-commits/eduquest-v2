@@ -25,6 +25,10 @@ const QUESTIONS = [
   { id: 'q2', type: 'essay', text: 'Explain', correct_answer: '', points: 3 },
 ]
 
+const TENANT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const TENANT_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+const EXAM = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+
 const state = vi.hoisted(() => ({
   user: { id: 'student-a' } as { id: string } | null,
   exam: null as Exam | null,
@@ -33,60 +37,45 @@ const state = vi.hoisted(() => ({
   rpc: { data: null as unknown, error: null as null | { message: string; code?: string } },
   rpcCalls: 0,
 }))
+const db = vi.hoisted(() => ({ answer: (_q: SqlCall): unknown[] | Error => [] }))
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({
-    auth: { getUser: async () => ({ data: { user: state.user } }) },
-    // The student's own session: only membership lookups (isOnExamRoster).
-    from: (table: string) => {
-      const filters: Record<string, string> = {}
-      const chain = {
-        select: () => chain,
-        eq: (col: string, val: string) => { filters[col] = val; return chain },
-        maybeSingle: async () => {
-          const set = table === 'group_students' ? state.groupMembers : state.enrolments
-          const key = `${filters.group_id ?? filters.course_id}:${filters.student_id}`
-          return { data: set.has(key) ? { student_id: filters.student_id } : null }
-        },
-      }
-      return chain
-    },
-  }),
+// The student's session: their institution comes from the signed context.
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => (state.user ? { sub: state.user.id, email: null, role: 'student', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', is_active: true, must_change_password: false } : null),
 }))
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: (table: string) => {
-      const eq: Record<string, unknown> = {}
-      const isNull = new Set<string>()
-      const chain = {
-        select: () => chain,
-        eq: (col: string, val: unknown) => { eq[col] = val; return chain },
-        is: (col: string, val: unknown) => { if (val === null) isNull.add(col); return chain },
-        single: async () => {
-          const e = state.exam
-          if (table !== 'exams' || !e) return { data: null }
-          const row = e as unknown as Record<string, unknown>
-          const matches = Object.entries(eq).every(([c, v]) => row[c] === v) && [...isNull].every(c => row[c] === null)
-          return { data: matches ? e : null }
-        },
-        maybeSingle: async () => ({ data: { answer_files: { q2: 'path/q2.webp' } } }),
-      }
-      return chain
-    },
-    rpc: async () => { state.rpcCalls++; return state.rpc },
-  }),
-}))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => db.answer(q)))
 vi.mock('@/lib/exam-files', () => ({ signFileMap: async (m: Record<string, string> | null) => (m ? { q2: 'https://signed/q2' } : {}) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 
 import { POST } from '@/app/api/exam/start/route'
+import { pgError, type SqlCall } from './helpers/fake-sql'
 
-const start = (examId = 'exam-1') => POST(new Request('https://eduquest.test/api/exam/start', {
+db.answer = q => {
+  if (q.text.startsWith('select e.id, e.tenant_id')) {
+    const e = state.exam
+    const student = state.user?.id ?? ''
+    // what the real statement selects: published, not archived, in the student's institution
+    if (!e || e.id !== q.values[q.values.length - 1] || !e.is_published || e.deleted_at !== null || e.tenant_id !== q.ctx.tenantId) return []
+    const onRoster = (e.assigned_student_id === null || e.assigned_student_id === student) && (
+      e.group_id ? state.groupMembers.has(`${e.group_id}:${student}`)
+        : e.course_id ? state.enrolments.has(`${e.course_id}:${student}`) : false)
+    return [{ ...e, on_roster: onRoster, group_active: true, in_progress: false }]
+  }
+  if (q.text.startsWith('select public.start_exam_attempt')) {
+    state.rpcCalls++
+    // an error without a code stays without one
+    return state.rpc.error ? pgError(state.rpc.error.message, state.rpc.error.code ?? '') : [{ r: state.rpc.data }]
+  }
+  if (q.text.startsWith('select answer_files')) return [{ answer_files: { q2: 'path/q2.webp' } }]
+  throw new Error('unexpected statement: ' + q.text)
+}
+
+const start = (examId = EXAM) => POST(new Request('https://eduquest.test/api/exam/start', {
   method: 'POST', body: JSON.stringify({ examId }),
 }))
 
 const groupExam = (over: Partial<Exam> = {}): Exam => ({
-  id: 'exam-1', tenant_id: 'tenant-a', group_id: 'group-a', course_id: null, assigned_student_id: null,
+  id: EXAM, tenant_id: TENANT_A, group_id: 'group-a', course_id: null, assigned_student_id: null,
   starts_at: null, ends_at: null, seb_config_key: null, questions: QUESTIONS, is_published: true, deleted_at: null, ...over,
 })
 
@@ -181,9 +170,9 @@ describe.each([
     await expectRefused(404, 'examNotFound')
   })
 
-  it('another institution (its group is not the student\'s)', async () => {
-    state.exam = groupExam({ tenant_id: 'tenant-b', group_id: 'group-b' })
-    await expectRefused(403, 'notEnrolledInExam')
+  it('another institution: invisible from the student\'s institution, so not found', async () => {
+    state.exam = groupExam({ tenant_id: TENANT_B, group_id: 'group-b' })
+    await expectRefused(404, 'examNotFound')
   })
 
   it('another group of the same institution', async () => {

@@ -16,30 +16,23 @@
 import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
-vi.mock('@/lib/exam-roster', () => ({ isOnExamRoster: async () => true }))
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'student-1' } } }) } }),
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => ({ sub: 'student-1', email: null, role: 'student', tenant_id: '11111111-1111-1111-1111-111111111111', is_active: true, must_change_password: false }),
 }))
 
+const EXAM_ID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
 const exam = {
-  id: 'exam-1', type: 'exam', is_published: true, auto_publish: true,
+  id: EXAM_ID, type: 'exam', is_published: true, auto_publish: true,
   questions: [
     { id: 'q1', type: 'mcq', options: ['A', 'B'], correct_answer: 'A', points: 2 },
     { id: 'q2', type: 'essay', correct_answer: '', points: 5 },
   ],
 }
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: () => {
-      const q = {
-        select: () => q, eq: () => q, update: () => q,
-        single: async () => ({ data: exam }),
-        then: (res: (v: unknown) => void) => res({ error: null }),
-      }
-      return q
-    },
-    rpc: async () => ({ data: { score: 2, max_score: 7 }, error: null }),
-  }),
+// The SQL layer: the exam with the roster check, then the finalize call.
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  if (q.text.startsWith('select e.id, e.type')) return [{ ...exam, on_roster: true }]
+  if (q.text.startsWith('select public.finalize_exam_submission')) return [{ r: { score: 2, max_score: 7 } }]
+  return []
 }))
 
 import { POST } from '@/app/api/exam/submit/route'
@@ -48,7 +41,7 @@ describe('B3 — a regular exam with essays does not publish its automatic score
   it('withholds the provisional score from the student', async () => {
     const res = await POST(new Request('http://localhost/api/exam/submit', {
       method: 'POST',
-      body: JSON.stringify({ examId: 'exam-1', answers: { q1: 'A', q2: 'my essay' } }),
+      body: JSON.stringify({ examId: EXAM_ID, answers: { q1: 'A', q2: 'my essay' } }),
     }))
     expect(res.status).toBe(200)
     const body = await res.json()

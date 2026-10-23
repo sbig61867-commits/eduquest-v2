@@ -24,7 +24,6 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/api/appeals/report/route.ts': 1,
   'app/api/courses/create-full/route.ts': 1,
   'app/api/exam/answer-file/route.ts': 1,
-  'app/api/exam/submit/route.ts': 1,
   'app/api/exams/results/route.ts': 2,
   'app/api/group-students/route.ts': 1,
   'app/api/homework/route.ts': 1,

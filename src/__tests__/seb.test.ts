@@ -38,26 +38,32 @@ describe('Safe Exam Browser proof', () => {
 
 // ── /api/exam/start refuses a SEB exam without the proof ──
 const state = vi.hoisted(() => ({ seb: null as string | null, rpcCalled: false }))
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'student-1' } } }) } }),
+const db = vi.hoisted(() => ({ answer: (_q: { text: string }): unknown[] | Error => [] }))
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => ({ sub: 'student-1', email: null, role: 'student', tenant_id: '11111111-1111-1111-1111-111111111111', is_active: true, must_change_password: false }),
 }))
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: () => {
-      const chain = { select: () => chain, eq: () => chain, is: () => chain, single: async () => ({ data: { id: 'e1', tenant_id: 't1', seb_config_key: state.seb } }) }
-      return chain
-    },
-    rpc: async () => { state.rpcCalled = true; return { data: { started_at: new Date().toISOString(), resumed: false }, error: null } },
-  }),
-}))
-vi.mock('@/lib/exam-roster', () => ({ isOnExamRoster: async () => true }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => db.answer(q)))
 vi.mock('@/lib/exam-files', () => ({ signFileMap: async () => ({}) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 
 import { POST } from '@/app/api/exam/start/route'
 
+// The route's one check statement (on the roster, open group), then the attempt.
+db.answer = q => {
+  if (q.text.startsWith('select e.id, e.tenant_id')) {
+    return [{ id: EXAM_ID, tenant_id: '11111111-1111-1111-1111-111111111111', group_id: null, course_id: null, assigned_student_id: null,
+      starts_at: null, ends_at: null, seb_config_key: state.seb, questions: [], on_roster: true, group_active: null, in_progress: false }]
+  }
+  if (q.text.startsWith('select public.start_exam_attempt')) {
+    state.rpcCalled = true
+    return [{ r: { started_at: new Date().toISOString(), resumed: false } }]
+  }
+  throw new Error('unexpected statement: ' + q.text)
+}
+
+const EXAM_ID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
 const start = (seb?: unknown) => POST(new Request('https://eduquest.test/api/exam/start', {
-  method: 'POST', body: JSON.stringify({ examId: 'e1', seb }),
+  method: 'POST', body: JSON.stringify({ examId: EXAM_ID, seb }),
 }))
 
 describe('exam start with a SEB requirement', () => {

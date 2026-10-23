@@ -1,16 +1,19 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { isOnExamRoster } from '@/lib/exam-roster'
+import { run, maybeOne } from '@/lib/db/sql'
+import { onRosterSql } from '@/lib/exam-roster'
 import { isAutoGradable } from '@/lib/score-visibility'
 
-// Students no longer have direct SELECT on exams (answer-leak fix). The exam
-// (incl. correct_answer, used for server-side grading) is read with the
-// service-role client; authorization is enforced by the enrollment check below.
-function adminClient() {
-  return getAdminDb()
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Students have no direct SELECT on exams (answer-leak fix). The exam (incl.
+// correct_answer, used for server-side grading) is read as app_service pinned
+// to the student's own institution; authorization is the roster check below.
+type ExamRow = {
+  id: string; type: string | null; auto_publish: boolean | null
+  questions: Array<{ id: string; type?: string; correct_answer?: string; points?: number }> | null
+  on_roster: boolean
 }
 
 /**
@@ -26,9 +29,9 @@ function adminClient() {
  * - proctoring_events already in DB (from the on-device detectors) are preserved and merged
  */
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
   let body: {
     examId?: string
@@ -47,30 +50,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('missingExamOrAnswers')) }, { status: 400 })
   }
 
-  // Verify the student is on this exam's roster (its group, or its course).
-  // select('*') so optional columns (type, auto_publish) come through when
-  // they exist without breaking if a migration hasn't been applied yet.
-  const { data: exam } = await adminClient()
-    .from('exams')
-    .select('*')
-    .eq('id', examId)
-    .eq('is_published', true)
-    .single()
+  if (!UUID.test(examId) || !ctx.tenant_id) return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
+  // As app_service pinned to the student's institution (students cannot read
+  // exams, which hold the answer key): the exam and the roster check, one unit.
+  const service = { as: 'service', tenantId: ctx.tenant_id } as const
+  const [rows] = await run(service, sql => [sql`
+    select e.id, e.type, e.auto_publish, e.questions, ${onRosterSql(sql, user.id)} as on_roster
+      from public.exams e
+     where e.id = ${examId} and e.is_published`])
+  const exam = maybeOne<ExamRow>(rows)
 
   if (!exam) {
     return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
   }
 
-  if (!(await isOnExamRoster(supabase, exam, user.id))) {
+  if (!exam.on_roster) {
     return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
   }
 
-  // Grade server-side using correct_answer from DB — never from client.
-  // NOTE: finalize_exam_submission recomputes this same score in-DB and IGNORES
-  // p_score (see supabase/rpc_execute_lockdown_migration.sql) — the DB is the
-  // authority. This stays as graceful degradation: if that migration were ever
-  // rolled back, the RPC would fall back to trusting p_score and would still
-  // receive a correct, server-computed value rather than a forgeable one.
   const questions: Array<{ id: string; type?: string; correct_answer?: string; points?: number }> =
     exam.questions ?? []
 
@@ -110,18 +107,16 @@ export async function POST(request: Request) {
   //      through this service-role call from trusted server code — closing the
   //      direct POST /rest/v1/rpc/finalize_exam_submission path.
   // Both layers live in supabase/rpc_execute_lockdown_migration.sql.
-  const { data: result, error: rpcError } = await adminClient().rpc('finalize_exam_submission', {
-    p_exam_id: examId,
-    p_student_id: user.id,
-    p_answers: answers,
-    p_client_events: safeClientEvents,
-    p_score: score,
-    p_max_score: maxScore,
-  })
-
-  if (rpcError) {
-    // Map domain errors raised by the RPC to clear client responses.
-    const msg = rpcError.message ?? ''
+  // finalize_exam_submission runs as app_service: it enforces the attempt
+  // state, the window and the time limit, merges the persisted proctoring
+  // events and writes the score computed here — the client never sends one.
+  let result: Record<string, unknown> | null
+  try {
+    const [r] = await run(service, sql => [sql`
+      select public.finalize_exam_submission(${examId}, ${user.id}, ${sql.json(answers)}, ${sql.json(safeClientEvents)}, ${score}, ${maxScore}) as r`])
+    result = maybeOne<{ r: Record<string, unknown> | null }>(r)?.r ?? null
+  } catch (error) {
+    const msg = (error as { message?: string }).message ?? ''
     const MAP: Record<string, { status: number; code: ApiErrorCode }> = {
       NOT_STARTED:       { status: 409, code: 'examNotStarted' },
       ALREADY_SUBMITTED: { status: 409, code: 'examAlreadySubmitted' },
@@ -132,16 +127,12 @@ export async function POST(request: Request) {
     }
     const hit = Object.keys(MAP).find(code => msg.includes(code))
     if (hit) return NextResponse.json({ ...(await apiErr(MAP[hit].code)) }, { status: MAP[hit].status })
-    console.error('[exam/submit] finalize error', rpcError)
+    console.error('[exam/submit] finalize error', msg)
     return NextResponse.json({ ...(await apiErr('submissionSaveFailed')) }, { status: 500 })
   }
 
-  if (
-    !result ||
-    typeof (result as Record<string, unknown>).score !== 'number' ||
-    typeof (result as Record<string, unknown>).max_score !== 'number'
-  ) {
-    console.error('[exam/submit] unexpected RPC result shape', result)
+  if (!result || typeof result.score !== 'number' || typeof result.max_score !== 'number') {
+    console.error('[exam/submit] unexpected finalize result shape', result)
     return NextResponse.json({ ...(await apiErr('submissionSaveFailed')) }, { status: 500 })
   }
   const out = result as { score: number; max_score: number }
@@ -158,12 +149,11 @@ export async function POST(request: Request) {
   let published = exam.type !== 'homework' && !hasManual
 
   if (autoPublish) {
-    const { error: pubError } = await adminClient()
-      .from('exam_submissions')
-      .update({ grading_status: 'published' })
-      .eq('exam_id', examId)
-      .eq('student_id', user.id)
-    if (!pubError) published = true
+    // A unit of its own: a failure here must never undo the saved submission.
+    try {
+      await run(service, sql => [sql`update public.exam_submissions set grading_status = 'published' where exam_id = ${examId} and student_id = ${user.id}`])
+      published = true
+    } catch { /* stays unpublished; the teacher can publish it */ }
   }
 
   // Withhold the score until it is actually published. The client already

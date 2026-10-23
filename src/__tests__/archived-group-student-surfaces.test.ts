@@ -87,15 +87,41 @@ vi.mock('@supabase/supabase-js', () => ({
     rpc: async () => { state.rpcCalls++; return { data: { started_at: '2026-10-05T10:00:00.000Z', resumed: state.inProgress.size > 0, answers_draft: {} }, error: null } },
   }),
 }))
+// /api/exam/start is on the SQL layer: its one check statement and the attempt
+// are answered from the same state (the survey route still uses the chain above).
+const db = vi.hoisted(() => ({ answer: (_q: { text: string; ctx: { tenantId?: string } }): unknown[] | Error => [] }))
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => (state.user ? { sub: state.user.id, email: null, role: state.role, tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', is_active: true, must_change_password: false } : null),
+  currentUser: async () => (state.user ? { id: state.user.id, role: state.role, tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' } : null),
+}))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => db.answer(q)))
 vi.mock('@/lib/exam-files', () => ({ signFileMap: async () => ({}) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 
 import { POST as startExam } from '@/app/api/exam/start/route'
 import { GET as surveyGet, POST as surveyPost } from '@/app/api/surveys/respond/route'
 
-const start = () => startExam(new Request('https://eduquest.test/api/exam/start', { method: 'POST', body: JSON.stringify({ examId: 'exam-1' }) }))
+const EXAM = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+const start = () => startExam(new Request('https://eduquest.test/api/exam/start', { method: 'POST', body: JSON.stringify({ examId: EXAM }) }))
+
+db.answer = q => {
+  if (q.text.startsWith('select e.id, e.tenant_id')) {
+    const e = state.exam as Record<string, string | null> | null
+    const student = state.user?.id ?? ''
+    if (!e || !e.is_published || e.deleted_at !== null || e.tenant_id !== q.ctx.tenantId) return []
+    const scope = (e.group_id ?? e.course_id) as string
+    return [{ ...e, on_roster: state.members.has(`${scope}:${student}`),
+      group_active: e.group_id ? (state.groupActive[e.group_id] ?? true) : null,
+      in_progress: state.inProgress.has(`${e.id}:${student}`) }]
+  }
+  if (q.text.startsWith('select public.start_exam_attempt')) {
+    state.rpcCalls++
+    return [{ r: { started_at: '2026-10-05T10:00:00.000Z', resumed: state.inProgress.size > 0, answers_draft: {} } }]
+  }
+  return new Error('not answered here: ' + q.text)
+}
 const groupExam = (over: Record<string, unknown> = {}) => ({
-  id: 'exam-1', tenant_id: 'tenant-a', group_id: 'group-a', course_id: null, assigned_student_id: null,
+  id: EXAM, tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', group_id: 'group-a', course_id: null, assigned_student_id: null,
   starts_at: null, ends_at: null, seb_config_key: null, questions: [{ id: 'q1', type: 'mcq', text: 'Q', options: ['a'], correct_answer: 'a', points: 1 }],
   is_published: true, deleted_at: null, ...over,
 })
@@ -127,7 +153,7 @@ describe('/api/exam/start — archived group', () => {
 
   it('resumes an attempt already in progress when the group is archived afterwards', async () => {
     state.groupActive['group-a'] = false
-    state.inProgress.add('exam-1:student-a')
+    state.inProgress.add(`${EXAM}:student-a`)
     const res = await start()
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ resumed: true })

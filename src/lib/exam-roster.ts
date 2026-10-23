@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@/lib/db'
+import type { Sql } from '@/lib/db/sql'
 
 // An exam belongs to exactly one group OR one course (the DB enforces it with
 // CHECK exam_must_belong_to_group_or_course). Its roster is therefore either
@@ -60,4 +61,21 @@ export async function examRoster(db: SupabaseClient, exam: ExamScope): Promise<R
   if (exam.assigned_student_id) query = query.eq('student_id', exam.assigned_student_id)
   const { data } = await query
   return (data ?? []) as unknown as RosterRow[]
+}
+
+/**
+ * The same roster rule on the SQL layer (step 9), as a fragment for a
+ * statement whose exam row is aliased `e`: true when the student is in the
+ * exam's group, or — for a course exam — enrolled in its course, and is the
+ * assigned student of an individual task. Run as app_service pinned to the
+ * student's institution, whose policies scope both tables.
+ */
+export function onRosterSql(sql: Sql, studentId: string) {
+  return sql`(
+    (e.assigned_student_id is null or e.assigned_student_id = ${studentId})
+    and (
+      (e.group_id is not null and exists (select 1 from public.group_students gs where gs.group_id = e.group_id and gs.student_id = ${studentId}))
+      or (e.group_id is null and e.course_id is not null and exists (select 1 from public.course_enrollments ce where ce.course_id = e.course_id and ce.student_id = ${studentId}))
+    )
+  )`
 }
