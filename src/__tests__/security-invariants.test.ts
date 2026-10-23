@@ -69,6 +69,7 @@ const SQL_FILES = walk(SUPABASE_DIR, f => f.endsWith('.sql'))
 const INTENTIONALLY_PUBLIC_ROUTES = new Set([
   'src/app/api/auth/accept-invitation/route.ts',
   'src/app/api/auth/forgot-password/route.ts',
+  'src/app/api/auth/reset-password/route.ts',    // the one-time token from the email; rate-limited per IP
   'src/app/api/auth/login-id/route.ts',          // sign-in itself; rate-limited per IP and per ID
   'src/app/api/auth/sign-in/route.ts',           // email sign-in itself; rate-limited per IP and per account
   'src/app/api/contact/route.ts',

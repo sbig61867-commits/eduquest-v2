@@ -15,6 +15,7 @@
 //             the centre yet, so the institution admin decides.
 
 import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 
 export type ScopeBlock = 'universityStudent' | 'sharedTeacher' | 'unassignedTeacher'
 
@@ -61,4 +62,22 @@ export async function loadTeacherFootprint(client: SupabaseClient, tenantId: str
   ])
   if (groups.error || courses.error) return { universityGroups: 1, centreItems: 0 }
   return teacherFootprints(groups.data ?? [], courses.data ?? []).get(teacherId) ?? { universityGroups: 0, centreItems: 0 }
+}
+
+/**
+ * The same footprint on the SQL layer (step 9), read as app_service pinned to
+ * the institution: groups and courses of one teacher, in one unit. Replaces
+ * loadTeacherFootprint once its last caller has moved.
+ */
+export async function loadTeacherFootprintSql(tenantId: string, teacherId: string): Promise<TeacherFootprint> {
+  try {
+    const [groups, courses] = await run({ as: 'service', tenantId }, sql => [
+      sql`select teacher_id, course_id from public.groups where tenant_id = ${tenantId} and teacher_id = ${teacherId} and deleted_at is null`,
+      sql`select teacher_id from public.courses where tenant_id = ${tenantId} and teacher_id = ${teacherId} and deleted_at is null`,
+    ])
+    return teacherFootprints(groups as unknown as Row[], courses as unknown as Row[]).get(teacherId) ?? { universityGroups: 0, centreItems: 0 }
+  } catch {
+    // as before: a failed read counts as a university-side teacher (the safe refusal)
+    return { universityGroups: 1, centreItems: 0 }
+  }
 }

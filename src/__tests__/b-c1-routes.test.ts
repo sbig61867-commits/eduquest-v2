@@ -95,41 +95,7 @@ describe('GET /api/grades/export (B)', () => {
   })
 })
 
-// ── api/admin/delete-tenant ──────────────────────────────────────────────────
-
-describe('DELETE /api/admin/delete-tenant (B)', () => {
-  function setup(users: number) {
-    env.user = { id: 'owner' }
-    env.session = { users: [{ id: 'owner', role: 'super_admin' }] }
-    env.admin = { users: Array.from({ length: users }, (_, k) => ({ id: uid(k, 'f'), tenant_id: 'tn' })) }
-  }
-  const del = async () => (await import('@/app/api/admin/delete-tenant/route')).DELETE(new Request('http://x/api/admin/delete-tenant?id=tn', { method: 'DELETE' }))
-
-  it('an institution of 1 500 users: every account is deleted, then the institution', async () => {
-    setup(1500)
-    const res = await del()
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ success: true, usersDeleted: 1500, failed: 0 })
-    expect(new Set(env.deletedUsers).size).toBe(1500)
-    expect(env.deletedTables).toEqual(['invitations', 'tenants'])
-  })
-
-  it('the user list cannot be read completely: 500, and NOTHING is deleted', async () => {
-    for (const fail of [
-      (c: Call) => c.table === 'users' && c.head,                                   // the count
-      (c: Call) => c.table === 'users' && !c.head && c.filters.some(f => f[0] === 'gt' && f[2] !== '00000000-0000-0000-0000-000000000000'), // page 2
-    ]) {
-      setup(1500)
-      env.deletedUsers = []; env.deletedTables = []
-      env.fail = fail
-      const res = await del()
-      expect(res.status).toBe(500)
-      expect((await res.json()).code).toBe('tenantUsersReadFailed')
-      expect(env.deletedUsers).toEqual([])
-      expect(env.deletedTables).toEqual([])
-    }
-  })
-})
+// api/admin/delete-tenant (B) moved to delete-tenant-route.test.ts (step 9: SQL layer).
 
 // ── api/announcements/interested (C1) ────────────────────────────────────────
 

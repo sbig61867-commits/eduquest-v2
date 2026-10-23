@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Row = { id: string; tenant_id: string | null; role: string; is_university_student?: boolean | null; permissions?: Record<string, boolean> }
 
+// Readable names in the tests, UUIDs on the wire (the route only accepts UUIDs).
+const NAMES = ['admin1', 'cm1', 'stu', 'centreStu', 'tea', 'otherStu', 'owner', 'fresh', 'pupil']
+const U = Object.fromEntries(NAMES.map((n, i) => [n, `00000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`])) as Record<string, string>
+const NAME = Object.fromEntries(Object.entries(U).map(([n, id]) => [id, n])) as Record<string, string>
+
 const state = vi.hoisted(() => ({
   me: 'admin1' as string | null,
   rows: {} as Record<string, Row>,
@@ -14,57 +19,43 @@ const state = vi.hoisted(() => ({
   teacherGroups: { tea: ['g1'] } as Record<string, string[]>,
   groupStudents: { g1: ['centreStu', 'fresh'] } as Record<string, string[]>,
   mustChange: new Set<string>(['fresh']),
-  updates: [] as { id: string; attrs: { password: string; app_metadata: Record<string, unknown> } }[],
+  updates: [] as { id: string; password: string }[],
+  flagged: [] as string[],
 }))
 
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 vi.mock('@/lib/rate-limit', () => ({ rateLimit: async () => ({ allowed: state.rateAllowed }) }))
 vi.mock('@/lib/account-scope', () => ({
-  loadTeacherFootprint: async () => state.footprint,
+  loadTeacherFootprintSql: async () => state.footprint,
   studentBlock: (u: boolean | null | undefined) => (u === false ? null : 'universityStudentScope'),
   teacherBlock: (f: { university: boolean }) => (f.university ? 'universityTeacherScope' : null),
 }))
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({
-    auth: { getUser: async () => ({ data: { user: state.me ? { id: state.me } : null } }) },
-    from: () => {
-      let id = ''
-      const q = { select: () => q, eq: (_c: string, v: string) => { id = v; return q }, single: async () => ({ data: state.rows[id] ?? null }) }
-      return q
-    },
-  }),
+vi.mock('@/lib/auth', () => ({ getSessionUser: async () => (state.me ? { id: U[state.me] } : null) }))
+vi.mock('@/lib/auth/better', () => ({
+  authSetPassword: async (id: string, password: string) => { state.updates.push({ id: NAME[id], password }); return { error: null } },
 }))
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: (table: string) => {
-      const f: Record<string, unknown> = {}
-      const q = {
-        select: () => q,
-        eq: (c: string, v: unknown) => { f[c] = v; return q },
-        is: () => q,
-        in: (c: string, v: unknown) => { f[c] = v; return q },
-        // groups: …limit(500) is awaited; group_students: …limit(1).maybeSingle().
-        limit: () => ({
-          then: (done: (r: unknown) => void) => done({ data: (state.teacherGroups[f.teacher_id as string] ?? []).map(id => ({ id })) }),
-          maybeSingle: async () => {
-            const hit = (f.group_id as string[]).find(g => (state.groupStudents[g] ?? []).includes(f.student_id as string))
-            return { data: table === 'group_students' && hit ? { group_id: hit } : null }
-          },
-        }),
+// The SQL layer: answers each statement the route sends, from the rows above.
+vi.mock('@/lib/db/sql', () => ({
+  maybeOne: (rows: unknown[]) => rows[0] ?? null,
+  run: async (_ctx: unknown, build: (sql: unknown) => { text: string; values: unknown[] }[]) => {
+    const tag = (strings: TemplateStringsArray, ...values: unknown[]) => ({ text: strings.join('$'), values })
+    return build(tag).map(({ text, values }) => {
+      const row = (id: unknown) => { const r = state.rows[NAME[id as string]]; return r ? [{ ...r, id: U[r.id] }] : [] }
+      if (text.startsWith('select role, tenant_id, permissions')) return row(values[0])
+      if (text.startsWith('select id, tenant_id, role, is_university_student')) return row(values[0])
+      if (text.includes('select exists')) {
+        const [teacher, student] = [NAME[values[0] as string], NAME[values[1] as string]]
+        const linked = (state.teacherGroups[teacher] ?? []).some(g => (state.groupStudents[g] ?? []).includes(student))
+        return [{ linked, must_change: state.mustChange.has(student) }]
       }
-      return q
-    },
-    auth: {
-      admin: {
-        getUserById: async (id: string) => ({ data: { user: { id, app_metadata: { must_change_password: state.mustChange.has(id) } } } }),
-        updateUserById: async (id: string, attrs: never) => { state.updates.push({ id, attrs }); return { error: null } },
-      },
-    },
-  }),
+      if (text.startsWith('update public.users set must_change_password = true')) { state.flagged.push(NAME[values[0] as string]); return [] }
+      throw new Error('unexpected statement: ' + text)
+    })
+  },
 }))
 
 const { POST } = await import('@/app/api/admin/reset-password/route')
-const call = (userId: unknown) => POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ userId }) }))
+const call = (name: unknown) => POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ userId: typeof name === 'string' ? U[name] : name }) }))
 
 const ALL = { manage_teachers: true, manage_students: true, manage_center_staff: true }
 beforeEach(() => {
@@ -72,6 +63,7 @@ beforeEach(() => {
   state.rateAllowed = true
   state.footprint = { university: false }
   state.updates = []
+  state.flagged = []
   state.mustChange = new Set(['fresh'])
   state.rows = {
     admin1: { id: 'admin1', tenant_id: 'T1', role: 'university_admin', permissions: ALL },
@@ -92,7 +84,8 @@ describe('POST /api/admin/reset-password', () => {
     expect(res.status).toBe(200)
     const { password } = await res.json()
     expect(password).toMatch(/^[A-Za-z2-9]{10}$/)
-    expect(state.updates).toEqual([{ id: 'stu', attrs: { password, app_metadata: { must_change_password: true } } }])
+    expect(state.updates).toEqual([{ id: 'stu', password }])
+    expect(state.flagged).toEqual(['stu'])
   })
 
   it('a teacher of the same institution can be reset by its admin', async () => {

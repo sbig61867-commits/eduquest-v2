@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
 
 // Setting a new password. Same public look (`.eq-public`, light/dark), built
@@ -78,27 +77,26 @@ function PasswordField({ id, label, value, onChange, showLabel, hideLabel, autoF
 
 export default function ResetPasswordPage() {
   const router = useRouter()
-  const supabase = createClient()
   const t = useTranslations('auth.resetPassword')
 
-  const [sessionReady, setSessionReady] = useState<'loading' | 'ok' | 'expired'>('loading')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
 
-  // Verify there is an active recovery session before rendering the form.
-  // The Supabase PKCE callback (/auth/callback) already exchanged the code
-  // and set session cookies — getSession() reads those cookies here.
-  // If there is no session (link expired / already used / direct navigation),
-  // we show an error instead of the form.
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSessionReady(session ? 'ok' : 'expired')
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // The emailed link carries a one-time token (?token=…). Without one (direct
+  // navigation, a mangled link) there is nothing to reset with: show the
+  // expired state instead of the form. Whether the token is still valid is only
+  // known when it is used.
+  // Read from the URL without an effect: null while rendering on the server
+  // (the "loading" state), the token (or '') once in the browser.
+  const token = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get('token') ?? '',
+    () => null,
+  )
+  const sessionReady: 'loading' | 'ok' | 'expired' = token === null ? 'loading' : token ? 'ok' : 'expired'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -114,25 +112,16 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true)
-    const { error: updateErr } = await supabase.auth.updateUser({ password })
-    if (updateErr) {
-      setError(updateErr.message)
-      setLoading(false)
-      return
-    }
-
-    // Deliberate security choice: end ALL of the user's sessions on every
-    // device after a password change (they likely reset because the password
-    // was forgotten or the account was suspected compromised). This also ends
-    // the current recovery session so the proxy doesn't bounce /login back to
-    // the dashboard. Note: signOut() with no scope already defaults to
-    // 'global' — the explicit scope documents the intent.
-    const { error: signOutErr } = await supabase.auth.signOut({ scope: 'global' })
-    if (signOutErr) {
-      // Password DID change; only the sign-out failed. Don't redirect into a
-      // half-signed-in state — tell the user and let them sign in manually.
-      console.error('post-reset signOut failed:', signOutErr.message)
-      setError(t('signOutFailed'))
+    // A success also ends every session of the account on every device (they
+    // likely reset because the password was forgotten or the account was
+    // suspected compromised); the user signs in again with the new password.
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+    })
+    if (!res.ok) {
+      setError((await res.json().catch(() => ({}))).error ?? t('expiredBody'))
       setLoading(false)
       return
     }

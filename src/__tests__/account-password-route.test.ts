@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // /api/account/password — the settings page's "change password" for every
 // role. It must require the current password, change only the caller's own
-// password, never sign the caller out, and be rate limited.
+// password, leave the caller signed in (on a fresh session) and be rate limited.
 
 const state = vi.hoisted(() => ({
   user: { id: 'u1', email: 'owner@example.test' } as { id: string; email?: string } | null,
   realPassword: 'old-password',
   rateAllowed: true,
   updateError: null as null | { message: string },
-  calls: { signIn: [] as { email: string; password: string }[], signOut: [] as unknown[], update: [] as unknown[], rate: [] as string[] },
+  calls: { signIn: [] as { email: string; password: string }[], session: [] as { email: string; password: string }[], update: [] as unknown[], rate: [] as string[] },
 }))
 
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
@@ -19,21 +19,23 @@ vi.mock('@/lib/rate-limit', () => ({
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({ auth: { getUser: async () => ({ data: { user: state.user } }) } }),
 }))
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    auth: {
-      signInWithPassword: async (creds: { email: string; password: string }) => {
-        state.calls.signIn.push(creds)
-        return creds.password === state.realPassword
-          ? { data: { user: { id: state.user?.id } }, error: null }
-          : { data: { user: null }, error: { message: 'Invalid login credentials' } }
-      },
-      signOut: async (opts: unknown) => { state.calls.signOut.push(opts); return { error: null } },
-      admin: {
-        updateUserById: async (id: string, attrs: unknown) => { state.calls.update.push({ id, attrs }); return { error: state.updateError } },
-      },
-    },
-  }),
+// Better Auth: the current-password check (no session) and the password write
+vi.mock('@/lib/auth/better', () => ({
+  authVerifyPassword: async (email: string, password: string) => {
+    state.calls.signIn.push({ email, password })
+    return password === state.realPassword ? state.user?.id ?? null : null
+  },
+  authSetPassword: async (id: string, password: string) => {
+    state.calls.update.push({ id, attrs: { password } })
+    return { error: state.updateError ? { ...state.updateError, duplicate: false, invalidEmail: false } : null }
+  },
+}))
+vi.mock('@/lib/auth/sign-in', () => ({
+  startSession: async (email: string, password: string) => {
+    state.calls.session.push({ email, password })
+    const { NextResponse } = await import('next/server')
+    return NextResponse.json({ role: 'teacher', mustChangePassword: false })
+  },
 }))
 
 const { POST } = await import('@/app/api/account/password/route')
@@ -43,7 +45,7 @@ beforeEach(() => {
   state.user = { id: 'u1', email: 'owner@example.test' }
   state.rateAllowed = true
   state.updateError = null
-  state.calls = { signIn: [], signOut: [], update: [], rate: [] }
+  state.calls = { signIn: [], session: [], update: [], rate: [] }
 })
 
 describe('POST /api/account/password', () => {
@@ -58,9 +60,9 @@ describe('POST /api/account/password', () => {
     expect(state.calls.signIn).toEqual([{ email: 'owner@example.test', password: 'old-password' }])
   })
 
-  it('signs out only the throwaway check session, never the caller', async () => {
+  it('keeps the caller signed in: a fresh session on the new password', async () => {
     await call({ current: 'old-password', next: 'brand-new-pass' })
-    expect(state.calls.signOut).toEqual([{ scope: 'local' }])
+    expect(state.calls.session).toEqual([{ email: 'owner@example.test', password: 'brand-new-pass' }])
   })
 
   it('refuses a wrong current password and changes nothing', async () => {

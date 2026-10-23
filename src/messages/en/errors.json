@@ -347,5 +347,6 @@
   "memberIdStudentsOnly": "Accounts by ID are for students and teachers only.",
   "studentPasswordAlreadySet": "This student has already chosen their own password. Ask the institution or centre administration to reset it.",
   "invalidCredentials": "Incorrect email or password.",
-  "accountDisabled": "This account is disabled. Contact your institution."
+  "accountDisabled": "This account is disabled. Contact your institution.",
+  "resetLinkInvalid": "This reset link is invalid or has expired. Please request a new one."
 }

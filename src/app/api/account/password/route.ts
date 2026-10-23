@@ -1,8 +1,8 @@
 import { getSessionUser } from '@/lib/auth'
-import { setAuthPassword, verifyPassword } from '@/lib/auth/admin'
+import { authSetPassword, authVerifyPassword } from '@/lib/auth/better'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/db'
+import { startSession } from '@/lib/auth/sign-in'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -13,10 +13,9 @@ const MIN_PASSWORD_LENGTH = 8
 // account), this one requires the CURRENT password: a session left open on a
 // shared device must not be enough to take the account over.
 //
-// The current password is checked by signing in with it on a throwaway client
-// (no cookies); that extra session is signed out at once (scope 'local', so the
-// caller's own session is untouched). The write goes through the service role
-// after the session check, like the other account routes.
+// The current password is checked without opening a session. Setting the new
+// one ends every session of the account (a stolen session dies with the old
+// password), so the caller gets a fresh session on the new password.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const user = await getSessionUser(supabase)
@@ -33,14 +32,14 @@ export async function POST(request: Request) {
   if (next.length < MIN_PASSWORD_LENGTH) return NextResponse.json({ ...(await apiErr('passwordTooShort')) }, { status: 400 })
   if (next === current) return NextResponse.json({ ...(await apiErr('passwordSameAsCurrent')) }, { status: 400 })
 
-  if ((await verifyPassword(user.email, current)) !== user.id) {
+  if ((await authVerifyPassword(user.email, current)) !== user.id) {
     return NextResponse.json({ ...(await apiErr('currentPasswordWrong')) }, { status: 400 })
   }
 
-  const { error } = await setAuthPassword(getAdminDb(), user.id, next)
+  const { error } = await authSetPassword(user.id, next)
   if (error) {
     console.error('[account-password]', error.message)
     return NextResponse.json({ ...(await apiErr('passwordChangeFailed')) }, { status: 400 })
   }
-  return NextResponse.json({ ok: true })
+  return startSession(user.email, next, request)
 }

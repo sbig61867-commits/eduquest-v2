@@ -50,8 +50,11 @@ function build(pool: Pool) {
       minPasswordLength: 8,
       resetPasswordTokenExpiresIn: 3600,
       revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url }) => {
-        await sendPasswordResetEmail({ to: user.email, resetUrl: url, locale: toLocale(await getLocale().catch(() => 'ar')) })
+      // The link goes to our own /reset-password page (the browser never calls
+      // Better Auth's routes); the page posts the token to /api/auth/reset-password.
+      sendResetPassword: async ({ user, token }) => {
+        const resetUrl = new URL(`/reset-password?token=${encodeURIComponent(token)}`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString()
+        await sendPasswordResetEmail({ to: user.email, resetUrl, locale: toLocale(await getLocale().catch(() => 'ar')) })
       },
     },
     session: { expiresIn: SESSION_DAYS * 24 * 3600, updateAge: 24 * 3600 },
@@ -144,8 +147,8 @@ export async function authSignOut(requestHeaders: Headers): Promise<string[]> {
 }
 
 /** Sends the reset email. Quiet about unknown emails (never says whether one exists). */
-export async function authRequestPasswordReset(email: string, redirectTo: string, requestHeaders: Headers): Promise<void> {
-  await withAuth(auth => auth.api.requestPasswordReset({ body: { email, redirectTo }, headers: requestHeaders }).catch(() => undefined))
+export async function authRequestPasswordReset(email: string, requestHeaders: Headers): Promise<void> {
+  await withAuth(auth => auth.api.requestPasswordReset({ body: { email }, headers: requestHeaders }).catch(() => undefined))
 }
 
 export async function authResetPassword(token: string, newPassword: string): Promise<boolean> {

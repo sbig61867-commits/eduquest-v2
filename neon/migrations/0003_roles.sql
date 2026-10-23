@@ -148,7 +148,7 @@ DECLARE
     ['exam_submissions',      'SELECT, UPDATE',                   'tenant_id'],
     ['exams',                 'SELECT, INSERT, UPDATE',           'tenant_id'],
     ['grades',                'SELECT, UPDATE',                   'tenant_id'],
-    ['group_students',        'SELECT, DELETE',                   'public.svc_parent_tenant(''group'', group_id)'],
+    ['group_students',        'SELECT, INSERT, DELETE',           'public.svc_parent_tenant(''group'', group_id)'],
     ['groups',                'SELECT, UPDATE',                   'tenant_id'],
     ['invitations',           'SELECT, UPDATE, DELETE',           'tenant_id'],
     ['lessons',               'SELECT, INSERT, UPDATE',           'tenant_id'],
