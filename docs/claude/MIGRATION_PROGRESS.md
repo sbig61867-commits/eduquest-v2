@@ -221,3 +221,7 @@
 - `requests/messages`: ONE unit — the message only by a participant or an admin of the institution, checked live, and the inbox bump.
 - `notifications`: the role from the signed session context, the feed in one read as the caller (no profile read).
 - Trial e2e `requests-trial` 4/4 (two institutions: another institution's admin not reachable; wrong direction / foreign group refused; colleague and other institution cannot write in the thread; only the recipient accepts, only from pending; feed shows only the institution's people).
+
+## Step 9 — data batch 13: weekly schedules (2026-10-23)
+- `schedules` and `schedules/slots`: the caller's live row via `getCaller()` (capability `manage_schedules`), then each write ONE unit as app_service pinned to the institution — the target (group / teacher / schedule / slot) and the slot's teacher checked inside the write, the end-after-start rule checked against the stored values in the update itself, the live caller repeated (was 3–4 trips each).
+- Trial e2e `schedules-trial` 4/4 (two institutions: a teacher cannot author; another institution's group/teacher/timetable/slot not found; one timetable per group; slot teacher of the same institution only; end after start; delete cascades).
