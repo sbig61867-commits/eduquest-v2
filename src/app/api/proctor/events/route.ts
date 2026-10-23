@@ -1,11 +1,12 @@
-import { getSessionUser } from '@/lib/auth'
 import { ALLOWED_EVENT_TYPES } from '@/lib/proctoring-events'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { isOnExamRoster } from '@/lib/exam-roster'
+import { currentCtx } from '@/lib/auth/current'
+import { run, maybeOne } from '@/lib/db/sql'
+import { onRosterSql } from '@/lib/exam-roster'
 import { rateLimit } from '@/lib/rate-limit'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Browser clocks can be set to anything. Keep a client time only when it is a
 // real date within the recorder's batching window of the server's clock
@@ -23,9 +24,6 @@ function clientTime(value: unknown): string | undefined {
 // Records LOCAL proctoring detections (from the in-browser MediaPipe/TF/audio
 // layers) into the exam submission. NO AI is used here — this endpoint never
 // calls Gemini or any model; it only persists batched, client-deduped events.
-function adminClient() {
-  return getAdminDb()
-}
 
 // Every accepted type and what it means: src/lib/proctoring-events.ts.
 const ALLOWED_TYPES = ALLOWED_EVENT_TYPES
@@ -40,9 +38,9 @@ interface IncomingEvent {
 
 // POST /api/proctor/events  { examId, events: [{type, timestamp, first_at, count, details}] }
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
   let body: { examId?: string; events?: IncomingEvent[] }
   try { body = await request.json() }
@@ -78,34 +76,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, appended: 0 })
   }
 
-  // Verify exam is published + proctored (service role — students can't SELECT exams).
-  const { data: exam } = await adminClient()
-    .from('exams')
-    .select('proctoring_enabled, group_id, course_id, assigned_student_id')
-    .eq('id', examId)
-    .eq('is_published', true)
-    .single()
+  if (!UUID.test(examId) || !ctx.tenant_id) return NextResponse.json({ ok: true, appended: 0 })
+  const service = { as: 'service', tenantId: ctx.tenant_id } as const
+
+  // One unit: the exam must be published and proctored and the student on its
+  // roster (students cannot SELECT exams); then the atomic appender
+  // (jsonb concat, SECURITY DEFINER), which only writes while the attempt is
+  // in progress, so post-submit batches are ignored. The appender is reachable
+  // only as app_service (EXECUTE revoked from the user roles), or any user
+  // could inject fabricated proctoring events against another student's attempt.
+  const [rows] = await run(service, sql => [sql`
+    select e.proctoring_enabled, ${onRosterSql(sql, user.id)} as on_roster
+      from public.exams e where e.id = ${examId} and e.is_published`])
+  const exam = maybeOne<{ proctoring_enabled: boolean | null; on_roster: boolean }>(rows)
   if (!exam?.proctoring_enabled) {
     return NextResponse.json({ ok: true, appended: 0 })
   }
-
-  // Verify the student is on the exam's roster before writing.
-  if (!(await isOnExamRoster(supabase, exam, user.id))) {
+  if (!exam.on_roster) {
     return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
   }
 
-  // Reuse the existing atomic appender (jsonb concat, SECURITY DEFINER). It only
-  // writes while status = 'in_progress', so post-submit batches are ignored.
-  // Service-role client so EXECUTE can be revoked from anon/authenticated (see
-  // migration): the appender must not be reachable directly, or any user could
-  // inject fabricated proctoring events against another student's attempt.
-  const { error } = await adminClient().rpc('append_proctoring_events', {
-    p_exam_id: examId,
-    p_student_id: user.id,
-    p_events: clean,
-  })
+  let error: unknown = null
+  try {
+    await run(service, sql => [sql`select public.append_proctoring_events(${examId}, ${user.id}, ${sql.json(clean)})`])
+  } catch (e) { error = e }
   if (error) {
-    console.error('[proctor/events]', error)
+    console.error('[proctor/events]', error instanceof Error ? error.message : error)
     return NextResponse.json({ ...(await apiErr('eventsFailed')) }, { status: 500 })
   }
 

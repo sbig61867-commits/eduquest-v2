@@ -1,9 +1,9 @@
 import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { isOnExamRoster } from '@/lib/exam-roster'
+import { run, maybeOne } from '@/lib/db/sql'
+import { onRosterSql } from '@/lib/exam-roster'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   EVIDENCE_MAX_BYTES, EVIDENCE_MAX_PER_STUDENT, EVIDENCE_TTL_HOURS,
@@ -11,7 +11,6 @@ import {
   sniffEvidenceImage, isClipExt, extOf,
 } from '@/lib/evidence-keys'
 import { evidenceViewUrl, isEvidenceStoreConfigured, putEvidence } from '@/lib/evidence-store'
-import { IncompleteReadError, inBatches, rowsOf } from '@/lib/data/complete-read'
 
 // Proctoring evidence snapshots (policy: src/lib/evidence-keys.ts).
 //   POST — the student's browser sends ONE small snapshot for a SEVERE violation.
@@ -21,15 +20,12 @@ import { IncompleteReadError, inBatches, rowsOf } from '@/lib/data/complete-read
 //   GET  — the exam's own teacher lists the snapshots of the last 30 hours.
 // NO AI — images are never analysed by any model.
 
-function adminClient() {
-  return getAdminDb()
-}
 
 // POST /api/proctor/evidence  { examId, type, imageBase64 }
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
   let body: { examId?: unknown; type?: unknown; imageBase64?: unknown }
   try { body = await request.json() }
@@ -57,21 +53,23 @@ export async function POST(request: Request) {
   const limit = await rateLimit(`evidence:${user.id}`, { limit: 30, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ stored: false, reason: 'rate_limited' })
 
-  const admin = adminClient()
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('notEnrolled')) }, { status: 403 })
+  const service = { as: 'service', tenantId: ctx.tenant_id } as const
 
-  // Exam must be published + proctored, and the student on its roster.
-  const { data: exam } = await admin.from('exams').select('*').eq('id', examId).eq('is_published', true).single()
+  // One unit, as app_service pinned to the student's institution: the exam
+  // (published and proctored), the roster check and the student's attempt.
+  const [examRows, attemptRows] = await run(service, sql => [
+    sql`select e.proctoring_enabled, ${onRosterSql(sql, user.id)} as on_roster from public.exams e where e.id = ${examId} and e.is_published`,
+    sql`select status, proctoring_events from public.exam_submissions where exam_id = ${examId} and student_id = ${user.id}`,
+  ])
+  const exam = maybeOne<{ proctoring_enabled: boolean | null; on_roster: boolean }>(examRows)
   if (!exam?.proctoring_enabled) return NextResponse.json({ stored: false, reason: 'not_proctored' })
-  if (!(await isOnExamRoster(supabase, exam, user.id))) {
+  if (!exam.on_roster) {
     return NextResponse.json({ ...(await apiErr('notEnrolled')) }, { status: 403 })
   }
 
-  // Only a running attempt may add evidence, capped per student per exam.
-  const { data: attempt } = await admin
-    .from('exam_submissions').select('status, proctoring_events')
-    .eq('exam_id', examId).eq('student_id', user.id).maybeSingle()
+  const attempt = maybeOne<{ status: string; proctoring_events: unknown }>(attemptRows)
   if (!attempt || attempt.status !== 'in_progress') return NextResponse.json({ stored: false, reason: 'not_in_progress' })
-  // Snapshots only: clips have their own cap (evidence/clip/route.ts).
   if (evidenceKeysFromEvents(attempt.proctoring_events).filter(k => !isClipExt(extOf(k.key))).length >= EVIDENCE_MAX_PER_STUDENT) {
     return NextResponse.json({ stored: false, reason: 'limit_reached' })
   }
@@ -83,18 +81,15 @@ export async function POST(request: Request) {
   }
 
   // Only a short text line reaches the database — never the image.
-  await admin.rpc('append_proctoring_events', {
-    p_exam_id: examId,
-    p_student_id: user.id,
-    p_events: [{
-      type,
-      timestamp: new Date(capturedAt).toISOString(),
-      evidence: true,
-      evidence_key: key,
-      evidence_expires_at: new Date(expiresAt(capturedAt)).toISOString(),
-      details: 'Evidence snapshot captured',
-    }],
-  })
+  const events = [{
+    type,
+    timestamp: new Date(capturedAt).toISOString(),
+    evidence: true,
+    evidence_key: key,
+    evidence_expires_at: new Date(expiresAt(capturedAt)).toISOString(),
+    details: 'Evidence snapshot captured',
+  }]
+  await run(service, sql => [sql`select public.append_proctoring_events(${examId}, ${user.id}, ${sql.json(events)})`])
 
   return NextResponse.json({ stored: true })
 }
@@ -112,43 +107,43 @@ export interface EvidenceItem {
 
 // GET /api/proctor/evidence?examId=…  → the exam teacher's live snapshot feed
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const examId = new URL(request.url).searchParams.get('examId')
   if (!isUuid(examId)) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
 
-  // Only the exam's own teacher (read through the user session: RLS applies too).
-  const { data: exam } = await supabase.from('exams').select('id, teacher_id').eq('id', examId).maybeSingle()
-  if (!exam || exam.teacher_id !== user.id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-
   if (!isEvidenceStoreConfigured()) {
     return NextResponse.json({ configured: false, ttlHours: EVIDENCE_TTL_HOURS, items: [] })
   }
 
-  // The attempts' own event logs are the index (the teacher may read their exams' submissions).
-  const { data: attempts } = await supabase
-    .from('exam_submissions').select('student_id, proctoring_events').eq('exam_id', examId)
+  // One unit, read as the teacher: RLS lets them see only their own exams'
+  // submissions and their institution's students. The names come with the
+  // attempts (one join) instead of a second, batched read.
+  let examRow: { teacher_id: string } | null
+  let attempts: { student_id: string; proctoring_events: unknown; full_name: string | null }[]
+  try {
+    const [e, a] = await run({ as: 'user', userId: user.id }, sql => [
+      sql`select teacher_id from public.exams where id = ${examId}`,
+      sql`select s.student_id, s.proctoring_events, u.full_name
+            from public.exam_submissions s left join public.users u on u.id = s.student_id
+           where s.exam_id = ${examId}`,
+    ])
+    examRow = maybeOne<{ teacher_id: string }>(e)
+    attempts = a as unknown as typeof attempts
+  } catch (e) {
+    console.error('[proctor/evidence]', e instanceof Error ? e.message : e)
+    return NextResponse.json({ ...(await apiErr('dataReadIncomplete')) }, { status: 503 })
+  }
+  if (!examRow || examRow.teacher_id !== user.id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const now = Date.now()
-  const live = (attempts ?? [])
+  const names = new Map(attempts.map(a => [a.student_id, a.full_name ?? '']))
+  const live = attempts
+    // a key is trusted only inside its own student's row and for this exam
     .flatMap(a => evidenceKeysFromEvents(a.proctoring_events).filter(k => k.studentId === a.student_id && k.examId === examId))
     .filter(k => !isExpired(k.capturedAt, now))
     .sort((a, b) => b.capturedAt - a.capturedAt)
-
-  const ids = [...new Set(live.map(k => k.studentId))]
-  // Names in short `.in()` batches (one long list can pass the API's URL limit).
-  const names = new Map<string, string>()
-  try {
-    const students = await inBatches(ids, async batch => rowsOf(
-      await supabase.from('users').select('id, full_name').in('id', batch), 'evidence students'))
-    for (const s of students) names.set(s.id, s.full_name ?? '')
-  } catch (e) {
-    if (!(e instanceof IncompleteReadError)) throw e
-    console.error('[proctor/evidence]', e.message, e.detail ?? '')
-    return NextResponse.json({ ...(await apiErr('dataReadIncomplete')) }, { status: 503 })
-  }
 
   const items: EvidenceItem[] = []
   for (const k of live) {

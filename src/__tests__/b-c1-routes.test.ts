@@ -137,36 +137,4 @@ describe('GET /api/announcements/interested (C1)', () => {
 
 // ── api/proctor/evidence (C1) ────────────────────────────────────────────────
 
-describe('GET /api/proctor/evidence (C1)', () => {
-  const EXAM = uid(5, 'e')
-  function setup(students: number) {
-    env.user = { id: 'teach' }
-    const ids = Array.from({ length: students }, (_, k) => uid(k, 'b'))
-    const type = SEVERE_EVIDENCE_TYPES[0]
-    env.session = {
-      exams: [{ id: EXAM, teacher_id: 'teach' }],
-      exam_submissions: ids.map(id => ({ exam_id: EXAM, student_id: id, proctoring_events: [{ type, evidence_key: evidenceKey(EXAM, id, type, Date.now() - 60_000, 'webp') }] })),
-      users: ids.map((id, k) => ({ id, full_name: `S${k}` })),
-    }
-  }
-  const get = async () => (await import('@/app/api/proctor/evidence/route')).GET(new Request(`http://x/api/proctor/evidence?examId=${EXAM}`))
-
-  it('evidence of 700 students: every name, in batches of ≤ 100 ids', async () => {
-    setup(700)
-    const res = await get()
-    expect(res.status).toBe(200)
-    const { items } = await res.json() as { items: { studentName: string }[] }
-    expect(items).toHaveLength(700)
-    expect(items.every(i => i.studentName.startsWith('S'))).toBe(true)
-    expect(Math.max(...env.calls.map(c => c.inIds))).toBeLessThanOrEqual(ID_BATCH)
-  })
-
-  it('a failed batch is 503 dataReadIncomplete', async () => {
-    setup(700)
-    let batches = 0
-    env.fail = c => c.table === 'users' && c.inIds > 0 && ++batches === 2
-    const res = await get()
-    expect(res.status).toBe(503)
-    expect((await res.json()).code).toBe('dataReadIncomplete')
-  })
-})
+// GET /api/proctor/evidence (C1) moved to proctor-evidence-route.test.ts (step 9: names come with the attempts, one join).

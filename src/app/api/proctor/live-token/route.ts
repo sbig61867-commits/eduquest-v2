@@ -1,15 +1,11 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx, serviceScopeFor } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk'
-import { isOnExamRoster } from '@/lib/exam-roster'
+import { onRosterSql } from '@/lib/exam-roster'
 import { WATCHING_ATTRIBUTE, parseWatching } from '@/lib/live-channel'
 
-function adminClient() {
-  return getAdminDb()
-}
 
 // One LiveKit room per proctored exam. Students publish (camera+mic) but do
 // NOT subscribe (can't see each other). The exam's teacher subscribes to
@@ -44,9 +40,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('liveNotConfigured')) }, { status: 503 })
   }
 
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub, email: ctx.email ?? undefined }
 
   let body: { examId?: string; role?: string }
   try { body = await request.json() }
@@ -57,18 +53,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('missingExamOrRole')) }, { status: 400 })
   }
 
-  const admin = adminClient()
-  const { data: exam } = await admin
-    .from('exams')
-    .select('*')
-    .eq('id', examId)
-    .single()
+  // As app_service on the caller's institution (platform scope for the owner):
+  // the exam, whether the caller is on its roster, and the caller's name. One unit.
+  const scope = serviceScopeFor(ctx)
+  if (!scope || !/^[0-9a-f-]{36}$/i.test(examId)) return NextResponse.json({ ...(await apiErr('examNotProctored')) }, { status: 404 })
+  const [examRows, meRows] = await run(scope, sql => [
+    sql`select e.teacher_id, e.proctoring_enabled, ${onRosterSql(sql, user.id)} as on_roster from public.exams e where e.id = ${examId}`,
+    sql`select full_name from public.users where id = ${user.id}`,
+  ])
+  const exam = maybeOne<{ teacher_id: string; proctoring_enabled: boolean | null; on_roster: boolean }>(examRows)
   if (!exam || !exam.proctoring_enabled) {
     return NextResponse.json({ ...(await apiErr('examNotProctored')) }, { status: 404 })
   }
-
-  const { data: profile } = await admin
-    .from('users').select('full_name, role').eq('id', user.id).single()
+  const profile = { full_name: maybeOne<{ full_name: string | null }>(meRows)?.full_name ?? null, role: ctx.role }
 
   if (role === 'teacher') {
     if (exam.teacher_id !== user.id && profile?.role !== 'super_admin') {
@@ -76,7 +73,7 @@ export async function POST(request: Request) {
     }
   } else {
     // Student must be on the exam's roster (its group, or its course).
-    if (!(await isOnExamRoster(admin, exam, user.id))) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
+    if (!exam.on_roster) return NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 })
     // ...and the teacher must be watching this student right now.
     if (!(await teacherIsWatching(url, key, secret, roomName(examId), exam.teacher_id, user.id))) {
       return NextResponse.json({ ...(await apiErr('liveNotWatching')) }, { status: 409 })

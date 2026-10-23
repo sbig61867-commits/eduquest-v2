@@ -5,7 +5,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // AND lists that student in its `watching` attribute. The answer comes from
 // LiveKit itself, so a student cannot start streaming on its own.
 
-const EXAM = { id: 'e1', teacher_id: 'teacher-1', proctoring_enabled: true }
+const EXAM_ID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+const EXAM = { id: EXAM_ID, teacher_id: 'teacher-1', proctoring_enabled: true }
 const state = vi.hoisted(() => ({
   userId: 'student-1',
   participants: [] as { identity: string; attributes?: Record<string, string> }[],
@@ -14,23 +15,16 @@ const state = vi.hoisted(() => ({
   grants: [] as Record<string, unknown>[],
 }))
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: state.userId, email: 'x@test' } } }) } }),
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => ({ sub: state.userId, email: 'x@test', role: state.userId === 'teacher-1' ? 'teacher' : 'student', tenant_id: '11111111-1111-1111-1111-111111111111', is_active: true, must_change_password: false }),
+  serviceScopeFor: () => ({ as: 'service', tenantId: '11111111-1111-1111-1111-111111111111' }),
 }))
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => table === 'exams'
-            ? { data: EXAM }
-            : { data: { full_name: 'Someone', role: state.userId === 'teacher-1' ? 'teacher' : 'student' } },
-        }),
-      }),
-    }),
-  }),
+// The exam with the roster check, and the caller's name: one unit on the SQL layer.
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  if (q.text.startsWith('select e.teacher_id, e.proctoring_enabled')) return [{ ...EXAM, on_roster: state.onRoster }]
+  if (q.text.startsWith('select full_name from public.users')) return [{ full_name: 'Someone' }]
+  return new Error('unexpected statement: ' + q.text)
 }))
-vi.mock('@/lib/exam-roster', () => ({ isOnExamRoster: async () => state.onRoster }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 vi.mock('livekit-server-sdk', () => ({
   AccessToken: class {
@@ -49,7 +43,7 @@ vi.mock('livekit-server-sdk', () => ({
 import { POST } from '@/app/api/proctor/live-token/route'
 
 function call(role: 'student' | 'teacher') {
-  return POST(new Request('http://x/api/proctor/live-token', { method: 'POST', body: JSON.stringify({ examId: 'e1', role }) }))
+  return POST(new Request('http://x/api/proctor/live-token', { method: 'POST', body: JSON.stringify({ examId: EXAM_ID, role }) }))
 }
 
 describe('live token is on demand', () => {

@@ -1,6 +1,6 @@
 import { getSessionUser } from '@/lib/auth'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { run, maybeOne } from '@/lib/db/sql'
 import { extOf, isExpired, parseEvidenceKey } from '@/lib/evidence-keys'
 import { contentTypeFor, getEvidence } from '@/lib/evidence-store'
 
@@ -9,14 +9,15 @@ import { contentTypeFor, getEvidence } from '@/lib/evidence-store'
 // Workers KV backend, whose REST API (and token) must never reach a browser.
 // The bytes are never cached beyond the teacher's own browser session.
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
+  const user = await getSessionUser()
   if (!user) return new NextResponse(null, { status: 401 })
 
   const parsed = parseEvidenceKey(new URL(request.url).searchParams.get('key') ?? '')
   if (!parsed || isExpired(parsed.capturedAt)) return new NextResponse(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
 
-  const { data: exam } = await supabase.from('exams').select('teacher_id').eq('id', parsed.examId).maybeSingle()
+  // read as the teacher: RLS shows them only exams they may see
+  const [rows] = await run({ as: 'user', userId: user.id }, sql => [sql`select teacher_id from public.exams where id = ${parsed.examId}`])
+  const exam = maybeOne<{ teacher_id: string }>(rows)
   if (!exam || exam.teacher_id !== user.id) return new NextResponse(null, { status: 403 })
 
   const bytes = await getEvidence(parsed.key)

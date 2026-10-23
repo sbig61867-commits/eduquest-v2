@@ -1,6 +1,6 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/db'
+import { appendProctoringEvents, loadProctoredAttempt } from '@/lib/proctoring-attempt'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   EVIDENCE_MAX_BYTES, EVIDENCE_MAX_PER_STUDENT,
@@ -21,9 +21,6 @@ import { verifySecondCameraToken } from '@/lib/second-camera-token'
 
 const SIDE_TYPES = new Set(['suspicious_activity', 'multiple_faces'])
 
-function adminClient() {
-  return getAdminDb()
-}
 
 export async function POST(request: Request) {
   let body: { token?: unknown; kind?: unknown; type?: unknown; details?: unknown; imageBase64?: unknown }
@@ -31,7 +28,7 @@ export async function POST(request: Request) {
 
   const claim = verifySecondCameraToken(typeof body.token === 'string' ? body.token : null)
   if (!claim) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-  const { examId, studentId } = claim
+  const { examId, studentId, tenantId } = claim
 
   const kind = body.kind
   if (kind !== 'connected' && kind !== 'violation') return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
@@ -42,24 +39,19 @@ export async function POST(request: Request) {
   const limit = await rateLimit(`second-camera:${studentId}`, { limit: 30, windowSecs: 600 })
   if (!limit.allowed) return NextResponse.json({ stored: false, reason: 'rate_limited' })
 
-  const admin = adminClient()
-  const { data: attempt } = await admin
-    .from('exam_submissions').select('status, proctoring_events')
-    .eq('exam_id', examId).eq('student_id', studentId).maybeSingle()
-  if (attempt?.status !== 'in_progress') return NextResponse.json({ stored: false, reason: 'not_in_progress' })
+  // the attempt, as app_service pinned to the institution the signed token names
+  const { attempt } = await loadProctoredAttempt(tenantId, examId, studentId)
+  if (!attempt || attempt.status !== 'in_progress') return NextResponse.json({ stored: false, reason: 'not_in_progress' })
 
   const now = Date.now()
   if (kind === 'connected') {
-    await admin.rpc('append_proctoring_events', {
-      p_exam_id: examId, p_student_id: studentId,
-      p_events: [{ type: 'second_camera_connected', timestamp: new Date(now).toISOString(), details: 'phone side camera connected' }],
-    })
+    await appendProctoringEvents(tenantId, examId, studentId, [{ type: 'second_camera_connected', timestamp: new Date(now).toISOString(), details: 'phone side camera connected' }])
     return NextResponse.json({ stored: true })
   }
 
   const type = body.type as 'suspicious_activity' | 'multiple_faces'
   const details = `side camera: ${typeof body.details === 'string' ? body.details.slice(0, 120) : type}`
-  const event: Record<string, unknown> = { type, timestamp: new Date(now).toISOString(), details }
+  const event: Record<string, string | boolean> = { type, timestamp: new Date(now).toISOString(), details }
 
   // Optional snapshot, under the ordinary snapshot policy and cap.
   if (typeof body.imageBase64 === 'string' && body.imageBase64 && isEvidenceStoreConfigured()) {
@@ -77,6 +69,6 @@ export async function POST(request: Request) {
     }
   }
 
-  await admin.rpc('append_proctoring_events', { p_exam_id: examId, p_student_id: studentId, p_events: [event] })
+  await appendProctoringEvents(tenantId, examId, studentId, [event])
   return NextResponse.json({ stored: true })
 }

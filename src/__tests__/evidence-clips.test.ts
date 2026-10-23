@@ -62,25 +62,14 @@ const state = vi.hoisted(() => ({
   appended: [] as unknown[],
 }))
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({ auth: { getUser: async () => ({ data: { user: state.user ? { id: S } : null } }) } }),
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => (state.user ? { sub: S, email: null, role: 'student', tenant_id: '99999999-9999-4999-8999-999999999999', is_active: true, must_change_password: false } : null),
 }))
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    from: (table: string) => ({
-      select: () => {
-        const chain = {
-          eq: () => chain,
-          single: async () => ({ data: table === 'exams' ? { id: E, proctoring_enabled: state.proctored } : null }),
-          maybeSingle: async () => ({ data: { status: state.status, proctoring_events: state.events } }),
-        }
-        return chain
-      },
-    }),
-    rpc: async (_: string, args: { p_events: unknown[] }) => { state.appended.push(...args.p_events); return { error: null } },
-  }),
+// The exam, roster and attempt, and the appender (src/lib/proctoring-attempt.ts).
+vi.mock('@/lib/proctoring-attempt', () => ({
+  loadProctoredAttempt: async () => ({ proctored: state.proctored, onRoster: state.onRoster, attempt: { status: state.status, proctoring_events: state.events } }),
+  appendProctoringEvents: async (_t: string, _e: string, _s: string, events: unknown[]) => { state.appended.push(...events) },
 }))
-vi.mock('@/lib/exam-roster', () => ({ isOnExamRoster: async () => state.onRoster }))
 vi.mock('@/lib/rate-limit', () => ({ rateLimit: async () => ({ allowed: true }) }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 vi.mock('@/lib/evidence-store', () => ({

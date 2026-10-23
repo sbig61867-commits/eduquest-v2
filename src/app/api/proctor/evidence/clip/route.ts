@@ -1,9 +1,7 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { isOnExamRoster } from '@/lib/exam-roster'
+import { appendProctoringEvents, loadProctoredAttempt } from '@/lib/proctoring-attempt'
 import { rateLimit } from '@/lib/rate-limit'
 import {
   CLIP_MAX_BYTES, CLIP_MAX_PER_STUDENT, ON_REQUEST, ROOM_SCAN,
@@ -21,14 +19,11 @@ import { isEvidenceStoreConfigured, putEvidence } from '@/lib/evidence-store'
 // store only, never Supabase; teacher-only; deleted after 30 hours. Only a
 // short event line with the key reaches the attempt. NO AI.
 
-function adminClient() {
-  return getAdminDb()
-}
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
   const params = new URL(request.url).searchParams
   const examId = params.get('examId')
@@ -52,16 +47,13 @@ export async function POST(request: Request) {
   const limit = await rateLimit(`evidence-clip:${user.id}`, { limit: 12, windowSecs: 600 })
   if (!limit.allowed) return NextResponse.json({ stored: false, reason: 'rate_limited' })
 
-  const admin = adminClient()
-  const { data: exam } = await admin.from('exams').select('*').eq('id', examId).eq('is_published', true).single()
-  if (!exam?.proctoring_enabled) return NextResponse.json({ stored: false, reason: 'not_proctored' })
-  if (!(await isOnExamRoster(supabase, exam, user.id))) {
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('notEnrolled')) }, { status: 403 })
+  const tenantId = ctx.tenant_id
+  const { proctored, onRoster, attempt } = await loadProctoredAttempt(tenantId, examId, user.id)
+  if (!proctored) return NextResponse.json({ stored: false, reason: 'not_proctored' })
+  if (!onRoster) {
     return NextResponse.json({ ...(await apiErr('notEnrolled')) }, { status: 403 })
   }
-
-  const { data: attempt } = await admin
-    .from('exam_submissions').select('status, proctoring_events')
-    .eq('exam_id', examId).eq('student_id', user.id).maybeSingle()
   if (!attempt || attempt.status !== 'in_progress') return NextResponse.json({ stored: false, reason: 'not_in_progress' })
   const clips = evidenceKeysFromEvents(attempt.proctoring_events).filter(k => isClipExt(extOf(k.key)))
   if (clips.length >= CLIP_MAX_PER_STUDENT) return NextResponse.json({ stored: false, reason: 'limit_reached' })
@@ -75,10 +67,7 @@ export async function POST(request: Request) {
   }
 
   // Only a short text line reaches the database — never the video.
-  await admin.rpc('append_proctoring_events', {
-    p_exam_id: examId,
-    p_student_id: user.id,
-    p_events: [{
+  await appendProctoringEvents(tenantId, examId, user.id, [{
       // A teacher-requested clip and the room scan are not violations: info.
       type: type === ON_REQUEST ? 'clip_requested' : type,
       timestamp: new Date(capturedAt).toISOString(),
@@ -86,8 +75,7 @@ export async function POST(request: Request) {
       evidence_key: key,
       evidence_expires_at: new Date(expiresAt(capturedAt)).toISOString(),
       details: type === ON_REQUEST ? 'Clip requested by the teacher' : type === ROOM_SCAN ? 'Room scan at the start' : 'Evidence clip captured',
-    }],
-  })
+  }])
 
   return NextResponse.json({ stored: true })
 }
