@@ -1,10 +1,15 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getCaller, serviceClient, staffCan } from '@/lib/staff-auth'
-import { getTenantStructureMode } from '@/lib/structure-mode'
+import { run, maybeOne } from '@/lib/db/sql'
+import { getCaller, staffCan } from '@/lib/staff-auth'
+import { isAcademicMode } from '@/lib/structure-mode'
 
 // Academic terms (semester / term / session / period — named per institution
-// type). Same privileged-write pattern as ../units/route.ts.
+// type). Same privileged-write pattern as ../units/route.ts: the caller (live,
+// with the institution's structure) in one read, then the write as
+// app_service pinned to the caller's institution.
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 async function authorize() {
   const res = await getCaller()
@@ -13,7 +18,7 @@ async function authorize() {
     return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
   }
   // Tenants on the original ('flat') structure can't touch this at all.
-  if ((await getTenantStructureMode(serviceClient(), res.caller.tenant_id)) !== 'academic') {
+  if (!isAcademicMode(res.caller.structure_mode)) {
     return { error: NextResponse.json({ ...(await apiErr('academicDisabled')) }, { status: 409 }) }
   }
   return res
@@ -26,15 +31,7 @@ function validDate(v: unknown): string | null {
   return Number.isNaN(Date.parse(v)) ? null : v
 }
 
-const SELECT = 'id, name, starts_on, ends_on, is_current'
-
-// Only one current term per tenant (unique partial index): clear the others first.
-async function clearCurrent(admin: ReturnType<typeof serviceClient>, tenantId: string, exceptId?: string) {
-  let q = admin.from('academic_terms').update({ is_current: false })
-    .eq('tenant_id', tenantId).eq('is_current', true)
-  if (exceptId) q = q.neq('id', exceptId)
-  return q
-}
+type TermRow = { id: string; name: string; starts_on: string; ends_on: string; is_current: boolean }
 
 // POST { name, starts_on, ends_on, is_current? }
 export async function POST(request: Request) {
@@ -52,22 +49,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('endBeforeStart')) }, { status: 400 })
   }
 
-  const admin = serviceClient()
+  // One unit: only one current term per tenant (unique partial index), so the
+  // others are cleared first, in the same transaction as the insert.
   const isCurrent = body.is_current === true
-  if (isCurrent) {
-    const { error } = await clearCurrent(admin, caller.tenant_id)
-    if (error) return NextResponse.json({ ...(await apiErr('createFailed')) }, { status: 500 })
-  }
-
-  const { data, error } = await admin
-    .from('academic_terms')
-    .insert({ tenant_id: caller.tenant_id, name, starts_on: starts, ends_on: ends, is_current: isCurrent })
-    .select(SELECT).single()
-  if (error) {
-    console.error('[api/academic/terms POST]', error)
+  try {
+    const rows = await run({ as: 'service', tenantId: caller.tenant_id }, sql => [
+      ...(isCurrent ? [sql`update public.academic_terms set is_current = false where tenant_id = ${caller.tenant_id} and is_current`] : []),
+      sql`insert into public.academic_terms (tenant_id, name, starts_on, ends_on, is_current)
+          values (${caller.tenant_id}, ${name}, ${starts}, ${ends}, ${isCurrent})
+          returning id, name, starts_on, ends_on, is_current`,
+    ])
+    return NextResponse.json({ term: maybeOne<TermRow>(rows[rows.length - 1]) }, { status: 201 })
+  } catch (e) {
+    console.error('[api/academic/terms POST]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('createFailed')) }, { status: 500 })
   }
-  return NextResponse.json({ term: data }, { status: 201 })
 }
 
 // PATCH { id, name?, starts_on?, ends_on?, is_current? }
@@ -78,44 +74,55 @@ export async function PATCH(request: Request) {
   let body: Record<string, unknown>
   try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
   if (typeof body.id !== 'string') return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
+  const id = body.id
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
+  const scope = { as: 'service', tenantId: caller.tenant_id } as const
 
-  const admin = serviceClient()
-  const { data: existing } = await admin
-    .from('academic_terms').select('id, tenant_id, starts_on, ends_on, deleted_at').eq('id', body.id).maybeSingle()
-  if (!existing || existing.tenant_id !== caller.tenant_id || existing.deleted_at) {
-    return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
-  }
+  const [found] = await run(scope, sql => [
+    sql`select starts_on, ends_on from public.academic_terms
+         where id = ${id} and tenant_id = ${caller.tenant_id} and deleted_at is null`,
+  ])
+  const existing = maybeOne<{ starts_on: string; ends_on: string }>(found)
+  if (!existing) return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
 
-  const update: Record<string, unknown> = {}
+  let name: string | null = null
   if (body.name !== undefined) {
-    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    name = typeof body.name === 'string' ? body.name.trim() : ''
     if (!name || name.length > 120) return NextResponse.json({ ...(await apiErr('nameRequired120')) }, { status: 400 })
-    update.name = name
   }
+  let starts: string | null = null
+  let ends: string | null = null
   if (body.starts_on !== undefined || body.ends_on !== undefined) {
-    const starts = body.starts_on !== undefined ? validDate(body.starts_on) : existing.starts_on
-    const ends = body.ends_on !== undefined ? validDate(body.ends_on) : existing.ends_on
+    starts = body.starts_on !== undefined ? validDate(body.starts_on) : existing.starts_on
+    ends = body.ends_on !== undefined ? validDate(body.ends_on) : existing.ends_on
     if (!starts || !ends || ends <= starts) {
       return NextResponse.json({ ...(await apiErr('endBeforeStart')) }, { status: 400 })
     }
-    update.starts_on = starts
-    update.ends_on = ends
   }
-  if (body.is_current !== undefined) update.is_current = body.is_current === true
-  if (Object.keys(update).length === 0) return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
-
-  if (update.is_current === true) {
-    const { error } = await clearCurrent(admin, caller.tenant_id, existing.id)
-    if (error) return NextResponse.json({ ...(await apiErr('updateFailed')) }, { status: 500 })
+  const current = body.is_current !== undefined ? body.is_current === true : null
+  if (name === null && starts === null && current === null) {
+    return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
   }
 
-  const { data, error } = await admin
-    .from('academic_terms').update(update).eq('id', existing.id).select(SELECT).single()
-  if (error) {
-    console.error('[api/academic/terms PATCH]', error)
+  try {
+    const rows = await run(scope, sql => [
+      ...(current === true ? [sql`update public.academic_terms set is_current = false
+                                   where tenant_id = ${caller.tenant_id} and is_current and id <> ${id}`] : []),
+      sql`update public.academic_terms set
+            name = coalesce(${name}::text, name),
+            starts_on = coalesce(${starts}::date, starts_on),
+            ends_on = coalesce(${ends}::date, ends_on),
+            is_current = coalesce(${current}::boolean, is_current)
+          where id = ${id} and tenant_id = ${caller.tenant_id} and deleted_at is null
+          returning id, name, starts_on, ends_on, is_current`,
+    ])
+    const term = maybeOne<TermRow>(rows[rows.length - 1])
+    if (!term) return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
+    return NextResponse.json({ term })
+  } catch (e) {
+    console.error('[api/academic/terms PATCH]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('updateFailed')) }, { status: 500 })
   }
-  return NextResponse.json({ term: data })
 }
 
 // DELETE { id } — archive
@@ -126,18 +133,18 @@ export async function DELETE(request: Request) {
   let body: Record<string, unknown>
   try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
   if (typeof body.id !== 'string') return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
+  const id = body.id
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
 
-  const admin = serviceClient()
-  const { data: existing } = await admin
-    .from('academic_terms').select('id, tenant_id, deleted_at').eq('id', body.id).maybeSingle()
-  if (!existing || existing.tenant_id !== caller.tenant_id || existing.deleted_at) {
-    return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
-  }
-
-  const { error } = await admin
-    .from('academic_terms').update({ deleted_at: new Date().toISOString(), is_current: false }).eq('id', existing.id)
-  if (error) {
-    console.error('[api/academic/terms DELETE]', error)
+  try {
+    const [rows] = await run({ as: 'service', tenantId: caller.tenant_id }, sql => [
+      sql`update public.academic_terms set deleted_at = now(), is_current = false
+           where id = ${id} and tenant_id = ${caller.tenant_id} and deleted_at is null
+          returning id`,
+    ])
+    if (!maybeOne(rows)) return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
+  } catch (e) {
+    console.error('[api/academic/terms DELETE]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('archiveFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true })

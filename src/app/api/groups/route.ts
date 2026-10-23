@@ -1,97 +1,118 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { deleteEntity } from '@/lib/delete-entity'
-import { serviceClient, staffCan, isTenantTeacher } from '@/lib/staff-auth'
-import { getTenantStructureMode } from '@/lib/structure-mode'
-import { parseGroupFields, courseInTenant } from '@/lib/group-fields'
+import { run, maybeOne, type Row, type Sql } from '@/lib/db/sql'
+import { deleteEntityAs } from '@/lib/delete-entity'
+import { staffCan } from '@/lib/staff-auth'
+import { parseGroupFields } from '@/lib/group-fields'
 
-// Auth/authz uses the user session (RLS-scoped).
-// Writes use the service-role client to bypass RLS — safe because authorization
-// is fully enforced in application code above before any write happens.
+// What a group write needs to decide is read in ONE unit, as app_service
+// pinned to the session's institution: the caller's LIVE row, and on request
+// the group, a would-be teacher, a linked course and an academic unit / term
+// — each only if it is in this institution. The write that follows runs in
+// the same scope and repeats the live check (and, for a teacher, ownership).
 
-type Profile = { role: string; tenant_id: string | null; permissions: Record<string, unknown> | null }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-async function loadCaller() {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return { supabase, user: null, profile: null }
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  return { supabase, user, profile: profile as Profile | null }
-}
+type Profile = { role: string; tenant_id: string; permissions: Record<string, unknown> | null; structure_mode: string | null }
 
 /** teacher (own groups) · staff (admin, centre manager) holding manage_groups · super_admin */
-function mayManageGroups(profile: Profile | null): profile is Profile & { tenant_id: string } {
-  if (!profile?.tenant_id) return false
+function mayManageGroups(profile: Profile | null): profile is Profile {
+  if (!profile) return false
   if (profile.role === 'teacher') return true
   // staffCan: super_admin always; university_admin default ON (owner may
   // switch it off); center_manager default OFF.
   return staffCan(profile, 'manage_groups')
 }
 
-export async function POST(request: Request) {
-  const { user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-  if (!mayManageGroups(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+const uuidOrNull = (v: unknown) => (typeof v === 'string' && UUID.test(v) ? v : null)
 
+async function loadGroupCaller(opts: { groupId?: string; teacherId?: unknown; courseId?: unknown; unitId?: unknown; termId?: unknown } = {}) {
+  const ctx = await currentCtx()
+  if (!ctx) return { error: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  if (!ctx.tenant_id) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
+  const tenantId = ctx.tenant_id
+  const teacherId = uuidOrNull(opts.teacherId)
+  const courseId = uuidOrNull(opts.courseId)
+  const unitId = uuidOrNull(opts.unitId)
+  const termId = uuidOrNull(opts.termId)
+  const [me, group, teacher, course, unit, term] = await run({ as: 'service', tenantId }, sql => [
+    sql`select u.role, u.tenant_id, u.permissions, t.structure_mode
+          from public.users u join public.tenants t on t.id = u.tenant_id
+         where u.id = ${ctx.sub} and u.tenant_id = ${tenantId} and u.is_active is not false`,
+    sql`select id, teacher_id from public.groups where id = ${opts.groupId ?? null}::uuid and tenant_id = ${tenantId}`,
+    sql`select id from public.users where id = ${teacherId}::uuid and tenant_id = ${tenantId} and role = 'teacher'`,
+    sql`select id from public.courses where id = ${courseId}::uuid and tenant_id = ${tenantId}`,
+    sql`select id from public.academic_units where id = ${unitId}::uuid and tenant_id = ${tenantId} and deleted_at is null`,
+    sql`select id from public.academic_terms where id = ${termId}::uuid and tenant_id = ${tenantId} and deleted_at is null`,
+  ])
+  const profile = maybeOne<Profile>(me)
+  if (!mayManageGroups(profile)) return { error: NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 }) }
+  return {
+    userId: ctx.sub, tenantId, profile,
+    group: maybeOne<{ id: string; teacher_id: string }>(group),
+    teacherOk: !!maybeOne(teacher), courseOk: !!maybeOne(course), unitOk: !!maybeOne(unit), termOk: !!maybeOne(term),
+  }
+}
+
+/** The caller is still live in this institution with the role the rules were applied to. */
+const liveCaller = (sql: Sql, userId: string, tenantId: string, role: string) =>
+  sql`exists (select 1 from public.users where id = ${userId} and tenant_id = ${tenantId} and is_active is not false and role = ${role})`
+
+export async function POST(request: Request) {
   let body: { name?: string; description?: string; teacher_id?: string } & Record<string, unknown>
   try { body = await request.json() }
-  catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
+  catch { body = {} }
+
+  const auth = await loadGroupCaller({ teacherId: body.teacher_id, courseId: body.course_id })
+  if ('error' in auth) return auth.error
+  const { userId, tenantId, profile } = auth
+  if (!Object.keys(body).length) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
 
   const { name, description } = body
   if (!name?.trim()) return NextResponse.json({ ...(await apiErr('groupNameRequired')) }, { status: 400 })
 
-  const admin = serviceClient()
-
   // Optional: course link, image, seat cap, instructions.
   const parsed = parseGroupFields(body)
   if ('error' in parsed) return NextResponse.json({ ...(await apiErr(parsed.error)) }, { status: 400 })
-  if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
+  if (parsed.update.course_id && !auth.courseOk) {
     return NextResponse.json({ ...(await apiErr('courseNotInTenant')) }, { status: 400 })
   }
 
   // Teachers always own the groups they create. Staff assign a real teacher;
   // a centre manager is not a teacher, so for them the assignment is required.
-  let teacherId = user.id
+  let teacherId = userId
   if (profile.role !== 'teacher') {
     if (body.teacher_id) {
-      if (!(await isTenantTeacher(admin, profile.tenant_id, body.teacher_id))) {
-        return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
-      }
+      if (!auth.teacherOk) return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
       teacherId = body.teacher_id
     } else if (profile.role === 'center_manager') {
       return NextResponse.json({ ...(await apiErr('chooseGroupTeacher')) }, { status: 400 })
     }
   }
 
-  const { data, error } = await admin
-    .from('groups')
-    .insert({
-      name: name.trim(),
-      description: description?.trim() || null,
-      teacher_id: teacherId,
-      tenant_id: profile.tenant_id,
-      // Only sent when set, so creating a plain group keeps working pre-migration.
-      ...Object.fromEntries(Object.entries(parsed.update).filter(([, v]) => v !== null && v !== undefined)),
-    })
-    .select('*, group_students(count)')
-    .single()
-
-  if (error) {
-    console.error('[api/groups POST]', error)
+  const f = parsed.update
+  try {
+    const [rows] = await run({ as: 'service', tenantId }, sql => [
+      sql`with ins as (
+            insert into public.groups (name, description, teacher_id, tenant_id, course_id, image_url, max_students, instructions)
+            select ${name.trim()}, ${description?.trim() || null}, ${teacherId}, ${tenantId},
+                   ${f.course_id ?? null}, ${f.image_url ?? null}, ${f.max_students ?? null}, ${f.instructions ?? null}
+             where ${liveCaller(sql, userId, tenantId, profile.role)}
+            returning *
+          )
+          select ins.*, json_build_array(json_build_object('count', 0)) as group_students from ins`,
+    ])
+    const created = maybeOne<Row>(rows)
+    if (!created) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+    return NextResponse.json(created, { status: 201 })
+  } catch (e) {
+    console.error('[api/groups POST]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('groupCreateFailed')) }, { status: 500 })
   }
-
-  return NextResponse.json(data, { status: 201 })
 }
 
 export async function PATCH(request: Request) {
-  const { user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-  if (!mayManageGroups(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-
   let body: {
     id?: string; name?: string; description?: string; is_active?: boolean; teacher_id?: string
     academic_unit_id?: string | null; term_id?: string | null
@@ -110,75 +131,72 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ...(await apiErr('nothingToUpdate')) }, { status: 400 })
   }
 
-  const admin = serviceClient()
-  const { data: group } = await admin
-    .from('groups').select('id, teacher_id, tenant_id').eq('id', id).single()
+  const auth = await loadGroupCaller({
+    groupId: UUID.test(id) ? id : undefined, teacherId: teacher_id, courseId: parsed.update.course_id,
+    unitId: academic_unit_id, termId: term_id,
+  })
+  if ('error' in auth) return auth.error
+  const { userId, tenantId, profile, group } = auth
 
-  if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
-  }
-  if (profile.role === 'teacher' && group.teacher_id !== user.id) {
+  if (!group) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
+  if (profile.role === 'teacher' && group.teacher_id !== userId) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
-  const update: Record<string, unknown> = {}
-  if (name !== undefined) { update.name = name.trim(); update.description = description?.trim() || null }
-  // Archive/restore: archived groups keep every record but disappear from
-  // the students' lessons/exams views.
-  if (is_active !== undefined) update.is_active = is_active
   if (teacher_id !== undefined) {
     // Reassigning the teacher is a staff action, never a teacher's.
     if (profile.role === 'teacher') return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-    if (!(await isTenantTeacher(admin, profile.tenant_id, teacher_id))) {
-      return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
-    }
-    update.teacher_id = teacher_id
+    if (!auth.teacherOk) return NextResponse.json({ ...(await apiErr('teacherNotInTenant')) }, { status: 400 })
   }
   if (hasGroupFields) {
     // Course link / image / cap / instructions are staff settings, not a teacher's.
     if (profile.role === 'teacher') return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-    if (!(await courseInTenant(admin, profile.tenant_id, parsed.update.course_id))) {
+    if (parsed.update.course_id && !auth.courseOk) {
       return NextResponse.json({ ...(await apiErr('courseNotInTenant')) }, { status: 400 })
     }
-    Object.assign(update, parsed.update)
   }
   if (classifying) {
     // Placing a group in the academic structure is a staff action.
     if (!staffCan(profile, 'manage_academic_structure')) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-    if ((await getTenantStructureMode(admin, profile.tenant_id)) !== 'academic') {
-      return NextResponse.json({ ...(await apiErr('academicDisabled')) }, { status: 409 })
-    }
-    for (const [column, table, value] of [
-      ['academic_unit_id', 'academic_units', academic_unit_id],
-      ['term_id', 'academic_terms', term_id],
-    ] as const) {
-      if (value === undefined) continue
-      if (value !== null) {
-        // The DB trigger rejects a foreign-tenant link too; this gives a clean 400.
-        const { data: target } = await admin
-          .from(table).select('id').eq('id', value).eq('tenant_id', profile.tenant_id).is('deleted_at', null).maybeSingle()
-        if (!target) return NextResponse.json({ ...(await apiErr('notInTenant')) }, { status: 400 })
-      }
-      update[column] = value
+    if (profile.structure_mode !== 'academic') return NextResponse.json({ ...(await apiErr('academicDisabled')) }, { status: 409 })
+    // The DB trigger rejects a foreign-tenant link too; this gives a clean 400.
+    if ((academic_unit_id && !auth.unitOk) || (term_id && !auth.termOk)) {
+      return NextResponse.json({ ...(await apiErr('notInTenant')) }, { status: 400 })
     }
   }
 
-  const { data, error } = await admin
-    .from('groups').update(update).eq('id', id).select().single()
-
-  if (error) {
-    console.error('[api/groups PATCH]', error)
+  // Each column changes only when it was sent; `set(k)` marks the ones that were.
+  const f = parsed.update
+  const set = (k: string) => k in body
+  const ownerOnly = profile.role === 'teacher'
+  try {
+    const [rows] = await run({ as: 'service', tenantId }, sql => [
+      sql`update public.groups g set
+            name = case when ${name !== undefined} then ${name?.trim() ?? null}::text else g.name end,
+            description = case when ${name !== undefined} then ${description?.trim() || null}::text else g.description end,
+            is_active = coalesce(${is_active ?? null}::boolean, g.is_active),
+            teacher_id = coalesce(${teacher_id ?? null}::uuid, g.teacher_id),
+            course_id = case when ${set('course_id')} then ${f.course_id ?? null}::uuid else g.course_id end,
+            image_url = case when ${set('image_url')} then ${f.image_url ?? null}::text else g.image_url end,
+            max_students = case when ${set('max_students')} then ${f.max_students ?? null}::int else g.max_students end,
+            instructions = case when ${set('instructions')} then ${f.instructions ?? null}::text else g.instructions end,
+            academic_unit_id = case when ${academic_unit_id !== undefined} then ${academic_unit_id ?? null}::uuid else g.academic_unit_id end,
+            term_id = case when ${term_id !== undefined} then ${term_id ?? null}::uuid else g.term_id end
+          where g.id = ${id} and g.tenant_id = ${tenantId}
+            and ${liveCaller(sql, userId, tenantId, profile.role)}
+            and (not ${ownerOnly} or g.teacher_id = ${userId})
+          returning g.*`,
+    ])
+    const updated = maybeOne<Row>(rows)
+    if (!updated) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+    return NextResponse.json(updated)
+  } catch (e) {
+    console.error('[api/groups PATCH]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('groupUpdateFailed')) }, { status: 500 })
   }
-
-  return NextResponse.json(data)
 }
 
 export async function DELETE(request: Request) {
-  const { supabase, user, profile } = await loadCaller()
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-  if (!mayManageGroups(profile)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-
   let body: { id?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
@@ -186,22 +204,19 @@ export async function DELETE(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
 
-  const admin = serviceClient()
-  const { data: group } = await admin
-    .from('groups').select('id, teacher_id, tenant_id').eq('id', id).single()
-
-  if (!group || group.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
-  }
-  if (profile.role === 'teacher' && group.teacher_id !== user.id) {
+  const auth = await loadGroupCaller({ groupId: UUID.test(id) ? id : undefined })
+  if ('error' in auth) return auth.error
+  const { userId, tenantId, profile, group } = auth
+  if (!group) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
+  if (profile.role === 'teacher' && group.teacher_id !== userId) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Archive by default; permanently delete only if the owner enabled hard
   // deletion in platform settings.
-  const { error, mode } = await deleteEntity(admin, supabase, 'group', id, user.id, profile.tenant_id)
+  const { error, mode } = await deleteEntityAs(userId, tenantId, 'group', id)
   if (error) {
-    console.error('[api/groups DELETE]', error)
+    console.error('[api/groups DELETE]', error instanceof Error ? error.message : error)
     return NextResponse.json({ ...(await apiErr('groupDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ success: true, mode })

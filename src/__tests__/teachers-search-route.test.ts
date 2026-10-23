@@ -35,6 +35,15 @@ function fakeClient() {
 }
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn(async () => fakeClient()) }))
+// The search runs on the SQL layer (step 9): each statement is recorded, and
+// answered with the selected columns of `searchReply` (or the error).
+const sqlCalls = vi.hoisted(() => [] as { text: string; values: unknown[]; ctx: { as: string; userId?: string } }[])
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  sqlCalls.push(q)
+  if (searchReply.error) return new Error(searchReply.error.message)
+  return (searchReply.data ?? []).slice(0, q.values.at(-1) as number)
+    .map(r => ({ id: (r as { id: string }).id, full_name: (r as { full_name: string }).full_name }))
+}))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 // getCaller reads the caller's live row on the SQL layer (step 9): answered
 // here from the same profile — no session 401; no institution or disabled 403.
@@ -57,13 +66,14 @@ const get = (qs: string) => GET(new Request(`http://localhost/api/teachers/searc
 const MANAGER = (permissions: Record<string, unknown>): Profile =>
   ({ role: 'center_manager', tenant_id: 'tenant-a', permissions, is_active: true })
 // The teacher search itself — not getCaller's own-profile read.
-const searchCalls = () => calls.filter(c => c.some(x => x[0] === 'eq' && x[1] === 'role'))
+const searchCalls = () => sqlCalls
 
 beforeEach(() => {
   authUser = { id: 'manager-1' }
   profile = MANAGER({ manage_groups: true, manage_courses: true })
   searchReply = { data: [], error: null }
   calls = []
+  sqlCalls.length = 0
 })
 
 describe('GET /api/teachers/search — who may search', () => {
@@ -134,12 +144,9 @@ describe('GET /api/teachers/search — results', () => {
   it('searches only active teachers of the caller’s own institution, ignoring a tenant_id in the URL', async () => {
     await get('for=groups&q=sara&tenant_id=tenant-b')
     const q = searchCalls()[0]
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(q).not.toContainEqual(['eq', 'tenant_id', 'tenant-b'])
-    expect(q).toContainEqual(['eq', 'role', 'teacher'])
-    expect(q).toContainEqual(['eq', 'is_active', true])
-    expect(q).toContainEqual(['ilike', 'full_name', '%sara%'])
-    expect(q).toContainEqual(['limit', 20])
+    expect(q.ctx).toEqual({ as: 'user', userId: 'manager-1' })
+    expect(q.text).toContain("where tenant_id = $ and role = 'teacher' and is_active and full_name ilike $")
+    expect(q.values).toEqual(['tenant-a', '%sara%', 20])
   })
 
   it('returns at most 20 teachers with only id / full_name (no email)', async () => {
@@ -157,9 +164,9 @@ describe('GET /api/teachers/search — results', () => {
   it('an injection attempt is one literal name pattern; it adds no condition', async () => {
     await get(`for=groups&q=${encodeURIComponent('x"),or(role.eq.student')}`)
     const q = searchCalls()[0]
-    expect(q.filter(c => c[0] === 'ilike')).toEqual([['ilike', 'full_name', '%x ),or(role.eq.student%']])
-    expect(q.some(c => c[0] === 'or')).toBe(false)
-    expect(q).toContainEqual(['eq', 'role', 'teacher'])
+    // a bound parameter: the text of the statement is the same whatever q holds
+    expect(q.values).toEqual(['tenant-a', '%x ),or(role.eq.student%', 20])
+    expect(q.text).not.toContain('student')
   })
 
   it('500 (no data) when the database refuses', async () => {

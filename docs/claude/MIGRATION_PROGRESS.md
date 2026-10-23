@@ -189,3 +189,14 @@
 - 0003: INSERT, UPDATE on `mail_connections` for app_service (dry-run, then applied to the trial).
 - Trial e2e `mail-trial` 4/4 (two institutions; Gmail and token revocation are stand-ins — no email leaves): a teacher refused; search and count inside the institution, another institution's group 404; only the institution's own active people receive, every attempt logged in that institution; another institution's admin has no mailbox and cannot unlink the caller's; tokens never returned.
 - Full suite green (1,744).
+
+## Step 9 — data batch 9: lessons, courses, groups, academic structure, transfers (2026-10-23)
+- `lessons` POST/PATCH one unit each (was 3), DELETE ownership read + `deleteEntityAs`.
+- `courses`: the caller's live row, the course and a would-be teacher in ONE unit, then the write repeating the live check and (for a teacher) ownership — POST 2 (was 3–4), PATCH 2 (was 4), DELETE 2. `create-full`: course + every unit + every lesson in one transactional unit (was 1 + 2 per unit, and could leave a half-built course).
+- `groups`: caller, group, teacher, linked course, academic unit and term in ONE read unit, then one write (PATCH was up to 7 trips). `courses/generate-item-content`: course read on the SQL layer.
+- `academic/terms` and `academic/units`: the structure mode now comes with `getCaller()` (no extra read); clearing the current term + insert/update in one unit; archive a unit and its children in one statement.
+- `teachers/search` read as the caller (bound parameter); `group-transfers` calls `transfer_student_group` as app_service pinned to the institution.
+- 0003: INSERT on `groups` and `academic_units`, SELECT on `course_levels` (dry-run, then applied to the trial). Isolation check `iso91` re-run after the grant changes: 32/32, 0 rows left.
+- `lessons/files` and `lessons/media` stay for step 11 (storage).
+- Trial e2e `teaching-structure-trial` 6/6 (two institutions: another institution's teacher/group/course/unit/term refused or not found; colleague cannot edit/delete a lesson; create-full builds 2 units + 2 items; one current term; group placement; transfer inside the institution only).
+- Full suite green (1,744).

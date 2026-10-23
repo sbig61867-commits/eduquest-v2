@@ -135,7 +135,7 @@ DECLARE
   spec text[][] := ARRAY[
     -- table                  privileges                          institution of the row
     ['academic_terms',        'SELECT, INSERT, UPDATE',           'tenant_id'],
-    ['academic_units',        'SELECT, UPDATE',                   'tenant_id'],
+    ['academic_units',        'SELECT, INSERT, UPDATE',           'tenant_id'],
     ['ai_usage_log',          'SELECT, INSERT',                   'tenant_id'],
     ['announcement_events',   'SELECT, INSERT, DELETE',           'tenant_id'],
     ['announcement_groups',   'SELECT, INSERT, DELETE',           'public.svc_parent_tenant(''announcement'', announcement_id)'],
@@ -143,6 +143,7 @@ DECLARE
     ['attendance_records',    'SELECT, INSERT, UPDATE',           'tenant_id'],
     ['attendance_sessions',   'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['course_enrollments',    'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
+    ['course_levels',         'SELECT',                           'tenant_id'],
     ['course_units',          'SELECT, INSERT',                   'tenant_id'],
     ['courses',               'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['exam_appeals',          'SELECT, INSERT, UPDATE',           'tenant_id'],
@@ -150,7 +151,7 @@ DECLARE
     ['exams',                 'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['grades',                'SELECT, UPDATE',                   'tenant_id'],
     ['group_students',        'SELECT, INSERT, DELETE',           'public.svc_parent_tenant(''group'', group_id)'],
-    ['groups',                'SELECT, UPDATE, DELETE',           'tenant_id'],
+    ['groups',                'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['invitations',           'SELECT, UPDATE, DELETE',           'tenant_id'],
     ['lessons',               'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['mail_connections',      'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],

@@ -14,6 +14,8 @@ export interface StaffCaller {
   role: string
   tenant_id: string
   permissions: Record<string, unknown> | null
+  /** The institution's structure ('flat' | 'academic'), read with the caller. */
+  structure_mode?: string | null
 }
 
 export function serviceClient() {
@@ -33,12 +35,13 @@ export async function getCaller(): Promise<{ caller: StaffCaller } | { error: Ne
   const tenantId = ctx.tenant_id
 
   const [rows] = await run({ as: 'service', tenantId }, sql => [
-    sql`select role, tenant_id, permissions from public.users
-         where id = ${ctx.sub} and tenant_id = ${tenantId} and is_active is not false`,
+    sql`select u.role, u.tenant_id, u.permissions, t.structure_mode
+          from public.users u join public.tenants t on t.id = u.tenant_id
+         where u.id = ${ctx.sub} and u.tenant_id = ${tenantId} and u.is_active is not false`,
   ])
-  const profile = maybeOne<{ role: string; tenant_id: string; permissions: Record<string, unknown> | null }>(rows)
+  const profile = maybeOne<{ role: string; tenant_id: string; permissions: Record<string, unknown> | null; structure_mode: string | null }>(rows)
   if (!profile) return forbidden()
-  return { caller: { id: ctx.sub, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions } }
+  return { caller: { id: ctx.sub, role: profile.role, tenant_id: profile.tenant_id, permissions: profile.permissions, structure_mode: profile.structure_mode } }
 }
 
 /** Staff capability check (role defaults resolved in permissions.ts; teachers/students never pass). */

@@ -1,8 +1,7 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
@@ -13,21 +12,17 @@ import { normalizeTransliterations } from '@/lib/ai/arabic-transliteration'
 // Course source text is institutional content.
 const AUDIENCES: AiAudience[] = ['institution']
 
-function adminClient() {
-  return getAdminDb()
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // POST /api/courses/generate-item-content  body: { course_id, title }
 // Generates the markdown content for one section STRICTLY from the course's stored
 // source file text — never from outside/general knowledge.
 export const POST = meteredAiRoute('item-content', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const tenantId = ctx.tenant_id
 
   // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).
   if (!audienceApproved(AUDIENCES)) return NextResponse.json({ ...(await apiErr('aiPrivacyPending')) }, { status: 503 })
@@ -53,10 +48,14 @@ export const POST = meteredAiRoute('item-content', async (request: Request) => {
     return NextResponse.json({ ...(await apiErr('courseIdAndTitleRequired')) }, { status: 400 })
   }
 
-  // Verify the teacher owns the course and pull its stored source text.
-  const { data: course } = await adminClient()
-    .from('courses').select('teacher_id, tenant_id, source_text, language').eq('id', course_id).single()
-  if (!course || course.tenant_id !== profile.tenant_id || course.teacher_id !== user.id) {
+  // Verify the teacher owns the course and pull its stored source text (only
+  // a course of the caller's institution is visible in this scope).
+  if (!UUID.test(course_id)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const [courseRows] = await run({ as: 'service', tenantId }, sql => [
+    sql`select teacher_id, source_text, language from public.courses where id = ${course_id} and tenant_id = ${tenantId}`,
+  ])
+  const course = maybeOne<{ teacher_id: string; source_text: string | null; language: string | null }>(courseRows)
+  if (!course || course.teacher_id !== user.id) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
   if (!course.source_text?.trim()) {

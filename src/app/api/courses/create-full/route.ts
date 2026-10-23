@@ -1,12 +1,7 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-
-function adminClient() {
-  return getAdminDb()
-}
+import { run, maybeOne, type Row } from '@/lib/db/sql'
 
 interface LessonInput {
   title: string
@@ -27,15 +22,25 @@ interface CourseInput {
   units: UnitInput[]
 }
 
-// POST /api/courses/create-full — create course + units + lessons in one shot
+// POST /api/courses/create-full — create course + units + lessons in one shot.
+//
+// One unit, as app_service pinned to the caller's institution: the caller's
+// live row decides (may create courses, active), and the course, every unit
+// and every lesson are written together — each statement only while that
+// row still allows it. The ids are chosen here so units and lessons can name
+// their parents (a row inserted by an earlier statement of the unit is
+// visible to the next one). Either all of it is created or none of it.
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const tenantId = ctx.tenant_id
+  const userId = ctx.sub
 
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, can_create_courses').eq('id', user.id).single()
-  if (!profile?.tenant_id || !profile.can_create_courses) {
+  const [me] = await run({ as: 'service', tenantId }, sql => [
+    sql`select can_create_courses from public.users where id = ${userId} and tenant_id = ${tenantId} and is_active is not false`,
+  ])
+  if (maybeOne<{ can_create_courses: boolean | null }>(me)?.can_create_courses !== true) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -49,79 +54,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('unitRequired')) }, { status: 400 })
   }
 
-  const admin = adminClient()
+  const courseId = crypto.randomUUID()
+  const units = course.units.map(u => ({ id: crypto.randomUUID(), title: String(u.name ?? ''), order_index: Number(u.order) || 0 }))
+  // unit_items.type is constrained to ('grammar','idioms','rules','task','quiz','video','text').
+  // A generated lesson is a markdown body, so it maps to 'text' (same as the manual
+  // "Text / Explanation" item). Using 'lesson' here silently violated the CHECK
+  // constraint, so no items were ever created — every unit showed "0 items".
+  const items = course.units.flatMap((u, k) => (Array.isArray(u.lessons) ? u.lessons : []).map(l => ({
+    unit_id: units[k].id, title: String(l.title ?? ''), order_index: Number(l.order) || 0,
+  })))
 
-  // 1. Create the course
-  const { data: newCourse, error: courseErr } = await admin
-    .from('courses')
-    .insert({
-      title: course.title.trim(),
-      description: course.description || null,
-      language: course.language || null,
-      has_levels: course.has_levels ?? false,
-      teacher_id: user.id,
-      tenant_id: profile.tenant_id,
-      source_text: source_text?.slice(0, 12000) || null,
-    })
-    .select('id')
-    .single()
-
-  if (courseErr || !newCourse) {
-    console.error('[create-full] course insert:', courseErr)
+  try {
+    const rows = await run({ as: 'service', tenantId }, sql => [
+      sql`insert into public.courses (id, title, description, language, has_levels, teacher_id, tenant_id, source_text)
+          select ${courseId}, ${course.title.trim()}, ${course.description || null}, ${course.language || null},
+                 ${course.has_levels ?? false}, ${userId}, ${tenantId}, ${source_text?.slice(0, 12000) || null}
+           where exists (select 1 from public.users where id = ${userId} and tenant_id = ${tenantId}
+                           and is_active is not false and can_create_courses)`,
+      sql`insert into public.course_units (id, course_id, tenant_id, level_id, title, order_index)
+          select u.id, c.id, c.tenant_id, null, u.title, u.order_index
+            from jsonb_to_recordset(${sql.json(units)}) as u(id uuid, title text, order_index int)
+            join public.courses c on c.id = ${courseId}`,
+      ...(items.length ? [
+        sql`insert into public.unit_items (unit_id, course_id, tenant_id, title, type, content, order_index)
+            select i.unit_id, c.id, c.tenant_id, i.title, 'text', ${sql.json({ body: '' })}, i.order_index
+              from jsonb_to_recordset(${sql.json(items)}) as i(unit_id uuid, title text, order_index int)
+              join public.courses c on c.id = ${courseId}`,
+      ] : []),
+      sql`select c.*,
+                 json_build_array(json_build_object('count', (select count(*) from public.course_levels l where l.course_id = c.id))) as course_levels,
+                 json_build_array(json_build_object('count', (select count(*) from public.course_enrollments e where e.course_id = c.id))) as course_enrollments
+            from public.courses c where c.id = ${courseId}`,
+    ])
+    const created = maybeOne<Row>(rows[rows.length - 1])
+    if (!created) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+    return NextResponse.json(created, { status: 201 })
+  } catch (e) {
+    console.error('[create-full]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('courseCreateFailed')) }, { status: 500 })
   }
-
-  // 2. Create units + lessons
-  for (const unit of course.units) {
-    const { data: newUnit, error: unitErr } = await admin
-      .from('course_units')
-      .insert({
-        course_id: newCourse.id,
-        tenant_id: profile.tenant_id,
-        level_id: null,
-        title: unit.name,
-        order_index: unit.order,
-      })
-      .select('id')
-      .single()
-
-    if (unitErr || !newUnit) {
-      console.error('[create-full] unit insert:', unitErr)
-      continue
-    }
-
-    if (Array.isArray(unit.lessons) && unit.lessons.length > 0) {
-      // unit_items.type is constrained to ('grammar','idioms','rules','task','quiz','video','text').
-      // A generated lesson is a markdown body, so it maps to 'text' (same as the manual
-      // "Text / Explanation" item). Using 'lesson' here silently violated the CHECK
-      // constraint, so no items were ever created — every unit showed "0 items".
-      const itemRows = unit.lessons.map(l => ({
-        unit_id: newUnit.id,
-        course_id: newCourse.id,
-        tenant_id: profile.tenant_id,
-        title: l.title,
-        type: 'text',
-        content: { body: '' },
-        order_index: l.order,
-      }))
-
-      const { error: itemErr } = await admin.from('unit_items').insert(itemRows)
-      if (itemErr) {
-        console.error('[create-full] unit_items insert:', itemErr)
-        return NextResponse.json(
-          { error: `Course created but adding lessons failed: ${itemErr.message}` },
-          { status: 500 }
-        )
-      }
-    }
-  }
-
-  // 3. Return the created course with counts for the UI
-  const { data: finalCourse } = await admin
-    .from('courses')
-    .select('*, course_levels(count), course_enrollments(count)')
-    .eq('id', newCourse.id)
-    .single()
-
-  return NextResponse.json(finalCourse, { status: 201 })
 }

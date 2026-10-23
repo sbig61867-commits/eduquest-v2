@@ -1,9 +1,11 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { run } from '@/lib/db/sql'
 import { getCaller, staffCan } from '@/lib/staff-auth'
 import type { Capability } from '@/lib/permissions'
-import { sanitizeSearch, searchTeachers } from '@/lib/data/people'
+import { sanitizeSearch } from '@/lib/data/people'
+
+const TEACHER_SEARCH_LIMIT = 20
 
 // Which capability lets the caller assign a teacher on each screen — the same
 // gate the write uses: /api/groups POST/PATCH teacher_id (manage_groups) and
@@ -21,7 +23,7 @@ const SCOPE_CAPABILITY: Record<string, Capability> = {
 // Authorization is decided here, never by the UI: an active staff account with
 // an institution (getCaller) holding the capability of the screen it assigns
 // from — exactly who may then save the assignment. Teachers and students never
-// hold staff capabilities. Reads run on the caller's session, so RLS stays the
+// hold staff capabilities. The search is read as the caller, so RLS stays the
 // isolation boundary; the institution always comes from the caller's profile.
 export async function GET(request: Request) {
   const auth = await getCaller()
@@ -36,11 +38,15 @@ export async function GET(request: Request) {
   const q = sanitizeSearch(params.get('q'))
   if (!q) return NextResponse.json({ ...(await apiErr('searchQueryRequired')) }, { status: 400 })
 
-  const supabase = await createClient()
-  const { rows, error } = await searchTeachers(supabase, caller.tenant_id, q)
-  if (error) {
-    console.error('[teachers/search]', error)
+  try {
+    const [rows] = await run({ as: 'user', userId: caller.id }, sql => [
+      sql`select id, full_name from public.users
+           where tenant_id = ${caller.tenant_id} and role = 'teacher' and is_active and full_name ilike ${'%' + q + '%'}
+           order by full_name, id limit ${TEACHER_SEARCH_LIMIT}`,
+    ])
+    return NextResponse.json({ teachers: rows })
+  } catch (e) {
+    console.error('[teachers/search]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('usersLoadFailed')) }, { status: 500 })
   }
-  return NextResponse.json({ teachers: rows })
 }

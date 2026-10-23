@@ -1,11 +1,12 @@
 import { apiErr, type ApiErrorCode } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getCaller, serviceClient, staffCan } from '@/lib/staff-auth'
+import { run, maybeOne } from '@/lib/db/sql'
+import { getCaller, staffCan } from '@/lib/staff-auth'
 
 // Move a student from one group to another on request.
 // Capability `manage_students` (university_admin default-on, centre manager
-// only when granted) is checked with the user session; the move itself runs in
-// transfer_student_group() on the service-role client, which re-checks tenant,
+// only when granted) is checked on the caller's live row; the move itself runs in
+// transfer_student_group() as app_service pinned to the institution, which re-checks tenant,
 // seat cap and membership atomically and freezes the old course's progress
 // (group_course_transfer_migration.sql).
 
@@ -44,23 +45,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('transferReasonLength')) }, { status: 400 })
   }
 
-  const { data, error } = await serviceClient().rpc('transfer_student_group', {
-    p_actor: caller.id,
-    p_student_id: studentId,
-    p_from_group: fromGroup,
-    p_to_group: toGroup,
-    p_reason: reason,
-  })
-
-  if (error) {
-    const known = Object.keys(ERRORS).find(k => error.message?.includes(k))
+  let transferId: unknown
+  try {
+    const [rows] = await run({ as: 'service', tenantId: caller.tenant_id }, sql => [
+      sql`select public.transfer_student_group(p_actor => ${caller.id}, p_student_id => ${studentId}::uuid,
+            p_from_group => ${fromGroup}::uuid, p_to_group => ${toGroup}::uuid, p_reason => ${reason}) as id`,
+    ])
+    transferId = maybeOne<{ id: unknown }>(rows)?.id
+  } catch (e) {
+    const message = e instanceof Error ? e.message : ''
+    const known = Object.keys(ERRORS).find(k => message.includes(k))
     if (known) {
       const [status, code] = ERRORS[known]
       return NextResponse.json({ ...(await apiErr(code)) }, { status })
     }
-    console.error('[api/group-transfers POST]', error)
+    // a malformed id is not one of this institution's students or groups
+    if ((e as { code?: string }).code === '22P02') return NextResponse.json({ ...(await apiErr('studentNotFound')) }, { status: 404 })
+    console.error('[api/group-transfers POST]', message)
     return NextResponse.json({ ...(await apiErr('transferFailed')) }, { status: 500 })
   }
 
-  return NextResponse.json({ transfer_id: data }, { status: 201 })
+  return NextResponse.json({ transfer_id: transferId }, { status: 201 })
 }
