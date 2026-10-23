@@ -215,3 +215,9 @@
 - `invitations/[id]` PATCH: one unit (the invitation for a precise refusal + the guarded revoke).
 - `invitationDefaultsFrom` (settings). 0003: INSERT on `invitations` for app_service (dry-run, then applied to the trial).
 - Trial e2e `invitations-trial` 5/5 (two institutions; no email sent — stand-in): another institution's group refused; full teacher seat; staff never by public link; no centre → no centre manager; a teacher only to their own group; demoted admin refused; duplicate address 409; lists per role; another institution's admin cannot revoke; revoke once.
+
+## Step 9 — data batch 12: staff requests and notifications (2026-10-23)
+- `requests` POST: ONE unit (side reads for a precise refusal + the insert guarded by the caller's live row, the recipient direction teacher ↔ university_admin in the same institution and the group ownership + the first message) — was 4–5 trips. PATCH: ONE unit — the state machine (valid from-state, who may make the transition) inside the update.
+- `requests/messages`: ONE unit — the message only by a participant or an admin of the institution, checked live, and the inbox bump.
+- `notifications`: the role from the signed session context, the feed in one read as the caller (no profile read).
+- Trial e2e `requests-trial` 4/4 (two institutions: another institution's admin not reachable; wrong direction / foreign group refused; colleague and other institution cannot write in the thread; only the recipient accepts, only from pending; feed shows only the institution's people).

@@ -1,16 +1,14 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne, type Row } from '@/lib/db/sql'
 
 // Staff request/inbox channel between a teacher and their university_admin.
-// Auth uses the user session (RLS); the actual writes use the service-role
-// client after app-level authorization, matching the rest of the codebase.
-function adminClient() {
-  return getAdminDb()
-}
+// Each call is ONE unit as app_service pinned to the caller's institution:
+// side reads for a precise refusal, and the write itself, which re-checks the
+// caller's live row and every rule in the same statement.
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const REQUEST_TYPES = ['grade_sheet', 'report', 'general'] as const
 const STATUSES = ['pending', 'accepted', 'rejected', 'completed', 'cancelled'] as const
 
@@ -24,21 +22,15 @@ const ALLOWED_TRANSITIONS: Record<string, { allowedBy: 'sender' | 'recipient' | 
   completed:  { allowedBy: 'either',    from: ['accepted'] },
 }
 
-async function getProfile(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const { data } = await supabase.from('users').select('role, tenant_id').eq('id', userId).single()
-  return data
-}
-
 // POST /api/requests — create a request (+ optional first message)
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const profile = await getProfile(supabase, user.id)
-  if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id || !['teacher', 'university_admin'].includes(ctx.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+  const tenantId = ctx.tenant_id
 
   let body: { to_user_id?: string; type?: string; subject?: string; group_id?: string; message?: string }
   try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
@@ -50,69 +42,72 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('invalidRequestType')) }, { status: 400 })
   }
   if (to_user_id === user.id) return NextResponse.json({ ...(await apiErr('cannotRequestSelf')) }, { status: 400 })
+  if (!UUID.test(to_user_id)) return NextResponse.json({ ...(await apiErr('recipientNotInTenant')) }, { status: 404 })
+  if (group_id && !UUID.test(group_id)) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
 
-  const admin = adminClient()
-
-  // Verify the recipient is staff in the same tenant, and enforce direction:
-  // teacher ↔ university_admin only.
-  const { data: recipient } = await admin
-    .from('users').select('id, role, tenant_id').eq('id', to_user_id).single()
-  if (!recipient || recipient.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ ...(await apiErr('recipientNotInTenant')) }, { status: 404 })
-  }
-  const allowedRecipientRole = profile.role === 'teacher' ? 'university_admin' : 'teacher'
-  if (recipient.role !== allowedRecipientRole) {
-    return NextResponse.json({ ...(await apiErr('requestTargetNotAllowed')) }, { status: 403 })
-  }
-
-  // If a group is attached, verify it belongs to the tenant (and, for a
-  // teacher sender, that they own it).
-  if (group_id) {
-    const { data: group } = await admin.from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
-    if (!group || group.tenant_id !== profile.tenant_id) {
-      return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
-    }
-    if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-      return NextResponse.json({ ...(await apiErr('notYourGroup')) }, { status: 403 })
-    }
-  }
-
-  const { data: created, error } = await admin
-    .from('staff_requests')
-    .insert({
-      tenant_id: profile.tenant_id,
-      from_user_id: user.id,
-      to_user_id,
-      type,
-      subject: subject.trim(),
-      group_id: group_id ?? null,
-      status: 'pending',
-    })
-    .select('id')
-    .single()
-
-  if (error || !created) {
-    console.error('[api/requests POST]', error)
+  // One unit:
+  //  1-3. the caller (live), the recipient and the group as they stand
+  //  4. the request — written ONLY when the recipient is staff of this
+  //     institution in the allowed direction (teacher ↔ university_admin),
+  //     and an attached group is this institution's (a teacher's own)
+  //  5. the first message, only if the request was written
+  // The id is chosen here so the message can name it.
+  const requestId = crypto.randomUUID()
+  const text = message?.trim() || null
+  let rows: Row[][]
+  try {
+    rows = await run({ as: 'service', tenantId }, sql => [
+      sql`select role from public.users where id = ${user.id} and tenant_id = ${tenantId} and is_active is not false`,
+      sql`select role from public.users where id = ${to_user_id} and tenant_id = ${tenantId}`,
+      sql`select teacher_id from public.groups where id = ${group_id ?? null}::uuid and tenant_id = ${tenantId}`,
+      sql`insert into public.staff_requests (id, tenant_id, from_user_id, to_user_id, type, subject, group_id, status)
+          select ${requestId}, ${tenantId}, me.id, r.id, ${type}, ${subject.trim()}, ${group_id ?? null}, 'pending'
+            from public.users me, public.users r
+           where me.id = ${user.id} and me.tenant_id = ${tenantId} and me.is_active is not false
+             and me.role in ('teacher', 'university_admin')
+             and r.id = ${to_user_id} and r.tenant_id = ${tenantId}
+             and r.role = case me.role when 'teacher' then 'university_admin' else 'teacher' end
+             and (${group_id ?? null}::uuid is null or exists (
+                   select 1 from public.groups g where g.id = ${group_id ?? null}::uuid and g.tenant_id = ${tenantId}
+                      and (me.role <> 'teacher' or g.teacher_id = me.id)))
+          returning id`,
+      ...(text ? [
+        sql`insert into public.request_messages (request_id, sender_id, body)
+            select id, ${user.id}, ${text} from public.staff_requests where id = ${requestId}`,
+      ] : []),
+    ])
+  } catch (e) {
+    console.error('[api/requests POST]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('requestCreateFailed')) }, { status: 500 })
   }
 
-  if (message?.trim()) {
-    await admin.from('request_messages').insert({
-      request_id: created.id, sender_id: user.id, body: message.trim(),
-    })
-  }
+  if (maybeOne(rows[3])) return NextResponse.json({ id: requestId }, { status: 201 })
 
-  return NextResponse.json({ id: created.id }, { status: 201 })
+  // Nothing was written: say why.
+  const me = maybeOne<{ role: string }>(rows[0])
+  if (!me) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const recipient = maybeOne<{ role: string }>(rows[1])
+  if (!recipient) return NextResponse.json({ ...(await apiErr('recipientNotInTenant')) }, { status: 404 })
+  if (recipient.role !== (me.role === 'teacher' ? 'university_admin' : 'teacher')) {
+    return NextResponse.json({ ...(await apiErr('requestTargetNotAllowed')) }, { status: 403 })
+  }
+  if (group_id) {
+    const group = maybeOne<{ teacher_id: string }>(rows[2])
+    if (!group) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
+    if (me.role === 'teacher' && group.teacher_id !== user.id) {
+      return NextResponse.json({ ...(await apiErr('notYourGroup')) }, { status: 403 })
+    }
+  }
+  return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 }
 
 // PATCH /api/requests — change status (accept/reject/complete/cancel)
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const profile = await getProfile(supabase, user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const tenantId = ctx.tenant_id
 
   let body: { id?: string; status?: string }
   try { body = await request.json() } catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
@@ -122,46 +117,47 @@ export async function PATCH(request: Request) {
   if (!status || !STATUSES.includes(status as typeof STATUSES[number])) {
     return NextResponse.json({ ...(await apiErr('invalidStatus')) }, { status: 400 })
   }
-
-  const admin = adminClient()
-  const { data: req } = await admin
-    .from('staff_requests').select('id, tenant_id, from_user_id, to_user_id, status').eq('id', id).single()
-  if (!req || req.tenant_id !== profile.tenant_id) {
-    return NextResponse.json({ ...(await apiErr('requestNotFound')) }, { status: 404 })
-  }
-  const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
-  if (!isParticipant && profile.role !== 'university_admin' && profile.role !== 'super_admin') {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
-
-  // Validate state machine: check valid from-state and who may make this transition.
+  // Validate the state machine: a status nobody may set is refused up front.
   const transition = ALLOWED_TRANSITIONS[status]
-  if (!transition) {
-    return NextResponse.json({ ...(await apiErr('transitionNotAllowed')) }, { status: 400 })
+  if (!transition) return NextResponse.json({ ...(await apiErr('transitionNotAllowed')) }, { status: 400 })
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('requestNotFound')) }, { status: 404 })
+
+  // One unit: the request and the caller as they stand (for a precise
+  // refusal), then the update — only from a valid state, by the party the
+  // transition belongs to (super_admin may make any), the caller live.
+  let rows: Row[][]
+  try {
+    rows = await run({ as: 'service', tenantId }, sql => [
+      sql`select from_user_id, to_user_id, status from public.staff_requests where id = ${id} and tenant_id = ${tenantId}`,
+      sql`select role from public.users where id = ${user.id} and tenant_id = ${tenantId} and is_active is not false`,
+      sql`update public.staff_requests r set status = ${status}, updated_at = now()
+            from public.users me
+           where r.id = ${id} and r.tenant_id = ${tenantId}
+             and r.status in (select jsonb_array_elements_text(${sql.json(transition.from)}))
+             and me.id = ${user.id} and me.tenant_id = ${tenantId} and me.is_active is not false
+             and (me.role = 'super_admin'
+                  or (${transition.allowedBy} = 'sender' and r.from_user_id = me.id)
+                  or (${transition.allowedBy} = 'recipient' and r.to_user_id = me.id)
+                  or (${transition.allowedBy} = 'either' and (r.from_user_id = me.id or r.to_user_id = me.id
+                                                                or me.role = 'university_admin')))
+          returning r.id`,
+    ])
+  } catch (e) {
+    console.error('[api/requests PATCH]', e instanceof Error ? e.message : e)
+    return NextResponse.json({ ...(await apiErr('statusUpdateFailed')) }, { status: 500 })
+  }
+  if (maybeOne(rows[2])) return NextResponse.json({ success: true, status })
+
+  // Nothing was written: say why.
+  const req = maybeOne<{ from_user_id: string; to_user_id: string; status: string }>(rows[0])
+  if (!req) return NextResponse.json({ ...(await apiErr('requestNotFound')) }, { status: 404 })
+  const me = maybeOne<{ role: string }>(rows[1])
+  const isParticipant = req.from_user_id === user.id || req.to_user_id === user.id
+  if (!me || (!isParticipant && me.role !== 'university_admin' && me.role !== 'super_admin')) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
   if (!transition.from.includes(req.status)) {
     return NextResponse.json({ ...(await apiErr('badTransition', { from: req.status, to: status })) }, { status: 409 })
   }
-  const isSender    = req.from_user_id === user.id
-  const isRecipient = req.to_user_id   === user.id
-  const isSuperAdmin = profile.role === 'super_admin'
-  if (
-    !isSuperAdmin &&
-    transition.allowedBy === 'sender'    && !isSender    ||
-    !isSuperAdmin &&
-    transition.allowedBy === 'recipient' && !isRecipient
-  ) {
-    return NextResponse.json({ ...(await apiErr('requestActionForbidden')) }, { status: 403 })
-  }
-
-  const { error } = await admin
-    .from('staff_requests')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id)
-
-  if (error) {
-    console.error('[api/requests PATCH]', error)
-    return NextResponse.json({ ...(await apiErr('statusUpdateFailed')) }, { status: 500 })
-  }
-  return NextResponse.json({ success: true, status })
+  return NextResponse.json({ ...(await apiErr('requestActionForbidden')) }, { status: 403 })
 }

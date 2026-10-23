@@ -1,6 +1,7 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentCtx } from '@/lib/auth/current'
+import { run, maybeOne } from '@/lib/db/sql'
 import { getTranslations } from 'next-intl/server'
 import { isScoreVisible } from '@/lib/score-visibility'
 
@@ -26,37 +27,28 @@ interface Feed {
 const FEED_ROLES = new Set(['student', 'teacher', 'university_admin', 'super_admin'])
 
 // GET /api/notifications — recent, role-aware activity for the header bell.
-// Reads through the user's session (RLS-scoped); no notifications table —
-// items are derived from recent domain activity, newest first. One read:
-// get_my_notifications() (P-08); the titles and the score-visibility rule
-// stay here.
+// Read as the caller (RLS-scoped); no notifications table — items are derived
+// from recent domain activity, newest first. One read: get_my_notifications()
+// (P-08); the role comes from the session context (no profile read). The
+// titles and the score-visibility rule stay here.
 export async function GET() {
-  const supabase = await createClient()
-  // Read-only and polled every 5 minutes: verify the JWT locally rather than a
-  // round-trip to the Auth server. Every read below is RLS-scoped anyway.
-  const user = await getAuthUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  // Role and tenant are in the verified JWT claims (sync_user_claims trigger);
-  // the DB is only read for a legacy session whose claims were never backfilled.
-  let profile: { role?: string; tenant_id?: string | null } | null =
-    user.role ? { role: user.role, tenant_id: user.tenant_id } : null
-  if (!profile) {
-    const { data } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
-    profile = data
-  }
-  const role = profile?.role
+  // Read-only and polled every 5 minutes: the signed session context, no lookup.
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const role = ctx.role ?? undefined
   const items: Notif[] = []
   // Titles are built here, so they are resolved in the caller's language here.
   const t = await getTranslations('common.notifications.items')
   if (!role || !FEED_ROLES.has(role)) return NextResponse.json({ notifications: items })
 
-  const { data, error } = await supabase.rpc('get_my_notifications')
-  if (error) {
-    console.error('[notifications] get_my_notifications:', error.message)
+  let feed: Feed
+  try {
+    const [rows] = await run({ as: 'user', userId: ctx.sub }, sql => [sql`select public.get_my_notifications() as feed`])
+    feed = (maybeOne<{ feed: Feed | null }>(rows)?.feed ?? {}) as Feed
+  } catch (e) {
+    console.error('[notifications] get_my_notifications:', e instanceof Error ? e.message : e)
     return NextResponse.json({ notifications: items })
   }
-  const feed = (data ?? {}) as Feed
 
   for (const l of feed.lessons ?? []) {
     items.push({ id: `lesson-${l.id}`, type: 'lesson', title: t('newLesson', { title: l.title }), subtitle: l.group_name ?? '', date: l.created_at, href: '/student/lessons' })

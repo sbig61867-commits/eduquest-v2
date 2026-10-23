@@ -25,36 +25,6 @@ vi.mock('next-intl/server', () => ({
 }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (k: string) => ({ error: k }) }))
 
-function table(name: string) {
-  const preds: ((r: Row) => boolean)[] = []
-  let sortCol: string | null = null, asc = true, lim: number | null = null, single = false
-  const chain: Record<string, unknown> = {}
-  chain.select = () => chain
-  chain.eq = (c: string, v: unknown) => { preds.push(r => r[c] === v); return chain }
-  chain.in = (c: string, v: unknown[]) => { preds.push(r => v.includes(r[c])); return chain }
-  chain.is = (c: string, v: unknown) => { preds.push(r => (v === null ? r[c] == null : r[c] === v)); return chain }
-  chain.not = (c: string, op: string, v: unknown) => { if (op === 'is' && v === null) preds.push(r => r[c] != null); return chain }
-  chain.order = (c: string, o?: { ascending?: boolean }) => { sortCol = c; asc = o?.ascending !== false; return chain }
-  chain.limit = (n: number) => { lim = n; return chain }
-  chain.single = () => { single = true; return chain }
-  chain.then = (res: (v: unknown) => unknown) => {
-    if (name === 'users' && single) return Promise.resolve({ data: dbProfile, error: null }).then(res)
-    let rows = (fixture[name] ?? []).filter(r => preds.every(p => p(r)))
-    if (sortCol) {
-      const c = sortCol
-      // PostgREST: ascending nulls last, descending nulls first; stable.
-      rows = [...rows].sort((a, b) => {
-        const x = a[c] as string | null, y = b[c] as string | null
-        if (x == null || y == null) return x == null && y == null ? 0 : x == null ? (asc ? 1 : -1) : (asc ? -1 : 1)
-        return asc ? (x < y ? -1 : x > y ? 1 : 0) : (x > y ? -1 : x < y ? 1 : 0)
-      })
-    }
-    if (lim != null) rows = rows.slice(0, lim)
-    return Promise.resolve({ data: single ? rows[0] ?? null : rows, error: null }).then(res)
-  }
-  return chain
-}
-
 /** get_my_notifications(), as the SQL function computes it over the same rows. */
 function feed(): Row {
   const uid = who!.id
@@ -115,19 +85,18 @@ function feed(): Row {
   return {}
 }
 
-const client = {
-  from: (name: string) => { calls.push({ kind: 'from', name }); return table(name) },
-  rpc: (name: string) => {
-    calls.push({ kind: 'rpc', name })
-    if (name === 'get_student_exam_list') return Promise.resolve({ data: fixture.exam_list ?? [], error: null })
-    if (name === 'get_my_notifications') return Promise.resolve({ data: feed(), error: null })
-    return Promise.resolve({ data: null, error: { message: `unknown rpc ${name}` } })
-  },
-}
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => client,
-  getAuthUser: async () => who,
+// Step 9: the route reads the feed on the SQL layer, as the caller, with the
+// role from the session context. The statement is answered with the same feed.
+let feedFails = false
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => (who ? { sub: who.id, role: who.role ?? null, tenant_id: who.tenant_id ?? null } : null),
+}))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  if (q.text === 'select public.get_my_notifications() as feed') {
+    calls.push({ kind: 'rpc', name: 'get_my_notifications' })
+    return feedFails ? new Error('boom') : [{ feed: feed() }]
+  }
+  return new Error('unexpected statement: ' + q.text)
 }))
 
 import { GET } from '@/app/api/notifications/route'
@@ -298,25 +267,23 @@ describe('GET /api/notifications (P-08)', () => {
   it('a failed feed read answers an empty list (no partial notifications)', async () => {
     who = { id: 's1', role: 'student', tenant_id: 'tn' }
     fixture = studentFixture()
-    const failing = client.rpc
-    client.rpc = (name: string) => { calls.push({ kind: 'rpc', name }); return Promise.resolve({ data: null, error: { message: 'boom' } }) }
+    feedFails = true
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const { status, body } = await notifications()
       expect(status).toBe(200)
       expect(body).toEqual({ notifications: [] })
     } finally {
-      client.rpc = failing
+      feedFails = false
       errors.mockRestore()
     }
   })
 
-  it('a session without role claims falls back to the profile row', async () => {
+  it('a session context without a role reads nothing (the signed context always carries one)', async () => {
     who = { id: 'ad1' }
-    dbProfile = { role: 'university_admin', tenant_id: 'tn' }
     fixture = adminFixture()
     const { body } = await notifications()
-    expect(body.notifications.length).toBe(15)
-    expect(calls[0]).toEqual({ kind: 'from', name: 'users' })
+    expect(body.notifications).toEqual([])
+    expect(calls).toEqual([])
   })
 })
