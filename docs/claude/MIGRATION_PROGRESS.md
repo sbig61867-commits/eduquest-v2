@@ -147,3 +147,13 @@
 - `api/exams/results`: one unit (was 2); `api/exams/individual`: one unit (was 5); `api/exams/files`: ctx instead of a profile read (storage stays for step 11).
 - 0003 grants completed (DELETE on courses/exams/groups/lessons, INSERT group_students, soft_delete_entity); iso91 32/32.
 - Trial e2e `teacher-exams-trial` 7/7 (two institutions: colleague and other-institution teacher refused on create/edit/results/individual/delete; demoted teacher refused; proctoring events appended, outsider refused). Full suite 1,740 passed.
+
+## Step 9 — data batch 4: teacher grading (2026-10-23)
+- `api/appeals` POST: one unit (was 4 trips) — the insert itself checks the submission is the caller's, the caller is a live student of the exam's institution, and the disputed event was really recorded; snapshots taken in the same statement; duplicate → 409.
+- `api/appeals/[id]` PATCH: one unit (was 3) — update only while pending, by the exam's teacher or an admin of that institution (live).
+- `api/appeals/report`: read as the caller under RLS, explicit columns, bounded (5,000).
+- `api/homework` POST: one unit (was 4) — own lesson + group checked inside the insert, lesson name baked into the title in SQL; PATCH one unit (was 3); DELETE ownership read + `deleteEntityAs`; GET as user, bounded.
+- `api/homework/submissions` GET one unit (was 2); PATCH one unit (was 3–4) — score bound and the `grades` sync in the same statement.
+- `api/grades/export`: one unit of 4 whole reads (was 4 + keyset pages).
+- 0003: INSERT on `exam_appeals` for app_service (dry-run, then applied to the trial).
+- Trial e2e `teacher-grading-trial` 7/7 (two institutions; colleague / other-institution teacher / other-institution admin refused on homework, grading, export, appeal resolve; report scoped per role). Full suite green (one AI privacy test flaky under load, passes alone).

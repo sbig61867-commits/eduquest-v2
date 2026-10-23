@@ -145,7 +145,7 @@ DECLARE
     ['course_enrollments',    'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['course_units',          'SELECT, INSERT',                   'tenant_id'],
     ['courses',               'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
-    ['exam_appeals',          'SELECT, UPDATE',                   'tenant_id'],
+    ['exam_appeals',          'SELECT, INSERT, UPDATE',           'tenant_id'],
     ['exam_submissions',      'SELECT, UPDATE',                   'tenant_id'],
     ['exams',                 'SELECT, INSERT, UPDATE, DELETE',   'tenant_id'],
     ['grades',                'SELECT, UPDATE',                   'tenant_id'],

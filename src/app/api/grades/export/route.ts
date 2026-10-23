@@ -1,81 +1,63 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { getTranslations } from 'next-intl/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { buildXlsx, type Cell } from '@/lib/xlsx'
-import { IncompleteReadError, readAllByKeyset, READ_PAGE } from '@/lib/data/complete-read'
 
-function adminClient() {
-  return getAdminDb()
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // GET /api/grades/export?group_id=xxx&format=csv|json
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const groupId = searchParams.get('group_id')
   const format = searchParams.get('format') ?? 'csv'
 
   if (!groupId) return NextResponse.json({ ...(await apiErr('missingGroupId')) }, { status: 400 })
+  if (!UUID.test(groupId)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
-  // Verify teacher owns the group
-  const { data: group } = await adminClient()
-    .from('groups').select('teacher_id, tenant_id, name').eq('id', groupId).single()
-  if (!group || group.tenant_id !== profile.tenant_id || group.teacher_id !== user.id) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
-
-  // Get all exams for this group (both homework and exams)
-  const { data: exams } = await adminClient()
-    .from('exams')
-    .select('id, title, type, questions')
-    .eq('group_id', groupId)
-    .eq('teacher_id', user.id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-
-  if (!exams || exams.length === 0) {
-    return NextResponse.json({ ...(await apiErr('noGroupExams')) }, { status: 404 })
-  }
-
-  // Get all students in the group
-  const { data: members } = await adminClient()
-    .from('group_students')
-    .select('student_id, users(full_name, email)')
-    .eq('group_id', groupId)
-
-  if (!members || members.length === 0) {
-    return NextResponse.json({ ...(await apiErr('noGroupStudents')) }, { status: 404 })
-  }
-
-  // Every submission to exactly these exams: filtered through the exam (the same
-  // conditions as the exam read above) and read completely by keyset - an exam x
-  // student matrix passes the API's 1000-row cap. A failed or short read is an
-  // error, never a sheet with missing grades.
-  let submissions: { id: string; exam_id: string; student_id: string; score: number | null }[]
+  // One unit, as app_service pinned to the teacher's institution: the group
+  // (ownership), its exams (homework and exams), its students with names, and
+  // every submission to exactly those exams — read whole in one statement
+  // (no page cap to stitch around). A failed read is an error, never a sheet
+  // with missing grades.
+  let groupRows, examRows, memberRows, subRows
   try {
-    submissions = await readAllByKeyset('grade export submissions',
-      after => adminClient().from('exam_submissions')
-        .select('id, exam_id, student_id, score, max_score, is_graded, exams!inner()')
-        .eq('exams.group_id', groupId).eq('exams.teacher_id', user.id).is('exams.deleted_at', null)
-        .gt('id', after).order('id').limit(READ_PAGE),
-      () => adminClient().from('exam_submissions')
-        .select('id, exam_id, student_id, score, max_score, is_graded, exams!inner()', { count: 'exact', head: true })
-        .eq('exams.group_id', groupId).eq('exams.teacher_id', user.id).is('exams.deleted_at', null))
+    ;[groupRows, examRows, memberRows, subRows] = await run({ as: 'service', tenantId: ctx.tenant_id }, sql => [
+      sql`select teacher_id, tenant_id, name from public.groups where id = ${groupId}`,
+      sql`select id, title, type, questions from public.exams
+           where group_id = ${groupId} and teacher_id = ${user.id} and deleted_at is null
+           order by created_at`,
+      sql`select gs.student_id, u.full_name, u.email
+            from public.group_students gs left join public.users u on u.id = gs.student_id
+           where gs.group_id = ${groupId}`,
+      sql`select s.exam_id, s.student_id, s.score
+            from public.exam_submissions s join public.exams e on e.id = s.exam_id
+           where e.group_id = ${groupId} and e.teacher_id = ${user.id} and e.deleted_at is null`,
+    ])
   } catch (e) {
-    if (!(e instanceof IncompleteReadError)) throw e
-    console.error('[api/grades/export]', e.message, e.detail ?? '')
+    console.error('[api/grades/export]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('dataReadIncomplete')) }, { status: 503 })
   }
+
+  const group = maybeOne<{ teacher_id: string; tenant_id: string; name: string }>(groupRows)
+  if (!group || group.tenant_id !== ctx.tenant_id || group.teacher_id !== user.id) {
+    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  }
+  const exams = examRows as unknown as { id: string; title: string; type: string; questions: unknown }[]
+  if (exams.length === 0) {
+    return NextResponse.json({ ...(await apiErr('noGroupExams')) }, { status: 404 })
+  }
+  const members = memberRows as unknown as { student_id: string; full_name: string | null; email: string | null }[]
+  if (members.length === 0) {
+    return NextResponse.json({ ...(await apiErr('noGroupStudents')) }, { status: 404 })
+  }
+  const submissions = subRows as unknown as { exam_id: string; student_id: string; score: number | null }[]
 
   // Build grade matrix
   type StudentRow = {
@@ -90,18 +72,17 @@ export async function GET(request: Request) {
   const t = await getTranslations('reports.exports.grades')
   const tr = await getTranslations('reports.exports')
 
-  type MemberRow = { student_id: string; users: { full_name: string | null; email: string | null } | null }
-  const rows: StudentRow[] = (members as unknown as MemberRow[]).map((m) => {
+  const rows: StudentRow[] = members.map((m) => {
     const row: StudentRow = {
       student_id: m.student_id,
-      full_name: m.users?.full_name ?? t('unknownStudent'),
-      email: m.users?.email ?? '',
+      full_name: m.full_name ?? t('unknownStudent'),
+      email: m.email ?? '',
     }
     let totalScore = 0
     let totalMax = 0
 
     for (const exam of exams) {
-      const sub = submissions?.find(s => s.exam_id === exam.id && s.student_id === m.student_id)
+      const sub = submissions.find(s => s.exam_id === exam.id && s.student_id === m.student_id)
       const maxScore = (exam.questions as Array<{ points?: number }>)
         .reduce((s, q) => s + (q.points ?? 0), 0)
       const score = sub?.score ?? null

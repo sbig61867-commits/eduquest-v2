@@ -1,16 +1,14 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Student-filed disputes over a recorded proctoring violation, directed to
 // the exam's teacher. See supabase/exam_appeals_migration.sql for the full
 // design rationale (denormalized snapshots, one-appeal-per-event).
-function adminClient() {
-  return getAdminDb()
-}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 interface ProctoringEventLike { type?: string; timestamp?: string }
 
@@ -18,13 +16,10 @@ interface ProctoringEventLike { type?: string; timestamp?: string }
 // flagged status generally, if violation_type/violation_at are omitted).
 // Body: { submissionId, violationType?, violationAt?, message }
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, full_name').eq('id', user.id).single()
-  if (!profile || profile.role !== 'student' || !profile.tenant_id) {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (ctx.role !== 'student' || !ctx.tenant_id) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -45,70 +40,59 @@ export async function POST(request: Request) {
   if (message.length > 2000) {
     return NextResponse.json({ ...(await apiErr('textTooLong')) }, { status: 400 })
   }
-
-  const admin = adminClient()
-
-  // The submission must belong to this student — service-role read since
-  // students have no direct RLS SELECT on exam_submissions beyond their own
-  // row, which this .eq() enforces anyway.
-  const { data: submission } = await admin
-    .from('exam_submissions')
-    .select('id, exam_id, student_id, proctoring_events, exams(id, title, teacher_id, group_id, tenant_id, groups(name))')
-    .eq('id', submissionId)
-    .eq('student_id', user.id)
-    .single()
-
-  if (!submission) return NextResponse.json({ ...(await apiErr('submissionNotFound')) }, { status: 404 })
-
-  const exam = submission.exams as unknown as {
-    id: string; title: string; teacher_id: string; group_id: string; tenant_id: string
-    groups: { name: string } | null
-  } | null
-  if (!exam) return NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 })
-  if (exam.tenant_id !== profile.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-
-  // If disputing a specific event, it must actually exist on this submission
-  // — otherwise a student could file an appeal against a violation that was
-  // never recorded, polluting the teacher's queue and the admin report.
-  if (violationType || violationAt) {
-    const events = (submission.proctoring_events as ProctoringEventLike[] | null) ?? []
-    const found = events.some(e => e.type === violationType && e.timestamp === violationAt)
-    if (!found) {
-      return NextResponse.json({ ...(await apiErr('violationNotFound')) }, { status: 400 })
-    }
+  if (!UUID.test(submissionId)) return NextResponse.json({ ...(await apiErr('submissionNotFound')) }, { status: 404 })
+  const vType = violationType ?? null
+  const vAt = violationAt ?? null
+  if (vAt !== null && Number.isNaN(new Date(vAt).getTime())) {
+    return NextResponse.json({ ...(await apiErr('violationNotFound')) }, { status: 400 })
   }
 
-  const { data: teacher } = await admin.from('users').select('full_name').eq('id', exam.teacher_id).single()
-
-  const { data: created, error } = await admin
-    .from('exam_appeals')
-    .insert({
-      tenant_id: exam.tenant_id,
-      exam_id: exam.id,
-      submission_id: submissionId,
-      student_id: user.id,
-      teacher_id: exam.teacher_id,
-      group_id: exam.group_id,
-      violation_type: violationType ?? null,
-      violation_at: violationAt ?? null,
-      student_name: profile.full_name,
-      // Stored snapshots are read in either language, so a missing name is
-      // recorded as a neutral dash rather than a word in one language.
-      teacher_name: teacher?.full_name ?? '—',
-      group_name: exam.groups?.name ?? '—',
-      exam_title: exam.title,
-      student_message: message,
-    })
-    .select('id')
-    .single()
-
-  if (error) {
-    if (error.code === '23505') {
+  // One unit, as app_service pinned to the student's institution:
+  //  1. the submission as it stands (for a precise refusal)
+  //  2. the insert, which happens ONLY when the submission is this student's,
+  //     the caller is still a live student of the exam's institution, and —
+  //     when a specific event is disputed — that event was really recorded on
+  //     it (otherwise a student could pollute the teacher's queue and the
+  //     admin report). The snapshots (names, title) come in the same statement.
+  let rows: Awaited<ReturnType<typeof run>>
+  try {
+    rows = await run({ as: 'service', tenantId: ctx.tenant_id }, sql => [
+      sql`select s.proctoring_events from public.exam_submissions s where s.id = ${submissionId} and s.student_id = ${user.id}`,
+      sql`
+        insert into public.exam_appeals (tenant_id, exam_id, submission_id, student_id, teacher_id, group_id,
+                                         violation_type, violation_at, student_name, teacher_name, group_name,
+                                         exam_title, student_message)
+        select e.tenant_id, e.id, s.id, me.id, e.teacher_id, e.group_id, ${vType}, ${vAt}, me.full_name,
+               coalesce(t.full_name, '—'), coalesce(g.name, '—'), e.title, ${message}
+          from public.exam_submissions s
+          join public.exams e on e.id = s.exam_id
+          join public.users me on me.id = s.student_id
+          left join public.users t on t.id = e.teacher_id
+          left join public.groups g on g.id = e.group_id
+         where s.id = ${submissionId} and s.student_id = ${user.id}
+           and me.role = 'student' and me.is_active is not false and me.tenant_id = e.tenant_id
+           and ((${vType}::text is null and ${vAt}::text is null)
+                or exists (select 1 from jsonb_array_elements(coalesce(s.proctoring_events, '[]'::jsonb)) ev
+                            where ev->>'type' = ${vType}::text and ev->>'timestamp' = ${vAt}::text))
+        returning id`,
+    ])
+  } catch (e) {
+    if ((e as { code?: string }).code === '23505') {
       return NextResponse.json({ ...(await apiErr('appealExists')) }, { status: 409 })
     }
-    console.error('[api/appeals POST]', error)
+    console.error('[api/appeals POST]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('appealSendFailed')) }, { status: 500 })
   }
 
-  return NextResponse.json({ id: created.id }, { status: 201 })
+  const created = maybeOne<{ id: string }>(rows[1])
+  if (created) return NextResponse.json({ id: created.id }, { status: 201 })
+
+  // Nothing was written: say why.
+  const submission = maybeOne<{ proctoring_events: ProctoringEventLike[] | null }>(rows[0])
+  if (!submission) return NextResponse.json({ ...(await apiErr('submissionNotFound')) }, { status: 404 })
+  const events = submission.proctoring_events ?? []
+  if ((vType || vAt) && !events.some(e => e.type === vType && e.timestamp === vAt)) {
+    return NextResponse.json({ ...(await apiErr('violationNotFound')) }, { status: 400 })
+  }
+  return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 }

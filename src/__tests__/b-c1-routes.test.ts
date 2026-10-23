@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { pgMock, uid, type Call, type Relations, type World } from './complete-read-fixture'
 import { ID_BATCH } from '@/lib/data/complete-read'
-import { evidenceKey, SEVERE_EVIDENCE_TYPES } from '@/lib/evidence-keys'
 
 /**
  * B / C1 — the routes, on a client with the live API's limits (1000 rows per
@@ -52,48 +51,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
-// ── api/grades/export ────────────────────────────────────────────────────────
-
-describe('GET /api/grades/export (B)', () => {
-  const MEMBERS = 40, EXAMS = 30
-  function setup() {
-    env.user = { id: 'teach' }
-    env.session = { users: [{ id: 'teach', role: 'teacher', tenant_id: 'tn' }] }
-    const exams = Array.from({ length: EXAMS }, (_, k) => ({ id: uid(k, 'e'), group_id: 'g1', teacher_id: 'teach', deleted_at: null, title: `E${k}`, type: 'exam', questions: [{ points: 10 }], created_at: `2026-09-${String(1 + (k % 28)).padStart(2, '0')}T00:00:${String(k).padStart(2, '0')}Z` }))
-    // Not in the export: a deleted exam of the group and another group's exam.
-    exams.push({ ...exams[0], id: uid(90, 'e'), deleted_at: '2026-09-30T00:00:00Z' } as never, { ...exams[0], id: uid(91, 'e'), group_id: 'g2' })
-    const members = Array.from({ length: MEMBERS }, (_, k) => ({ group_id: 'g1', student_id: uid(k, 'c'), users: { full_name: `S${k}`, email: `${k}@x` } }))
-    let x = 0
-    env.admin = {
-      groups: [{ id: 'g1', teacher_id: 'teach', tenant_id: 'tn', name: 'G' }],
-      exams, group_students: members,
-      exam_submissions: members.flatMap(m => exams.map(e => ({ id: uid(x++, 'd'), exam_id: e.id, student_id: m.student_id, score: 7, max_score: 10, is_graded: true }))),
-    }
-    env.relations = { exam_submissions: { exams: (w, r) => w.exams.find(e => e.id === r.exam_id) } }
-  }
-  const get = async () => (await import('@/app/api/grades/export/route')).GET(new Request('http://x/api/grades/export?group_id=g1&format=json'))
-
-  it('a 40 × 30 grade matrix (1 200 submissions) has every grade — no "·" from a cut read', async () => {
-    setup()
-    const res = await get()
-    expect(res.status).toBe(200)
-    const { rows } = await res.json() as { rows: Record<string, unknown>[] }
-    expect(rows).toHaveLength(MEMBERS)
-    const cells = rows.flatMap(r => Object.entries(r).filter(([k]) => k.startsWith('column:')).map(([, v]) => v))
-    expect(cells).toHaveLength(MEMBERS * EXAMS)
-    expect(cells.every(v => v === '7/10')).toBe(true)
-    // Filtered through the exam (no exam id list in the URL).
-    expect(env.calls.filter(c => c.table === 'exam_submissions').every(c => c.inIds === 0)).toBe(true)
-  })
-
-  it('a failed submissions read is 503 dataReadIncomplete, not a sheet with missing grades', async () => {
-    setup()
-    env.fail = c => c.table === 'exam_submissions' && !c.head && c.filters.some(f => f[0] === 'gt' && f[2] !== '00000000-0000-0000-0000-000000000000')
-    const res = await get()
-    expect(res.status).toBe(503)
-    expect(await res.json()).toEqual({ error: 'dataReadIncomplete', code: 'dataReadIncomplete' })
-  })
-})
+// api/grades/export (B) moved to grades-export-route.test.ts (step 9: SQL layer).
 
 // api/admin/delete-tenant (B) moved to delete-tenant-route.test.ts (step 9: SQL layer).
 

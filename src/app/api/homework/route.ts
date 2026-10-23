@@ -1,68 +1,55 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { deleteEntity } from '@/lib/delete-entity'
+import { run, maybeOne, type Row } from '@/lib/db/sql'
+import { deleteEntityAs } from '@/lib/delete-entity'
 
-function adminClient() {
-  return getAdminDb()
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const LIST_LIMIT = 200
 
-async function getProfile(userId: string) {
-  const supabase = await createClient()
-  const { data } = await supabase.from('users').select('role, tenant_id').eq('id', userId).single()
-  return data
-}
-
-async function getOwnedLesson(lessonId: string, teacherId: string, tenantId: string) {
-  const { data } = await adminClient()
-    .from('lessons').select('teacher_id, tenant_id, title').eq('id', lessonId).single()
-  return data?.teacher_id === teacherId && data?.tenant_id === tenantId ? data : null
-}
-
-async function ownsHomework(hwId: string, teacherId: string, tenantId: string) {
-  const { data } = await adminClient()
-    .from('exams').select('teacher_id, tenant_id').eq('id', hwId).single()
-  return data?.teacher_id === teacherId && data?.tenant_id === tenantId
-}
+// The institution scope comes from the session context; every write below
+// still checks the caller against the LIVE row (role, institution, active)
+// and ownership inside the same statement, as in /api/exams.
 
 // GET /api/homework?lesson_id=xxx  — list homework for a lesson
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const lessonId = searchParams.get('lesson_id')
   if (!lessonId) return NextResponse.json({ ...(await apiErr('lessonIdRequired')) }, { status: 400 })
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  if (!UUID.test(lessonId)) return NextResponse.json([])
 
-  const profile = await getProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-
-  const { data, error } = await supabase
-    .from('exams')
-    .select('*, exam_submissions(count)')
-    .eq('lesson_id', lessonId)
-    .eq('type', 'homework')
-    .eq('teacher_id', user.id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-
-  if (error) return NextResponse.json({ ...(await apiErr('homeworkLoadFailed')) }, { status: 500 })
-  return NextResponse.json(data ?? [])
+  // Read as the teacher: RLS scopes exams and submissions to their own.
+  try {
+    const [rows] = await run({ as: 'user', userId: ctx.sub }, sql => [
+      sql`select e.id, e.type, e.title, e.lesson_id, e.group_id, e.teacher_id, e.tenant_id, e.questions,
+                 e.duration_minutes, e.ends_at, e.is_published, e.auto_publish, e.created_at,
+                 json_build_array(json_build_object('count',
+                   (select count(*) from public.exam_submissions s where s.exam_id = e.id))) as exam_submissions
+            from public.exams e
+           where e.lesson_id = ${lessonId} and e.type = 'homework' and e.teacher_id = ${ctx.sub} and e.deleted_at is null
+           order by e.created_at
+           limit ${LIST_LIMIT}`,
+    ])
+    return NextResponse.json(rows)
+  } catch (e) {
+    console.error('[api/homework GET]', e instanceof Error ? e.message : e)
+    return NextResponse.json({ ...(await apiErr('homeworkLoadFailed')) }, { status: 500 })
+  }
 }
 
 // POST /api/homework — create homework for a lesson
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const profile = await getProfile(user.id)
-  if (!profile?.tenant_id || !['teacher', 'university_admin', 'super_admin'].includes(profile.role ?? '')) {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id || !['teacher', 'university_admin', 'super_admin'].includes(ctx.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
+  const tenantId = ctx.tenant_id
 
   let body: { lesson_id?: string; group_id?: string; title?: string; questions?: unknown[]; due_date?: string; auto_publish?: boolean }
   try { body = await request.json() }
@@ -81,78 +68,69 @@ export async function POST(request: Request) {
   if (due_date != null && isNaN(new Date(due_date).getTime())) {
     return NextResponse.json({ ...(await apiErr('invalidDate')) }, { status: 400 })
   }
+  if (!UUID.test(lesson_id)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  if (!UUID.test(group_id)) return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
 
-  // Verify teacher owns the lesson
-  const lesson = await getOwnedLesson(lesson_id, user.id, profile.tenant_id)
-  if (!lesson) {
+  // One unit, as app_service pinned to the caller's institution:
+  //  1. the lesson and the group as they stand (for a precise refusal)
+  //  2. the insert, which happens ONLY when the lesson is the caller's own in
+  //     this institution, and the target group — client-supplied, it decides
+  //     who the homework is served to — is in this institution and, for a
+  //     teacher, their own (else homework could land in a colleague's group,
+  //     or another tenant's: the tenant column alone never catches that).
+  // Students see homework detached from the lesson (exams page, grades), so
+  // the lesson name is baked into the title — joined with a neutral dash, as
+  // the title is stored once and read in both languages.
+  // Homework is untimed for the student; the large duration only satisfies
+  // the finalize RPC's deadline check — the real cutoff is ends_at.
+  const cleanTitle = title.trim()
+  const [lessonRows, groupRows, createdRows] = await run({ as: 'service', tenantId }, sql => [
+    sql`select teacher_id, tenant_id from public.lessons where id = ${lesson_id}`,
+    sql`select teacher_id, tenant_id from public.groups where id = ${group_id}`,
+    sql`
+      with me as (
+        select role, tenant_id from public.users where id = ${user.id} and is_active is not false
+      ), l as (
+        select title from public.lessons, me
+         where id = ${lesson_id} and teacher_id = ${user.id} and lessons.tenant_id = me.tenant_id
+      ), g as (
+        select 1 from public.groups, me
+         where id = ${group_id} and groups.tenant_id = me.tenant_id
+           and (me.role <> 'teacher' or groups.teacher_id = ${user.id})
+      )
+      insert into public.exams (type, lesson_id, group_id, teacher_id, tenant_id, title, questions,
+                                duration_minutes, ends_at, is_published, auto_publish)
+      select 'homework', ${lesson_id}, ${group_id}, ${user.id}, me.tenant_id,
+             case when l.title is not null and l.title <> '' and strpos(${cleanTitle}, l.title) = 0
+                  then ${cleanTitle} || ' — ' || l.title else ${cleanTitle} end,
+             ${sql.json(questions as Parameters<typeof sql.json>[0])}, 43200,
+             ${due_date ? new Date(due_date).toISOString() : null}, true, ${auto_publish !== false}
+        from me, l, g
+       where me.role in ('teacher', 'university_admin', 'super_admin')
+      returning *`,
+  ])
+
+  const created = maybeOne<Row>(createdRows)
+  if (created) return NextResponse.json(created, { status: 201 })
+
+  // Nothing was written: say why.
+  const lesson = maybeOne<{ teacher_id: string; tenant_id: string }>(lessonRows)
+  if (!lesson || lesson.teacher_id !== user.id || lesson.tenant_id !== tenantId) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
-
-  // Verify the target group too — it is client-supplied and decides who the
-  // homework is served to. Without this check a teacher could post homework
-  // into a colleague's group, or into a group in another tenant entirely
-  // (the row would still be stamped with the caller's own tenant_id, so the
-  // tenant column alone never catches it). /api/exams and /api/lessons both
-  // already do this; homework was the one creator that skipped it.
-  const { data: group } = await adminClient()
-    .from('groups').select('id, teacher_id, tenant_id').eq('id', group_id).single()
-  if (!group || group.tenant_id !== profile.tenant_id) {
+  const group = maybeOne<{ teacher_id: string; tenant_id: string }>(groupRows)
+  if (!group || group.tenant_id !== tenantId) {
     return NextResponse.json({ ...(await apiErr('groupNotFound')) }, { status: 404 })
   }
-  if (profile.role === 'teacher' && group.teacher_id !== user.id) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
-
-  // Students see homework in lists detached from the lesson (exams page,
-  // grades) — bake the lesson name into the title so it's always clear
-  // which class session the homework belongs to. The title is stored once and
-  // read in both languages, so the join is a neutral dash, not an Arabic word.
-  const cleanTitle = title.trim()
-  const fullTitle = lesson.title && !cleanTitle.includes(lesson.title)
-    ? `${cleanTitle} — ${lesson.title}`
-    : cleanTitle
-
-  const row: Record<string, unknown> = {
-    type: 'homework',
-    lesson_id,
-    group_id,
-    teacher_id: user.id,
-    tenant_id: profile.tenant_id,
-    title: fullTitle,
-    questions,
-    // Homework is untimed for the student (timer hidden in the UI); this
-    // large value only satisfies the finalize RPC's deadline check —
-    // the real cutoff is ends_at (the due date).
-    duration_minutes: 43200,
-    ends_at: due_date ? new Date(due_date).toISOString() : null,
-    is_published: true,
-    auto_publish: auto_publish !== false,
-  }
-
-  let { data, error } = await adminClient().from('exams').insert(row).select().single()
-
-  // Graceful fallback while the auto_publish column migration hasn't been
-  // applied — the submit route then treats missing as "enabled".
-  if (error && /auto_publish/.test(error.message ?? '')) {
-    delete row.auto_publish
-    ;({ data, error } = await adminClient().from('exams').insert(row).select().single())
-  }
-
-  if (error) {
-    console.error('[api/homework POST]', error)
-    return NextResponse.json({ ...(await apiErr('homeworkCreateFailed')) }, { status: 500 })
-  }
-  return NextResponse.json(data, { status: 201 })
+  return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 }
 
 // PATCH /api/homework — update (publish toggle or questions)
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const profile = await getProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { id?: string; is_published?: boolean; title?: string; questions?: unknown[] }
   try { body = await request.json() }
@@ -160,44 +138,50 @@ export async function PATCH(request: Request) {
 
   const { id, ...rest } = body
   if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
-  if (!(await ownsHomework(id, user.id, profile.tenant_id))) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
-  const update: Record<string, unknown> = {}
-  if (rest.is_published !== undefined) update.is_published = rest.is_published
-  if (rest.title !== undefined) update.title = rest.title
-  if (rest.questions !== undefined) update.questions = rest.questions
-
-  const { data, error } = await adminClient()
-    .from('exams').update(update).eq('id', id).select().single()
-
-  if (error) return NextResponse.json({ ...(await apiErr('homeworkUpdateFailed')) }, { status: 500 })
-  return NextResponse.json(data)
+  // One unit: the update touches the row only when it is this teacher's, in
+  // this institution; nothing updated means it is not theirs.
+  const [rows] = await run({ as: 'service', tenantId: ctx.tenant_id }, sql => [
+    sql`
+      update public.exams set
+        is_published = coalesce(${rest.is_published ?? null}::boolean, is_published),
+        title = coalesce(${rest.title ?? null}::text, title),
+        questions = coalesce(${rest.questions === undefined ? null : sql.json(rest.questions as Parameters<typeof sql.json>[0])}::jsonb, questions)
+       where id = ${id} and teacher_id = ${user.id} and tenant_id = ${ctx.tenant_id}
+      returning *`,
+  ])
+  const updated = maybeOne<Row>(rows)
+  if (!updated) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  return NextResponse.json(updated)
 }
 
 // DELETE /api/homework
 export async function DELETE(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const profile = await getProfile(user.id)
-  if (!profile?.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
+  if (!ctx.tenant_id) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   let body: { id?: string }
   try { body = await request.json() }
   catch { return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
 
-  if (!body.id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
-  if (!(await ownsHomework(body.id, user.id, profile.tenant_id))) {
+  const id = body.id
+  if (!id) return NextResponse.json({ ...(await apiErr('missingId')) }, { status: 400 })
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
+
+  const [rows] = await run({ as: 'service', tenantId: ctx.tenant_id }, sql => [
+    sql`select teacher_id from public.exams where id = ${id} and tenant_id = ${ctx.tenant_id}`,
+  ])
+  if (maybeOne<{ teacher_id: string }>(rows)?.teacher_id !== user.id) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
   // Archive by default; hard delete only when the owner enabled it.
-  const { error, mode } = await deleteEntity(adminClient(), supabase, 'exam', body.id, user.id, profile.tenant_id)
+  const { error, mode } = await deleteEntityAs(user.id, ctx.tenant_id, 'exam', id)
   if (error) {
-    console.error('[api/homework DELETE]', error)
+    console.error('[api/homework DELETE]', error instanceof Error ? error.message : error)
     return NextResponse.json({ ...(await apiErr('homeworkDeleteFailed')) }, { status: 500 })
   }
   return NextResponse.json({ ok: true, mode })
