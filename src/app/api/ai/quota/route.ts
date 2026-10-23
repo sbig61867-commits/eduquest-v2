@@ -1,23 +1,20 @@
-import { getSessionUser } from '@/lib/auth'
+import { aiCaller } from '@/lib/ai/caller'
 import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { getAiRateLimits } from '@/lib/settings'
+import { run } from '@/lib/db/sql'
 
 // GET /api/ai/quota — the caller's OWN AI allowances and how much is left.
 //
 // Read-only on purpose: it SELECTs public.rate_limits directly instead of
-// calling check_rate_limit(), because that RPC increments the counter. A
+// calling check_rate_limit(), because that function increments the counter. A
 // panel that showed your quota by spending a unit of it would be worse than
 // no panel at all.
 //
-// The service-role client is required, not a shortcut: rate_limits has RLS
-// enabled with zero policies (see CLAUDE.md), so no user session can read
-// it. Authorization is done here first, with the user session, and the keys
-// are built from the authenticated user's own id — a caller can never name
-// someone else's key.
+// It is read as app_system, not as the user: rate_limits is readable by that
+// role only, so no user session can read it. Authorization is done here
+// first, and the keys are built from the authenticated user's own id — a
+// caller can never name someone else's key.
 
 export const dynamic = 'force-dynamic'
 
@@ -39,16 +36,14 @@ const FIXED_FEATURES: { key: string; limit: number }[] = [
 ]
 
 export async function GET() {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (!profile || !AI_ROLES.includes(profile.role)) {
+  const caller = await aiCaller()
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: caller.ctx.sub }
+  if (!AI_ROLES.includes(caller.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
-  const aiLimits = await getAiRateLimits(supabase)
+  const aiLimits = caller.limits
 
   const t = await getTranslations('common.quota.features')
   const features = [
@@ -59,18 +54,20 @@ export async function GET() {
     ...FIXED_FEATURES,
   ].map(f => ({ ...f, label: t(f.key) }))
 
-  const admin = getAdminDb()
-
   const keys = features.map(f => `${f.key}:${user.id}`)
-  const { data: rows, error } = await admin
-    .from('rate_limits').select('key, count, reset_at').in('key', keys)
-
-  if (error) {
-    console.error('[api/ai/quota]', error)
+  let rows: { key: string; count: number; reset_at: string }[]
+  try {
+    const [r] = await run({ as: 'system' }, sql => [
+      sql`select key, count, reset_at from public.rate_limits
+            where key in (select jsonb_array_elements_text(${sql.json(keys)}))`,
+    ])
+    rows = r as unknown as typeof rows
+  } catch (e) {
+    console.error('[api/ai/quota]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('quotaLoadFailed')) }, { status: 500 })
   }
 
-  const byKey = new Map((rows ?? []).map(r => [r.key as string, r]))
+  const byKey = new Map(rows.map(r => [r.key, r]))
   const now = Date.now()
 
   const quota = features.map(f => {
@@ -78,8 +75,8 @@ export async function GET() {
     // An elapsed window is already spent from the DB's point of view: the
     // next call rewrites count to 1 and starts a fresh window. Report it as
     // untouched rather than as an expired row the teacher must decode.
-    const live = row && new Date(row.reset_at as string).getTime() > now ? row : null
-    const used = live ? (live.count as number) : 0
+    const live = row && new Date(row.reset_at).getTime() > now ? row : null
+    const used = live ? live.count : 0
     return {
       key: f.key,
       label: f.label,
@@ -91,7 +88,7 @@ export async function GET() {
       // The window is anchored to the first consumed request and is never
       // extended by later calls (or by rejected ones), so this instant is
       // stable and safe to count down to on the client.
-      resetAt: live ? (live.reset_at as string) : null,
+      resetAt: live ? live.reset_at : null,
     }
   })
 

@@ -48,6 +48,16 @@ vi.mock('@/lib/supabase/server', () => ({
     },
   }),
 }))
+// Step 9: the AI routes read their caller (and the AI rate limits) in one unit
+// through aiCaller(); the ledger and analytics go through the SQL layer: inert.
+vi.mock('@/lib/ai/caller', () => ({
+  aiCaller: async () => ({
+    ctx: { sub: 'u1', role: profile.role, tenant_id: profile.tenant_id, email: null, is_active: true, must_change_password: false },
+    role: profile.role, tenantId: profile.tenant_id, permissions: profile.permissions, canCreateCourses: profile.can_create_courses,
+    limits: { lesson_per_hour: 99, exam_per_hour: 99 },
+  }),
+}))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(() => []))
 // A scanned PDF: pages exist but carry no text layer. Matches the pdf.js surface
 // extract.ts uses (numPages, getPage -> getTextContent, cleanup, destroy).
 vi.mock('unpdf', () => ({

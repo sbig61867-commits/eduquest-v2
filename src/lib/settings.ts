@@ -10,17 +10,22 @@ export const FALLBACK_AI_RATE_LIMITS: AiRateLimits = {
   exam_per_hour: 20,
 }
 
+/** The AI rate limits from a platform_settings value, with the fallbacks. */
+export function aiRateLimitsFrom(value: unknown): AiRateLimits {
+  const v = (value ?? {}) as Partial<AiRateLimits>
+  return {
+    lesson_per_hour: v.lesson_per_hour ?? FALLBACK_AI_RATE_LIMITS.lesson_per_hour,
+    exam_per_hour: v.exam_per_hour ?? FALLBACK_AI_RATE_LIMITS.exam_per_hour,
+  }
+}
+
 export async function getAiRateLimits(supabase: SupabaseClient): Promise<AiRateLimits> {
   const { data } = await supabase
     .from('platform_settings')
     .select('value')
     .eq('key', 'ai_rate_limits')
     .maybeSingle()
-  const v = (data?.value ?? {}) as Partial<AiRateLimits>
-  return {
-    lesson_per_hour: v.lesson_per_hour ?? FALLBACK_AI_RATE_LIMITS.lesson_per_hour,
-    exam_per_hour: v.exam_per_hour ?? FALLBACK_AI_RATE_LIMITS.exam_per_hour,
-  }
+  return aiRateLimitsFrom(data?.value)
 }
 
 export interface ExamPolicies {

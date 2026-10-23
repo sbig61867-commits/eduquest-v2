@@ -1,15 +1,14 @@
-import { getSessionUser } from '@/lib/auth'
+import { aiCaller } from '@/lib/ai/caller'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { aiPrompts } from '@/content/ai'
 import { toLocale, type Locale } from '@/i18n/config'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { can } from '@/lib/permissions'
 import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
-import { loadCourseAnalytics, courseInsights, formatInsight, type CourseAnalyticsRow } from '@/lib/engagement'
+import { loadCourseAnalyticsAs, courseInsights, formatInsight, type CourseAnalyticsRow } from '@/lib/engagement'
 import { logAiFailure } from '@/lib/ai/meter'
 import { audienceApproved, type AiAudience } from '@/lib/ai/privacy'
 
@@ -85,12 +84,11 @@ function parseSuggestions(raw: string): string[] {
 }
 
 export const POST = meteredAiRoute('course_suggestions', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const caller = await aiCaller()
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: caller.ctx.sub }
 
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
+  const profile = { role: caller.role, tenant_id: caller.tenantId, permissions: caller.permissions, can_create_courses: caller.canCreateCourses }
   if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'view_reports')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
@@ -112,7 +110,7 @@ export const POST = meteredAiRoute('course_suggestions', async (request: Request
   if (!courseId) return NextResponse.json({ ...(await apiErr('missingCourseId')) }, { status: 400 })
   const days = PERIODS.includes(Number(body.days)) ? Number(body.days) : 30
 
-  const analytics = await loadCourseAnalytics(supabase, days)
+  const analytics = await loadCourseAnalyticsAs(user.id, days)
   if (!analytics) return NextResponse.json({ ...(await apiErr('courseStatsFailed')) }, { status: 503 })
 
   // Only courses of the caller's own tenant come back from the RPC, so a

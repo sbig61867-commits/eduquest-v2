@@ -1,5 +1,6 @@
 import { after, NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne, type DbContext } from '@/lib/db/sql'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { currentMeter, runMetered, summarizeAiCalls, type MeterState } from './meter'
 import { DEFAULT_AI_PRICING, mergeAiPricing, type AiPricing } from './pricing'
@@ -20,32 +21,38 @@ import { DEFAULT_AI_PRICING, mergeAiPricing, type AiPricing } from './pricing'
 // institution's monthly allowance refused the request. A request that never
 // reached a provider (validation error, per-user rate limit) writes nothing.
 //
-// The write goes through the service-role client (the ledger tables have no
-// write grants for users) and runs after the response is sent, so it never
-// adds latency and a logging failure can never break the AI feature itself.
+// The write goes through the ledger functions as app_service pinned to the
+// caller's institution (the ledger tables have no write grants for users) and
+// runs after the response is sent, so it never adds latency and a logging
+// failure can never break the AI feature itself.
 // See supabase/ai_usage_metering_migration.sql.
 
-function adminClient() {
-  return getAdminDb()
+/** Postgres "function does not exist" — the metering migration is not applied. */
+function isMissingFunction(e: unknown): boolean {
+  return (e as { code?: string } | null)?.code === '42883'
 }
 
-const RPC_TIMEOUT_MS = 3_000
+function codeOf(e: unknown): string {
+  return (e as { code?: string } | null)?.code ?? (e instanceof Error ? e.name : 'unknown')
+}
 
-/** PostgREST "function not found" — the metering migration is not applied yet. */
-function isMissingFunction(error: { code?: string } | null): boolean {
-  return error?.code === 'PGRST202' || error?.code === '42883'
+/** The ledger functions re-derive the actor from public.users; the scope only pins the institution. */
+function ledgerScope(state: { tenantId?: string | null }): DbContext {
+  return state.tenantId ? { as: 'service', tenantId: state.tenantId } : { as: 'service', platform: true }
 }
 
 // Prices change rarely; one read per minute per server instance is plenty.
 const PRICING_TTL_MS = 60_000
 let pricingCache: { value: AiPricing; at: number } | null = null
 
-async function currentPricing(): Promise<AiPricing> {
+async function currentPricing(userId: string): Promise<AiPricing> {
   if (pricingCache && Date.now() - pricingCache.at < PRICING_TTL_MS) return pricingCache.value
   try {
-    const { data } = await adminClient()
-      .from('platform_settings').select('value').eq('key', 'ai_pricing').maybeSingle()
-    pricingCache = { value: mergeAiPricing(data?.value), at: Date.now() }
+    // platform settings are readable by every signed-in user
+    const [rows] = await run({ as: 'user', userId }, sql => [
+      sql`select value from public.platform_settings where key = 'ai_pricing'`,
+    ])
+    pricingCache = { value: mergeAiPricing(maybeOne<{ value: unknown }>(rows)?.value), at: Date.now() }
   } catch {
     pricingCache = { value: DEFAULT_AI_PRICING, at: Date.now() }
   }
@@ -67,65 +74,39 @@ function logUsageLost(state: MeterState, status: UsageStatus, reason: string, s?
 
 async function persistUsage(state: MeterState, status: UsageStatus): Promise<void> {
   if (!state.userId) return
+  const userId = state.userId
   let s: ReturnType<typeof summarizeAiCalls> | undefined
   try {
-    s = summarizeAiCalls(state.calls, await currentPricing())
-    const admin = adminClient()
-    if (state.holdId) {
+    const sum = summarizeAiCalls(state.calls, await currentPricing(userId))
+    s = sum
+    const detail = sum.detail as unknown as Parameters<typeof JSON.stringify>[0]
+    const holdId = state.holdId
+    if (holdId) {
       // Reservation path: close the hold and record the request in one transaction
       // (ai_quota_finish calls record_ai_usage itself), so it is counted exactly once.
-      const { data, error } = await admin.rpc('ai_quota_finish', {
-        p_hold: state.holdId,
-        p_user: state.userId,
-        p_provider: s.provider,
-        p_model: s.model,
-        p_status: status,
-        p_provider_calls: s.providerCalls,
-        p_failed_calls: s.failedCalls,
-        p_input_tokens: s.inputTokens,
-        p_output_tokens: s.outputTokens,
-        p_estimated: s.estimated,
-        p_list_cost_usd: s.listCostUsd,
-        p_billed_cost_usd: s.billedCostUsd,
-        p_latency_ms: s.latencyMs,
-        p_detail: s.detail,
-      })
-      if (error) { logUsageLost(state, status, error.code ?? 'rpc_error', s); return }
-      const result = data as { ok?: unknown; error?: unknown } | null
+      const [rows] = await run(ledgerScope(state), sql => [
+        sql`select public.ai_quota_finish(
+              p_hold => ${holdId}, p_user => ${userId}, p_provider => ${sum.provider}, p_model => ${sum.model},
+              p_status => ${status}, p_provider_calls => ${sum.providerCalls}, p_failed_calls => ${sum.failedCalls},
+              p_input_tokens => ${sum.inputTokens}, p_output_tokens => ${sum.outputTokens}, p_estimated => ${sum.estimated},
+              p_list_cost_usd => ${sum.listCostUsd}, p_billed_cost_usd => ${sum.billedCostUsd},
+              p_latency_ms => ${sum.latencyMs}, p_detail => ${sql.json(detail)}) as result`,
+      ])
+      const result = maybeOne<{ result: { ok?: unknown; error?: unknown } | null }>(rows)?.result
       // EXPIRED: the hold outlived its lease and was already charged at the estimate.
       if (result?.ok !== true) logUsageLost(state, status, String(result?.error ?? 'malformed'), s)
       return
     }
-    const { error } = await admin.rpc('record_ai_usage', {
-      p_user: state.userId,
-      p_feature: state.feature,
-      p_provider: s.provider,
-      p_model: s.model,
-      p_status: status,
-      p_provider_calls: s.providerCalls,
-      p_failed_calls: s.failedCalls,
-      p_input_tokens: s.inputTokens,
-      p_output_tokens: s.outputTokens,
-      p_estimated: s.estimated,
-      p_list_cost_usd: s.listCostUsd,
-      p_billed_cost_usd: s.billedCostUsd,
-      p_latency_ms: s.latencyMs,
-      p_detail: s.detail,
-    })
-    if (!error) return
-
-    if (isMissingFunction(error)) {
-      // Pre-migration: keep the original count-only log so nothing is lost.
-      if (status !== 'success') return
-      const { data: profile } = await admin.from('users').select('tenant_id').eq('id', state.userId).maybeSingle()
-      await admin.from('ai_usage_log').insert({
-        user_id: state.userId, tenant_id: profile?.tenant_id ?? null, feature: state.feature, provider: s.provider,
-      })
-      return
-    }
-    logUsageLost(state, status, error.code ?? 'rpc_error', s)
+    await run(ledgerScope(state), sql => [
+      sql`select public.record_ai_usage(
+            p_user => ${userId}, p_feature => ${state.feature}, p_provider => ${sum.provider}, p_model => ${sum.model},
+            p_status => ${status}, p_provider_calls => ${sum.providerCalls}, p_failed_calls => ${sum.failedCalls},
+            p_input_tokens => ${sum.inputTokens}, p_output_tokens => ${sum.outputTokens}, p_estimated => ${sum.estimated},
+            p_list_cost_usd => ${sum.listCostUsd}, p_billed_cost_usd => ${sum.billedCostUsd},
+            p_latency_ms => ${sum.latencyMs}, p_detail => ${sql.json(detail)})`,
+    ])
   } catch (e) {
-    logUsageLost(state, status, e instanceof Error ? e.name : 'unknown', s)
+    logUsageLost(state, status, codeOf(e), s)
   }
 }
 
@@ -133,11 +114,11 @@ async function persistUsage(state: MeterState, status: UsageStatus): Promise<voi
 async function releaseHold(state: MeterState): Promise<void> {
   if (!state.userId || !state.holdId) return
   try {
-    const { error } = await adminClient().rpc('ai_quota_release', { p_hold: state.holdId, p_user: state.userId })
-    // A hold that is not released expires after its lease and is charged at the estimate.
-    if (error) console.error('[ai-usage] hold_release_failed', { reason: error.code ?? 'rpc_error', feature: state.feature })
+    const { holdId, userId } = state
+    await run(ledgerScope(state), sql => [sql`select public.ai_quota_release(p_hold => ${holdId}, p_user => ${userId})`])
   } catch (e) {
-    console.error('[ai-usage] hold_release_failed', { reason: e instanceof Error ? e.name : 'unknown', feature: state.feature })
+    // A hold that is not released expires after its lease and is charged at the estimate.
+    console.error('[ai-usage] hold_release_failed', { reason: codeOf(e), feature: state.feature })
   }
 }
 
@@ -172,10 +153,10 @@ export function meteredAiRoute<A extends unknown[]>(
   }
 }
 
-/** Attributes this request's AI usage to `userId` without checking the allowance. */
-export function identifyAiCaller(userId: string): void {
+/** Attributes this request's AI usage to `userId` (of `tenantId`; null: the platform owner) without checking the allowance. */
+export function identifyAiCaller(userId: string, tenantId: string | null): void {
   const state = currentMeter()
-  if (state) state.userId = userId
+  if (state) { state.userId = userId; state.tenantId = tenantId }
 }
 
 export interface AiAllowance {
@@ -189,31 +170,41 @@ export interface AiAllowance {
   token_limit?: number | null
 }
 
-/** Who may spend AI on whose allowance, read with the service role from the users row. */
+/** Who may spend AI on whose allowance, re-derived from the live users row. */
 type CallerCheck =
-  | { kind: 'institution'; tenantId: string }
+  | { kind: 'institution'; tenantId: string; allowance: unknown }
   | { kind: 'platform' }
   | { kind: 'denied' }
-  | { kind: 'unverified' }
+  | { kind: 'unverified'; reason: string }
 
 /**
- * Re-derives the caller from public.users, never from the request or the JWT:
- * an inactive user, a missing row, or a user without an institution who is not
- * an active super_admin is denied. A lookup error is 'unverified' (fail closed).
+ * Re-derives the caller from public.users, never from the request or the
+ * session: an inactive user, a missing row, or a user without an institution
+ * who is not an active super_admin is denied. One unit, as app_service pinned
+ * to the session's institution: the users row and — when the allowance is
+ * checked here — check_ai_allowance. A user moved to another institution is
+ * not visible in that scope and is denied. A lookup error is 'unverified'
+ * (fail closed).
  */
-async function checkCaller(userId: string): Promise<CallerCheck> {
+async function checkCaller(userId: string, withAllowance: boolean): Promise<CallerCheck> {
+  const ctx = await currentCtx()
+  if (!ctx || ctx.sub !== userId) return { kind: 'denied' }
+  const tenantId = ctx.tenant_id
+  if (!tenantId && ctx.role !== 'super_admin') return { kind: 'denied' }
   try {
-    const { data, error } = await adminClient()
-      .from('users').select('role, is_active, tenant_id').eq('id', userId)
-      .abortSignal(AbortSignal.timeout(RPC_TIMEOUT_MS))
-      .maybeSingle()
-    if (error) return { kind: 'unverified' }
-    const row = data as { role?: unknown; is_active?: unknown; tenant_id?: unknown } | null
+    const rows = await run(tenantId ? { as: 'service', tenantId } : { as: 'service', platform: true }, sql => [
+      sql`select role, is_active, tenant_id from public.users where id = ${userId}`,
+      ...(tenantId && withAllowance ? [sql`select public.check_ai_allowance(p_user => ${userId}) as allowance`] : []),
+    ])
+    const row = maybeOne<{ role?: unknown; is_active?: unknown; tenant_id?: unknown }>(rows[0])
     if (!row || row.is_active !== true) return { kind: 'denied' }
-    if (typeof row.tenant_id === 'string' && row.tenant_id) return { kind: 'institution', tenantId: row.tenant_id }
+    if (typeof row.tenant_id === 'string' && row.tenant_id) {
+      if (row.tenant_id !== tenantId) return { kind: 'denied' }
+      return { kind: 'institution', tenantId: row.tenant_id, allowance: maybeOne<{ allowance: unknown }>(rows[1] ?? [])?.allowance ?? null }
+    }
     return row.role === 'super_admin' ? { kind: 'platform' } : { kind: 'denied' }
-  } catch {
-    return { kind: 'unverified' }
+  } catch (e) {
+    return { kind: 'unverified', reason: isMissingFunction(e) ? 'migration_missing' : codeOf(e) }
   }
 }
 
@@ -232,51 +223,40 @@ async function checkCaller(userId: string): Promise<CallerCheck> {
  * reservation design in AI_HARDENING_PROGRESS.md (SQL, needs separate approval).
  */
 export async function authorizeAiUsage(userId: string): Promise<Response | null> {
-  identifyAiCaller(userId)
   const unverified = async () => NextResponse.json(
     { ...(await apiErr('aiUnavailable')) },
     { status: 503, headers: { 'Retry-After': '30' } },
   )
   const forbidden = async () => NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
-  const caller = await checkCaller(userId)
+  const reserving = quotaReservationsEnabled()
+  const caller = await checkCaller(userId, !reserving)
   if (caller.kind === 'unverified') {
-    console.error('[ai-usage] allowance unverified:', 'caller_lookup')
+    console.error('[ai-usage] allowance unverified:', caller.reason === 'migration_missing' ? 'migration_missing' : 'caller_lookup')
     return unverified()
   }
   if (caller.kind === 'denied') return forbidden()
+  identifyAiCaller(userId, caller.kind === 'institution' ? caller.tenantId : null)
   // The platform owner has no institution and no allowance to check.
   if (caller.kind === 'platform') return null
 
-  if (quotaReservationsEnabled()) return reserveQuota(userId, unverified, forbidden)
+  if (reserving) return reserveQuota(userId, caller.tenantId, unverified, forbidden)
 
-  try {
-    const { data, error } = await adminClient()
-      .rpc('check_ai_allowance', { p_user: userId })
-      .abortSignal(AbortSignal.timeout(RPC_TIMEOUT_MS))
-    if (error) {
-      console.error('[ai-usage] allowance unverified:', isMissingFunction(error) ? 'migration_missing' : (error.code ?? 'rpc_error'))
-      return unverified()
-    }
-    const allowance = data as (AiAllowance & { tenant_id?: unknown }) | null
-    if (!allowance || typeof allowance.allowed !== 'boolean') {
-      console.error('[ai-usage] allowance unverified:', 'malformed_response')
-      return unverified()
-    }
-    // The function must have checked the same institution the users row names.
-    if (allowance.tenant_id !== undefined && allowance.tenant_id !== caller.tenantId) {
-      console.error('[ai-usage] allowance unverified:', 'tenant_mismatch')
-      return unverified()
-    }
-    if (allowance.allowed) return null
-
-    const state = currentMeter()
-    if (state) state.blocked = true
-    return NextResponse.json({ ...(await apiErr('aiInstitutionLimitReached')) }, { status: 429 })
-  } catch (e) {
-    console.error('[ai-usage] allowance unverified:', e instanceof Error ? e.name : 'unknown')
+  const allowance = caller.allowance as (AiAllowance & { tenant_id?: unknown }) | null
+  if (!allowance || typeof allowance.allowed !== 'boolean') {
+    console.error('[ai-usage] allowance unverified:', 'malformed_response')
     return unverified()
   }
+  // The function must have checked the same institution the users row names.
+  if (allowance.tenant_id !== undefined && allowance.tenant_id !== caller.tenantId) {
+    console.error('[ai-usage] allowance unverified:', 'tenant_mismatch')
+    return unverified()
+  }
+  if (allowance.allowed) return null
+
+  const state = currentMeter()
+  if (state) state.blocked = true
+  return NextResponse.json({ ...(await apiErr('aiInstitutionLimitReached')) }, { status: 429 })
 }
 
 // ── Atomic quota reservation (scratch-reserve/ai_quota_reservations_v3_DRAFT.sql) ──
@@ -300,6 +280,7 @@ const RESERVATION_LEASE_SECONDS = 330
 
 async function reserveQuota(
   userId: string,
+  tenantId: string,
   unverified: () => Promise<Response>,
   forbidden: () => Promise<Response>,
 ): Promise<Response | null> {
@@ -307,17 +288,11 @@ async function reserveQuota(
   const feature = state?.feature ?? 'unknown'
   const est = RESERVATION_ESTIMATES[feature] ?? DEFAULT_RESERVATION
   try {
-    const { data, error } = await adminClient()
-      .rpc('ai_quota_reserve', {
-        p_user: userId, p_feature: feature, p_est_in: est.in, p_est_out: est.out,
-        p_lease_seconds: RESERVATION_LEASE_SECONDS,
-      })
-      .abortSignal(AbortSignal.timeout(RPC_TIMEOUT_MS))
-    if (error) {
-      console.error('[ai-usage] reservation unverified:', isMissingFunction(error) ? 'migration_missing' : (error.code ?? 'rpc_error'))
-      return unverified()
-    }
-    const r = data as { ok?: unknown; hold_id?: unknown; error?: unknown } | null
+    const [rows] = await run({ as: 'service', tenantId }, sql => [
+      sql`select public.ai_quota_reserve(p_user => ${userId}, p_feature => ${feature}, p_est_in => ${est.in},
+            p_est_out => ${est.out}, p_lease_seconds => ${RESERVATION_LEASE_SECONDS}) as r`,
+    ])
+    const r = maybeOne<{ r: { ok?: unknown; hold_id?: unknown; error?: unknown } | null }>(rows)?.r ?? null
     if (r?.ok === true && typeof r.hold_id === 'string') {
       if (state) state.holdId = r.hold_id
       return null
@@ -330,7 +305,7 @@ async function reserveQuota(
     console.error('[ai-usage] reservation unverified:', 'malformed_response')
     return unverified()
   } catch (e) {
-    console.error('[ai-usage] reservation unverified:', e instanceof Error ? e.name : 'unknown')
+    console.error('[ai-usage] reservation unverified:', isMissingFunction(e) ? 'migration_missing' : codeOf(e))
     return unverified()
   }
 }

@@ -31,6 +31,8 @@ export interface AiCallRecord {
 export interface MeterState {
   feature: string
   userId: string | null
+  /** The caller's institution (null: the platform owner), set with the caller; scopes the ledger write. */
+  tenantId?: string | null
   blocked: boolean
   calls: AiCallRecord[]
   /** Quota reservation of this request (AI_QUOTA_RESERVATIONS=on), closed when it ends. */

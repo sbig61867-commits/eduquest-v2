@@ -1,7 +1,6 @@
-import { getSessionUser } from '@/lib/auth'
+import { aiCaller } from '@/lib/ai/caller'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { aiChatDetailed } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
@@ -34,12 +33,11 @@ function parseAiJsonResponse(text: string): GeneratedCourse {
 // ── Route handler ────────────────────────────────────────────────
 
 export const POST = meteredAiRoute('course-pptx', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const caller = await aiCaller()
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: caller.ctx.sub }
 
-  const { data: profile } = await supabase
-    .from('users').select('role, can_create_courses, tenant_id').eq('id', user.id).single()
+  const profile = { role: caller.role, tenant_id: caller.tenantId, permissions: caller.permissions, can_create_courses: caller.canCreateCourses }
   if (!profile?.can_create_courses) {
     return NextResponse.json({ ...(await apiErr('courseCreationDisabled')) }, { status: 403 })
   }

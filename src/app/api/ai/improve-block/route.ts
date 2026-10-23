@@ -1,11 +1,10 @@
-import { getSessionUser } from '@/lib/auth'
+import { aiCaller } from '@/lib/ai/caller'
 import { getLocale } from 'next-intl/server'
 import { NextResponse } from 'next/server'
 import { aiPrompts } from '@/content/ai'
 import type { ImproveAction } from '@/content/ai/types'
 import { toLocale } from '@/i18n/config'
 import { apiErr } from '@/lib/api-error'
-import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { aiChat } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
@@ -31,11 +30,11 @@ function cleanSuggestion(raw: string): string {
 }
 
 export const POST = meteredAiRoute('improve_block', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const caller = await aiCaller()
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: caller.ctx.sub }
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const profile = { role: caller.role, tenant_id: caller.tenantId, permissions: caller.permissions, can_create_courses: caller.canCreateCourses }
   if (!profile || !EDITORS.includes(profile.role)) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
   // Privacy first: refuse before the allowance check, the body read or any call (privacy.ts).

@@ -157,3 +157,11 @@
 - `api/grades/export`: one unit of 4 whole reads (was 4 + keyset pages).
 - 0003: INSERT on `exam_appeals` for app_service (dry-run, then applied to the trial).
 - Trial e2e `teacher-grading-trial` 7/7 (two institutions; colleague / other-institution teacher / other-institution admin refused on homework, grading, export, appeal resolve; report scoped per role). Full suite green (one AI privacy test flaky under load, passes alone).
+
+## Step 9 — data batch 5: AI routes and the usage ledger (2026-10-23)
+- `src/lib/ai/usage.ts` on the SQL layer: the caller is re-derived from the live users row and the institution's allowance (`check_ai_allowance`) in ONE unit, scoped to the session's institution (a user moved elsewhere is not visible there → refused); the ledger write (`record_ai_usage` / `ai_quota_*`) runs after the response as app_service pinned to the caller's institution; pricing read as the user. `identifyAiCaller(userId, tenantId)`.
+- New `src/lib/ai/caller.ts` `aiCaller()`: the caller's role/permissions/can_create_courses AND the AI rate limits in one unit (was 2 trips: profile + settings). Used by all 11 `api/ai/*` routes; `quota` reads `rate_limits` as app_system.
+- `loadCourseAnalyticsAs` (engagement), `aiRateLimitsFrom` (settings).
+- Found on the trial: `check_ai_allowance` and `record_ai_usage` were SECURITY INVOKER (fine under Supabase's service_role, which bypasses RLS; 42501 under app_service). Migration `neon/migrations/0009_ai_ledger_definer.sql` makes them SECURITY DEFINER (already schema-qualified, search_path pinned, tenant re-derived inside), execution app_service only — dry-run, then applied to the trial.
+- Trial e2e `ai-metering-trial` 5/5 (two institutions: usage recorded in the caller's institution only; AI-off institution refused before any call and recorded as blocked; stale session of another institution refused; deactivated account refused; another user's id not authorized; quota panel). No provider is called in the test.
+- Full suite green.

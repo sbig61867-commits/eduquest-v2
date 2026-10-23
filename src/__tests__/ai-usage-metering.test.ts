@@ -1,28 +1,40 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ── Mocks for the route wrapper (service-role client, after(), apiErr) ──
+// ── Mocks for the route wrapper (SQL layer, session, after(), apiErr) ──
+// Every ledger function the wrapper runs (check_ai_allowance, record_ai_usage,
+// ai_quota_*) is answered through `rpc(fn, namedArgs)`, in the shape
+// { data, error } — or a function returning a rejected promise for a network
+// failure — so each case reads as "the database answered X".
 const rpc = vi.fn()
-// The users row authorizeAiUsage reads with the service role (role, is_active, tenant_id).
+// The users row authorizeAiUsage re-derives the caller from (role, is_active, tenant_id).
 let usersLookup: () => { data: unknown; error?: unknown } = () => ({ data: { role: 'teacher', is_active: true, tenant_id: 't1' }, error: null })
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
-    rpc: (fn: string, args: unknown) => {
-      const result = rpc(fn, args)
-      // A function result is called here, so a rejection is created outside the spy
-      // (the spy would otherwise track it and report it as unhandled).
-      const p = (typeof result === 'function' ? result() : Promise.resolve(result)) as Promise<unknown> & { abortSignal: () => Promise<unknown> }
-      p.abortSignal = () => p
-      return p
-    },
-    from: () => {
-      const single = async () => usersLookup()
-      return {
-        select: () => ({ eq: () => ({ maybeSingle: single, abortSignal: () => ({ maybeSingle: single }) }) }),
-        insert: async () => ({ error: null }),
-      }
-    },
-  }),
+// The session context matches that row (a lookup error keeps a teacher session of t1).
+const session = vi.hoisted(() => ({ sub: '' }))
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => {
+    const { data, error } = usersLookup()
+    const row = (error ? { role: 'teacher', tenant_id: 't1' } : data) as { role?: string; tenant_id?: string | null } | null
+    return { sub: session.sub, role: row?.role, tenant_id: row?.tenant_id ?? null, email: null, is_active: true, must_change_password: false }
+  },
+}))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  if (q.text.includes('from public.users where id')) {
+    const { data, error } = usersLookup()
+    if (error) return Object.assign(new Error('lookup'), error as object)
+    return data ? [data] : []
+  }
+  if (q.text.includes('from public.platform_settings')) return []
+  const fn = q.text.match(/public\.(\w+)\(/)?.[1]
+  if (!fn) return new Error('unexpected statement: ' + q.text)
+  const names = [...q.text.matchAll(/(p_\w+) => \$/g)].map(m => m[1])
+  const args = Object.fromEntries(names.map((n, i) => [n, q.values[i]]))
+  const result = rpc(fn, args)
+  if (typeof result === 'function') return new Error('network')
+  const { data, error } = (result ?? { data: null, error: null }) as { data: unknown; error: { code?: string; message?: string } | null }
+  if (error) return Object.assign(new Error(error.message ?? 'db'), { code: error.code })
+  const alias = q.text.match(/ as (\w+)$/)?.[1]
+  return [alias ? { [alias]: data } : {}]
 }))
 vi.mock('next/server', async () => {
   const actual = await vi.importActual<typeof import('next/server')>('next/server')
@@ -35,7 +47,10 @@ vi.mock('@/lib/api-error', () => ({
 import { summarizeAiCalls, meterCall, runMetered, estimateTokens, geminiUsage, type AiCallRecord, type MeterState } from '@/lib/ai/meter'
 import { DEFAULT_AI_PRICING, mergeAiPricing, priceFor, costUsd } from '@/lib/ai/pricing'
 import { resolveUsageRange, projectMonthEnd, daysBetween, usageShare, toUsageRange, usageReportCsv, type AiUsageReport } from '@/lib/ai/usage-report'
-import { meteredAiRoute, authorizeAiUsage } from '@/lib/ai/usage'
+import { meteredAiRoute, authorizeAiUsage as authorizeAs } from '@/lib/ai/usage'
+
+/** The session is the user being authorized. */
+const authorizeAiUsage = (userId: string) => { session.sub = userId; return authorizeAs(userId) }
 
 const flush = () => new Promise(r => setTimeout(r, 0))
 
@@ -279,11 +294,12 @@ describe('meteredAiRoute', () => {
       ['missing row', null, 403],
       ['no institution, not super_admin', { role: 'teacher', is_active: true, tenant_id: null }, 403],
       ['inactive super_admin', { role: 'super_admin', is_active: false, tenant_id: null }, 403],
-    ])('%s is refused before the allowance check', async (_l, row, status) => {
+    // The allowance is read in the same unit as the users row (one round trip; it is
+    // read-only), but a refused caller never gets past the row check.
+    ])('%s is refused', async (_l, row, status) => {
       usersLookup = () => ({ data: row, error: null })
       rpc.mockImplementation(() => ({ data: { allowed: true }, error: null }))
       expect((await authorizeAiUsage('u'))?.status).toBe(status)
-      expect(rpc.mock.calls.some(c => c[0] === 'check_ai_allowance')).toBe(false)
     })
 
     it('an active super_admin without an institution uses the platform path', async () => {

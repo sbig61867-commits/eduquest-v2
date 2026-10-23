@@ -36,6 +36,14 @@ vi.mock('@/lib/supabase/server', () => ({
     },
   }),
 }))
+vi.mock('@/lib/ai/caller', () => ({
+  aiCaller: async () => state.user && ({
+    ctx: { sub: state.user.id, role: state.role, tenant_id: 't1', email: null, is_active: true, must_change_password: false },
+    role: state.role, tenantId: 't1', permissions: null, canCreateCourses: false,
+    limits: { lesson_per_hour: 10, exam_per_hour: 20 },
+  }),
+}))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(() => []))
 const aiChat = vi.fn(async (...args: unknown[]) => (void args, 'Simpler **text**.'))
 vi.mock('@/lib/ai/chat', () => ({ aiChat: (...a: unknown[]) => aiChat(...a) }))
 

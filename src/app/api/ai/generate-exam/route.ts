@@ -1,9 +1,7 @@
-import { getSessionUser } from '@/lib/auth'
+import { aiCaller } from '@/lib/ai/caller'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { aiRateLimit } from '@/lib/rate-limit'
-import { getAiRateLimits } from '@/lib/settings'
 import { aiChatDetailed } from '@/lib/ai/chat'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { logAiFailure } from '@/lib/ai/meter'
@@ -45,11 +43,11 @@ function validateQuestions(raw: unknown): Question[] {
 }
 
 export const POST = meteredAiRoute('exam', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const caller = await aiCaller()
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: caller.ctx.sub }
 
-  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
+  const profile = { role: caller.role, tenant_id: caller.tenantId, permissions: caller.permissions, can_create_courses: caller.canCreateCourses }
   if (!profile || !['teacher', 'university_admin', 'super_admin'].includes(profile.role)) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
@@ -60,7 +58,7 @@ export const POST = meteredAiRoute('exam', async (request: Request) => {
   const denied = await authorizeAiUsage(user.id)
   if (denied) return denied
 
-  const aiLimits = await getAiRateLimits(supabase)
+  const aiLimits = caller.limits
   const rl = await aiRateLimit(`exam:${user.id}`, { limit: aiLimits.exam_per_hour, windowSecs: 3600 })
   if (!rl.allowed) {
     return NextResponse.json(

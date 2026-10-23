@@ -1,10 +1,9 @@
-import { getSessionUser } from '@/lib/auth'
+import { aiCaller } from '@/lib/ai/caller'
 import { getLocale } from 'next-intl/server'
 import { aiPrompts } from '@/content/ai'
 import { toLocale } from '@/i18n/config'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { groqChat } from '@/lib/ai/groq'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
@@ -29,11 +28,11 @@ const AUDIENCES: AiAudience[] = ['personal', 'institution']
 const MAX_ANSWER = 12000
 
 export const POST = meteredAiRoute('individual_task', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const caller = await aiCaller()
+  if (!caller) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: caller.ctx.sub }
 
-  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
+  const profile = { role: caller.role, tenant_id: caller.tenantId, permissions: caller.permissions, can_create_courses: caller.canCreateCourses }
   if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
