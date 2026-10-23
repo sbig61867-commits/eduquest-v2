@@ -28,17 +28,13 @@ vi.mock('@/lib/api-error', () => ({
   apiErr: async (code: string) => ({ error: code, code }),
 }))
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: table === 'users' ? { full_name: state.fullName } : state.lesson, error: null }),
-        }),
-      }),
-    }),
-  }),
-  getAuthUser: async () => state.user,
+// The session comes from the signed context; the student's name and the lesson
+// are read as the student on the SQL layer.
+vi.mock('@/lib/auth/current', () => ({ currentUser: async () => state.user }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  if (q.text.startsWith('select full_name from public.users')) return [{ full_name: state.fullName }]
+  if (q.text.startsWith('select id, content from public.lessons')) return state.lesson ? [state.lesson] : []
+  return new Error('unexpected statement: ' + q.text)
 }))
 
 vi.mock('@/lib/rate-limit', () => ({

@@ -14,8 +14,6 @@
 /** .select('*…') on a read (row shape = whatever the table grows into). */
 export const STAR_SELECT: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/page.tsx': 1,
-  'app/(student)/student/exams/page.tsx': 1,
-  'app/(student)/student/profile/page.tsx': 1,
   'app/(super-admin)/super-admin/tenants/page.tsx': 1,
   'app/(teacher)/teacher/courses/[id]/page.tsx': 3,
   'app/(teacher)/teacher/courses/page.tsx': 1,
@@ -42,13 +40,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     head-only totals and a complete paged read for the transfer picker (lib/data/center-groups.ts).
   'app/(center)/center/groups/page.tsx': 1,
   'app/(center)/center/mail/page.tsx': 1,
-  'app/(student)/student/courses/[id]/page.tsx': 4,
-  'app/(student)/student/dashboard/page.tsx': 1,
-  'app/(student)/student/exams/page.tsx': 2,
-  'app/(student)/student/grades/page.tsx': 2,
-  'app/(student)/student/lessons/page.tsx': 2,
-  'app/(student)/student/notifications/page.tsx': 1,
-  'app/(student)/student/profile/page.tsx': 4,
   'app/(super-admin)/super-admin/invitations/page.tsx': 1,
   'app/(super-admin)/super-admin/permissions/page.tsx': 1,
   'app/(super-admin)/super-admin/reports/page.tsx': 1,
@@ -65,7 +56,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   'app/(teacher)/teacher/lessons/page.tsx': 1,
   'app/(teacher)/teacher/proctoring/live/[examId]/live-monitor.tsx': 1,
   'app/(teacher)/teacher/proctoring/page.tsx': 2,
-  'components/student/quick-access-panel.tsx': 2,
   'lib/announcements-data.ts': 2,
   // 1 — listByRole (listStudents / listTeachers / listCenterStudents / listCenterTeachers):
   //     bounded by .range() on the same builder, built over two statements
@@ -83,7 +73,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     enrolments, transfers and group memberships are filtered on student_id = the caller,
   //     the courses on .in('id', the caller's enrolled course ids) — each is bounded by the
   //     student's own enrolments / memberships / transfers, not by the institution's size.
-  'lib/data/student-courses.ts': 4,
   // 4 — teacher records (moved from lib/teacher-records.ts, 7 → 0 there, P-10): the teacher's
   //     own groups (teacher_id), and per group its roster, exams (named columns, no questions)
   //     and sessions. Each is bounded by one group; the student record narrows the roster to
@@ -92,7 +81,6 @@ export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   //     7 → 4.
   'lib/data/teacher-records.ts': 4,
   'lib/requests-data.ts': 3,
-  'lib/schedules-data.ts': 6,
 }
 
 /** Calls to the heavy feeds listed in HEAVY_FEEDS (perf-contract-scan.ts). */

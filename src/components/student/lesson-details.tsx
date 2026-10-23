@@ -2,15 +2,14 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { LessonView } from '@/components/lesson/lesson-view'
 
 /**
  * One lesson on /student/lessons (Batch 3 / P-05). The page sends only the
  * title row (`summary`) and the lesson's homework (`children`); the body is
- * read the first time the student opens the lesson — through the student's own
- * session, so RLS (published lessons of their own groups) and the page's
- * active-group filter decide exactly as for the list.
+ * read the first time the student opens the lesson — from /api/student/lesson-body,
+ * read as the student, so RLS (published lessons of their own groups) and the
+ * page's active-group filter decide exactly as for the list.
  */
 export function LessonDetails({ lessonId, summary, children }: { lessonId: string; summary: ReactNode; children?: ReactNode }) {
   const t = useTranslations('student.lessons')
@@ -21,11 +20,10 @@ export function LessonDetails({ lessonId, summary, children }: { lessonId: strin
   async function load() {
     if (requested.current) return
     requested.current = true
-    const { data, error } = await createClient()
-      .from('lessons').select('content, groups!inner(is_active)')
-      .eq('id', lessonId).eq('groups.is_active', true).single()
-    if (error || !data) { setFailed(true); requested.current = false; return }
-    setContent((data.content as string | null) ?? '')
+    const res = await fetch(`/api/student/lesson-body?id=${encodeURIComponent(lessonId)}`).catch(() => null)
+    const data = res?.ok ? await res.json() as { content: string } : null
+    if (!data) { setFailed(true); requested.current = false; return }
+    setContent(data.content)
   }
 
   return (

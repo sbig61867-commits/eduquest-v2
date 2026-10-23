@@ -1,14 +1,15 @@
-import type { SupabaseClient } from '@/lib/db'
-import { loadStudentExamList } from '@/lib/data/student-exams'
+import { run } from '@/lib/db/sql'
+import { studentExamListSql, toStudentExams } from '@/lib/data/student-exams'
 import { buildNudges, buildStudyPlan, type Nudge, type NudgeExam, type PlanItem } from '@/lib/assistant/nudges'
 
 /**
  * What the study assistant's orb shows: nudges, a two-week plan and the lessons
  * it can summarise (PERFORMANCE_CONTRACT.md: named columns, bounded lists, no N+1).
  *
- * Every read goes through the student's own session, so RLS decides what is
- * visible — the same rows the student already sees on their pages. Four reads,
- * in parallel, then one bounded read for the titles of lessons linked from exams.
+ * ONE unit, read as the student, so RLS decides what is visible — the same
+ * rows the student already sees on their pages: the exam list, the latest
+ * lessons of their active groups, the announcements, their submitted attempts
+ * and the titles of lessons linked from their homework.
  */
 
 export const ASSISTANT_LESSON_LIMIT = 20
@@ -23,55 +24,47 @@ export interface AssistantBriefing {
 }
 
 export async function loadAssistantBriefing(
-  db: SupabaseClient,
   userId: string,
   now: Date = new Date(),
 ): Promise<{ data: AssistantBriefing; error: { message: string } | null }> {
-  const [examsRes, lessonsRes, annRes] = await Promise.all([
-    loadStudentExamList(db),
-    db.from('lessons')
-      .select('id, title, created_at, groups!inner(is_active)')
-      .eq('is_published', true).is('deleted_at', null).eq('groups.is_active', true)
-      .order('created_at', { ascending: false }).limit(ASSISTANT_LESSON_LIMIT),
-    db.rpc('get_student_announcements'),
-  ])
+  let rows: unknown[][]
+  try {
+    rows = await run({ as: 'user', userId }, sql => [
+      studentExamListSql(sql),
+      sql`select l.id, l.title, l.created_at from public.lessons l join public.groups g on g.id = l.group_id
+           where l.is_published and l.deleted_at is null and g.is_active
+           order by l.created_at desc limit ${ASSISTANT_LESSON_LIMIT}`,
+      sql`select id, title, created_at from public.get_student_announcements() limit 20`,
+      // UNIQUE(exam_id, student_id): at most one row per listed exam.
+      sql`select exam_id from public.exam_submissions where student_id = ${userId} and status = 'submitted' limit 5000`,
+      // Titles of the lessons the student's homework points at.
+      sql`select l.id, l.title from public.lessons l
+           where l.is_published and l.deleted_at is null
+             and l.id in (select e.lesson_id from public.get_student_exam_list() e where e.lesson_id is not null)
+           limit ${EXAM_LIMIT}`,
+    ])
+  } catch (e) {
+    const empty = { nudges: [], plan: [], lessons: [] }
+    return { data: empty, error: { message: e instanceof Error ? e.message : String(e) } }
+  }
 
-  const exams: NudgeExam[] = examsRes.data
+  const exams: NudgeExam[] = toStudentExams(rows[0])
     .filter(e => e.is_published)
     .slice(0, EXAM_LIMIT)
     .map(e => ({ id: e.id, title: e.title, type: e.type, starts_at: e.starts_at, ends_at: e.ends_at, lesson_id: e.lesson_id }))
-  const lessons = ((lessonsRes.data ?? []) as unknown as AssistantLesson[])
-    .map(l => ({ id: l.id, title: l.title, created_at: l.created_at }))
-  const announcements = ((annRes.data ?? []) as unknown as { id: string; title: string; created_at: string }[])
-    .slice(0, 20)
-    .map(a => ({ id: a.id, title: a.title, created_at: a.created_at }))
-
-  const examIds = exams.map(e => e.id)
+  const lessons = rows[1] as unknown as AssistantLesson[]
+  const announcements = rows[2] as unknown as { id: string; title: string; created_at: string }[]
+  const listed = new Set(exams.map(e => e.id))
   const lessonTitles: Record<string, string> = Object.fromEntries(lessons.map(l => [l.id, l.title]))
-  const missingLessonIds = [...new Set(exams.map(e => e.lesson_id).filter((id): id is string => !!id && !(id in lessonTitles)))].slice(0, EXAM_LIMIT)
-
-  const [subsRes, linkedRes] = await Promise.all([
-    examIds.length
-      // UNIQUE(exam_id, student_id): at most one row per listed exam.
-      ? db.from('exam_submissions').select('exam_id').eq('student_id', userId).eq('status', 'submitted').in('exam_id', examIds).limit(examIds.length)
-      : Promise.resolve({ data: [], error: null }),
-    missingLessonIds.length
-      ? db.from('lessons').select('id, title').in('id', missingLessonIds).eq('is_published', true).is('deleted_at', null).limit(missingLessonIds.length)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-  for (const l of ((linkedRes.data ?? []) as { id: string; title: string }[])) lessonTitles[l.id] = l.title
+  for (const l of rows[4] as unknown as { id: string; title: string }[]) lessonTitles[l.id] ??= l.title
 
   const input = {
     now,
     exams,
-    submittedExamIds: new Set(((subsRes.data ?? []) as { exam_id: string }[]).map(s => s.exam_id)),
+    submittedExamIds: new Set((rows[3] as unknown as { exam_id: string }[]).map(s => s.exam_id).filter(id => listed.has(id))),
     lessons,
     announcements,
     lessonTitles,
   }
-  const error = examsRes.error ?? lessonsRes.error ?? annRes.error ?? subsRes.error ?? linkedRes.error ?? null
-  return {
-    data: { nudges: buildNudges(input), plan: buildStudyPlan(input), lessons },
-    error: error ? { message: error.message } : null,
-  }
+  return { data: { nudges: buildNudges(input), plan: buildStudyPlan(input), lessons }, error: null }
 }

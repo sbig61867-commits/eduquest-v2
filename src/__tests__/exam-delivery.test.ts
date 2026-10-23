@@ -1,6 +1,13 @@
 // @vitest-environment node
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { studentQuestions } from '@/lib/exam-delivery'
+
+// The list is read as the student on the SQL layer: each statement is recorded.
+const db = vi.hoisted(() => ({ calls: [] as { text: string; ctx: unknown }[], reply: [] as unknown[] | Error }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  db.calls.push({ text: q.text, ctx: q.ctx })
+  return db.reply
+}))
 import { loadStudentExamList } from '@/lib/data/student-exams'
 
 /**
@@ -38,21 +45,22 @@ describe('studentQuestions — what /api/exam/start hands the student', () => {
 describe('loadStudentExamList', () => {
   const row = { id: 'e1', title: 'Midterm', question_count: 3, has_manual_questions: true, total_points: '8' }
 
-  it('reads get_student_exam_list and never returns questions', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: [row], error: null })
-    const { data, error } = await loadStudentExamList({ rpc } as never)
-    expect(rpc).toHaveBeenCalledTimes(1)
-    expect(rpc).toHaveBeenCalledWith('get_student_exam_list')
+  beforeEach(() => { db.calls = []; db.reply = [] })
+
+  it('reads get_student_exam_list as the student and never returns questions', async () => {
+    db.reply = [row]
+    const { data, error } = await loadStudentExamList('stu-1')
+    expect(db.calls).toEqual([{ text: 'select * from public.get_student_exam_list()', ctx: { as: 'user', userId: 'stu-1' } }])
     expect(error).toBeNull()
     expect(data[0]).toMatchObject({ id: 'e1', question_count: 3, total_points: 8 })
     expect(JSON.stringify(data)).not.toContain('"questions":')
   })
 
   it('an error returns an empty list with the error; the old feed is never called', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: '42501', message: 'denied' } })
-    const { data, error } = await loadStudentExamList({ rpc } as never)
+    db.reply = Object.assign(new Error('denied'), { code: '42501' })
+    const { data, error } = await loadStudentExamList('stu-1')
     expect(data).toEqual([])
     expect(error).toMatchObject({ message: 'denied' })
-    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(db.calls).toHaveLength(1)
   })
 })

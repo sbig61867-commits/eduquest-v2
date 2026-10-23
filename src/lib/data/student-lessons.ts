@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { parsePage } from '@/lib/data/people'
 
 /**
@@ -6,14 +6,12 @@ import { parsePage } from '@/lib/data/people'
  * active groups one page at a time, newest first, WITHOUT their bodies — the
  * page used to read and render every lesson body at once. A body is read when
  * the student opens that lesson (components/student/lesson-details.tsx).
- * Runs on the student's session: RLS allows only published lessons of their
- * own groups; the active-group filter is the page's own, unchanged.
+ * Read as the student: RLS allows only published lessons of their own groups;
+ * the active-group filter is the page's own. One statement: the total, the
+ * page (a page past the end becomes the last page) and its rows.
  */
 
 export const STUDENT_LESSONS_PAGE_SIZE = 50
-
-/** PostgREST: the requested range starts past the last row. */
-const RANGE_NOT_SATISFIABLE = 'PGRST103'
 
 export interface StudentLessonRow {
   id: string
@@ -26,33 +24,31 @@ export interface StudentLessonRow {
 export interface StudentLessonsPage { rows: StudentLessonRow[]; total: number; page: number; pageCount: number }
 
 export async function loadStudentLessons(
-  db: SupabaseClient,
+  userId: string,
   groupIds: string[],
   rawPage: unknown,
 ): Promise<{ data: StudentLessonsPage; error: { message: string } | null }> {
   const empty: StudentLessonsPage = { rows: [], total: 0, page: 1, pageCount: 1 }
   if (groupIds.length === 0) return { data: empty, error: null }
-
-  const fetchPage = (page: number) => {
-    const from = (page - 1) * STUDENT_LESSONS_PAGE_SIZE
-    // groups!inner + is_active: lessons of archived groups are hidden (as before).
-    return db.from('lessons').select('id, title, created_at, group_id, groups!inner(name, is_active)', { count: 'exact' })
-      .eq('is_published', true).eq('groups.is_active', true).in('group_id', groupIds)
-      .order('created_at', { ascending: false }).order('id', { ascending: true })
-      .range(from, from + STUDENT_LESSONS_PAGE_SIZE - 1)
+  const size = STUDENT_LESSONS_PAGE_SIZE
+  try {
+    const [rows] = await run({ as: 'user', userId }, sql => [
+      sql`with visible as (
+            select l.id, l.title, l.created_at, l.group_id, g.name as group_name
+              from public.lessons l join public.groups g on g.id = l.group_id
+             where l.is_published and g.is_active
+               and l.group_id in (select (jsonb_array_elements_text(${sql.json(groupIds)}))::uuid)
+          ), total as (select count(*)::int as n from visible),
+          pg as (select least(${parsePage(rawPage)}, greatest(1, ceil(n / ${size}::numeric)::int)) as p from total)
+          select (select n from total) as total, (select p from pg) as page,
+                 coalesce((select json_agg(json_build_object('id', v.id, 'title', v.title, 'created_at', v.created_at,
+                                   'group_id', v.group_id, 'groups', json_build_object('name', v.group_name)))
+                             from (select * from visible order by created_at desc, id
+                                   limit ${size} offset ((select p from pg) - 1) * ${size}) v), '[]') as rows`,
+    ])
+    const r = maybeOne<{ total: number; page: number; rows: StudentLessonRow[] }>(rows) ?? { total: 0, page: 1, rows: [] }
+    return { data: { rows: r.rows, total: r.total, page: r.page, pageCount: Math.max(1, Math.ceil(r.total / size)) }, error: null }
+  } catch (e) {
+    return { data: empty, error: { message: e instanceof Error ? e.message : String(e) } }
   }
-
-  let page = parsePage(rawPage)
-  let res = await fetchPage(page)
-  if (res.error?.code === RANGE_NOT_SATISFIABLE) {
-    const { count } = await db.from('lessons').select('id, groups!inner(is_active)', { count: 'exact', head: true })
-      .eq('is_published', true).eq('groups.is_active', true).in('group_id', groupIds)
-    page = Math.max(1, Math.ceil((count ?? 0) / STUDENT_LESSONS_PAGE_SIZE))
-    res = await fetchPage(page)
-  }
-  if (res.error) return { data: empty, error: res.error }
-  const total = res.count ?? 0
-  const rows = ((res.data ?? []) as unknown as Array<StudentLessonRow & { groups: { name: string; is_active: boolean } | null }>)
-    .map(({ id, title, created_at, group_id, groups }) => ({ id, title, created_at, group_id, groups: groups ? { name: groups.name } : null }))
-  return { data: { rows, total, page, pageCount: Math.max(1, Math.ceil(total / STUDENT_LESSONS_PAGE_SIZE)) }, error: null }
 }

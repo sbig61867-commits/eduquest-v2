@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // The orb's two read routes: the briefing (nudges, plan, lessons) and a lesson
-// summary. Both read through the student's own session and never call an AI provider.
+// summary. Both read as the student (SQL layer, RLS) and never call an AI provider.
 
 const state = vi.hoisted(() => ({
   user: null as null | { id: string; role: string },
@@ -24,21 +24,12 @@ vi.mock('@/lib/api-error', () => ({
   apiErr: async (code: string) => ({ error: code, code }),
 }))
 
-// A query builder that records every filter, so the test can see what the route asked for.
-function builder(result: () => unknown) {
-  const b: Record<string, unknown> = {}
-  for (const m of ['select', 'eq', 'is', 'in', 'order', 'limit']) {
-    b[m] = (...args: unknown[]) => { state.calls.push([m, ...args]); return b }
-  }
-  b.maybeSingle = async () => ({ data: result(), error: null })
-  return b
-}
-
-const db = { from: (table: string) => { state.calls.push(['from', table]); return builder(() => state.lesson) } }
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => db,
-  getAuthUser: async () => state.user,
+// The session comes from the signed context; the summary reads the lesson on
+// the SQL layer — each statement is recorded so the test sees what was asked.
+vi.mock('@/lib/auth/current', () => ({ currentUser: async () => state.user }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  state.calls.push([q.text, q.values, q.ctx])
+  return state.lesson ? [state.lesson] : []
 }))
 
 vi.mock('@/lib/data/assistant-nudges', () => ({
@@ -78,7 +69,7 @@ describe('GET /api/assistant/student/briefing', () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ nudges: [{ id: 'welcome', kind: 'welcome', params: {} }], plan: [], lessons: [] })
     expect(res.headers['Cache-Control']).toBe('private, no-store')
-    expect(state.briefing).toHaveBeenCalledWith(db, 'stu-1')
+    expect(state.briefing).toHaveBeenCalledWith('stu-1')
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
@@ -125,13 +116,11 @@ describe('GET /api/assistant/student/summary', () => {
     const res = (await summary(summaryReq(`?lessonId=${LESSON_ID}`))) as unknown as Res
     expect(res.status).toBe(200)
     expect(res.headers['Cache-Control']).toBe('private, no-store')
-    expect(state.calls).toEqual([
-      ['from', 'lessons'],
-      ['select', 'id, title, content'],
-      ['eq', 'id', LESSON_ID],
-      ['eq', 'is_published', true],
-      ['is', 'deleted_at', null],
-    ])
+    expect(state.calls).toEqual([[
+      'select id, title, content from public.lessons where id = $ and is_published and deleted_at is null',
+      [LESSON_ID],
+      { as: 'user', userId: 'stu-1' },
+    ]])
     expect(res.body.lessonId).toBe(LESSON_ID)
     expect(res.body.summary).toMatchObject({ title: 'الكسور', sections: [{ title: 'مقدمة', gist: 'الكسر جزء من كل.' }], practice: { quizQuestions: 1, flashcards: 0 } })
     expect(JSON.stringify(res.body)).not.toContain('SECRET-ANSWER')

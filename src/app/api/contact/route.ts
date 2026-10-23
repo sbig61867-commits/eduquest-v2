@@ -1,11 +1,12 @@
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Public endpoint (listed in proxy PUBLIC_PREFIXES): receives contact-form
 // messages from the landing page. The sender has no session, so the insert
-// uses the service-role client; reads are super_admin-only via RLS.
+// runs as app_service in platform scope (contact_messages has no institution;
+// app_service may insert there and read only in platform scope).
 export async function POST(request: Request) {
   // Rate limit by IP — the form is anonymous
   const ip = (request.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim()
@@ -32,11 +33,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_message' }, { status: 400 })
   }
 
-  const admin = getAdminDb()
-
-  const { error } = await admin.from('contact_messages').insert({ name, email, message })
-  if (error) {
-    console.error('[contact]', error.message)
+  try {
+    await run({ as: 'service', platform: true }, sql => [
+      sql`insert into public.contact_messages (name, email, message) values (${name}, ${email}, ${message})`,
+    ])
+  } catch (e) {
+    console.error('[contact]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('sendFailed')) }, { status: 500 })
   }
 

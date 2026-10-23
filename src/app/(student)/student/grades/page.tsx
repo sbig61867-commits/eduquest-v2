@@ -3,12 +3,13 @@ export const dynamic = 'force-dynamic'
 import { isViolation } from '@/lib/proctoring-events'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { loadStudentExamList, type StudentExamMeta } from '@/lib/data/student-exams'
+import { studentExamListSql, toStudentExams, type StudentExamMeta } from '@/lib/data/student-exams'
 import { AppealButton, type AppealSummary } from '@/components/student/appeal-panel'
 import { isScoreVisible } from '@/lib/score-visibility'
 
@@ -25,34 +26,25 @@ interface RawSubmission {
 export default async function GradesPage() {
   const t = await getTranslations('student.grades')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
   // Students have no direct SELECT on exams (answers must never leak), so a
   // joined `exams(title)` comes back null. Titles, types and point totals come
   // from the student exam list instead (metadata only, enrollment-scoped).
-  const [{ data: raw }, { data: listedExams }] = await Promise.all([
-    supabase
-      .from('exam_submissions')
-      .select('id, exam_id, score, max_score, submitted_at, grading_status, proctoring_events')
-      .eq('student_id', user.id)
-      .not('score', 'is', null)
-      .order('submitted_at', { ascending: false }),
-    loadStudentExamList(supabase),
+  // ONE unit, read as the student. A student has no RLS read on exam_appeals
+  // rows other than their own (student_id = auth.uid()).
+  const [raw, examList, appeals] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select id, exam_id, score, max_score, submitted_at, grading_status, proctoring_events
+          from public.exam_submissions where student_id = ${user.id} and score is not null
+         order by submitted_at desc limit 1000`,
+    studentExamListSql(sql),
+    sql`select id, submission_id, status, student_message, teacher_response, created_at, resolved_at
+          from public.exam_appeals where student_id = ${user.id} limit 1000`,
   ])
-
-  // A student has no RLS read on exam_appeals rows other than their own
-  // (student_id = auth.uid()), so this is a direct, un-elevated query.
-  const submissionIds = (raw ?? []).map(s => s.id)
-  const { data: appeals } = submissionIds.length
-    ? await supabase
-        .from('exam_appeals')
-        .select('id, submission_id, status, student_message, teacher_response, created_at, resolved_at')
-        .in('submission_id', submissionIds)
-    : { data: [] as never[] }
+  const listedExams = toStudentExams(examList)
   const appealMap = new Map<string, AppealSummary>(
-    (appeals ?? []).map(a => [a.submission_id, a as unknown as AppealSummary])
+    (appeals as unknown as (AppealSummary & { submission_id: string })[]).map(a => [a.submission_id, a])
   )
 
   const examMap = new Map<string, StudentExamMeta>(listedExams.map(e => [e.id, e]))
@@ -61,7 +53,7 @@ export default async function GradesPage() {
   const isHomework = (e?: StudentExamMeta) => !!e && (e.type ? e.type === 'homework' : (e.duration_minutes <= 0 || e.duration_minutes >= 43200))
 
   // Unpublished homework keeps its auto-score out of sight until the teacher publishes.
-  const visible = ((raw ?? []) as RawSubmission[]).filter(sub => {
+  const visible = (raw as unknown as RawSubmission[]).filter(sub => {
     const exam = examMap.get(sub.exam_id)
     return isScoreVisible(sub.grading_status, exam ? (isHomework(exam) ? 'homework' : 'exam') : undefined, exam?.has_manual_questions)
   })

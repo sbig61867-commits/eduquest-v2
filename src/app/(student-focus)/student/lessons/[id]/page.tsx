@@ -4,51 +4,52 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { ChevronRight } from 'lucide-react'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run, maybeOne } from '@/lib/db/sql'
 import { LessonView } from '@/components/lesson/lesson-view'
 import { AskAiMenu } from '@/components/student/ask-ai-menu'
 import { AskAiSelection } from '@/components/student/ask-ai-selection'
 import { activeExamSince } from '@/lib/ask-ai'
 import { audienceApproved } from '@/lib/ai/privacy'
-import { loadStudentExamList } from '@/lib/data/student-exams'
+import { studentExamListSql, toStudentExams } from '@/lib/data/student-exams'
 import { LessonHomeworkTabs, type LessonHomeworkItem } from '@/components/student/lesson-homework-tabs'
 
-// One lesson, full width, nothing else on screen. Read through the student's
-// own session: RLS (published lessons of their own groups) decides, and an
-// archived group's lesson stays hidden exactly as on the list.
+// One lesson, full width, nothing else on screen. Read as the student: RLS
+// (published lessons of their own groups) decides, and an archived group's
+// lesson stays hidden exactly as on the list.
 export default async function StudentLessonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound()
   const t = await getTranslations('common.lessonView')
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  // The lesson, and whether the student is in the middle of an exam: the
-  // "Ask an AI" menu is never offered while an attempt is running.
+  // ONE unit: the lesson; whether the student is in the middle of an exam (the
+  // "Ask an AI" menu is never offered while an attempt is running); the
+  // student's own exam list (metadata only) for this lesson's homework; and
+  // their submissions and redo permissions for that homework.
   const since = activeExamSince()
-  const [{ data: lesson }, { count: runningExams }, { data: listed }] = await Promise.all([
-    supabase
-      .from('lessons').select('id, title, content, groups!inner(name, is_active)')
-      .eq('id', id).eq('groups.is_active', true).maybeSingle(),
-    supabase
-      .from('exam_submissions').select('id', { count: 'exact', head: true })
-      .eq('student_id', user.id).eq('status', 'in_progress').gte('started_at', since),
-    // The student's own list (RLS-scoped RPC, metadata only), for this lesson's homework.
-    loadStudentExamList(supabase),
+  const [lessonRows, runningRows, listedRows, subs, retakes] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select l.id, l.title, l.content, json_build_object('name', g.name) as groups
+          from public.lessons l join public.groups g on g.id = l.group_id where l.id = ${id} and g.is_active`,
+    sql`select count(*)::int as n from public.exam_submissions
+         where student_id = ${user.id} and status = 'in_progress' and started_at >= ${since}`,
+    studentExamListSql(sql),
+    sql`select s.exam_id, s.score, s.max_score, s.grading_status from public.exam_submissions s
+          join public.get_student_exam_list() e on e.id = s.exam_id
+         where s.student_id = ${user.id} and e.type = 'homework' and e.lesson_id = ${id}`,
+    sql`select r.exam_id from public.exam_retake_permissions r
+          join public.get_student_exam_list() e on e.id = r.exam_id
+         where r.student_id = ${user.id} and e.type = 'homework' and e.lesson_id = ${id}`,
   ])
+  const lesson = maybeOne<{ id: string; title: string; content: string | null; groups: { name: string } | null }>(lessonRows)
   if (!lesson) notFound()
+  const runningExams = maybeOne<{ n: number }>(runningRows)?.n ?? 0
 
   // This lesson's homework, as in the teacher's Homework tab (owner, 2026-10-18).
-  const lessonHomework = listed.filter(e => e.type === 'homework' && e.lesson_id === lesson.id)
-  const hwIds = lessonHomework.map(e => e.id)
-  const [{ data: subs }, { data: retakes }] = hwIds.length
-    ? await Promise.all([
-      supabase.from('exam_submissions').select('exam_id, score, max_score, grading_status').eq('student_id', user.id).in('exam_id', hwIds).limit(hwIds.length),
-      supabase.from('exam_retake_permissions').select('exam_id').eq('student_id', user.id).in('exam_id', hwIds).limit(hwIds.length),
-    ])
-    : [{ data: [] }, { data: [] }]
-  const subByExam = new Map((subs ?? []).map(r => [r.exam_id as string, r]))
-  const redo = new Set((retakes ?? []).map(r => r.exam_id as string))
+  const lessonHomework = toStudentExams(listedRows).filter(e => e.type === 'homework' && e.lesson_id === lesson.id)
+  const subByExam = new Map((subs as Record<string, unknown>[]).map(r => [r.exam_id as string, r]))
+  const redo = new Set((retakes as Record<string, unknown>[]).map(r => r.exam_id as string))
   const homework: LessonHomeworkItem[] = lessonHomework.map(e => {
     const sub = subByExam.get(e.id)
     return {

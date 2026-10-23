@@ -2,51 +2,37 @@ export const dynamic = 'force-dynamic'
 
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { Bell, BookOpen, ClipboardList, BarChart2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { isScoreVisible } from '@/lib/score-visibility'
-import { loadStudentExamList, type StudentExamMeta } from '@/lib/data/student-exams'
+import { studentExamListSql, toStudentExams, type StudentExamMeta } from '@/lib/data/student-exams'
 
 export default async function NotificationsPage() {
   const t = await getTranslations('student.notifications')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  // Gather recent activity as notifications: new lessons & exams in student's groups
-  // (active groups only — an archived group is hidden from students; its membership stays)
-  const { data: memberOf } = await supabase
-    .from('group_students')
-    .select('group_id, groups!inner(is_active)')
-    .eq('student_id', user.id)
-    .eq('groups.is_active', true)
-
-  const groupIds = (memberOf ?? []).map(r => r.group_id)
-
-  // Exams come from the student exam list (students have no direct exams
-  // SELECT): enrolled, published exams, metadata only.
-  const [{ data: recentLessons }, { data: rpcExams }, { data: recentGrades }] = await Promise.all([
-    groupIds.length > 0
-      ? supabase
-          .from('lessons')
-          .select('id, title, created_at, group_id, groups(name)')
-          .in('group_id', groupIds)
-          .eq('is_published', true)
-          .order('created_at', { ascending: false })
-          .limit(10)
-      : Promise.resolve({ data: [] }),
-    loadStudentExamList(supabase),
-    supabase
-      .from('exam_submissions')
-      .select('id, exam_id, score, submitted_at, grading_status')
-      .eq('student_id', user.id)
-      .not('score', 'is', null)
-      .order('submitted_at', { ascending: false })
-      .limit(20),
+  // ONE unit, read as the student: new lessons in the student's ACTIVE groups
+  // (an archived group is hidden from students; its membership stays), the
+  // exam list (students have no direct exams SELECT) and recent grades.
+  const [recentLessons, examList, recentGrades, activeGroupRows] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select l.id, l.title, l.created_at, l.group_id, case when g.id is null then null else json_build_object('name', g.name) end as groups
+          from public.lessons l join public.groups g on g.id = l.group_id
+         where l.is_published and g.is_active
+           and l.group_id in (select group_id from public.group_students where student_id = ${user.id})
+         order by l.created_at desc limit 10`,
+    studentExamListSql(sql),
+    sql`select id, exam_id, score, submitted_at, grading_status from public.exam_submissions
+         where student_id = ${user.id} and score is not null order by submitted_at desc limit 20`,
+    sql`select count(*)::int as n from public.group_students gs join public.groups g on g.id = gs.group_id
+         where gs.student_id = ${user.id} and g.is_active`,
   ])
+  const hasGroups = ((activeGroupRows[0] as { n?: number } | undefined)?.n ?? 0) > 0
+  const rpcExams = toStudentExams(examList)
 
   type RpcExamRow = StudentExamMeta
   type LessonRow  = { id: string; title: string; created_at: string; groups: { name: string }[] | { name: string } | null }
@@ -60,13 +46,13 @@ export default async function NotificationsPage() {
   // Students have no exams SELECT (a joined exams(title) is null), so titles
   // and types come from the RPC. Unpublished homework scores are not "posted".
   const examById = new Map(rpcExams.map(e => [e.id, e]))
-  const visibleGrades = ((recentGrades ?? []) as GradeRow[])
+  const visibleGrades = (recentGrades as unknown as GradeRow[])
     .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type, examById.get(g.exam_id)?.has_manual_questions))
     .slice(0, 5)
 
   // Merge and sort all notifications by date
   const notifications = [
-    ...(recentLessons ?? [] as LessonRow[]).map((l: LessonRow) => ({
+    ...(recentLessons as unknown as LessonRow[]).map((l: LessonRow) => ({
       id: `lesson-${l.id}`,
       type: 'lesson' as const,
       title: `New lesson: ${l.title}`,
@@ -113,7 +99,7 @@ export default async function NotificationsPage() {
           <Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-white font-medium">{t('empty')}</p>
           <p className="text-slate-400 text-sm mt-1">
-            {groupIds.length === 0
+            {!hasGroups
               ? t('noGroups')
               : t('noGroupsHint')}
           </p>

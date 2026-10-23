@@ -44,7 +44,12 @@ export async function getExamPolicies(supabase: SupabaseClient): Promise<ExamPol
     .select('value')
     .eq('key', 'exam_policies')
     .maybeSingle()
-  const v = (data?.value ?? {}) as Partial<ExamPolicies>
+  return examPoliciesFrom(data?.value)
+}
+
+/** The exam policies from a platform_settings value, with the fallbacks. */
+export function examPoliciesFrom(value: unknown): ExamPolicies {
+  const v = (value ?? {}) as Partial<ExamPolicies>
   return {
     proctoring_default_enabled: v.proctoring_default_enabled ?? FALLBACK_EXAM_POLICIES.proctoring_default_enabled,
     violation_warning_threshold: v.violation_warning_threshold ?? FALLBACK_EXAM_POLICIES.violation_warning_threshold,

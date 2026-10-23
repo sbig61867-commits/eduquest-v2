@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { redirect } from 'next/navigation'
 import { ScheduleGrid } from '@/components/schedules/schedule-grid'
 import { loadTeacherSchedules } from '@/lib/schedules-data'
@@ -8,12 +8,11 @@ import { CalendarDays, Users, User } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
 export default async function TeacherSchedulePage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
   const t = await getTranslations('teacher')
 
-  const schedules = await loadTeacherSchedules(supabase, user.tenant_id)
+  const schedules = await loadTeacherSchedules(user.id, user.tenant_id)
 
   return (
     <div className="space-y-6">

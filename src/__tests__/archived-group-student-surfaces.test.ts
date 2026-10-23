@@ -245,23 +245,22 @@ describe('/api/surveys/respond — archived group', () => {
 })
 
 describe('student pages read memberships of active groups only', () => {
-  // Static check of the membership read in each page — the !inner join on groups plus the
-  // is_active filter is what drops an archived group (PostgREST semantics, mirrored by the SQL check).
+  // Static check of each page's SQL: every read of the student's groups joins
+  // `groups` and keeps only active ones (`g.is_active`) — what drops an
+  // archived group. The quick-access panel reads through its route.
   const SRC = join(__dirname, '..')
   const files = [
     'app/(student)/student/dashboard/page.tsx',
     'app/(student)/student/notifications/page.tsx',
-    'components/student/quick-access-panel.tsx',
+    'app/api/student/quick-access/route.ts',
     'app/(student)/student/profile/page.tsx',
   ]
   for (const f of files) {
     it(f, () => {
       const src = readFileSync(join(SRC, f), 'utf8')
-      const at = src.indexOf(".from('group_students')")
-      expect(at).toBeGreaterThan(-1)
-      const read = src.slice(at, src.indexOf('\n\n', at))
-      expect(read).toMatch(/groups!inner\([^)]*is_active/)
-      expect(read).toContain(".eq('groups.is_active', true)")
+      const statements = [...src.matchAll(/sql`([^`]*)`/g)].map(m => m[1]).filter(t => t.includes('group_students') && /\bpublic\.(lessons|groups)\b/.test(t))
+      expect(statements.length).toBeGreaterThan(0)
+      for (const t of statements) expect(t).toMatch(/\bg\.is_active\b/)
     })
   }
 })

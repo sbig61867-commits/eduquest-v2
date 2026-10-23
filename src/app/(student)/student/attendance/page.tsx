@@ -1,13 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import { getTranslations } from 'next-intl/server'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { ClipboardCheck } from 'lucide-react'
 
-// Read-only. attendance_records_select already narrows rows to
-// `student_id = auth.uid()`, and the joined session/group rows are readable
-// only for groups the student belongs to — the .eq('student_id') below is
+// Read-only, as the student. attendance_records_select already narrows rows
+// to `student_id = auth.uid()`, and the joined session/group rows are readable
+// only for groups the student belongs to — the student_id filter below is
 // defense-in-depth, not the isolation itself.
 
 type Status = 'present' | 'late' | 'absent' | 'excused'
@@ -34,18 +35,22 @@ interface RecordRow {
 
 export default async function StudentAttendancePage() {
   const t = await getTranslations('student.attendance')
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const { data } = await supabase
-    .from('attendance_records')
-    .select('status, note, attendance_sessions!inner(session_date, title, groups(name))')
-    .eq('student_id', user.id)
-    .order('marked_at', { ascending: false })
-    .limit(200)
+  const [data] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select r.status, r.note,
+               json_build_object('session_date', a.session_date, 'title', a.title,
+                 'groups', case when g.id is null then null else json_build_object('name', g.name) end) as attendance_sessions
+          from public.attendance_records r
+          join public.attendance_sessions a on a.id = r.session_id
+          left join public.groups g on g.id = a.group_id
+         where r.student_id = ${user.id}
+         order by r.marked_at desc
+         limit 200`,
+  ])
 
-  const rows = ((data ?? []) as unknown as RecordRow[])
+  const rows = (data as unknown as RecordRow[])
     .filter(r => r.attendance_sessions)
     .sort((a, b) => (a.attendance_sessions!.session_date < b.attendance_sessions!.session_date ? 1 : -1))
 

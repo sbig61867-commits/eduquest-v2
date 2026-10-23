@@ -126,8 +126,8 @@ describe('AskAiMenu', () => {
 describe('lesson page', () => {
   const page = readFileSync(join(process.cwd(), 'src/app/(student-focus)/student/lessons/[id]/page.tsx'), 'utf8')
   it('never offers the menu while the student has an exam running', () => {
-    expect(page).toContain(".eq('status', 'in_progress')")
-    expect(page).toContain(".eq('student_id', user.id)")
+    expect(page).toContain("status = 'in_progress'")
+    expect(page).toContain('where student_id = ${user.id}')
     expect(page).toContain('{!runningExams && <AskAiMenu')
   })
   it('passes the title and group only, not the lesson content', () => {

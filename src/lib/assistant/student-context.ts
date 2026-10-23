@@ -1,9 +1,9 @@
 // ── Student assistant: account context ───────────────────────────
 // Reads the student's own lessons, assignments, exams, visible grades and
-// announcements, all through the student's session (RLS). Lists are capped,
+// announcements, all read as the student (RLS), in one unit. Lists are capped,
 // bodies are cut, and the result goes through the same answer policy as lessons.
 
-import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import { isScoreVisible } from '@/lib/score-visibility'
 import { pickExamMetaForAssistant, sanitizeLessonForAssistant } from './context-policy'
 import { foldArabic, OVERVIEW_RE } from '@/content/assistant/patterns'
@@ -46,32 +46,34 @@ interface ExamRow { id: string; title: string; type: string; starts_at: string |
  * Builds a bounded plain-text account snapshot. Returns null when nothing can
  * be read or the text fails the answer policy (fail closed for this section only).
  */
-export async function loadAccountText(supabase: SupabaseClient, userId: string): Promise<string | null> {
-  const [lessonsRes, examsRes, gradesRes, annRes] = await Promise.all([
-    supabase.from('lessons')
-      .select('title, created_at, groups!inner(name, is_active)')
-      .eq('is_published', true).is('deleted_at', null).eq('groups.is_active', true)
-      .order('created_at', { ascending: false }).limit(ACCOUNT_LIMITS.lessons),
-    supabase.rpc('get_student_exam_list'),
-    supabase.from('exam_submissions')
-      .select('exam_id, score, max_score, grading_status, submitted_at')
-      .eq('student_id', userId).not('score', 'is', null)
-      .order('submitted_at', { ascending: false }).limit(ACCOUNT_LIMITS.grades),
-    supabase.rpc('get_student_announcements'),
-  ])
+export async function loadAccountText(userId: string): Promise<string | null> {
+  let lessonRows: unknown[], examRows: unknown[], gradeRows: unknown[], annRows: unknown[]
+  try {
+    ;[lessonRows, examRows, gradeRows, annRows] = await run({ as: 'user', userId }, sql => [
+      sql`select l.title, l.created_at, json_build_object('name', g.name) as groups
+            from public.lessons l join public.groups g on g.id = l.group_id
+           where l.is_published and l.deleted_at is null and g.is_active
+           order by l.created_at desc limit ${ACCOUNT_LIMITS.lessons}`,
+      sql`select * from public.get_student_exam_list()`,
+      sql`select exam_id, score, max_score, grading_status, submitted_at from public.exam_submissions
+           where student_id = ${userId} and score is not null order by submitted_at desc limit ${ACCOUNT_LIMITS.grades}`,
+      sql`select * from public.get_student_announcements()`,
+    ])
+  } catch {
+    return null
+  }
 
   const lines: string[] = []
 
-  const lessons = (lessonsRes.data ?? []) as unknown as { title: string; groups: { name: string } | null }[]
+  const lessons = lessonRows as unknown as { title: string; groups: { name: string } | null }[]
   if (lessons.length) {
     lines.push('Lessons:')
     for (const l of lessons) lines.push(`- ${l.title}${l.groups?.name ? ` (${l.groups.name})` : ''}`)
   }
 
-  const examRows = (examsRes.data ?? []) as Record<string, unknown>[]
   const examById = new Map<string, ExamRow>()
   const exams: string[] = []
-  for (const row of examRows.slice(0, ACCOUNT_LIMITS.exams)) {
+  for (const row of (examRows as Record<string, unknown>[]).slice(0, ACCOUNT_LIMITS.exams)) {
     const picked = pickExamMetaForAssistant(row)
     if (!picked.ok) continue
     const e = picked.value
@@ -90,7 +92,7 @@ export async function loadAccountText(supabase: SupabaseClient, userId: string):
   }
   if (exams.length) { lines.push('Exams and assignments:'); lines.push(...exams) }
 
-  const grades = (gradesRes.data ?? []) as { exam_id: string; score: number; max_score: number | null; grading_status: string | null }[]
+  const grades = gradeRows as unknown as { exam_id: string; score: number; max_score: number | null; grading_status: string | null }[]
   const visible: string[] = []
   for (const g of grades) {
     const exam = examById.get(g.exam_id)
@@ -100,7 +102,7 @@ export async function loadAccountText(supabase: SupabaseClient, userId: string):
   }
   if (visible.length) { lines.push('Published grades:'); lines.push(...visible) }
 
-  const announcements = (annRes.data ?? []) as { title: string; body: string | null; created_at: string }[]
+  const announcements = annRows as unknown as { title: string; body: string | null; created_at: string }[]
   if (announcements.length) {
     lines.push('Announcements:')
     for (const a of announcements.slice(0, ACCOUNT_LIMITS.announcements)) {
@@ -116,10 +118,11 @@ export async function loadAccountText(supabase: SupabaseClient, userId: string):
 }
 
 /** Lesson titles the student can open, for matching the message to a lesson. */
-export async function loadLessonIndex(supabase: SupabaseClient): Promise<{ id: string; title: string }[]> {
-  const { data } = await supabase.from('lessons')
-    .select('id, title, groups!inner(is_active)')
-    .eq('is_published', true).is('deleted_at', null).eq('groups.is_active', true)
-    .order('created_at', { ascending: false }).limit(ACCOUNT_LIMITS.lessons)
-  return ((data ?? []) as unknown as { id: string; title: string }[]).map(l => ({ id: l.id, title: l.title }))
+export async function loadLessonIndex(userId: string): Promise<{ id: string; title: string }[]> {
+  const [rows] = await run({ as: 'user', userId }, sql => [
+    sql`select l.id, l.title from public.lessons l join public.groups g on g.id = l.group_id
+         where l.is_published and l.deleted_at is null and g.is_active
+         order by l.created_at desc limit ${ACCOUNT_LIMITS.lessons}`,
+  ])
+  return rows as unknown as { id: string; title: string }[]
 }

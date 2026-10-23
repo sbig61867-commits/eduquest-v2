@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run, type Sql } from '@/lib/db/sql'
 
 /**
  * The student's exam list — metadata only (PERFORMANCE_CONTRACT.md P3, P10).
@@ -8,9 +8,8 @@ import type { SupabaseClient } from '@/lib/db'
  * only from /api/exam/start, once the roster, the window and Safe Exam Browser
  * have been checked and the attempt exists (see exam-delivery.ts).
  *
- * Source: the get_student_exam_list() RPC (supabase/student_exam_list_migration.sql),
- * RLS-scoped through the caller's own session — same rows, same authorization
- * as the old get_student_exams().
+ * Source: the get_student_exam_list() function (supabase/student_exam_list_migration.sql),
+ * read as the student — same rows, same authorization as before.
  */
 export interface StudentExamMeta {
   id: string
@@ -44,13 +43,21 @@ export interface StudentExamMeta {
 /** A listed exam as a screen hands it to the exam screen (attachments signed). */
 export type StudentExam = StudentExamMeta & { attachment_urls?: string[] }
 
+/** The list as a statement, for a page to send in the same unit as its other reads (as the student). */
+export const studentExamListSql = (sql: Sql) => sql`select * from public.get_student_exam_list()`
+
+/** Normalises the rows of studentExamListSql (numbers, attachment arrays). */
+export function toStudentExams(rows: unknown[]): StudentExamMeta[] {
+  return (rows as StudentExamMeta[]).map(r => ({ ...r, total_points: Number(r.total_points) || 0 }))
+}
+
 export async function loadStudentExamList(
-  db: SupabaseClient,
+  userId: string,
 ): Promise<{ data: StudentExamMeta[]; error: { message: string } | null }> {
-  const { data, error } = await db.rpc('get_student_exam_list')
-  if (error) return { data: [], error }
-  return {
-    data: ((data ?? []) as StudentExamMeta[]).map(r => ({ ...r, total_points: Number(r.total_points) || 0 })),
-    error: null,
+  try {
+    const [rows] = await run({ as: 'user', userId }, sql => [studentExamListSql(sql)])
+    return { data: toStudentExams(rows), error: null }
+  } catch (e) {
+    return { data: [], error: { message: e instanceof Error ? e.message : String(e) } }
   }
 }

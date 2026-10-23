@@ -1,33 +1,31 @@
 import { NextResponse } from 'next/server'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
+import { currentCtx } from '@/lib/auth/current'
+import { run, maybeOne } from '@/lib/db/sql'
 
 // GET /api/session/check — cheap liveness check for the user's session.
 // Called every 60s by <TenantWatcher>. Returns { ok: true } if the user's
 // account AND their tenant are both usable; otherwise { ok: false, reason }.
 //
-// Uses the service-role client so it works even when RLS wouldn't let the
-// student read their tenant row directly. Only reads scalar flags — never
-// leaks tenant data to the client.
+// One statement, as app_service in platform scope: the account and its
+// institution's flags (the account may have been moved, or its institution
+// suspended, since the session was signed). Only scalar flags — never
+// institution data — reach the client.
 export async function GET() {
-  const supabase = await createClient()
-  // Local JWT verification (getClaims) — no Auth-server round-trip on a poll.
-  // The live row read below is what decides disabled/deleted/role changes.
-  const user = await getAuthUser(supabase)
+  // The signed session context — no auth lookup on a poll. The live row read
+  // below is what decides disabled/deleted/role changes.
+  const user = await currentCtx()
   if (!user) return NextResponse.json({ ok: false, reason: 'no_session' }, { status: 401 })
 
-  const admin = getAdminDb()
-
-  const { data: profile, error: profileErr } = await admin
-    .from('users')
-    .select('is_active, tenant_id, role')
-    .eq('id', user.id)
-    .single()
-
-  // Distinguish "row really gone" (user hard-deleted → kick) from a transient
-  // query error (→ don't kick anyone; watcher retries next tick).
-  if (profileErr && profileErr.code !== 'PGRST116') {
-    console.error('[session/check] profile query:', profileErr)
+  let profile: { is_active: boolean | null; tenant_id: string | null; role: string; tenant_active: boolean | null; tenant_exists: boolean } | null
+  try {
+    const [rows] = await run({ as: 'service', platform: true }, sql => [
+      sql`select u.is_active, u.tenant_id, u.role, t.is_active as tenant_active, (t.id is not null) as tenant_exists
+            from public.users u left join public.tenants t on t.id = u.tenant_id where u.id = ${user.sub}`,
+    ])
+    profile = maybeOne(rows)
+  } catch (e) {
+    // A transient error never kicks anyone out; the watcher retries next tick.
+    console.error('[session/check]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ok: true, degraded: true })
   }
   if (!profile) return NextResponse.json({ ok: false, reason: 'user_deleted' })
@@ -48,18 +46,8 @@ export async function GET() {
     return NextResponse.json({ ok: true })
   }
 
-  const { data: tenant, error: tenantErr } = await admin
-    .from('tenants')
-    .select('is_active')
-    .eq('id', profile.tenant_id)
-    .single()
-
-  if (tenantErr && tenantErr.code !== 'PGRST116') {
-    console.error('[session/check] tenant query:', tenantErr)
-    return NextResponse.json({ ok: true, degraded: true })
-  }
-  if (!tenant) return NextResponse.json({ ok: false, reason: 'tenant_deleted' })
-  if (tenant.is_active === false) return NextResponse.json({ ok: false, reason: 'tenant_suspended' })
+  if (!profile.tenant_exists) return NextResponse.json({ ok: false, reason: 'tenant_deleted' })
+  if (profile.tenant_active === false) return NextResponse.json({ ok: false, reason: 'tenant_suspended' })
 
   return NextResponse.json({ ok: true })
 }

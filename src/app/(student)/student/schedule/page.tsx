@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { getTranslations } from 'next-intl/server'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { redirect } from 'next/navigation'
 import { ScheduleGrid } from '@/components/schedules/schedule-grid'
 import { loadStudentSchedule } from '@/lib/schedules-data'
@@ -10,11 +10,10 @@ import { loadStudentSchedule } from '@/lib/schedules-data'
 // returns only published timetables for the groups they are enrolled in.
 export default async function StudentSchedulePage() {
   const t = await getTranslations('student.schedule')
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const slots = await loadStudentSchedule(supabase)
+  const slots = await loadStudentSchedule(user.id)
 
   return (
     <div className="space-y-6">

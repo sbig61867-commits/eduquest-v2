@@ -2,14 +2,16 @@ export const dynamic = 'force-dynamic'
 
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { redirect } from 'next/navigation'
+import { run, maybeOne } from '@/lib/db/sql'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, BarChart2, Bell } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { SurveyCard } from '@/components/student/survey-card'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
 import { isScoreVisible } from '@/lib/score-visibility'
-import { loadStudentExamList } from '@/lib/data/student-exams'
+import { studentExamListSql, toStudentExams } from '@/lib/data/student-exams'
 
 interface LessonRow { id: string; title: string; created_at: string; groups: { name: string } | null }
 interface GradeRow { id: string; exam_id: string; score: number; max_score: number | null; grading_status: string | null }
@@ -17,40 +19,37 @@ interface GradeRow { id: string; exam_id: string; score: number; max_score: numb
 export default async function StudentDashboard() {
   const t = await getTranslations('student.dashboard')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
+  if (!user) redirect('/login')
 
-  // Same scoping as /student/lessons: published lessons in the student's active groups only
-  // (an archived group — is_active = false — is hidden from students; its membership stays).
-  const { data: groupRows } = await supabase
-    .from('group_students')
-    .select('group_id, groups!inner(is_active)')
-    .eq('student_id', user?.id ?? '')
-    .eq('groups.is_active', true)
-  const groupIds = (groupRows ?? []).map(r => r.group_id)
-
-  const [{ data: recentLessons, count: lessonCount }, { data: examRows }, { count: submissions }, { data: grades }, { data: announcementRows }] = await Promise.all([
-    groupIds.length === 0
-      ? Promise.resolve({ data: [], count: 0 } as { data: LessonRow[]; count: number })
-      : supabase
-          .from('lessons')
-          .select('id, title, created_at, groups(name)', { count: 'exact' })
-          .eq('is_published', true)
-          .in('group_id', groupIds)
-          .order('created_at', { ascending: false })
-          .limit(5),
+  // ONE unit, read as the student. Same scoping as /student/lessons: published
+  // lessons in the student's ACTIVE groups only (an archived group is hidden
+  // from students; its membership stays).
+  const [recentLessons, lessonCountRows, examList, submissionCount, grades, announcementRows] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select l.id, l.title, l.created_at, case when g.id is null then null else json_build_object('name', g.name) end as groups
+          from public.lessons l join public.groups g on g.id = l.group_id
+         where l.is_published and g.is_active
+           and l.group_id in (select group_id from public.group_students where student_id = ${user.id})
+         order by l.created_at desc limit 5`,
+    sql`select count(*)::int as n from public.lessons l join public.groups g on g.id = l.group_id
+         where l.is_published and g.is_active
+           and l.group_id in (select group_id from public.group_students where student_id = ${user.id})`,
     // Students have no direct exams SELECT; count enrolled exams via the list.
-    loadStudentExamList(supabase),
-    supabase.from('exam_submissions').select('*', { count: 'exact', head: true }).eq('student_id', user?.id ?? ''),
+    studentExamListSql(sql),
+    sql`select count(*)::int as n from public.exam_submissions where student_id = ${user.id}`,
     // exam_submissions, not grades: visibility depends on grading_status, and
     // the teacher's manual grade lives here. Over-fetch, then filter to 5.
-    supabase.from('exam_submissions').select('id, exam_id, score, max_score, grading_status').eq('student_id', user?.id ?? '').not('score', 'is', null).order('submitted_at', { ascending: false }).limit(20),
-    // Students have no direct announcements SELECT; the RPC applies publication
-    // state, the date window and audience targeting server-side.
-    supabase.rpc('get_student_announcements'),
+    sql`select id, exam_id, score, max_score, grading_status from public.exam_submissions
+         where student_id = ${user.id} and score is not null order by submitted_at desc limit 20`,
+    // Students have no direct announcements SELECT; the function applies
+    // publication state, the date window and audience targeting.
+    sql`select * from public.get_student_announcements()`,
   ])
+  const examRows = toStudentExams(examList)
+  const lessonCount = maybeOne<{ n: number }>(lessonCountRows)?.n ?? 0
+  const submissions = maybeOne<{ n: number }>(submissionCount)?.n ?? 0
   const exams = examRows.length
-  const announcements = (announcementRows ?? []) as unknown as StudentAnnouncement[]
+  const announcements = announcementRows as unknown as StudentAnnouncement[]
 
   const cards = [
     { label: t('statLessons'), value: lessonCount ?? 0, icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -59,10 +58,10 @@ export default async function StudentDashboard() {
     { label: t('statNotifications'), value: '0', icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
-  const lessonList = (recentLessons ?? []) as unknown as LessonRow[]
+  const lessonList = recentLessons as unknown as LessonRow[]
   // Students have no exams SELECT, so titles/types come from the exam list.
   const examById = new Map(examRows.map(e => [e.id, e]))
-  const gradeList = ((grades ?? []) as GradeRow[])
+  const gradeList = (grades as unknown as GradeRow[])
     .filter(g => isScoreVisible(g.grading_status, examById.get(g.exam_id)?.type, examById.get(g.exam_id)?.has_manual_questions))
     .slice(0, 5)
 

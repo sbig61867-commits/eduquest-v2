@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import type { SupabaseClient } from '@supabase/supabase-js'
+// @vitest-environment node
+import { describe, it, expect, vi } from 'vitest'
 import {
   normaliseForMatch,
   matchLessonTitle,
@@ -7,21 +7,19 @@ import {
   loadAccountText,
 } from '@/lib/assistant/student-context'
 
-// A chainable fake: every builder method returns the same chain, and awaiting
-// it yields the table's data. No network, no real client.
-function fakeClient(tables: Record<string, unknown>, rpcs: Record<string, unknown>): SupabaseClient {
-  const chain = (data: unknown): unknown => {
-    const p: unknown = new Proxy({}, {
-      get: (_t, key) => (key === 'then'
-        ? (resolve: (v: unknown) => unknown) => resolve({ data, error: null })
-        : () => p),
-    })
-    return p
-  }
-  return {
-    from: (table: string) => chain(tables[table] ?? null),
-    rpc: (name: string) => chain(rpcs[name] ?? null),
-  } as unknown as SupabaseClient
+// The account snapshot is read in one unit as the student (SQL layer): each
+// statement is answered from the tables / functions of the current world.
+const world = vi.hoisted(() => ({ tables: {} as Record<string, unknown>, fns: {} as Record<string, unknown> }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  if (q.text.startsWith('select l.title, l.created_at')) return (world.tables.lessons ?? []) as unknown[]
+  if (q.text === 'select * from public.get_student_exam_list()') return (world.fns.get_student_exam_list ?? []) as unknown[]
+  if (q.text.startsWith('select exam_id, score, max_score')) return (world.tables.exam_submissions ?? []) as unknown[]
+  if (q.text === 'select * from public.get_student_announcements()') return (world.fns.get_student_announcements ?? []) as unknown[]
+  return new Error('unexpected statement: ' + q.text)
+}))
+function fakeClient(tables: Record<string, unknown>, fns: Record<string, unknown>) {
+  world.tables = tables
+  world.fns = fns
 }
 
 describe('normaliseForMatch', () => {
@@ -73,7 +71,7 @@ describe('loadAccountText', () => {
   const visibleExam = { id: 'e1', title: 'Midterm', type: 'exam', duration_minutes: 60, starts_at: null, ends_at: null, is_published: true, group_name: 'G1', course_title: null, lesson_id: null, question_count: 3, has_manual_questions: false, total_points: 10 }
 
   it('lists lessons, exams, visible grades and announcements, bounded', async () => {
-    const client = fakeClient(
+    fakeClient(
       {
         lessons: [{ title: 'Cells', groups: { name: 'G1' } }],
         exam_submissions: [{ exam_id: 'e1', score: 8, max_score: 10, grading_status: 'graded', submitted_at: '2026-10-01' }],
@@ -83,7 +81,7 @@ describe('loadAccountText', () => {
         get_student_announcements: [{ title: 'Welcome', body: 'x'.repeat(300), created_at: '2026-10-01T00:00:00Z' }],
       },
     )
-    const text = await loadAccountText(client, 'stu-1')
+    const text = await loadAccountText('stu-1')
     expect(text).toContain('Cells (G1)')
     expect(text).toContain('Midterm')
     expect(text).toContain('Midterm: 8/10')
@@ -92,21 +90,22 @@ describe('loadAccountText', () => {
   })
 
   it('drops an exam row that carries questions (it is refused, never trimmed)', async () => {
-    const client = fakeClient(
+    fakeClient(
       {},
       { get_student_exam_list: [{ ...visibleExam, title: 'Hidden', questions: [{ text: 'q', correct_answer: 'B' }] }, visibleExam] },
     )
-    const text = await loadAccountText(client, 'stu-1')
+    const text = await loadAccountText('stu-1')
     expect(text).not.toContain('Hidden')
     expect(text).toContain('Midterm')
   })
 
   it('returns null when an announcement body fails the answer policy (fail closed)', async () => {
-    const client = fakeClient({}, { get_student_announcements: [{ title: 'Quiz', body: 'Solution: x=2', created_at: '2026-10-01' }] })
-    expect(await loadAccountText(client, 'stu-1')).toBeNull()
+    fakeClient({}, { get_student_announcements: [{ title: 'Quiz', body: 'Solution: x=2', created_at: '2026-10-01' }] })
+    expect(await loadAccountText('stu-1')).toBeNull()
   })
 
   it('returns null when the student has nothing to show', async () => {
-    expect(await loadAccountText(fakeClient({}, {}), 'stu-1')).toBeNull()
+    fakeClient({}, {})
+    expect(await loadAccountText('stu-1')).toBeNull()
   })
 })

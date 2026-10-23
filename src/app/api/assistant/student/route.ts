@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiErr } from '@/lib/api-error'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run, maybeOne } from '@/lib/db/sql'
 import { aiRateLimit } from '@/lib/rate-limit'
 import { authorizeAiUsage, meteredAiRoute } from '@/lib/ai/usage'
 import { aiChat } from '@/lib/ai/chat'
@@ -44,8 +45,7 @@ async function noticesFor(unavailable: Set<Unavailable>) {
 }
 
 export const POST = meteredAiRoute('student-assistant', async (request: Request) => {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
   if (user.role !== 'student') return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
 
@@ -72,8 +72,8 @@ export const POST = meteredAiRoute('student-assistant', async (request: Request)
   if (!parsed.ok) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
   // Only the question leaves: the student's name, contact details, identifiers
   // and links are taken out of everything the student wrote (redact.ts).
-  const { data: me } = await supabase.from('users').select('full_name').eq('id', user.id).maybeSingle()
-  const names = [(me as { full_name?: string | null } | null)?.full_name]
+  const [meRows] = await run({ as: 'user', userId: user.id }, sql => [sql`select full_name from public.users where id = ${user.id}`])
+  const names = [maybeOne<{ full_name: string | null }>(meRows)?.full_name]
   const input = {
     ...parsed.value,
     message: redactSensitive(parsed.value.message, names),
@@ -88,20 +88,19 @@ export const POST = meteredAiRoute('student-assistant', async (request: Request)
   const personalOk = audienceApproved(['personal'])
   const unavailable = new Set<Unavailable>()
 
-  // The lesson is read through the student's own session: RLS returns it only
+  // The lesson is read as the student: RLS returns it only
   // when published and in one of the student's active groups. A missing row and
   // a forbidden row get the same answer, so the route does not reveal which exists.
   // With no lesson picked, a lesson named in the message is used.
   let lessonId: string | null = input.lessonId
-  if (!lessonId) lessonId = matchLessonTitle(input.message, await loadLessonIndex(supabase))
+  if (!lessonId) lessonId = matchLessonTitle(input.message, await loadLessonIndex(user.id))
 
   let lessonModelText: string | null = null
   if (lessonId) {
-    const { data: lesson } = await supabase
-      .from('lessons')
-      .select('id, content')
-      .eq('id', lessonId)
-      .maybeSingle()
+    const [lessonRows] = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lessonId)
+      ? await run({ as: 'user', userId: user.id }, sql => [sql`select id, content from public.lessons where id = ${lessonId}`])
+      : [[]]
+    const lesson = maybeOne<{ id: string; content: string | null }>(lessonRows)
     if (!lesson) return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
     lessonModelText = lessonDocToModelText(lesson.content)
   }

@@ -3,10 +3,8 @@
 import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
-import { loadStudentExamList } from '@/lib/data/student-exams'
 import {
   BookOpen, ClipboardList, Layers, ChevronRight,
   PanelRightOpen, PanelRightClose, Loader2,
@@ -29,54 +27,18 @@ export function StudentQuickAccessPanel() {
   const [loading, setLoading] = useState(false)
   const { user } = useAuthStore()
   const router = useRouter()
-  const supabase = createClient()
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return
     setLoading(true)
     try {
-      // Active groups the student belongs to (needed for lessons; an archived group is hidden)
-      const { data: groupRows } = await supabase
-        .from('group_students')
-        .select('group_id, groups!inner(is_active)')
-        .eq('student_id', user.id)
-        .eq('groups.is_active', true)
-      const groupIds = (groupRows ?? []).map(r => r.group_id)
-
-      // Fetch course IDs first, then titles
-      const { data: enrollments } = await supabase
-        .from('course_enrollments')
-        .select('course_id')
-        .eq('student_id', user.id)
-        .limit(6)
-      const courseIds = (enrollments ?? []).map((e: { course_id: string }) => e.course_id)
-
-      const [coursesRes, lessonsRes, examsRes] = await Promise.all([
-        courseIds.length > 0
-          ? supabase.from('courses').select('id, title').in('id', courseIds).eq('is_published', true)
-          : Promise.resolve({ data: [] }),
-        groupIds.length > 0
-          ? supabase
-              .from('lessons')
-              .select('id, title')
-              .eq('is_published', true)
-              .in('group_id', groupIds)
-              .order('created_at', { ascending: false })
-              .limit(5)
-          : Promise.resolve({ data: [] }),
-        // Metadata only: this panel shows five titles.
-        loadStudentExamList(supabase),
-      ])
-
-      setData({
-        courses: (coursesRes.data ?? []) as CourseItem[],
-        lessons: (lessonsRes.data ?? []) as LessonItem[],
-        exams:   examsRes.data.slice(0, 5).map((e): ExamItem => ({ id: e.id, title: e.title, due_date: e.ends_at })),
-      })
+      // One request: the server reads it in one unit as the student.
+      const res = await fetch('/api/student/quick-access')
+      if (res.ok) setData(await res.json() as QuickData)
     } finally {
       setLoading(false)
     }
-  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   // Fetching is triggered from the toggle handler below, not from an effect
   // reacting to `open` — calling setState (via fetchData) synchronously inside

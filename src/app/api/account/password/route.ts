@@ -1,9 +1,8 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentUser } from '@/lib/auth/current'
 import { authSetPassword, authVerifyPassword } from '@/lib/auth/better'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
 import { startSession } from '@/lib/auth/sign-in'
-import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
 
 const MIN_PASSWORD_LENGTH = 8
@@ -17,8 +16,7 @@ const MIN_PASSWORD_LENGTH = 8
 // one ends every session of the account (a stolen session dies with the old
 // password), so the caller gets a fresh session on the new password.
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
+  const user = await currentUser()
   if (!user?.email) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
 
   // Each attempt is a real sign-in against the current password: keep it tight.

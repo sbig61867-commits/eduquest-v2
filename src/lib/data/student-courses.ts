@@ -1,19 +1,15 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import type { CourseGroup, PastCourse } from '@/app/(student)/student/courses/courses-client'
 
 /**
  * The student's course list (/student/courses) — PERFORMANCE_CONTRACT.md P2, P5, P6.
  *
- * Named columns only: courses.* carried source_text (the whole file a course was
- * built from) to every card, and groups(*) every group column. Two rounds instead
- * of four plus N: enrolments, transfers and group memberships do not depend on each
- * other; the courses and their progress depend only on the enrolled course ids.
- *
- * Every read is the student's own (student_id = the caller, RLS-scoped as well), so
- * each is bounded by the student's enrolments / memberships / transfers.
+ * Named columns only (courses.source_text — the whole file a course was built
+ * from — never reaches a card). ONE unit, read as the student (RLS-scoped):
+ * enrolments, transfers out of a course, the course sections the student is in,
+ * the published courses and each course's progress (get_course_progress per
+ * enrolled course, in the same statement — no N extra calls).
  */
-export const STUDENT_COURSE_COLUMNS = 'id, title, description, language, has_levels, users!courses_teacher_id_fkey(full_name)'
-export const STUDENT_GROUP_COLUMNS = 'groups(id, name, course_id, image_url, instructions, is_active)'
 
 export interface StudentCourseCard {
   id: string
@@ -33,56 +29,49 @@ export interface StudentCourseList {
   pastCourses: PastCourse[]
 }
 
-type GroupRow = { id: string; name: string; course_id?: string | null; image_url?: string | null; instructions?: string | null; is_active?: boolean }
+const LIST_LIMIT = 500
 
-export async function loadStudentCourseList(db: SupabaseClient, studentId: string): Promise<StudentCourseList> {
-  const [{ data: enrollments }, { data: transfers }, { data: memberships }] = await Promise.all([
-    db.from('course_enrollments').select('course_id').eq('student_id', studentId),
-    // Courses left through a group transfer: progress frozen at the moment of the
-    // move (group_transfers). Read-only history — errors (pre-migration) mean none.
-    db.from('group_transfers')
-      .select('id, from_course_id, from_course_title, from_group_name, to_course_title, frozen_completed, frozen_total, created_at')
-      .eq('student_id', studentId)
-      .eq('course_changed', true)
-      .order('created_at', { ascending: false }),
-    // The student's groups that are sections of these courses.
-    db.from('group_students').select(STUDENT_GROUP_COLUMNS).eq('student_id', studentId),
+export async function loadStudentCourseList(studentId: string): Promise<StudentCourseList> {
+  const [enrollments, transfers, sections, courses] = await run({ as: 'user', userId: studentId }, sql => [
+    sql`select course_id from public.course_enrollments where student_id = ${studentId} limit ${LIST_LIMIT}`,
+    // Courses left through a group transfer: progress frozen at the moment of
+    // the move. Read-only history.
+    sql`select id, from_course_id, from_course_title, from_group_name, to_course_title, frozen_completed, frozen_total, created_at
+          from public.group_transfers
+         where student_id = ${studentId} and course_changed
+         order by created_at desc limit ${LIST_LIMIT}`,
+    // The student's ACTIVE groups that are sections of a course they are enrolled in.
+    sql`select g.id, g.name, g.course_id, g.image_url, g.instructions
+          from public.group_students gs join public.groups g on g.id = gs.group_id
+         where gs.student_id = ${studentId} and g.is_active and g.course_id is not null
+           and g.course_id in (select course_id from public.course_enrollments where student_id = ${studentId})
+         limit ${LIST_LIMIT}`,
+    sql`select c.id, c.title, c.description, c.language, c.has_levels,
+               case when t.id is null then null else json_build_object('full_name', t.full_name) end as users,
+               public.get_course_progress(c.id, ${studentId}) as progress
+          from public.courses c left join public.users t on t.id = c.teacher_id
+         where c.is_published and c.id in (select course_id from public.course_enrollments where student_id = ${studentId})
+         order by c.title limit ${LIST_LIMIT}`,
   ])
 
-  const courseIds = (enrollments ?? []).map(e => e.course_id as string)
-
-  const pastCourses: PastCourse[] = ((transfers ?? []) as PastCourse[])
+  const courseIds = (enrollments as unknown as { course_id: string }[]).map(e => e.course_id)
+  const pastCourses = (transfers as unknown as PastCourse[])
     // Back in that course again later? Then it is a current course, not history.
     .filter(t => !t.from_course_id || !courseIds.includes(t.from_course_id))
-
   if (courseIds.length === 0) return { courses: [], progressMap: {}, groupsByCourse: {}, pastCourses }
 
-  // A group shows under a course only when it is linked to that course AND the
-  // student is a member.
   const groupsByCourse: Record<string, CourseGroup[]> = {}
-  for (const m of (memberships ?? []) as unknown as { groups: GroupRow | GroupRow[] | null }[]) {
-    const g = Array.isArray(m.groups) ? m.groups[0] : m.groups
-    if (!g?.course_id || !courseIds.includes(g.course_id) || g.is_active === false) continue
-    ;(groupsByCourse[g.course_id] ??= []).push({
-      id: g.id, name: g.name, image_url: g.image_url ?? null, instructions: g.instructions ?? null,
-    })
+  for (const g of sections as unknown as { id: string; name: string; course_id: string; image_url: string | null; instructions: string | null }[]) {
+    ;(groupsByCourse[g.course_id] ??= []).push({ id: g.id, name: g.name, image_url: g.image_url, instructions: g.instructions })
   }
 
-  const [{ data: courses }, progressResults] = await Promise.all([
-    db.from('courses')
-      .select(STUDENT_COURSE_COLUMNS)
-      .in('id', courseIds)
-      .eq('is_published', true)
-      .order('title'),
-    Promise.all(courseIds.map(async (cid) => {
-      const { data } = await db.rpc('get_course_progress', { p_course_id: cid, p_student_id: studentId })
-      return [cid, data as CourseProgress | null] as const
-    })),
-  ])
-
+  const rows = courses as unknown as (StudentCourseCard & { progress: CourseProgress | null })[]
+  // Every enrolled course has a progress entry (null for one that is not published), as before.
+  const progressMap: Record<string, CourseProgress | null> = Object.fromEntries(courseIds.map(id => [id, null]))
+  for (const c of rows) progressMap[c.id] = c.progress
   return {
-    courses: (courses ?? []) as unknown as StudentCourseCard[],
-    progressMap: Object.fromEntries(progressResults),
+    courses: rows.map(({ progress: _p, ...card }) => (void _p, card)),
+    progressMap,
     groupsByCourse,
     pastCourses,
   }

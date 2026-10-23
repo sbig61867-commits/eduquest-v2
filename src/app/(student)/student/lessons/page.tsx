@@ -2,46 +2,43 @@ export const dynamic = 'force-dynamic'
 
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, CheckCircle2, CalendarClock, ChevronLeft } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { ListPagination } from '@/components/shared/list-pagination'
 import { loadStudentLessons } from '@/lib/data/student-lessons'
-import { loadStudentExamList } from '@/lib/data/student-exams'
+import { studentExamListSql, toStudentExams } from '@/lib/data/student-exams'
 
 export default async function StudentLessonsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const t = await getTranslations('student.lessons')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  // Get only the groups this student is enrolled in
-  const { data: groupRows } = await supabase
-    .from('group_students')
-    .select('group_id')
-    .eq('student_id', user.id)
-
-  const groupIds = (groupRows ?? []).map(r => r.group_id)
+  // One unit, read as the student: their groups, the exam list (homework
+  // created inside a lesson lives in `exams` with type='homework' and
+  // lesson_id set) and the submissions.
+  type HomeworkRow = { id: string; title: string; ends_at: string | null; type?: string; lesson_id?: string | null }
+  const [groupRows, examList, hwSubmissions] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select group_id from public.group_students where student_id = ${user.id} limit 500`,
+    studentExamListSql(sql),
+    sql`select exam_id from public.exam_submissions where student_id = ${user.id} limit 5000`,
+  ])
+  const groupIds = (groupRows as unknown as { group_id: string }[]).map(r => r.group_id)
+  const feed = toStudentExams(examList)
 
   // One page of 50 lesson titles (newest first) — no bodies; a lesson's body is
   // read when the student opens it (LessonDetails). Archived groups stay hidden.
-  const { data: lessonPage, error: lessonsErr } = await loadStudentLessons(supabase, groupIds, (await searchParams).page)
+  const { data: lessonPage, error: lessonsErr } = await loadStudentLessons(user.id, groupIds, (await searchParams).page)
   if (lessonsErr) console.error('[student/lessons]', lessonsErr)
   const lessons = lessonPage.rows
 
-  // Homework created inside a lesson lives in the `exams` table with
-  // type='homework' and lesson_id set (homework_exam_migration.sql).
-  // Students have no direct SELECT on `exams`, so it comes through the
-  // same enrolment-scoped, metadata-only list the exams page uses.
-  type HomeworkRow = { id: string; title: string; ends_at: string | null; type?: string; lesson_id?: string | null }
-  const [{ data: feed }, { data: hwSubmissions }] = await Promise.all([
-    loadStudentExamList(supabase),
-    supabase.from('exam_submissions').select('exam_id').eq('student_id', user.id),
-  ])
-  const submittedIds = new Set((hwSubmissions ?? []).map(r => r.exam_id))
+  // Students have no direct SELECT on `exams`: homework comes through the same
+  // enrolment-scoped, metadata-only list the exams page uses.
+  const submittedIds = new Set((hwSubmissions as unknown as { exam_id: string }[]).map(r => r.exam_id))
   const homeworkByLesson = new Map<string, HomeworkRow[]>()
   for (const row of feed as HomeworkRow[]) {
     if (row.type !== 'homework' || !row.lesson_id) continue
