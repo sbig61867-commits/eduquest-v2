@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { notFound, redirect } from 'next/navigation'
 import { groupStudentRows, isShared, requestNow, summarizeAttendance } from '@/lib/teacher-records'
 import { loadGroupData } from '@/lib/data/teacher-records'
@@ -12,11 +12,10 @@ const CHART_LAST = 12
 // id) is a 404 — loadGroupData only returns groups this teacher owns.
 export default async function GroupRecordPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const data = await loadGroupData(supabase, user.id, groupId)
+  const data = await loadGroupData(user.id, groupId)
   if (!data) notFound()
 
   const now = requestNow()

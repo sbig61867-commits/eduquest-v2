@@ -27,6 +27,23 @@ function validDuration(v: unknown): number | null {
 // context that is up to 15 minutes old; the proxy re-checks is_active live
 // before any write.
 
+// GET /api/exams?id=…  — the questions of one of the caller's own exams (the
+// teacher's questions viewer opens them on demand; the list never carries
+// them). Read as the caller: RLS plus the explicit teacher filter, so another
+// teacher's or institution's exam is a 404.
+export async function GET(request: Request) {
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const id = new URL(request.url).searchParams.get('id') ?? ''
+  if (!UUID.test(id)) return NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 })
+  const [rows] = await run({ as: 'user', userId: ctx.sub }, sql => [
+    sql`select questions from public.exams where id = ${id} and teacher_id = ${ctx.sub} and deleted_at is null`,
+  ])
+  const exam = maybeOne<{ questions: Question[] | null }>(rows)
+  if (!exam) return NextResponse.json({ ...(await apiErr('notFound')) }, { status: 404 })
+  return NextResponse.json({ questions: exam.questions ?? [] })
+}
+
 export async function POST(request: Request) {
   const ctx = await currentCtx()
   if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })

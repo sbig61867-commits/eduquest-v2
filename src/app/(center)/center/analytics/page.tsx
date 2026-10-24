@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { loadCenterAccess } from '@/lib/center-access'
 import { NoPermission } from '@/components/shared/no-permission'
 import { getTranslations } from 'next-intl/server'
-import { loadCourseAnalytics, loadTenantEngagement, courseInsights, formatInsight, engagementTone, type CourseAnalyticsRow } from '@/lib/engagement'
+import { loadCourseAnalyticsAs, loadTenantEngagement, courseInsights, formatInsight, engagementTone, type CourseAnalyticsRow } from '@/lib/engagement'
 import { BarChart3, CheckCircle2, AlertTriangle, Lightbulb } from 'lucide-react'
 import { CourseSuggestions } from '@/components/center/course-suggestions'
 
@@ -143,13 +143,13 @@ export default async function CenterAnalyticsPage({
 }) {
   const { days } = await searchParams
   const t = await getTranslations('center.analytics')
-  const { supabase, has } = await loadCenterAccess()
+  const { userId, has } = await loadCenterAccess()
   if (!has('view_reports')) return <NoPermission capability="view_reports" />
 
   const period = PERIODS.includes(Number(days)) ? Number(days) : 30
   const [analytics, engagement] = await Promise.all([
-    loadCourseAnalytics(supabase, period),
-    loadTenantEngagement(supabase, period),
+    loadCourseAnalyticsAs(userId, period),
+    loadTenantEngagement(userId, period),
   ])
 
   // Assignment submission rate per group, merged in from the engagement feed.

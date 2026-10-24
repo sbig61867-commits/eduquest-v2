@@ -1,23 +1,30 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { CoursesClient } from './courses-client'
 import { Lock, GraduationCap } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
 export default async function CoursesPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
   const t = await getTranslations('teacher')
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('can_create_courses, tenant_id')
-    .eq('id', user.id)
-    .single()
+  // The permission and the course list in one unit; the list is only shown
+  // when the permission holds.
+  const [profiles, courses] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select can_create_courses, tenant_id from public.users where id = ${user.id}`,
+    sql`select c.id, c.title, c.description, c.language, c.has_levels, c.is_published, c.created_at,
+               json_build_array(json_build_object('count', (select count(*)::int from public.course_levels l where l.course_id = c.id))) as course_levels,
+               json_build_array(json_build_object('count', (select count(*)::int from public.course_enrollments e where e.course_id = c.id))) as course_enrollments
+          from public.courses c
+         where c.teacher_id = ${user.id} and exists (select 1 from public.users u where u.id = ${user.id} and u.can_create_courses)
+         order by c.created_at desc limit 500`,
+  ])
+  const profile = profiles[0] as { can_create_courses: boolean | null; tenant_id: string | null } | undefined
 
   if (!profile?.can_create_courses) {
     return (
@@ -37,15 +44,9 @@ export default async function CoursesPage() {
     )
   }
 
-  const { data: courses } = await supabase
-    .from('courses')
-    .select('*, course_levels(count), course_enrollments(count)')
-    .eq('teacher_id', user.id)
-    .order('created_at', { ascending: false })
-
   return (
     <CoursesClient
-      initialCourses={courses ?? []}
+      initialCourses={courses as unknown as Parameters<typeof CoursesClient>[0]['initialCourses']}
       teacherId={user.id}
       tenantId={profile.tenant_id ?? ''}
     />

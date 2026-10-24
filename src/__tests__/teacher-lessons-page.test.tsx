@@ -30,27 +30,18 @@ vi.mock('@/components/ui/toast', () => ({ toast: { error: vi.fn(), success: vi.f
 import { loadTeacherLessons, lessonExcerpt, toLessonRow, TEACHER_LESSONS_PAGE_SIZE } from '@/lib/data/teacher-lessons'
 import { LessonsClient } from '@/app/(teacher)/teacher/lessons/lessons-client'
 
-type Call = [string, ...unknown[]]
-let calls: Call[][]
-let reply: { data?: unknown[]; count?: number; error?: { code?: string; message: string } | null }[]
-function db() {
-  return {
-    from(table: string) {
-      const c: Call[] = [['from', table]]
-      calls.push(c)
-      const ch: Record<string, unknown> = {}
-      for (const m of ['select', 'eq', 'order', 'range']) ch[m] = (...a: unknown[]) => { c.push([m, ...a]); return ch }
-      ch.then = (resolve: (v: unknown) => unknown) => {
-        const head = c.some(x => x[0] === 'select' && (x[2] as { head?: boolean } | undefined)?.head)
-        return Promise.resolve(head ? { count: 120, error: null } : { data: [], count: 0, error: null, ...reply.shift() }).then(resolve)
-      }
-      return ch
-    },
-  }
-}
+// loadTeacherLessons is ONE statement read as the teacher (step 9); the
+// statement clamps the page, so the fake answers with the page it would.
+type Q = { text: string; values: unknown[]; ctx: { as: string; userId?: string } }
+const db = vi.hoisted(() => ({ calls: [] as Q[], reply: null as null | { total: number; page: number; rows: unknown[] } | Error }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  db.calls.push(q as Q)
+  if (db.reply instanceof Error) return db.reply
+  return db.reply ? [db.reply] : []
+}))
 const raw = (i: number, content: string | null) => ({ id: `l${i}`, title: `Lesson ${i}`, is_published: true, created_at: '2026-10-01T00:00:00Z', content, groups: { name: 'G' } })
 
-beforeEach(() => { calls = []; reply = []; lessonRead.mockReset() })
+beforeEach(() => { db.calls = []; db.reply = null; lessonRead.mockReset() })
 
 describe('lessonExcerpt', () => {
   it('is exactly what the list used to show: markdown marks removed, first 150 characters', () => {
@@ -61,27 +52,33 @@ describe('lessonExcerpt', () => {
 })
 
 describe('loadTeacherLessons', () => {
-  it('one page of 50 of the teacher\'s lessons, named columns, exact count; rows carry an excerpt, never the body', async () => {
-    reply = [{ data: [raw(1, 'A'.repeat(20000)), raw(2, null)], count: 300 }]
-    const { data, error } = await loadTeacherLessons(db() as never, 'teacher-1', '2')
+  it('one page of 50 of the teacher\'s lessons as the teacher, named columns, exact count; rows carry an excerpt, never the body', async () => {
+    db.reply = { total: 300, page: 2, rows: [raw(1, 'A'.repeat(20000)), raw(2, null)] }
+    const { data, error } = await loadTeacherLessons('teacher-1', '2')
     expect(error).toBeNull()
-    const q = calls[0]
-    expect(q).toContainEqual(['from', 'lessons'])
-    expect(q).toContainEqual(['select', 'id, title, is_published, created_at, content, groups(name)', { count: 'exact' }])
-    expect(q).toContainEqual(['eq', 'teacher_id', 'teacher-1'])
-    expect(q).toContainEqual(['order', 'created_at', { ascending: false }])
-    expect(q).toContainEqual(['range', TEACHER_LESSONS_PAGE_SIZE, 2 * TEACHER_LESSONS_PAGE_SIZE - 1])
+    expect(db.calls).toHaveLength(1)
+    const [q] = db.calls
+    expect(q.ctx).toEqual({ as: 'user', userId: 'teacher-1' })
+    expect(q.text).toContain('select l.id, l.title, l.is_published, l.created_at, l.content, g.name as group_name')
+    expect(q.text).toContain('where l.teacher_id = $')
+    expect(q.text).toContain('order by l.created_at desc, l.id')
+    expect(q.values).toEqual(['teacher-1', 2, TEACHER_LESSONS_PAGE_SIZE, 'teacher-1', TEACHER_LESSONS_PAGE_SIZE, TEACHER_LESSONS_PAGE_SIZE])
     expect(data).toMatchObject({ total: 300, page: 2, pageCount: 6 })
     expect(Object.keys(data.rows[0]).sort()).toEqual(['created_at', 'excerpt', 'groups', 'id', 'is_published', 'title'])
     expect(data.rows[0].excerpt).toHaveLength(150)
     expect(JSON.stringify(data).length).toBeLessThan(1000)
   })
 
-  it('a page past the end → the last page', async () => {
-    reply = [{ error: { code: 'PGRST103', message: 'range' } }, { data: [raw(9, 'x')], count: 120 }]
-    const { data } = await loadTeacherLessons(db() as never, 'teacher-1', '99')
+  it('a page past the end → the statement answers the last page', async () => {
+    db.reply = { total: 120, page: 3, rows: [raw(9, 'x')] }
+    const { data } = await loadTeacherLessons('teacher-1', '99')
+    expect(db.calls[0].text).toContain('least($, greatest(1, ceil(n / $::numeric)::int))')
     expect(data.page).toBe(3)
-    expect(calls.at(-1)).toContainEqual(['range', 100, 149])
+  })
+
+  it('a failed read is an error with an empty page, never a partial one', async () => {
+    db.reply = new Error('boom')
+    expect(await loadTeacherLessons('teacher-1', '1')).toEqual({ data: { rows: [], total: 0, page: 1, pageCount: 1 }, error: { message: 'boom' } })
   })
 })
 

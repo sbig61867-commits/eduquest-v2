@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
-import { nameOrEmailFilter, sanitizeSearch } from '@/lib/data/people'
+import { sanitizeSearch } from '@/lib/data/people'
 import { run } from '@/lib/db/sql'
 
 /**
@@ -52,45 +51,4 @@ export async function searchReportTargetsAs(
   ])
   return (rows as unknown as { id: string; full_name: string | null; email: string | null }[])
     .map(u => ({ id: u.id, label: u.full_name ?? '', email: u.email ?? '' }))
-}
-
-export async function searchReportTargets(
-  db: SupabaseClient,
-  tenantId: string,
-  kind: ReportTargetKind,
-  q: string,
-): Promise<{ rows: ReportTarget[]; error: { message: string } | null }> {
-  const search = sanitizeSearch(q)
-  if (!search) return { rows: [], error: null }
-
-  if (kind === 'group') {
-    const { data, error } = await db
-      .from('groups')
-      .select('id, name')
-      .eq('tenant_id', tenantId)
-      .ilike('name', `%${search}%`)
-      .order('name', { ascending: true })
-      .order('id', { ascending: true })
-      .limit(REPORT_TARGET_LIMIT)
-    if (error) return { rows: [], error }
-    const rows = ((data ?? []) as { id: string; name: string }[])
-      .slice(0, REPORT_TARGET_LIMIT)
-      .map(g => ({ id: g.id, label: g.name }))
-    return { rows, error: null }
-  }
-
-  const { data, error } = await db
-    .from('users')
-    .select('id, full_name, email')
-    .eq('tenant_id', tenantId)
-    .eq('role', kind)
-    .or(nameOrEmailFilter(search))
-    .order('full_name', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(REPORT_TARGET_LIMIT)
-  if (error) return { rows: [], error }
-  const rows = ((data ?? []) as { id: string; full_name: string | null; email: string | null }[])
-    .slice(0, REPORT_TARGET_LIMIT)
-    .map(u => ({ id: u.id, label: u.full_name ?? '', email: u.email ?? '' }))
-  return { rows, error: null }
 }

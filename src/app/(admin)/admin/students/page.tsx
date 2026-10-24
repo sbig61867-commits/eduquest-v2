@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { StudentsClient } from './students-client'
 import { canSetAffiliation } from '@/lib/student-affiliation'
@@ -11,19 +12,19 @@ import { listStudents, parsePage, sanitizeSearch } from '@/lib/data/people'
 // page and total come from the database, never from filtering the whole
 // student body in the browser. name_complete rides on the same rows.
 export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
   if (!user.tenant_id) redirect('/login')
 
   const params = await searchParams
   const search = sanitizeSearch(params.q)
-  const [{ data: list }, { data: profile }, settings] = await Promise.all([
-    listStudents(supabase, user.tenant_id, { search, page: parsePage(params.page) }),
-    supabase.from('users').select('role, permissions').eq('id', user.id).single(),
-    getTenantSettings(supabase, user.tenant_id),
+  const [{ data: list }, [profileRows], settings] = await Promise.all([
+    listStudents(user.id, user.tenant_id, { search, page: parsePage(params.page) }),
+    run({ as: 'user', userId: user.id }, sql => [sql`select role, permissions from public.users where id = ${user.id}`]),
+    getTenantSettings(user.id, user.tenant_id),
   ])
+  const profile = profileRows[0] as { role: string | null; permissions: Record<string, unknown> | null } | undefined
 
   return (
     <StudentsClient

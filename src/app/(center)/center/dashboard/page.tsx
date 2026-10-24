@@ -6,6 +6,7 @@ import {
   CalendarDays, Megaphone, ShieldCheck, Inbox,
 } from 'lucide-react'
 import { loadCenterAccess } from '@/lib/center-access'
+import { run } from '@/lib/db/sql'
 import { CAPABILITIES } from '@/lib/permissions'
 import { getTranslations, getLocale } from 'next-intl/server'
 import { AiAllowanceCard } from '@/components/shared/ai-allowance-card'
@@ -90,7 +91,7 @@ export default async function CenterDashboard({ searchParams }: { searchParams: 
   const t = await getTranslations('center.dashboard')
   const tStaff = await getTranslations('staff')
   const locale = await getLocale()
-  const { supabase, perms, has } = await loadCenterAccess()
+  const { userId, perms, has } = await loadCenterAccess()
   const granted = CAPABILITIES.filter(c => perms[c])
   const sp = await searchParams
   const days = PERIODS.includes(Number(sp.days)) ? Number(sp.days) : 30
@@ -126,7 +127,9 @@ export default async function CenterDashboard({ searchParams }: { searchParams: 
     )
   }
 
-  const { data, error } = await supabase.rpc('get_center_dashboard', { p_days: days })
+  const { data, error } = await run({ as: 'user', userId }, sql => [sql`select public.get_center_dashboard(p_days => ${days}) as data`])
+    .then(([rows]) => ({ data: (rows[0] as { data: unknown } | undefined)?.data ?? null, error: null as unknown }))
+    .catch((e: unknown) => ({ data: null, error: e }))
   if (error || !data) {
     console.error('[center/dashboard]', error)
     return (
@@ -303,7 +306,7 @@ export default async function CenterDashboard({ searchParams }: { searchParams: 
           sub={t('tiles.openMattersSub', { requests: d.engagement.open_requests, appeals: d.engagement.pending_appeals })} />
       </div>
 
-      <AiAllowanceCard supabase={supabase} />
+      <AiAllowanceCard userId={userId} />
 
       {capabilityCard}
     </div>

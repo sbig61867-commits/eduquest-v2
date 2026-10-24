@@ -18,7 +18,10 @@ let ownsGroup: boolean
 let searchRows: unknown[] | Error
 let sql: Q[]
 
-vi.mock('@/lib/auth/current', () => ({ currentCtx: async () => ctx }))
+vi.mock('@/lib/auth/current', () => ({
+  currentCtx: async () => ctx,
+  currentUser: async () => (ctx ? { id: ctx.sub, role: ctx.role, tenant_id: ctx.tenant_id } : null),
+}))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
 vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
   sql.push(q as Q)
@@ -27,6 +30,9 @@ vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSql
     if (searchRows instanceof Error) return searchRows
     return searchRows.slice(0, q.values.at(-1) as number)
   }
+  // /teacher/groups page: the teacher's own profile and groups
+  if (q.text.startsWith('select tenant_id from public.users')) return [{ tenant_id: 'tenant-a' }]
+  if (q.text.startsWith('select g.id, g.name, g.description')) return []
   return new Error('unexpected statement: ' + q.text)
 }))
 
@@ -115,33 +121,19 @@ describe('GET /api/students/search — results', () => {
 describe('/teacher/groups page — the institution student list is no longer read', () => {
   it('reads only the teacher profile and their own groups; no student list reaches the client props', async () => {
     vi.resetModules()
-    const reads: Call[][] = []
-    const client = {
-      from(table: string) {
-        const c: Call[] = [['from', table]]
-        reads.push(c)
-        const chain: Record<string, unknown> = {}
-        for (const m of ['select', 'eq', 'order', 'in', 'is', 'limit']) {
-          chain[m] = (...args: unknown[]) => { c.push([m, ...args]); return chain }
-        }
-        chain.single = () => Promise.resolve({ data: { tenant_id: 'tenant-a', role: 'teacher' }, error: null })
-        chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(resolve)
-        return chain
-      },
-    }
-    vi.doMock('@/lib/supabase/server', () => ({
-      createClient: vi.fn(async () => client),
-      getAuthUser: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher', tenant_id: 'tenant-a' })),
-    }))
+    ctx = { sub: 'teacher-1', role: 'teacher', tenant_id: 'tenant-a' }
+    sql = []
     vi.doMock('next/navigation', () => ({ redirect: vi.fn() }))
     vi.doMock('@/app/(teacher)/teacher/groups/groups-client', () => ({ GroupsClient: () => null }))
     const { default: GroupsPage } = await import('@/app/(teacher)/teacher/groups/page')
     const element = await GroupsPage() as { props: Record<string, unknown> }
 
-    const userReads = reads.filter(c => c[0][1] === 'users')
-    expect(userReads).toHaveLength(1) // the teacher's own profile only
-    expect(userReads[0]).toContainEqual(['eq', 'id', 'teacher-1'])
-    expect(reads.flat().some(c => c[0] === 'eq' && c[1] === 'role' && c[2] === 'student')).toBe(false)
+    expect(sql).toHaveLength(2)
+    expect(sql.every(q => q.ctx.as === 'user' && q.ctx.userId === 'teacher-1')).toBe(true)
+    const [profile, groups] = sql
+    expect(profile.text).toBe('select tenant_id from public.users where id = $')
+    expect(groups.text).toContain('where g.teacher_id = $')
+    expect(sql.some(q => /role\s*=\s*'student'/.test(q.text) || q.values.includes('student'))).toBe(false)
     expect(Object.keys(element.props)).not.toContain('tenantStudents')
   })
 })

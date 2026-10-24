@@ -1,141 +1,101 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { loadGroupCards, loadGroupData, RECORD_EXAM_COLUMNS } from '@/lib/data/teacher-records'
-import { buildItems } from '@/lib/teacher-records'
-import { FIRST_ID, READ_PAGE } from '@/lib/data/complete-read'
+// @vitest-environment node
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
- * P-10 (PERFORMANCE_CONTRACT.md P2, P4, P5). Teacher records read exams by named
- * columns (never `questions` or `*`), the overview reuses the groups it listed
- * (no second read per group) and skips course progress, the attendance marks
- * join the first round, and a student's record reads that one student's rows.
- *
- * The mock resolves queries only on flush(), so each flush is one round of
- * requests to the database.
+ * P-10 (PERFORMANCE_CONTRACT.md P2, P4, P5) on the SQL layer (step 9). A group's
+ * record is ONE unit read as the teacher: the group (teacher-filtered), its
+ * roster, exams by named columns (never `questions` or `*`), sessions, marks,
+ * submissions and course progress — each keyed by the group itself (joins, not
+ * id lists). The overview lists the groups once, then reads every group's
+ * statements in ONE more unit without course progress; a student's record
+ * narrows the per-student statements to that one student.
  */
 
-type Call = { table: string; columns: string; head: boolean; single: boolean; filters: unknown[][] }
-let calls: Call[]
-let pending: (() => void)[]
-let replies: Record<string, unknown>
+type Q = { text: string; values: unknown[]; ctx: { as: string; userId?: string } }
+const db = vi.hoisted(() => ({ calls: [] as Q[], units: 0, replies: {} as Record<string, unknown[]> }))
+vi.mock('@/lib/db/sql', async () => {
+  const mod = (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+    db.calls.push(q as Q)
+    const t = q.text
+    if (t.startsWith('select g.id, g.name, g.description')) return db.replies.groups
+    if (t.startsWith('select gs.student_id, gs.joined_at')) return db.replies.members
+    if (t.startsWith('select e.id, e.title, e.type')) return db.replies.exams
+    if (t.startsWith('select id, session_date, title')) return db.replies.sessions
+    if (t.startsWith('select r.session_id, r.student_id')) return db.replies.marks
+    if (t.startsWith('select id, exam_id, student_id, score')) return db.replies.submissions
+    if (t.startsWith('select (select count(*)::int from public.unit_items')) return db.replies.progress
+    if (t === 'select null::int as total') return [{ total: null }]
+    return new Error('unexpected statement: ' + t)
+  })
+  const run = mod.run
+  return { ...mod, run: (...a: Parameters<typeof run>) => { db.units++; return run(...a) } }
+})
 
-const db = () => ({
-  from: (table: string) => ({
-    select: (columns: string, opts?: { head?: boolean; count?: string }) => {
-      const call: Call = { table, columns, head: !!opts?.head, single: false, filters: [] }
-      calls.push(call)
-      // Complete reads (B): a head count / counted page reports exactly the rows the reply holds.
-      const rows = () => (replies[table] ?? []) as unknown[]
-      const result = () =>
-        call.single ? { data: replies[`${table}:single`] ?? null, error: null }
-          : call.head ? { data: null, count: replies[`${table}:count`] ?? rows().length, error: null }
-          : { data: rows(), count: opts?.count === 'exact' ? rows().length : null, error: null }
-      const chain: Record<string, unknown> = {}
-      for (const op of ['eq', 'in', 'is', 'or', 'order', 'gt', 'limit', 'range']) chain[op] = (...a: unknown[]) => { call.filters.push([op, ...a]); return chain }
-      chain.match = (o: Record<string, unknown>) => { for (const [c, v] of Object.entries(o)) call.filters.push(['eq', c, v]); return chain }
-      chain.maybeSingle = () => { call.single = true; return chain }
-      chain.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
-        new Promise(r => pending.push(() => r(result()))).then(res, rej)
-      return chain
-    },
-  }),
-}) as never
+import { loadGroupCards, loadGroupData } from '@/lib/data/teacher-records'
+import { buildItems } from '@/lib/teacher-records'
 
-/** Resolve every query in flight (one round), then let the loader start the next. */
-async function flush() {
-  // `await` asks a thenable for its result in a later microtask: let those land first.
-  await new Promise(r => setTimeout(r, 0))
-  const now = pending
-  pending = []
-  now.forEach(f => f())
-  await new Promise(r => setTimeout(r, 0))
-}
-/** Tables of the calls started since `from`. */
-const since = (from: number) => calls.slice(from).map(c => c.table)
-const callOf = (table: string) => calls.find(c => c.table === table)!
-
-const GROUP = { id: 'g1', name: 'Group 1', description: null, image_url: null, is_active: true, created_at: '2026-09-01T00:00:00Z', course_id: 'c1', courses: { title: 'Course' } }
+const GROUP = { id: 'g1', name: 'Group 1', description: null, image_url: null, is_active: true, created_at: '2026-09-01T00:00:00Z', course_id: 'c1', course_title: 'Course' }
+const of = (prefix: string) => db.calls.filter(q => q.text.startsWith(prefix))
 
 beforeEach(() => {
-  calls = []; pending = []
-  replies = {
-    'groups:single': GROUP,
-    groups: [GROUP, { ...GROUP, id: 'g2', name: 'Group 2', course_id: null, courses: null }],
-    group_students: [
-      { student_id: 's1', joined_at: '2026-09-01T00:00:00Z', users: { full_name: 'Sara', email: 's1@x', is_active: true } },
-      { student_id: 's2', joined_at: '2026-09-01T00:00:00Z', users: { full_name: 'Omar', email: 's2@x', is_active: true } },
+  db.calls = []; db.units = 0
+  db.replies = {
+    groups: [GROUP],
+    members: [
+      { student_id: 's1', joined_at: '2026-09-01T00:00:00Z', full_name: 'Sara', email: 's1@x', is_active: true },
+      { student_id: 's2', joined_at: '2026-09-01T00:00:00Z', full_name: 'Omar', email: 's2@x', is_active: true },
     ],
     exams: [{ id: 'e1', title: 'Midterm', type: 'exam', lesson_id: null, created_at: '2026-09-10T00:00:00Z', ends_at: '2026-09-11T00:00:00Z',
-      group_id: 'g1', lessons: null, assigned_student_id: null, counts_toward_grade: true, source_exam_id: null }],
-    attendance_sessions: [{ id: 'a1', session_date: '2026-09-12', title: null }],
-    attendance_records: [{ session_id: 'a1', student_id: 's1', status: 'present', note: null }],
-    exam_submissions: [{ id: 'x1', exam_id: 'e1', student_id: 's1', score: 15, max_score: 20, grading_status: 'published',
+      group_id: 'g1', lesson_title: null, assigned_student_id: null, counts_toward_grade: true, source_exam_id: null }],
+    sessions: [{ id: 'a1', session_date: '2026-09-12', title: null }],
+    marks: [{ session_id: 'a1', student_id: 's1', status: 'present', note: null }],
+    submissions: [{ id: 'x1', exam_id: 'e1', student_id: 's1', score: 15, max_score: 20, grading_status: 'published',
       status: 'submitted', submitted_at: '2026-09-10T10:00:00Z', is_flagged: false }],
-    'unit_items:count': 4,
-    student_progress: [{ id: 'p1', student_id: 's1' }, { id: 'p2', student_id: 's1' }],
+    progress: [{ total: 4, done: { s1: 2 } }],
   }
 })
 
-describe('exam columns (P-10)', () => {
-  it('named columns, exactly what a record uses — never questions or *', () => {
-    expect(RECORD_EXAM_COLUMNS).toBe(
-      'id, title, type, lesson_id, created_at, ends_at, group_id, assigned_student_id, counts_toward_grade, source_exam_id, lessons(title)')
-    expect(RECORD_EXAM_COLUMNS).not.toMatch(/questions|\*/)
-  })
-})
-
 describe('loadGroupData — group page (P-10)', () => {
-  it('three rounds: the group; roster + exams + sessions + marks; submissions + course progress', async () => {
-    const done = loadGroupData(db(), 't1', 'g1')
-    await new Promise(r => setTimeout(r, 0))
-    expect(since(0)).toEqual(['groups'])
-    expect(callOf('groups').filters).toEqual([['eq', 'id', 'g1'], ['eq', 'teacher_id', 't1']])
-    await flush()
-    expect(since(1).sort()).toEqual(['attendance_records', 'attendance_sessions', 'exams', 'group_students'])
-    await flush()
-    // Each complete read is its first page + a head-only count of the same read, in the same round.
-    expect(since(5)).toEqual(['exam_submissions', 'exam_submissions', 'unit_items', 'student_progress', 'student_progress'])
-    await flush(); await flush()
-    const data = await done
+  it('ONE unit as the teacher: the group, roster, exams, sessions, marks, submissions and course progress', async () => {
+    const data = await loadGroupData('t1', 'g1')
+    expect(db.units).toBe(1)
+    expect(db.calls).toHaveLength(7)
+    expect(db.calls.every(q => q.ctx.as === 'user' && q.ctx.userId === 't1')).toBe(true)
+    const [group] = db.calls
+    expect(group.text).toContain('where g.teacher_id = $ and ($::uuid is null or g.id = $::uuid)')
+    expect(group.values).toEqual(['t1', 'g1', 'g1'])
     expect(data!.members.map(m => m.studentId)).toEqual(['s2', 's1'])
     expect(data!.progress).toMatchObject({ total: 4 })
     expect(data!.progress!.done.get('s1')).toBe(2)
   })
 
-  it('exams: named columns + the teacher / published / live / group-or-course filters', async () => {
-    const done = loadGroupData(db(), 't1', 'g1')
-    await flush(); await flush(); await flush(); await flush()
-    await done
-    const exams = callOf('exams')
-    expect(exams.columns).toBe(RECORD_EXAM_COLUMNS)
-    expect(exams.filters).toEqual([
-      ['eq', 'teacher_id', 't1'], ['eq', 'is_published', true], ['is', 'deleted_at', null], ['or', 'group_id.eq.g1,course_id.eq.c1'],
-    ])
-    // The group's roster and marks are not narrowed to a student here.
-    expect(callOf('group_students').filters).toEqual([['eq', 'group_id', 'g1']])
-    expect(callOf('attendance_records').filters).toEqual([
-      ['eq', 'attendance_sessions.group_id', 'g1'], ['order', 'session_id'], ['order', 'student_id'], ['range', 0, READ_PAGE - 1],
-    ])
-    // Submissions: through the exam's own conditions (no exam id list), members by id batch, keyset on id.
-    expect(callOf('exam_submissions').filters).toEqual([
-      ['eq', 'exams.teacher_id', 't1'], ['eq', 'exams.is_published', true], ['is', 'exams.deleted_at', null],
-      ['or', 'group_id.eq.g1,course_id.eq.c1', { referencedTable: 'exams' }], ['in', 'student_id', ['s2', 's1']],
-      ['gt', 'id', FIRST_ID], ['order', 'id'], ['limit', READ_PAGE],
-    ])
-    expect(callOf('exam_submissions').columns).toContain('exams!inner()')
+  it('exams: named columns — never questions or * — with the teacher / published / live / group-or-course conditions', async () => {
+    await loadGroupData('t1', 'g1')
+    const [exams] = of('select e.id, e.title, e.type')
+    expect(exams.text).toContain('e.counts_toward_grade, e.source_exam_id, l.title as lesson_title')
+    expect(exams.text).not.toMatch(/questions|\*/)
+    expect(exams.text).toContain('e.teacher_id = $ and e.is_published and e.deleted_at is null')
+    expect(exams.text).toContain('(e.group_id = g.id or (g.course_id is not null and e.course_id = g.course_id))')
+    // Submissions go through the same exam conditions (no exam id list) and the group's members.
+    const [subs] = of('select id, exam_id, student_id, score')
+    expect(subs.text).toContain('where exam_id in (select e.id from public.exams e')
+    expect(subs.text).toContain('student_id in (select gs.student_id from public.group_students gs')
+    expect(subs.text).not.toContain('questions')
   })
 
-  it('not the teacher\'s group → null, and nothing else is read', async () => {
-    replies['groups:single'] = null
-    const done = loadGroupData(db(), 't1', 'g9')
-    await flush()
-    expect(await done).toBeNull()
-    expect(since(0)).toEqual(['groups'])
+  it('the group\'s roster and marks are not narrowed to a student here', async () => {
+    await loadGroupData('t1', 'g1')
+    expect(of('select gs.student_id, gs.joined_at')[0].values).toEqual(['g1', null, null])
+    expect(of('select r.session_id, r.student_id')[0].values).toEqual(['g1', null, null])
+  })
+
+  it('not the teacher\'s group → null', async () => {
+    db.replies.groups = []
+    expect(await loadGroupData('t1', 'g9')).toBeNull()
   })
 
   it('a graded item takes its maximum from the submission (questions are not read)', async () => {
-    const done = loadGroupData(db(), 't1', 'g1')
-    await flush(); await flush(); await flush(); await flush()
-    const data = (await done)!
+    const data = (await loadGroupData('t1', 'g1'))!
     expect(data.assessments[0].maxPoints).toBe(0)
     const items = buildItems(data.assessments, data.submissions.filter(s => s.studentId === 's1'), null, Date.parse('2026-10-01'), 's1')
     expect(items[0]).toMatchObject({ status: 'graded', score: 15, max: 20, pct: 75 })
@@ -144,53 +104,43 @@ describe('loadGroupData — group page (P-10)', () => {
 
 describe('loadGroupData — one student\'s record (P-10)', () => {
   it('roster, marks, submissions and progress are read for that student only', async () => {
-    replies.group_students = [(replies.group_students as unknown[])[0]]
-    const done = loadGroupData(db(), 't1', 'g1', { studentId: 's1' })
-    await flush(); await flush(); await flush(); await flush()
-    const data = (await done)!
-    expect(callOf('group_students').filters).toEqual([['eq', 'group_id', 'g1'], ['eq', 'student_id', 's1']])
-    expect(callOf('attendance_records').filters).toEqual([
-      ['eq', 'attendance_sessions.group_id', 'g1'], ['eq', 'student_id', 's1'], ['order', 'session_id'], ['order', 'student_id'], ['range', 0, READ_PAGE - 1],
-    ])
-    expect(callOf('exam_submissions').filters).toContainEqual(['in', 'student_id', ['s1']])
-    expect(callOf('student_progress').filters).toContainEqual(['in', 'student_id', ['s1']])
+    db.replies.members = [db.replies.members[0]]
+    const data = (await loadGroupData('t1', 'g1', { studentId: 's1' }))!
+    expect(of('select gs.student_id, gs.joined_at')[0].values).toEqual(['g1', 's1', 's1'])
+    expect(of('select r.session_id, r.student_id')[0].values).toEqual(['g1', 's1', 's1'])
+    expect(of('select id, exam_id, student_id, score')[0].values).toContain('s1')
+    expect(of('select (select count(*)::int from public.unit_items')[0].values).toContain('s1')
     // The work set for the group is still listed whole (the follow-up composer picks from it).
-    expect(callOf('exams').filters).not.toContainEqual(expect.arrayContaining(['student_id']))
+    expect(of('select e.id, e.title, e.type')[0].values).not.toContain('s1')
     expect(data.members.map(m => m.studentId)).toEqual(['s1'])
   })
 
-  it('a student who is not in the group reads no submissions or progress', async () => {
-    replies.group_students = []
-    const done = loadGroupData(db(), 't1', 'g1', { studentId: 'sX' })
-    await flush(); await flush()
-    const data = (await done)!
+  it('a student who is not in the group gets an empty record (no members, no progress)', async () => {
+    db.replies.members = []
+    db.replies.submissions = []
+    const data = (await loadGroupData('t1', 'g1', { studentId: 'sX' }))!
     expect(data.members).toEqual([])
-    expect(since(0)).not.toContain('exam_submissions')
-    expect(since(0)).not.toContain('student_progress')
+    expect(data.progress).toBeNull()
   })
 })
 
 describe('loadGroupCards — overview (P-10)', () => {
-  it('lists the groups once, never re-reads them, and reads no course progress', async () => {
-    const done = loadGroupCards(db(), 't1', Date.parse('2026-10-01'))
-    await new Promise(r => setTimeout(r, 0))
-    expect(since(0)).toEqual(['groups'])
-    expect(callOf('groups').filters).toEqual([['eq', 'teacher_id', 't1'], ['order', 'created_at', { ascending: false }]])
-    await flush()
-    // Round 2: four reads per group, both groups at once — no `groups` read.
-    expect(since(1).sort()).toEqual([
-      'attendance_records', 'attendance_records', 'attendance_sessions', 'attendance_sessions',
-      'exams', 'exams', 'group_students', 'group_students',
-    ])
-    await flush()
-    expect(since(9)).toEqual(['exam_submissions', 'exam_submissions', 'exam_submissions', 'exam_submissions'])
-    await flush()
-    const cards = await done
-    expect(calls.filter(c => c.table === 'groups')).toHaveLength(1)
-    expect(since(0)).not.toContain('unit_items')
-    expect(since(0)).not.toContain('student_progress')
+  it('lists the groups once, then every group in ONE more unit, without course progress', async () => {
+    db.replies.groups = [GROUP, { ...GROUP, id: 'g2', name: 'Group 2', course_id: null, course_title: null }]
+    const cards = await loadGroupCards('t1', Date.parse('2026-10-01'))
+    expect(db.units).toBe(2)
+    expect(of('select g.id, g.name, g.description')).toHaveLength(1)
+    expect(of('select g.id, g.name, g.description')[0].values).toEqual(['t1', null, null])
+    expect(of('select gs.student_id, gs.joined_at')).toHaveLength(2)
+    expect(of('select (select count(*)::int from public.unit_items')).toHaveLength(0)
     // The numbers come from the same summary as inside the group.
     expect(cards.map(c => c.group.id)).toEqual(['g1', 'g2'])
     expect(cards[0]).toMatchObject({ students: 2, exams: 1, homework: 0, avg: 75, attendanceRate: 100, atRisk: 0 })
+  })
+
+  it('no groups → no second unit', async () => {
+    db.replies.groups = []
+    expect(await loadGroupCards('t1', Date.now())).toEqual([])
+    expect(db.units).toBe(1)
   })
 })

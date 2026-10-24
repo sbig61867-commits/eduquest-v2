@@ -4,7 +4,6 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -78,6 +77,14 @@ const isAssessmentType = (type: string) => type in ASSESSMENT_KIND
 
 const EMPTY_ITEM = { title: '', type: 'text', body: '', aiTopic: '', exam_id: '', video_url: '' }
 
+/** The builder's writes go through /api/courses/structure (written as the teacher). */
+async function structure<T>({ method, body, query }: { method: 'POST' | 'PATCH' | 'DELETE'; body?: Record<string, unknown>; query?: string }): Promise<T | null> {
+  const res = await fetch(`/api/courses/structure${query ? '?' + query : ''}`, {
+    method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined,
+  }).catch(() => null)
+  return res?.ok ? ((await res.json().catch(() => null)) as T | null) : null
+}
+
 export function CourseBuildClient({ course, initialLevels, initialFlatUnits, assessments = [] }: Props) {
   const t = useTranslations('teacher')
   const [levels,    setLevels]    = useState(initialLevels)
@@ -117,7 +124,6 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
   const [unitForm,   setUnitForm]     = useState({ title: '' })
   const [saving,     setSaving]       = useState(false)
 
-  const supabase = createClient()
   const router   = useRouter()
 
   const ITEM_TYPES = [
@@ -139,18 +145,14 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
 
   async function addLevel(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    const { data } = await supabase.from('course_levels').insert({
-      course_id: course.id, tenant_id: course.tenant_id,
-      title: levelForm.title, order_index: levels.length,
-    }).select('*, course_units(*, unit_items(*))').single()
+    const data = await structure<CourseLevel>({ method: 'POST', body: { kind: 'level', course_id: course.id, title: levelForm.title, order_index: levels.length } })
     if (data) { setLevels(p => [...p, data]); router.refresh() }
     setLevelForm({ title: '' }); setLevelModal(false); setSaving(false)
   }
 
   async function deleteLevel(id: string) {
     if (!(await confirmDialog(t('courses.deleteLevelConfirm')))) return
-    const { error } = await supabase.from('course_levels').delete().eq('id', id)
-    if (!error) { setLevels(p => p.filter(l => l.id !== id)); router.refresh() }
+    if (await structure({ method: 'DELETE', query: `kind=level&id=${id}` })) { setLevels(p => p.filter(l => l.id !== id)); router.refresh() }
   }
 
   async function addUnit(e: React.FormEvent) {
@@ -159,11 +161,9 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
     const existingUnits = levelId
       ? levels.find(l => l.id === levelId)?.course_units ?? []
       : flatUnits
-    const { data } = await supabase.from('course_units').insert({
-      course_id: course.id, tenant_id: course.tenant_id,
-      level_id: levelId, title: unitForm.title,
-      order_index: existingUnits.length,
-    }).select('*, unit_items(*)').single()
+    const data = await structure<CourseUnit>({ method: 'POST', body: {
+      kind: 'unit', course_id: course.id, level_id: levelId, title: unitForm.title, order_index: existingUnits.length,
+    } })
     if (data) {
       if (levelId) {
         setLevels(p => p.map(l => l.id === levelId
@@ -180,8 +180,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
 
   async function deleteUnit(unitId: string, levelId: string | null) {
     if (!(await confirmDialog(t('courses.deleteUnitConfirm')))) return
-    const { error } = await supabase.from('course_units').delete().eq('id', unitId)
-    if (!error) {
+    if (await structure({ method: 'DELETE', query: `kind=unit&id=${unitId}` })) {
       if (levelId) {
         setLevels(p => p.map(l => l.id === levelId
           ? { ...l, course_units: l.course_units.filter(u => u.id !== unitId) }
@@ -226,10 +225,8 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
     setSaving(true)
     const unitId = itemModal.unitId!
     if (editingItem) {
-      const { data, error } = await supabase.from('unit_items')
-        .update({ title: itemForm.title, type: itemForm.type, content })
-        .eq('id', editingItem).select().single()
-      if (error || !data) { toast.error(error?.message ?? t('courses.generateFailed')); setSaving(false); return }
+      const data = await structure<UnitItem>({ method: 'PATCH', body: { id: editingItem, title: itemForm.title, type: itemForm.type, content } })
+      if (!data) { toast.error(t('courses.generateFailed')); setSaving(false); return }
       const swap = (units: CourseUnit[]) => units.map(u => u.id === unitId
         ? { ...u, unit_items: u.unit_items.map(i => (i.id === editingItem ? { ...i, ...data } : i)) }
         : u)
@@ -240,12 +237,9 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
       setItemModal({ open: false, unitId: null }); setSaving(false)
       return
     }
-    const { data } = await supabase.from('unit_items').insert({
-      unit_id: unitId, course_id: course.id, tenant_id: course.tenant_id,
-      title: itemForm.title, type: itemForm.type,
-      content,
-      order_index: 0,
-    }).select().single()
+    const data = await structure<UnitItem>({ method: 'POST', body: {
+      kind: 'item', course_id: course.id, unit_id: unitId, title: itemForm.title, type: itemForm.type, content,
+    } })
     if (data) {
       const updateUnit = (units: CourseUnit[]) =>
         units.map(u => u.id === unitId
@@ -260,8 +254,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
   }
 
   async function deleteItem(itemId: string, unitId: string) {
-    const { error } = await supabase.from('unit_items').delete().eq('id', itemId)
-    if (!error) {
+    if (await structure({ method: 'DELETE', query: `kind=item&id=${itemId}` })) {
       const removeItem = (units: CourseUnit[]) =>
         units.map(u => u.id === unitId
           ? { ...u, unit_items: u.unit_items.filter(i => i.id !== itemId) }

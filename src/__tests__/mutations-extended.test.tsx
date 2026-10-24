@@ -392,8 +392,10 @@ describe('CourseBuildClient — deleteLevel', () => {
     vi.stubGlobal('alert', vi.fn())
   })
 
+  // The builder deletes through /api/courses/structure (step 9).
   it('success → level removed + router.refresh called', async () => {
-    mockFrom.mockReturnValue(supaChain({ error: null }))
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ ok: true }) }))
+    vi.stubGlobal('fetch', fetchMock)
     const { container } = render(
       <CourseBuildClient
         course={BUILD_COURSE}
@@ -409,10 +411,12 @@ describe('CourseBuildClient — deleteLevel', () => {
       expect(mockRefresh).toHaveBeenCalledOnce()
       expect(screen.queryByText('Level 1')).not.toBeInTheDocument()
     })
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/courses/structure?kind=level&id='), expect.objectContaining({ method: 'DELETE' }))
   })
 
   it('failure → level stays + router.refresh NOT called', async () => {
-    mockFrom.mockReturnValue(supaChain({ error: { message: 'db err' } }))
+    const fetchMock = vi.fn(async () => ({ ok: false, json: async () => ({ error: 'forbidden' }) }))
+    vi.stubGlobal('fetch', fetchMock)
     render(
       <CourseBuildClient
         course={BUILD_COURSE}
@@ -425,7 +429,7 @@ describe('CourseBuildClient — deleteLevel', () => {
     const del = btns.find(b => b.className?.includes('red'))
     if (del) {
       await userEvent.click(del)
-      await waitFor(() => expect(mockFrom).toHaveBeenCalled())
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled())
     }
     expect(mockRefresh).not.toHaveBeenCalled()
     expect(screen.getByText('Level 1')).toBeInTheDocument()

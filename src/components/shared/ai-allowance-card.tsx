@@ -1,6 +1,6 @@
 import { getTranslations, getLocale } from 'next-intl/server'
 import { Sparkles, AlertTriangle, Ban } from 'lucide-react'
-import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import type { Locale } from '@/i18n/config'
 import { cn } from '@/lib/utils'
 import { usageFormatters } from '@/lib/ai/usage-format'
@@ -20,10 +20,11 @@ interface MyAllowance {
 // only — never cost, never other institutions, never who asked what. Renders
 // nothing when the feed is unavailable (migration not applied, wrong role),
 // so a dashboard never breaks because of it.
-export async function AiAllowanceCard({ supabase }: { supabase: SupabaseClient }) {
-  const { data, error } = await supabase.rpc('get_my_ai_allowance')
-  if (error || !data) return null
-  const a = data as MyAllowance
+export async function AiAllowanceCard({ userId }: { userId: string }) {
+  const a = await run({ as: 'user', userId }, sql => [sql`select public.get_my_ai_allowance() as data`])
+    .then(([rows]) => (rows[0] as { data: MyAllowance | null } | undefined)?.data ?? null)
+    .catch(() => null)
+  if (!a) return null
 
   const [t, tf, locale] = await Promise.all([
     getTranslations('common.aiAllowance'),

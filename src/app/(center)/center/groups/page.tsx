@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { loadCenterAccess } from '@/lib/center-access'
+import { run } from '@/lib/db/sql'
 import { NoPermission } from '@/components/shared/no-permission'
 import { CenterGroupsClient, type CenterGroupRow } from '@/components/center/groups-client'
 import { activeTeacherName, type EmbeddedTeacher } from '@/lib/data/people'
@@ -22,7 +23,7 @@ interface RawGroup {
 }
 
 export default async function CenterGroupsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  const { supabase, tenantId, has } = await loadCenterAccess()
+  const { userId, tenantId, has } = await loadCenterAccess()
   if (!has('manage_groups')) return <NoPermission capability="manage_groups" />
 
   // Teachers are found on demand (/api/teachers/search, ≤ 20 per search); the page
@@ -31,12 +32,15 @@ export default async function CenterGroupsPage({ searchParams }: { searchParams:
   // One page of groups (50), the active / archived totals, and every active group
   // for the transfer picker (lib/data/center-groups.ts).
   const { page: rawPage } = await searchParams
-  const [list, { count: activeTeachers }, { data: courses }] = await Promise.all([
-    loadCenterGroupsPage(supabase, tenantId, rawPage),
-    supabase.from('users').select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId).eq('role', 'teacher').eq('is_active', true),
-    supabase.from('courses').select('id, title').eq('tenant_id', tenantId).order('title'),
+  const [list, [teacherCount, courseRows]] = await Promise.all([
+    loadCenterGroupsPage(userId, tenantId, rawPage),
+    run({ as: 'user', userId }, sql => [
+      sql`select count(*)::int as n from public.users where tenant_id = ${tenantId} and role = 'teacher' and is_active`,
+      sql`select id, title from public.courses where tenant_id = ${tenantId} order by title limit 1000`,
+    ]),
   ])
+  const activeTeachers = (teacherCount[0] as { n: number } | undefined)?.n ?? 0
+  const courses = courseRows as unknown as { id: string; title: string | null }[]
 
   const rows: CenterGroupRow[] = (list.rows as unknown as RawGroup[]).map(g => ({
     id: g.id,
@@ -65,7 +69,7 @@ export default async function CenterGroupsPage({ searchParams }: { searchParams:
         student_count: o.group_students?.[0]?.count ?? 0,
       }))}
       hasTeachers={(activeTeachers ?? 0) > 0}
-      courses={(courses ?? []).map(c => ({ id: c.id as string, name: (c.title as string) || '—' }))}
+      courses={courses.map(c => ({ id: c.id, name: c.title || '—' }))}
     />
   )
 }

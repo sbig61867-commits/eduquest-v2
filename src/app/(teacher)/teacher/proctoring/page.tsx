@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { ShieldCheck, AlertTriangle, Eye, Mic, Monitor, Users, Radio, ClipboardPaste, Cpu, Gauge } from 'lucide-react'
 import Link from 'next/link'
@@ -36,35 +37,26 @@ const VIOLATION_ICONS = {
 const LOW_COVERAGE_PCT = 80
 
 export default async function ProctoringReportsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
   const t = await getTranslations('teacher')
   const locale = (await getLocale()) as Locale
 
   // One page of 20 (newest first) + the totals from the database — never every
   // submission with its exam's questions (src/lib/data/proctoring.ts).
-  const { data: proctored, error: proctoredErr } = await loadProctoringPage(supabase, user.id, (await searchParams).page)
+  const [{ data: proctored, error: proctoredErr }, [pendingAppeals, liveRows]] = await Promise.all([
+    loadProctoringPage(user.id, (await searchParams).page),
+    run({ as: 'user', userId: user.id }, sql => [
+      sql`select id, student_name, exam_title, group_name, violation_type, student_message, created_at
+            from public.exam_appeals where teacher_id = ${user.id} and status = 'pending' order by created_at limit 200`,
+      sql`select id, title from public.exams
+           where teacher_id = ${user.id} and type = 'exam' and proctoring_enabled and is_published and deleted_at is null
+           order by created_at desc limit 100`,
+    ]),
+  ])
   if (proctoredErr) console.error('[teacher/proctoring]', proctoredErr)
   const submissions = proctored.rows
-
-  const { data: pendingAppeals } = await supabase
-    .from('exam_appeals')
-    .select('id, student_name, exam_title, group_name, violation_type, student_message, created_at')
-    .eq('teacher_id', user.id)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-
-
-  const { data: liveExams } = await supabase
-    .from('exams')
-    .select('id, title')
-    .eq('teacher_id', user.id)
-    .eq('type', 'exam')
-    .eq('proctoring_enabled', true)
-    .eq('is_published', true)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  const liveExams = liveRows as unknown as { id: string; title: string }[]
 
   return (
     <div className="space-y-6">
@@ -73,9 +65,9 @@ export default async function ProctoringReportsPage({ searchParams }: { searchPa
         <p className="text-slate-400 mt-1">{t('proctoring.subtitle')}</p>
       </div>
 
-      <AppealReviewList appeals={(pendingAppeals ?? []) as AppealRow[]} />
+      <AppealReviewList appeals={pendingAppeals as unknown as AppealRow[]} />
 
-      {(liveExams ?? []).length > 0 && (
+      {liveExams.length > 0 && (
         <div className="bg-slate-900 border border-red-900/40 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <Radio className="w-4 h-4 text-red-400" />
@@ -83,7 +75,7 @@ export default async function ProctoringReportsPage({ searchParams }: { searchPa
             <span className="text-slate-500 text-xs">{t('proctoring.liveSubtitle')}</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(liveExams ?? []).map(e => (
+            {liveExams.map(e => (
               <Link key={e.id} href={`/teacher/proctoring/live/${e.id}`}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600/15 border border-red-600/40 text-red-300 hover:bg-red-600/25 text-sm font-medium transition-colors">
                 <Radio className="w-3.5 h-3.5" /> {e.title}

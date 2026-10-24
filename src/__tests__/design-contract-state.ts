@@ -7,7 +7,6 @@
 // rawColor: 4403 in 153 files
 export const RAW_COLOR: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/academic-client.tsx': 27,
-  'app/(admin)/admin/academic/page.tsx': 4,
   'app/(admin)/admin/appeals/page.tsx': 11,
   'app/(admin)/admin/archive/archive-client.tsx': 26,
   'app/(admin)/admin/center-staff/page.tsx': 1,
@@ -192,7 +191,6 @@ export const ARBITRARY_TEXT_SIZE: Readonly<Record<string, number>> = {
 // largeRadius: 345 in 109 files
 export const LARGE_RADIUS: Readonly<Record<string, number>> = {
   'app/(admin)/admin/academic/academic-client.tsx': 4,
-  'app/(admin)/admin/academic/page.tsx': 1,
   'app/(admin)/admin/appeals/page.tsx': 2,
   'app/(admin)/admin/archive/archive-client.tsx': 2,
   'app/(admin)/admin/courses/page.tsx': 3,

@@ -14,7 +14,6 @@ import {
   type StudentPresence,
 } from '@/lib/live-channel'
 import { EvidencePanel } from './evidence-panel'
-import { inBatches, rowsOf } from '@/lib/data/complete-read'
 
 // The teacher's monitoring page. Two layers, both on demand:
 //  1. The exam's live channel (Supabase Realtime, no table read): who is in
@@ -28,6 +27,8 @@ import { inBatches, rowsOf } from '@/lib/data/complete-read'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const PAGE_SIZE = 9
 const ATTRIBUTE_SETTLE_MS = 600
+/** Ids per names request — the route accepts at most 500. */
+const LIVE_NAMES_CHUNK = 500
 
 interface Media {
   video?: HTMLVideoElement
@@ -130,28 +131,37 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
     }
   }, [examId, sendWatch, sendThumbsState])
 
-  // Names for new ids, one query per batch of ids (never per tick). A failed
-  // batch leaves its ids unknown — not '—' — so the next presence change retries them.
+  // Names for new ids, one request per chunk of LIVE_NAMES_CHUNK ids per change
+  // of the id set (never per tick), only for students taking this exam
+  // (/api/proctoring/live-names). A failed chunk leaves its ids unknown — not
+  // '—' — so the next presence change retries them; the other chunks still land.
   const studentIds = Object.keys(students).sort().join(',')
   useEffect(() => {
     const unknown = studentIds.split(',').filter(id => id && !(id in names))
     if (unknown.length === 0) return
     let cancelled = false
-    const supabase = createClient()
-    inBatches(unknown, async batch => rowsOf(
-      await supabase.from('users').select('id, full_name').in('id', batch), 'live student names'))
-      .then(rows => {
-        if (cancelled) return
-        setNames(prev => {
-          const next = { ...prev }
-          for (const u of rows as { id: string; full_name: string | null }[]) next[u.id] = u.full_name || '—'
-          for (const id of unknown) next[id] ??= '—'
-          return next
-        })
+    for (let i = 0; i < unknown.length; i += LIVE_NAMES_CHUNK) {
+      const chunk = unknown.slice(i, i + LIVE_NAMES_CHUNK)
+      fetch('/api/proctoring/live-names', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exam_id: examId, ids: chunk }),
       })
-      .catch(e => { if (!cancelled) console.error('[live-monitor] student names:', e) })
+        .then(async res => {
+          if (!res.ok) throw new Error(`live student names: ${res.status}`)
+          return ((await res.json()) as { names: { id: string; full_name: string | null }[] }).names
+        })
+        .then(rows => {
+          if (cancelled) return
+          setNames(prev => {
+            const next = { ...prev }
+            for (const u of rows) next[u.id] = u.full_name || '—'
+            for (const id of chunk) next[id] ??= '—'
+            return next
+          })
+        })
+        .catch(e => { if (!cancelled) console.error('[live-monitor] student names:', e) })
+    }
     return () => { cancelled = true }
-  }, [studentIds, names])
+  }, [studentIds, names, examId])
 
   // ── Layer 2: LiveKit, connected only while live view is on ──
   const upsertStream = useCallback((id: string, patch: Partial<StreamState>) => {

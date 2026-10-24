@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { getTranslations } from 'next-intl/server'
 import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
@@ -14,26 +15,23 @@ import { getTenantSettings } from '@/lib/structure-mode'
 // toggles the admin doesn't have.
 export default async function AdminCenterStaffPage() {
   const t = await getTranslations('admin.centerStaff')
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
 
   // Institutions without a continuing-education centre have no centre staff.
-  if (!(await getTenantSettings(supabase, user.tenant_id)).has_center) redirect('/admin/dashboard')
+  const tenantId = user.tenant_id
+  if (!(await getTenantSettings(user.id, tenantId)).has_center) redirect('/admin/dashboard')
 
-  const { data: me } = await supabase
-    .from('users').select('role, permissions').eq('id', user.id).single()
+  const [meRows, rows] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select role, permissions from public.users where id = ${user.id}`,
+    sql`select id, full_name, email, role, is_active, permissions from public.users
+         where tenant_id = ${tenantId} and role = 'center_manager' order by full_name limit 500`,
+  ])
+  const me = meRows[0] as { role: string | null; permissions: Record<string, unknown> | null } | undefined
 
   if (!can(me?.role, me?.permissions, 'manage_center_staff')) {
     return <NoPermission capability="manage_center_staff" />
   }
-
-  const { data: rows } = await supabase
-    .from('users')
-    .select('id, full_name, email, role, is_active, permissions')
-    .eq('tenant_id', user.tenant_id)
-    .eq('role', 'center_manager')
-    .order('full_name')
 
   const staff: StaffMember[] = ((rows ?? []) as unknown as Array<{
     id: string; full_name: string | null; email: string; role: string

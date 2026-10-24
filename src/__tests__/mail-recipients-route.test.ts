@@ -24,6 +24,7 @@ let activeStudents: Set<string>
 let sentToday: number
 let searchRows: unknown[]
 let logged: unknown[]
+let centerGroups: unknown[] = []
 let gmail: ReturnType<typeof vi.fn<(...a: unknown[]) => Promise<{ ok: boolean; error?: string }>>>
 
 // Student ids are UUIDs, as in the database (the send route only looks up UUIDs).
@@ -51,6 +52,7 @@ function answer(q: Q): unknown[] {
   if (t.startsWith('select full_name from public.users')) return [{ full_name: 'Sender' }]
   if (t.startsWith('select id, full_name, email from public.users')) return searchRows.slice(0, q.values.at(-1) as number)
   if (t.startsWith('insert into public.mail_messages')) { logged.push(q.values[0]); return [] }
+  if (t.startsWith('select c.id, c.name')) return centerGroups
   throw new Error('unexpected statement: ' + t)
 }
 
@@ -241,20 +243,16 @@ describe('POST /api/mail/send with group_ids (Gmail mocked — nothing is sent)'
 
 describe('/center/mail page', () => {
   it('reads only the active groups with a member COUNT — no students, no member ids', async () => {
-    const select = vi.fn()
-    vi.doMock('@/lib/center-access', () => ({
-      loadCenterAccess: async () => ({
-        tenantId: TENANT,
-        has: () => true,
-        supabase: { from: (t: string) => { const ch: Record<string, unknown> = {}; for (const m of ['eq', 'order']) ch[m] = (...a: unknown[]) => { select(t, m, ...a); return ch }; ch.select = (cols: string) => { select(t, 'select', cols); return ch }; ch.then = (r: (v: unknown) => unknown) => Promise.resolve({ data: [{ id: G1, name: 'G', group_students: [{ count: 19 }] }] }).then(r); return ch } },
-      }),
-    }))
+    vi.doMock('@/lib/center-access', () => ({ loadCenterAccess: async () => ({ userId: 'me', tenantId: TENANT, has: () => true }) }))
+    centerGroups = [{ id: G1, name: 'G', group_students: [{ count: 19 }] }]
     vi.resetModules()
     const { default: Page } = await import('@/app/(center)/center/mail/page')
     const el = await Page() as { props: { groups: unknown } }
     expect(el.props).toEqual({ groups: [{ id: G1, name: 'G', member_count: 19 }] })
-    expect(select.mock.calls.map(c => c[0])).toEqual(['groups', 'groups', 'groups', 'groups'])
-    expect(select).toHaveBeenCalledWith('groups', 'select', 'id, name, group_students(count)')
+    const page = calls.filter(q => q.text.startsWith('select c.id, c.name'))
+    expect(page).toHaveLength(1)
+    expect(page[0].text).not.toMatch(/group_students\.\*|public\.group_students s where s\.group_id = c\.id\)\)\s*as\s*members/)
+    expect(page[0].text).toContain('where c.tenant_id')
     vi.doUnmock('@/lib/center-access')
   })
 })

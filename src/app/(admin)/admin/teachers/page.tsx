@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { TeachersClient } from './teachers-client'
 import { listTeachers, parsePage, sanitizeSearch } from '@/lib/data/people'
@@ -9,13 +10,12 @@ import { listTeachers, parsePage, sanitizeSearch } from '@/lib/data/people'
 // page and total come from the database, never from filtering the whole
 // teaching staff in the browser.
 export default async function TeachersPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
 
   const params = await searchParams
   const search = sanitizeSearch(params.q)
-  const { data: list } = await listTeachers(supabase, user.tenant_id, { search, page: parsePage(params.page) })
+  const { data: list } = await listTeachers(user.id, user.tenant_id, { search, page: parsePage(params.page) })
 
   return (
     <TeachersClient

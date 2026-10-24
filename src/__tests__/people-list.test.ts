@@ -1,39 +1,40 @@
 // @vitest-environment node
-import { describe, it, expect } from 'vitest'
-import { activeTeacherName, listCenterStudents, listCenterTeachers, listStudents, listTeachers, nameOrEmailFilter, parsePage, sanitizeSearch, searchStudents, searchTeachers, PEOPLE_PAGE_SIZE, STUDENT_SEARCH_LIMIT, TEACHER_SEARCH_LIMIT } from '@/lib/data/people'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
- * Batch 2 — admin students: one page from the database (PERFORMANCE_CONTRACT.md P1).
- * The fake client records every call so the query shape itself is asserted:
- * tenant + role filters always, a range of one page, an exact count, the
- * search only when there is one.
+ * People directories, one page from the database (PERFORMANCE_CONTRACT.md P1),
+ * on the SQL layer (step 9). Each list is ONE statement read as the caller:
+ * tenant + role filters always, the search as a bound ILIKE parameter only when
+ * there is one, the total / active count and the page clamp in the same
+ * statement. Only the variant's own columns leave the loader. The student
+ * selector's SQL fragment (studentSearchSql) is checked here too; the routes
+ * that use it have their own tests.
  */
 
-type Call = [string, ...unknown[]]
+type Q = { text: string; values: unknown[]; ctx: { as: string; userId?: string } }
+const db = vi.hoisted(() => ({ calls: [] as Q[], answer: (_q: Q): unknown[] | Error => [] }))
+vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
+  db.calls.push(q as Q)
+  return db.answer(q as Q)
+}))
 
-function fakeDb(pages: Array<{ data?: unknown[]; count?: number; error?: { code?: string; message: string } }>, headCount = 0) {
-  const queries: Call[][] = []
-  let n = 0
-  const db = {
-    from(table: string) {
-      const calls: Call[] = [['from', table]]
-      queries.push(calls)
-      const chain: Record<string, unknown> = {}
-      for (const m of ['select', 'eq', 'or', 'order', 'range', 'in', 'is', 'limit', 'ilike']) {
-        chain[m] = (...args: unknown[]) => { calls.push([m, ...args]); return chain }
-      }
-      chain.then = (resolve: (v: unknown) => unknown) => {
-        const isHead = calls.some(c => c[0] === 'select' && (c[2] as { head?: boolean } | undefined)?.head)
-        const reply = isHead ? { count: headCount, error: null } : { data: [], count: 0, error: null, ...pages[n++] }
-        return Promise.resolve(reply).then(resolve)
-      }
-      return chain
-    },
-  }
-  return { db: db as never, queries }
+import {
+  activeTeacherName, listCenterStudents, listCenterTeachers, listStudents, listTeachers, parsePage, sanitizeSearch,
+  studentSearchSql, PEOPLE_PAGE_SIZE, STUDENT_SEARCH_LIMIT,
+} from '@/lib/data/people'
+
+const FULL = {
+  id: 'u1', email: 'a@x.edu', full_name: 'Sara', avatar_url: null, role: 'student', is_active: true, created_at: 't',
+  tenant_id: 'tenant-a', can_create_courses: false, is_university_student: true, name_complete: true,
 }
+const page = (rows: unknown[], total = rows.length, p = 1, active = total) => [{ total, active, page: p, rows }]
 
-describe('sanitizeSearch — safe inside a quoted PostgREST value', () => {
+beforeEach(() => {
+  db.calls = []
+  db.answer = () => []
+})
+
+describe('sanitizeSearch — a safe bound ILIKE term', () => {
   it('keeps normal text, dots and punctuation (so emails are searchable)', () => {
     expect(sanitizeSearch('  Sara  Ali ')).toBe('Sara Ali')
     expect(sanitizeSearch('gmail.com')).toBe('gmail.com')
@@ -41,7 +42,7 @@ describe('sanitizeSearch — safe inside a quoted PostgREST value', () => {
     expect(sanitizeSearch('سارة')).toBe('سارة')
   })
 
-  it('removes what could end the quoting or match everyone', () => {
+  it('removes the LIKE wildcards (a lone one would match everyone) and quote / escape characters', () => {
     expect(sanitizeSearch('"),or(id.not.is.null')).toBe('),or(id.not.is.null')
     expect(sanitizeSearch('a\\"b')).toBe('a b')
     expect(sanitizeSearch('%')).toBe('')
@@ -53,10 +54,6 @@ describe('sanitizeSearch — safe inside a quoted PostgREST value', () => {
     expect(sanitizeSearch(undefined)).toBe('')
     expect(sanitizeSearch(['a'])).toBe('')
     expect(sanitizeSearch('x'.repeat(500))).toHaveLength(100)
-  })
-
-  it('the filter quotes the term for both columns', () => {
-    expect(nameOrEmailFilter('a.b')).toBe('full_name.ilike."%a.b%",email.ilike."%a.b%"')
   })
 })
 
@@ -72,280 +69,141 @@ describe('parsePage', () => {
 })
 
 describe('listStudents', () => {
-  it('asks for exactly one page, scoped to the tenant and to students, with an exact count', async () => {
-    const { db, queries } = fakeDb([{ data: [{ id: 's1' }], count: 120 }])
-    const { data, error } = await listStudents(db, 'tenant-a', { page: 2 })
+  it('one statement as the caller, scoped to the tenant and to students; page size and requested page are parameters', async () => {
+    db.answer = () => page([FULL], 120, 2)
+    const { data, error } = await listStudents('admin-1', 'tenant-a', { page: 2 })
     expect(error).toBeNull()
-    const q = queries[0]
-    expect(q).toContainEqual(['from', 'users'])
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(q).toContainEqual(['eq', 'role', 'student'])
-    expect(q).toContainEqual(['range', PEOPLE_PAGE_SIZE, 2 * PEOPLE_PAGE_SIZE - 1])
-    const select = q.find(c => c[0] === 'select')!
-    expect(select[1]).not.toContain('*')
-    expect(select[1]).toContain('name_complete')
-    expect(select[2]).toEqual({ count: 'exact' })
-    expect(q.some(c => c[0] === 'or')).toBe(false)
+    expect(db.calls).toHaveLength(1)
+    const [q] = db.calls
+    expect(q.ctx).toEqual({ as: 'user', userId: 'admin-1' })
+    expect(q.text).toContain('where u.tenant_id = $ and u.role = $')
+    expect(q.values.slice(0, 2)).toEqual(['tenant-a', 'student'])
+    expect(q.values).toContain(2)
+    expect(q.values).toContain(PEOPLE_PAGE_SIZE)
     expect(data).toMatchObject({ total: 120, page: 2, pageCount: 3, pageSize: PEOPLE_PAGE_SIZE })
+    expect(data.active).toBeUndefined()
   })
 
-  it('searches in the database with the sanitized, quoted term', async () => {
-    const { db, queries } = fakeDb([{ data: [], count: 0 }])
-    await listStudents(db, 'tenant-a', { search: 'gmail.com%' })
-    expect(queries[0]).toContainEqual(['or', 'full_name.ilike."%gmail.com%",email.ilike."%gmail.com%"'])
+  it('returns exactly the student columns', async () => {
+    db.answer = () => page([{ ...FULL, extra: 'never' }])
+    const { data } = await listStudents('admin-1', 'tenant-a')
+    expect(Object.keys(data.rows[0]).sort()).toEqual(Object.keys(FULL).sort())
   })
 
-  it('a page past the end is answered with the last page', async () => {
-    const { db, queries } = fakeDb([
-      { error: { code: 'PGRST103', message: 'Requested range not satisfiable' } },
-      { data: [{ id: 'last' }], count: 101 },
-    ], 101)
-    const { data, error } = await listStudents(db, 'tenant-a', { page: 9 })
-    expect(error).toBeNull()
+  it('searches in the database with the sanitized term as one bound pattern — never spliced into the SQL', async () => {
+    db.answer = () => page([])
+    await listStudents('admin-1', 'tenant-a', { search: 'gmail.com%' })
+    const [q] = db.calls
+    expect(q.values).toContain('%gmail.com%')
+    expect(q.text).not.toContain('gmail')
+    expect(q.text).toContain('u.full_name ilike $ or u.email ilike $')
+  })
+
+  it('no search → the pattern is null (no filter), not an empty match-all', async () => {
+    db.answer = () => page([])
+    await listStudents('admin-1', 'tenant-a')
+    expect(db.calls[0].values.slice(2, 5)).toEqual([null, null, null])
+  })
+
+  it('a page past the end is clamped in the statement — the answer names the last page', async () => {
+    db.answer = () => page([FULL], 120, 3)
+    const { data } = await listStudents('admin-1', 'tenant-a', { page: 9 })
+    expect(db.calls[0].text).toContain('least($, greatest(1, ceil(total / $::numeric)::int))')
     expect(data.page).toBe(3)
-    expect(queries.at(-1)).toContainEqual(['range', 100, 149])
   })
 
-  it('past the end WITH a search, the fallback count uses the same search (not the whole role)', async () => {
-    // 12 matches: ?q=…&page=5 must land on page 1 of the 12, not on page 3 of everyone.
-    const { db, queries } = fakeDb([
-      { error: { code: 'PGRST103', message: 'Requested range not satisfiable' } },
-      { data: [{ id: 'm1' }], count: 12 },
-    ], 12)
-    const { data, error } = await listStudents(db, 'tenant-a', { search: 'Test Student', page: 5 })
-    expect(error).toBeNull()
-    const countQuery = queries[1]
-    expect(countQuery.find(c => c[0] === 'select')?.[2]).toEqual({ count: 'exact', head: true })
-    expect(countQuery).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(countQuery).toContainEqual(['eq', 'role', 'student'])
-    expect(countQuery).toContainEqual(['or', nameOrEmailFilter('Test Student')])
-    expect(data.page).toBe(1)
-    expect(queries.at(-1)).toContainEqual(['range', 0, PEOPLE_PAGE_SIZE - 1])
-  })
-
-  it('an error returns an empty page with the error', async () => {
-    const { db } = fakeDb([{ error: { code: '42501', message: 'denied' } }])
-    const { data, error } = await listStudents(db, 'tenant-a')
+  it('an error returns an empty page with the error, never a partial one', async () => {
+    db.answer = () => new Error('denied')
+    const { data, error } = await listStudents('admin-1', 'tenant-a')
     expect(error).toMatchObject({ message: 'denied' })
-    expect(data).toMatchObject({ rows: [], total: 0 })
+    expect(data).toEqual({ rows: [], total: 0, page: 1, pageCount: 1, pageSize: PEOPLE_PAGE_SIZE })
   })
 
   it('an empty institution is one empty page', async () => {
-    const { db } = fakeDb([{ data: [], count: 0 }])
-    const { data } = await listStudents(db, 'tenant-a')
-    expect(data).toMatchObject({ rows: [], total: 0, page: 1, pageCount: 1 })
+    db.answer = () => page([], 0)
+    const { data } = await listStudents('admin-1', 'tenant-a')
+    expect(data).toEqual({ rows: [], total: 0, page: 1, pageCount: 1, pageSize: PEOPLE_PAGE_SIZE })
   })
 })
 
 describe('listCenterStudents', () => {
-  it('one page with name_complete on the rows, plus an active count with the same filters', async () => {
-    const { db, queries } = fakeDb([{ data: [{ id: 's1' }], count: 20000 }], 17143)
-    const { data, error } = await listCenterStudents(db, 'tenant-a', { search: 'sara', page: 1 })
+  it('one page with name_complete on the rows, plus the active count of the same search', async () => {
+    db.answer = () => page([FULL], 10, 1, 7)
+    const { data, error } = await listCenterStudents('mgr-1', 'tenant-a', { search: 'sara' })
     expect(error).toBeNull()
-    const pageQ = queries.find(q => q.some(c => c[0] === 'range'))!
-    expect(pageQ.find(c => c[0] === 'select')?.[1]).toBe('id, full_name, email, is_active, created_at, is_university_student, name_complete')
-    expect(pageQ).toContainEqual(['eq', 'role', 'student'])
-    // Isolation: the rows themselves are scoped to the caller's tenant, not only the count.
-    expect(pageQ).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    const activeQ = queries.find(q => q.some(c => c[0] === 'eq' && c[1] === 'is_active'))!
-    expect(activeQ.find(c => c[0] === 'select')?.[2]).toEqual({ count: 'exact', head: true })
-    expect(activeQ).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(activeQ).toContainEqual(['eq', 'role', 'student'])
-    expect(activeQ).toContainEqual(['or', nameOrEmailFilter('sara')])
-    expect(activeQ).toContainEqual(['eq', 'is_active', true])
-    expect(queries).toHaveLength(2)
-    expect(data).toMatchObject({ total: 20000, active: 17143, pageCount: 400 })
-  })
-
-  it('the plain students list asks for no active count', async () => {
-    const { db, queries } = fakeDb([{ data: [], count: 0 }])
-    const { data } = await listStudents(db, 'tenant-a')
-    expect(queries).toHaveLength(1)
-    expect(data.active).toBeUndefined()
+    expect(db.calls).toHaveLength(1)
+    expect(data.active).toBe(7)
+    expect(Object.keys(data.rows[0]).sort()).toEqual(['created_at', 'email', 'full_name', 'id', 'is_active', 'is_university_student', 'name_complete'])
   })
 })
 
 describe('listCenterTeachers', () => {
-  it('footprints read only the page’s teachers, batched (.in), live rows, tenant-scoped', async () => {
-    const { db, queries } = fakeDb([
-      { data: [{ id: 't1' }, { id: 't2' }, { id: 't3' }], count: 2000 },
-      // groups of the page's teachers: t1 a university group, t2 a course-linked group
-      { data: [{ teacher_id: 't1', course_id: null }, { teacher_id: 't2', course_id: 'c9' }] },
-      // courses of the page's teachers: t2 owns one
-      { data: [{ teacher_id: 't2' }] },
-    ], 1715)
-    const { data, error } = await listCenterTeachers(db, 'tenant-a', { page: 1 })
-    expect(error).toBeNull()
-    expect(data).toMatchObject({ total: 2000, active: 1715, pageCount: 40 })
-
-    const pageQ = queries.find(q => q.some(c => c[0] === 'range'))!
-    expect(pageQ.find(c => c[0] === 'select')?.[1]).toBe('id, full_name, email, is_active, created_at')
-    expect(pageQ).toContainEqual(['eq', 'role', 'teacher'])
-
-    for (const table of ['groups', 'courses']) {
-      const q = queries.find(x => x[0][1] === table)!
-      expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-      expect(q).toContainEqual(['in', 'teacher_id', ['t1', 't2', 't3']])
-      expect(q).toContainEqual(['is', 'deleted_at', null])
+  it('footprints read only the page’s teachers (one statement per table), live rows, tenant-scoped', async () => {
+    db.answer = q => {
+      if (q.text.includes('from public.users u')) return page([{ ...FULL, id: 't1', role: 'teacher' }, { ...FULL, id: 't2', role: 'teacher' }])
+      if (q.text.startsWith('select teacher_id, course_id from public.groups')) return [{ teacher_id: 't1', course_id: null }]
+      if (q.text.startsWith('select teacher_id from public.courses')) return [{ teacher_id: 't2' }]
+      return new Error('unexpected ' + q.text)
     }
-    expect(queries).toHaveLength(4) // page, active count, groups, courses — not one per teacher
-
-    const fp = Object.fromEntries(data.rows.map(r => [r.id, r.footprint]))
-    expect(fp).toEqual({
-      t1: { universityGroups: 1, centreItems: 0 },
-      t2: { universityGroups: 0, centreItems: 2 },
-      t3: { universityGroups: 0, centreItems: 0 },
-    })
+    const { data, error } = await listCenterTeachers('mgr-1', 'tenant-a')
+    expect(error).toBeNull()
+    const [groups, courses] = db.calls.slice(1)
+    for (const q of [groups, courses]) {
+      expect(q.text).toContain('tenant_id = $')
+      expect(q.text).toContain('deleted_at is null')
+      expect(q.values).toEqual(['tenant-a', ['t1', 't2']])
+    }
+    expect(data.rows.map(r => r.id)).toEqual(['t1', 't2'])
+    expect(data.rows[0].footprint).toEqual({ universityGroups: 1, centreItems: 0 })
+    expect(data.rows[1].footprint).toEqual({ universityGroups: 0, centreItems: 1 })
+    expect(Object.keys(data.rows[0]).sort()).toEqual(['created_at', 'email', 'footprint', 'full_name', 'id', 'is_active'])
   })
 
   it('an empty page reads no groups or courses', async () => {
-    const { db, queries } = fakeDb([{ data: [], count: 0 }])
-    const { data } = await listCenterTeachers(db, 'tenant-a')
-    expect(data.rows).toEqual([])
-    expect(queries.some(q => q[0][1] === 'groups' || q[0][1] === 'courses')).toBe(false)
+    db.answer = () => page([], 0)
+    await listCenterTeachers('mgr-1', 'tenant-a')
+    expect(db.calls).toHaveLength(1)
   })
 })
 
 describe('listTeachers', () => {
-  it('one page of TEACHERS only, tenant-scoped, named columns, exact count', async () => {
-    const { db, queries } = fakeDb([{ data: [{ id: 't1' }], count: 2000 }])
-    const { data, error } = await listTeachers(db, 'tenant-a', { page: 40 })
+  it('one page of TEACHERS only, tenant-scoped, the teacher columns only', async () => {
+    db.answer = () => page([{ ...FULL, role: 'teacher' }])
+    const { data, error } = await listTeachers('admin-1', 'tenant-a', { search: 'ahmad"' })
     expect(error).toBeNull()
-    const q = queries[0]
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(q).toContainEqual(['eq', 'role', 'teacher'])
-    expect(q).not.toContainEqual(['eq', 'role', 'student'])
-    expect(q).toContainEqual(['range', 39 * PEOPLE_PAGE_SIZE, 40 * PEOPLE_PAGE_SIZE - 1])
-    const select = q.find(c => c[0] === 'select')!
-    expect(select[1]).toBe('id, email, full_name, is_active, created_at, can_create_courses')
-    expect(select[2]).toEqual({ count: 'exact' })
-    expect(data).toMatchObject({ total: 2000, page: 40, pageCount: 40 })
-  })
-
-  it('searches in the database and counts past the end with the same search', async () => {
-    const { db, queries } = fakeDb([
-      { error: { code: 'PGRST103', message: 'Requested range not satisfiable' } },
-      { data: [], count: 3 },
-    ], 3)
-    const { data } = await listTeachers(db, 'tenant-a', { search: 'ahmad"', page: 7 })
-    expect(queries[0]).toContainEqual(['or', nameOrEmailFilter('ahmad')])
-    expect(queries[1]).toContainEqual(['or', nameOrEmailFilter('ahmad')])
-    expect(queries[1]).toContainEqual(['eq', 'role', 'teacher'])
-    expect(data.page).toBe(1)
+    expect(db.calls[0].values.slice(0, 3)).toEqual(['tenant-a', 'teacher', '%ahmad%'])
+    expect(Object.keys(data.rows[0]).sort()).toEqual(['can_create_courses', 'created_at', 'email', 'full_name', 'id', 'is_active'])
   })
 })
 
-describe('searchStudents (T1 student selector)', () => {
-  const GROUP = '11111111-1111-4111-8111-111111111111'
+describe('studentSearchSql (student selector fragment)', () => {
+  const capture = async (build: Parameters<typeof import('@/lib/db/sql').run>[1]) => {
+    const { run } = await import('@/lib/db/sql')
+    await run({ as: 'user', userId: 'x' }, build)
+    return db.calls.at(-1)!
+  }
 
-  it('an empty or wildcard-only search touches no table and returns nothing', async () => {
-    for (const q of ['', '   ', '%', '*', '"\\', ' % * ']) {
-      const { db, queries } = fakeDb([])
-      const { rows, error } = await searchStudents(db, 'tenant-a', q, GROUP)
-      expect(error).toBeNull()
-      expect(rows).toEqual([])
-      expect(queries).toHaveLength(0)
-    }
+  it('a group target: active students of the tenant, name OR email, minus the group members, hard limit', async () => {
+    const q = await capture(sql => [studentSearchSql(sql, 'tenant-a', 'sara', { kind: 'group', id: 'g1' })])
+    expect(q.text).toContain("u.role = 'student' and u.is_active")
+    expect(q.text).toContain('(u.full_name ilike $ or u.email ilike $)')
+    expect(q.text).toContain('not exists (select 1 from public.group_students m where m.group_id = $')
+    expect(q.text).toContain('u.email')
+    expect(q.values).toEqual(['tenant-a', '%sara%', '%sara%', 'g1', STUDENT_SEARCH_LIMIT])
   })
 
-  it('active students of the tenant only, sanitized name/email search, anti-join on the group, hard limit 20', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchStudents(db, 'tenant-a', 'gmail.com%', GROUP)
-    expect(queries).toHaveLength(1)
-    const q = queries[0]
-    expect(q).toContainEqual(['from', 'users'])
-    expect(q.find(c => c[0] === 'select')?.[1]).toBe('id, full_name, email, group_students!group_students_student_id_fkey(group_id)')
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(q).toContainEqual(['eq', 'role', 'student'])
-    expect(q).toContainEqual(['eq', 'is_active', true])
-    expect(q).toContainEqual(['or', 'full_name.ilike."%gmail.com%",email.ilike."%gmail.com%"'])
-    expect(q).toContainEqual(['eq', 'group_students.group_id', GROUP])
-    expect(q).toContainEqual(['is', 'group_students', null])
-    expect(q).toContainEqual(['limit', STUDENT_SEARCH_LIMIT])
-    expect(STUDENT_SEARCH_LIMIT).toBe(20)
-    expect(q.some(c => c[0] === 'range')).toBe(false)
+  it('a course target with nameOnly: by name only, no email selected, anti-join on course_enrollments', async () => {
+    const q = await capture(sql => [studentSearchSql(sql, 'tenant-a', 'sara', { kind: 'course', id: 'c1' }, { nameOnly: true })])
+    expect(q.text).toContain('select u.id, u.full_name from public.users u')
+    expect(q.text).not.toContain('email')
+    expect(q.text).toContain('public.course_enrollments m where m.course_id = $')
   })
 
-  it('an injection attempt stays inside one quoted value and cannot add a filter', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchStudents(db, 'tenant-a', 'x"),or(role.eq.teacher,tenant_id.neq.0', GROUP)
-    const or = queries[0].filter(c => c[0] === 'or')
-    expect(or).toHaveLength(1)
-    // The `"` that would close the quoting is removed, so everything stays one literal value.
-    expect(or[0][1]).toBe('full_name.ilike."%x ),or(role.eq.teacher,tenant_id.neq.0%",email.ilike."%x ),or(role.eq.teacher,tenant_id.neq.0%"')
-    // The role/tenant filters are separate conditions the search cannot widen.
-    expect(queries[0]).toContainEqual(['eq', 'role', 'student'])
-    expect(queries[0]).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-  })
-
-  it('never returns more than 20 rows, and only id / full_name / email', async () => {
-    const many = Array.from({ length: 35 }, (_, i) => ({
-      id: `s${i}`, full_name: `S ${i}`, email: `s${i}@x.test`, group_students: [], role: 'student', permissions: { x: 1 },
-    }))
-    const { db } = fakeDb([{ data: many }])
-    const { rows } = await searchStudents(db, 'tenant-a', 's', GROUP)
-    expect(rows).toHaveLength(20)
-    for (const r of rows) expect(Object.keys(r).sort()).toEqual(['email', 'full_name', 'id'])
-  })
-
-  it('a database error returns no rows and the error', async () => {
-    const { db } = fakeDb([{ error: { message: 'denied' } }])
-    const { rows, error } = await searchStudents(db, 'tenant-a', 'sara', GROUP)
-    expect(rows).toEqual([])
-    expect(error).toMatchObject({ message: 'denied' })
-  })
-})
-
-describe('searchTeachers (C-T teacher selector)', () => {
-  it('an empty or wildcard-only search touches no table and returns nothing', async () => {
-    for (const q of ['', '   ', '%', '*', '"\\', ' % * ']) {
-      const { db, queries } = fakeDb([])
-      const { rows, error } = await searchTeachers(db, 'tenant-a', q)
-      expect(error).toBeNull()
-      expect(rows).toEqual([])
-      expect(queries).toHaveLength(0)
-    }
-  })
-
-  it('active teachers of the tenant only, by NAME (no email), hard limit 20, two fields', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchTeachers(db, 'tenant-a', 'sara%')
-    expect(queries).toHaveLength(1)
-    const q = queries[0]
-    expect(q).toContainEqual(['from', 'users'])
-    expect(q.find(c => c[0] === 'select')?.[1]).toBe('id, full_name')
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(q).toContainEqual(['eq', 'role', 'teacher'])
-    expect(q).toContainEqual(['eq', 'is_active', true])
-    expect(q).toContainEqual(['ilike', 'full_name', '%sara%'])
-    expect(q.some(c => c[0] === 'or')).toBe(false) // never searches or reveals the email
-    expect(q).toContainEqual(['limit', TEACHER_SEARCH_LIMIT])
-    expect(TEACHER_SEARCH_LIMIT).toBe(20)
-  })
-
-  it('an injection attempt stays one literal ilike value; role/tenant/active stay separate conditions', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchTeachers(db, 'tenant-a', 'x"),or(role.eq.student,tenant_id.neq.0')
-    const q = queries[0]
-    expect(q.filter(c => c[0] === 'ilike')).toEqual([['ilike', 'full_name', '%x ),or(role.eq.student,tenant_id.neq.0%']])
-    expect(q.some(c => c[0] === 'or')).toBe(false)
-    expect(q).toContainEqual(['eq', 'role', 'teacher'])
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-  })
-
-  it('never returns more than 20 rows, and only id / full_name', async () => {
-    const many = Array.from({ length: 35 }, (_, i) => ({ id: `t${i}`, full_name: `T ${i}`, email: `t${i}@x.test`, role: 'teacher' }))
-    const { db } = fakeDb([{ data: many }])
-    const { rows } = await searchTeachers(db, 'tenant-a', 't')
-    expect(rows).toHaveLength(20)
-    for (const r of rows) expect(Object.keys(r).sort()).toEqual(['full_name', 'id'])
-  })
-
-  it('a database error returns no rows and the error', async () => {
-    const { db } = fakeDb([{ error: { message: 'denied' } }])
-    const { rows, error } = await searchTeachers(db, 'tenant-a', 'sara')
-    expect(rows).toEqual([])
-    expect(error).toMatchObject({ message: 'denied' })
+  it('an injection attempt is a bound parameter, never part of the SQL text', async () => {
+    const evil = sanitizeSearch('x"),or(role.eq.teacher')
+    const q = await capture(sql => [studentSearchSql(sql, 'tenant-a', evil, { kind: 'group', id: 'g1' })])
+    expect(q.text).not.toContain('role.eq')
+    expect(q.values).toContain(`%${evil}%`)
   })
 })
 
@@ -361,64 +219,5 @@ describe('activeTeacherName — the row shows exactly what the old active-teache
     expect(activeTeacherName(null)).toBeNull()
     expect(activeTeacherName([])).toBeNull()
     expect(activeTeacherName({ full_name: '', role: 'teacher', is_active: true })).toBeNull()
-  })
-})
-
-describe('searchStudents with a roster target (C-S: RosterModal, name only)', () => {
-  const COURSE = '22222222-2222-4222-8222-222222222222'
-  const GROUP = '11111111-1111-4111-8111-111111111111'
-
-  it('a course target: anti-join on course_enrollments, by NAME only, no email selected', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchStudents(db, 'tenant-a', 'sara', { course: COURSE }, { nameOnly: true })
-    const q = queries[0]
-    expect(q.find(c => c[0] === 'select')?.[1]).toBe('id, full_name, course_enrollments!course_enrollments_student_id_fkey(course_id)')
-    expect(q).toContainEqual(['eq', 'course_enrollments.course_id', COURSE])
-    expect(q).toContainEqual(['is', 'course_enrollments', null])
-    expect(q).not.toContainEqual(['is', 'group_students', null])
-    expect(q).toContainEqual(['or', 'full_name.ilike."%sara%"'])
-    expect(q).toContainEqual(['eq', 'tenant_id', 'tenant-a'])
-    expect(q).toContainEqual(['eq', 'role', 'student'])
-    expect(q).toContainEqual(['eq', 'is_active', true])
-    expect(q).toContainEqual(['limit', 20])
-  })
-
-  it('a group target object: anti-join on group_students for THAT group', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchStudents(db, 'tenant-a', 'sara', { group: GROUP }, { nameOnly: true })
-    const q = queries[0]
-    expect(q.find(c => c[0] === 'select')?.[1]).toBe('id, full_name, group_students!group_students_student_id_fkey(group_id)')
-    expect(q).toContainEqual(['eq', 'group_students.group_id', GROUP])
-    expect(q).toContainEqual(['is', 'group_students', null])
-  })
-
-  it('T1 is unchanged: a plain group id still searches name OR email and returns the email', async () => {
-    const { db, queries } = fakeDb([{ data: [{ id: 's1', full_name: 'S', email: 's@x.test', group_students: [] }] }])
-    const { rows } = await searchStudents(db, 'tenant-a', 'sara', GROUP)
-    expect(queries[0].find(c => c[0] === 'select')?.[1]).toBe('id, full_name, email, group_students!group_students_student_id_fkey(group_id)')
-    expect(queries[0]).toContainEqual(['or', nameOrEmailFilter('sara')])
-    expect(rows).toEqual([{ id: 's1', full_name: 'S', email: 's@x.test' }])
-  })
-
-  it('name only never returns an email, even if one came back; at most 20 rows', async () => {
-    const many = Array.from({ length: 30 }, (_, i) => ({ id: `s${i}`, full_name: `S ${i}`, email: `s${i}@x.test`, course_enrollments: [] }))
-    const { db } = fakeDb([{ data: many }])
-    const { rows } = await searchStudents(db, 'tenant-a', 's', { course: COURSE }, { nameOnly: true })
-    expect(rows).toHaveLength(20)
-    for (const r of rows) expect(Object.keys(r).sort()).toEqual(['full_name', 'id'])
-  })
-
-  it('an injection attempt stays one quoted literal in the name filter', async () => {
-    const { db, queries } = fakeDb([{ data: [] }])
-    await searchStudents(db, 'tenant-a', 'x"),or(role.eq.teacher', { course: COURSE }, { nameOnly: true })
-    const or = queries[0].filter(c => c[0] === 'or')
-    expect(or).toEqual([['or', 'full_name.ilike."%x ),or(role.eq.teacher%"']])
-  })
-
-  it('an empty or wildcard-only search touches no table', async () => {
-    const { db, queries } = fakeDb([])
-    const { rows } = await searchStudents(db, 'tenant-a', ' % ', { course: COURSE }, { nameOnly: true })
-    expect(rows).toEqual([])
-    expect(queries).toHaveLength(0)
   })
 })

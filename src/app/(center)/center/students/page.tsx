@@ -10,12 +10,12 @@ import { listCenterStudents, parsePage, sanitizeSearch } from '@/lib/data/people
 // page, total and active count come from the database; name_complete rides on
 // the same rows (no second whole read of the student body).
 export default async function CenterStudentsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
-  const { supabase, tenantId, has } = await loadCenterAccess()
+  const { userId, tenantId, has } = await loadCenterAccess()
   if (!has('manage_students')) return <NoPermission capability="manage_students" />
 
   const params = await searchParams
   const search = sanitizeSearch(params.q)
-  const { data: list } = await listCenterStudents(supabase, tenantId, { search, page: parsePage(params.page) })
+  const { data: list } = await listCenterStudents(userId, tenantId, { search, page: parsePage(params.page) })
 
   return (
     <PeopleClient

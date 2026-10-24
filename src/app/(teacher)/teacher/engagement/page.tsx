@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { loadGroupEngagement, engagementTone } from '@/lib/engagement'
 import { Activity } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -15,23 +16,19 @@ export default async function TeacherEngagementPage({
   searchParams: Promise<{ group?: string; days?: string }>
 }) {
   const { group, days } = await searchParams
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
   const t = await getTranslations('teacher')
 
-  const { data: groupRows } = await supabase
-    .from('groups')
-    .select('id, name')
-    .eq('tenant_id', user.tenant_id)
-    .eq('teacher_id', user.id)
-    .eq('is_active', true)
-    .order('name')
-
-  const groups = (groupRows ?? []).map(g => ({ id: g.id as string, name: g.name as string }))
+  const tenantId = user.tenant_id
+  const [groupRows] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select id, name from public.groups
+         where tenant_id = ${tenantId} and teacher_id = ${user.id} and is_active order by name limit 500`,
+  ])
+  const groups = groupRows as unknown as { id: string; name: string }[]
   const period = PERIODS.includes(Number(days)) ? Number(days) : 30
   const activeId = groups.some(g => g.id === group) ? group! : groups[0]?.id
-  const data = activeId ? await loadGroupEngagement(supabase, activeId, period) : null
+  const data = activeId ? await loadGroupEngagement(user.id, activeId, period) : null
 
   const fmtDate = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(iso)) : '—'

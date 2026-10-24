@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
-import { run, maybeOne } from '@/lib/db/sql'
+import { run, maybeOne, type Sql, type Pending } from '@/lib/db/sql'
 
 // Platform engagement ("الحضور على المنصة") — how much a student actually
 // works on what their teacher set, as opposed to attending a session in
@@ -66,23 +65,22 @@ export interface TenantEngagement {
   groups: TenantEngagementRow[]
 }
 
-export async function loadGroupEngagement(
-  supabase: SupabaseClient,
-  groupId: string,
-  days = 30,
-): Promise<GroupEngagement | null> {
-  const { data, error } = await supabase.rpc('get_group_engagement', { p_group_id: groupId, p_days: days })
-  if (error || !data) return null
-  return data as unknown as GroupEngagement
+/** One engagement function, read as the caller (the function scopes it by role); null when it fails. */
+async function engagementAs<T>(userId: string, call: (sql: Sql) => Pending): Promise<T | null> {
+  try {
+    const [rows] = await run({ as: 'user', userId }, sql => [call(sql)])
+    return (maybeOne<{ data: T | null }>(rows)?.data) ?? null
+  } catch {
+    return null
+  }
 }
 
-export async function loadTenantEngagement(
-  supabase: SupabaseClient,
-  days = 30,
-): Promise<TenantEngagement | null> {
-  const { data, error } = await supabase.rpc('get_tenant_engagement', { p_days: days })
-  if (error || !data) return null
-  return data as unknown as TenantEngagement
+export function loadGroupEngagement(userId: string, groupId: string, days = 30): Promise<GroupEngagement | null> {
+  return engagementAs(userId, sql => sql`select public.get_group_engagement(p_group_id => ${groupId}, p_days => ${days}) as data`)
+}
+
+export function loadTenantEngagement(userId: string, days = 30): Promise<TenantEngagement | null> {
+  return engagementAs(userId, sql => sql`select public.get_tenant_engagement(p_days => ${days}) as data`)
 }
 
 /** Shared colour thresholds so every engagement view reads the same way. */
@@ -125,23 +123,9 @@ export interface CourseAnalytics {
   courses: CourseAnalyticsRow[]
 }
 
-/** The same analytics on the SQL layer, read as the caller (the function scopes it by role). */
-export async function loadCourseAnalyticsAs(userId: string, days = 30): Promise<CourseAnalytics | null> {
-  try {
-    const [rows] = await run({ as: 'user', userId }, sql => [sql`select public.get_course_analytics(p_days => ${days}) as data`])
-    return (maybeOne<{ data: CourseAnalytics | null }>(rows)?.data) ?? null
-  } catch {
-    return null
-  }
-}
-
-export async function loadCourseAnalytics(
-  supabase: SupabaseClient,
-  days = 30,
-): Promise<CourseAnalytics | null> {
-  const { data, error } = await supabase.rpc('get_course_analytics', { p_days: days })
-  if (error || !data) return null
-  return data as unknown as CourseAnalytics
+/** Course analytics, read as the caller (the function scopes it by role). */
+export function loadCourseAnalyticsAs(userId: string, days = 30): Promise<CourseAnalytics | null> {
+  return engagementAs(userId, sql => sql`select public.get_course_analytics(p_days => ${days}) as data`)
 }
 
 /**

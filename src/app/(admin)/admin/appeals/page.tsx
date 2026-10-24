@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
@@ -22,16 +23,18 @@ const STATUS_VARIANT: Record<string, 'yellow' | 'green' | 'red'> = {
 export default async function AdminAppealsPage() {
   const t = await getTranslations('admin.appeals')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const { data: appeals } = await supabase
-    .from('exam_appeals')
-    .select('id, student_name, teacher_name, exam_title, group_name, violation_type, student_message, teacher_response, status, created_at, resolved_at')
-    .order('created_at', { ascending: false })
+  const [appeals] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select id, student_name, teacher_name, exam_title, group_name, violation_type, student_message, teacher_response, status, created_at, resolved_at
+          from public.exam_appeals order by created_at desc limit 500`,
+  ])
 
-  const rows = appeals ?? []
+  const rows = appeals as unknown as {
+    id: string; student_name: string; teacher_name: string; exam_title: string; group_name: string; violation_type: string | null
+    student_message: string; teacher_response: string | null; status: string; created_at: string; resolved_at: string | null
+  }[]
   const pending = rows.filter(a => a.status === 'pending').length
 
   return (

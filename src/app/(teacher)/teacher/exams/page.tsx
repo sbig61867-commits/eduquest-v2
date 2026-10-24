@@ -1,51 +1,59 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { ExamsClient } from './exams-client'
-import { TEACHER_EXAM_COLUMNS, type TeacherExamRow } from '@/lib/data/teacher-exams'
-import { getExamPolicies } from '@/lib/settings'
+import type { TeacherExamRow } from '@/lib/data/teacher-exams'
+import { examPoliciesFrom } from '@/lib/settings'
 
 export default async function ExamsPage({ searchParams }: { searchParams: Promise<{ course?: string; kind?: string; results?: string }> }) {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
   const { course, kind, results } = await searchParams
 
-  const [{ data: exams }, { data: individual }, { data: groups }, { data: courses }, policies] = await Promise.all([
+  const [exams, individual, groupRows, courseRows, policyRows] = await run({ as: 'user', userId: user.id }, sql => [
     // Formal (proctorable) exams, plus course quizzes and tasks. Lesson
     // homework (type homework on a group) lives in the lesson's الواجب tab and
     // must never appear or be created here.
-    // Named columns + question_count (a computed field) — never the questions.
-    supabase.from('exams').select(`${TEACHER_EXAM_COLUMNS}, groups(name), courses(title)`).eq('teacher_id', user.id)
-      .or('type.eq.exam,course_id.not.is.null').is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    // Individual follow-up tasks (one student each), so they can be opened and
-    // graded here. A separate query: before individual_tasks_migration is
-    // applied the column does not exist, this one fails alone and the page
-    // still lists everything else.
-    supabase.from('exams').select(`${TEACHER_EXAM_COLUMNS}, groups(name), assignee:users!exams_assigned_student_id_fkey(full_name)`)
-      .eq('teacher_id', user.id).not('assigned_student_id', 'is', null).is('deleted_at', null)
-      .order('created_at', { ascending: false }),
-    supabase.from('groups').select('id, name').eq('teacher_id', user.id),
-    supabase.from('courses').select('id, title').eq('teacher_id', user.id).is('deleted_at', null).order('title'),
-    getExamPolicies(supabase),
+    // Named columns + question_count — never the questions.
+    sql`select e.id, e.title, e.duration_minutes, e.is_published, e.proctoring_enabled, e.created_at, e.type, e.ends_at,
+               e.assigned_student_id, public.question_count(e) as question_count,
+               case when g.id is null then null else json_build_object('name', g.name) end as groups,
+               case when c.id is null then null else json_build_object('title', c.title) end as courses
+          from public.exams e left join public.groups g on g.id = e.group_id left join public.courses c on c.id = e.course_id
+         where e.teacher_id = ${user.id} and (e.type = 'exam' or e.course_id is not null) and e.deleted_at is null
+         order by e.created_at desc limit 1000`,
+    // Individual follow-up tasks (one student each), so they can be opened and graded here.
+    sql`select e.id, e.title, e.duration_minutes, e.is_published, e.proctoring_enabled, e.created_at, e.type, e.ends_at,
+               e.assigned_student_id, public.question_count(e) as question_count,
+               case when g.id is null then null else json_build_object('name', g.name) end as groups,
+               json_build_object('full_name', a.full_name) as assignee
+          from public.exams e left join public.groups g on g.id = e.group_id left join public.users a on a.id = e.assigned_student_id
+         where e.teacher_id = ${user.id} and e.assigned_student_id is not null and e.deleted_at is null
+         order by e.created_at desc limit 1000`,
+    sql`select id, name from public.groups where teacher_id = ${user.id} order by name limit 500`,
+    sql`select id, title from public.courses where teacher_id = ${user.id} and deleted_at is null order by title limit 500`,
+    sql`select value from public.platform_settings where key = 'exam_policies'`,
   ])
+  const groups = groupRows as unknown as { id: string; name: string }[]
+  const courses = courseRows as unknown as { id: string; title: string }[]
+  const policies = examPoliciesFrom((policyRows[0] as { value?: unknown } | undefined)?.value)
 
   // The course builder links here to create a quiz or task for one course.
-  const openFor = course && (courses ?? []).some(c => c.id === course)
+  const openFor = course && courses.some(c => c.id === course)
     ? { courseId: course, kind: kind === 'homework' ? 'homework' as const : 'exam' as const }
     : undefined
 
-  const all = ([...(exams ?? []), ...(individual ?? [])] as unknown as TeacherExamRow[])
+  const all = ([...exams, ...individual] as unknown as TeacherExamRow[])
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
 
   return (
     <ExamsClient
       initialExams={all}
       openResultsFor={results && all.some(e => e.id === results) ? results : undefined}
-      groups={groups ?? []}
-      courses={courses ?? []}
+      groups={groups}
+      courses={courses}
       openFor={openFor}
       proctoringDefault={policies.proctoring_default_enabled}
     />

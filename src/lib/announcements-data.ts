@@ -1,7 +1,6 @@
-import type { SupabaseClient } from '@/lib/db'
-import { IncompleteReadError, readAllByKeyset, READ_PAGE } from '@/lib/data/complete-read'
+import { run } from '@/lib/db/sql'
 import { can } from '@/lib/permissions'
-import { getTenantSettings } from '@/lib/structure-mode'
+import { tenantSettingsSql, toTenantSettings } from '@/lib/structure-mode'
 import { canTargetUniversity, type AnnouncementAudience } from '@/lib/announcement-audience'
 import type { AnnouncementRow, GroupOption } from '@/components/announcements/announcements-manager'
 
@@ -18,10 +17,12 @@ interface RawAnnouncement {
   starts_at: string | null
   ends_at: string | null
   created_at: string
-  /** From announcement_engagement_migration.sql — absent before it is applied. */
-  pinned?: boolean | null
-  collect_interest?: boolean | null
-  announcement_groups: { group_id: string }[] | null
+  pinned: boolean | null
+  collect_interest: boolean | null
+  group_ids: string[]
+  views: number
+  clicks: number
+  interest: number
 }
 
 export interface AnnouncementStats { views: number; clicks: number; interest: number }
@@ -32,30 +33,7 @@ export interface AnnouncementStats { views: number; clicks: number; interest: nu
  * permission notice instead of the manager when they don't), plus whether they
  * may address students beyond the centre (`announce_to_university`).
  */
-/** PostgREST's "no such table" (PGRST205), or Postgres' own (42P01): the engagement migration is not applied. */
-const TABLE_MISSING = new Set(['PGRST205', '42P01'])
-
-/**
- * Every engagement event of the institution, read completely (keyset + count) -
- * views, clicks and interest of every student on every announcement pass the
- * API's 1000-row cap quickly, and the stats are counted from them. `null` only
- * when the events table does not exist (the engagement migration is not
- * applied); any other failed or short read throws, never partial stats.
- */
-async function readEngagementEvents(supabase: SupabaseClient, tenantId: string) {
-  try {
-    return await readAllByKeyset<{ id: string; announcement_id: string; kind: string }>('announcement events',
-      after => supabase.from('announcement_events').select('id, announcement_id, kind')
-        .eq('tenant_id', tenantId).gt('id', after).order('id').limit(READ_PAGE),
-      () => supabase.from('announcement_events').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId))
-  } catch (e) {
-    if (e instanceof IncompleteReadError && TABLE_MISSING.has(e.detail?.code ?? '')) return null
-    throw e
-  }
-}
-
 export async function loadAnnouncementsPage(
-  supabase: SupabaseClient,
   userId: string,
   tenantId: string,
 ): Promise<{
@@ -67,40 +45,36 @@ export async function loadAnnouncementsPage(
   /** The engagement migration is applied: pinning, interest and stats are available. */
   engagementReady: boolean
 }> {
-  const { data: profile } = await supabase
-    .from('users').select('role, permissions').eq('id', userId).single()
+  // ONE unit read as the caller: profile, settings, the announcements with
+  // their groups and engagement counts (counted in the database), and the
+  // institution's groups. The capability decides below whether any is shown.
+  const [profiles, settingsRows, raw, groupsRaw] = await run({ as: 'user', userId }, sql => {
+    return [
+      sql`select role, permissions from public.users where id = ${userId}`,
+      tenantSettingsSql(sql, tenantId),
+      sql`select a.id, a.title, a.body, a.image_url, a.link_url, a.cta_label, a.audience, a.center_students_only,
+                 a.is_published, a.starts_at, a.ends_at, a.created_at, a.pinned, a.collect_interest,
+                 coalesce((select json_agg(g.group_id) from public.announcement_groups g where g.announcement_id = a.id), '[]') as group_ids,
+                 (select count(*) filter (where e.kind = 'view') from public.announcement_events e where e.announcement_id = a.id)::int as views,
+                 (select count(*) filter (where e.kind = 'click') from public.announcement_events e where e.announcement_id = a.id)::int as clicks,
+                 (select count(*) filter (where e.kind = 'interest') from public.announcement_events e where e.announcement_id = a.id)::int as interest
+            from public.announcements a
+           where a.tenant_id = ${tenantId}
+           order by a.created_at desc limit 500`,
+      sql`select id, name from public.groups where tenant_id = ${tenantId} order by name limit 1000`,
+    ]
+  })
+  const profile = profiles[0] as { role: string | null; permissions: Record<string, unknown> | null } | undefined
 
   // No centre ⇒ no centre/university split: every author may reach every student.
-  const { has_center: hasCenter } = await getTenantSettings(supabase, tenantId)
+  const { has_center: hasCenter } = toTenantSettings(settingsRows[0])
   const mayTargetUniversity = !hasCenter || canTargetUniversity(profile?.role, profile?.permissions)
 
   if (!can(profile?.role, profile?.permissions, 'manage_announcements')) {
     return { allowed: false, canTargetUniversity: mayTargetUniversity, hasCenter, announcements: [], groups: [], engagementReady: false }
   }
 
-  // select('*') so the engagement columns come through once they exist,
-  // without breaking the page before the migration is applied.
-  const [{ data: raw }, { data: groupsRaw }, events] = await Promise.all([
-    supabase
-      .from('announcements')
-      .select('*, announcement_groups(group_id)')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }),
-    supabase.from('groups').select('id, name').eq('tenant_id', tenantId).order('name'),
-    readEngagementEvents(supabase, tenantId),
-  ])
-
-  const engagementReady = events !== null
-  const stats = new Map<string, AnnouncementStats>()
-  for (const e of events ?? []) {
-    const st = stats.get(e.announcement_id) ?? { views: 0, clicks: 0, interest: 0 }
-    if (e.kind === 'view') st.views++
-    else if (e.kind === 'click') st.clicks++
-    else if (e.kind === 'interest') st.interest++
-    stats.set(e.announcement_id, st)
-  }
-
-  const announcements: AnnouncementRow[] = ((raw ?? []) as unknown as RawAnnouncement[]).map(a => ({
+  const announcements: AnnouncementRow[] = (raw as unknown as RawAnnouncement[]).map(a => ({
     id: a.id,
     title: a.title,
     body: a.body,
@@ -113,10 +87,10 @@ export async function loadAnnouncementsPage(
     starts_at: a.starts_at,
     ends_at: a.ends_at,
     created_at: a.created_at,
-    group_ids: (a.announcement_groups ?? []).map(g => g.group_id),
+    group_ids: a.group_ids,
     pinned: a.pinned === true,
     collect_interest: a.collect_interest === true,
-    stats: engagementReady ? (stats.get(a.id) ?? { views: 0, clicks: 0, interest: 0 }) : null,
+    stats: { views: a.views, clicks: a.clicks, interest: a.interest },
   }))
 
   // Pinned first, then newest — the order students see them in.
@@ -127,7 +101,7 @@ export async function loadAnnouncementsPage(
     canTargetUniversity: mayTargetUniversity,
     hasCenter,
     announcements,
-    groups: (groupsRaw ?? []) as GroupOption[],
-    engagementReady,
+    groups: groupsRaw as unknown as GroupOption[],
+    engagementReady: true,
   }
 }

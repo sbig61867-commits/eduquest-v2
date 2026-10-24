@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
@@ -87,17 +87,17 @@ function Table({ rows, homework, t, locale }: { rows: ExamRow[]; homework: boole
 export default async function AdminExamsPage({ searchParams }: { searchParams: Promise<{ page?: string; hwpage?: string }> }) {
   const t = await getTranslations('admin.content')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
 
   // One page of exams (?page=) and one of homework (?hwpage=), split in the
   // database by the same rule as isHomework; the summary is counted there too.
   const params = await searchParams
-  const { counts } = await loadAdminContentCounts(supabase)
+  const { counts } = await loadAdminContentCounts(user.id)
   const [{ data: examPage, error: examErr }, { data: hwPage, error: hwErr }] = await Promise.all([
-    loadAdminExamsPage(supabase, false, params.page, counts.exams),
-    loadAdminExamsPage(supabase, true, params.hwpage, counts.homework),
+    loadAdminExamsPage(user.id, false, params.page, counts.exams),
+    loadAdminExamsPage(user.id, true, params.hwpage, counts.homework),
   ])
   if (examErr || hwErr) console.error('[admin/exams]', examErr ?? hwErr)
   const exams = examPage.rows

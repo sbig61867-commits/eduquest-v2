@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
@@ -28,24 +29,22 @@ interface CourseRow {
 export default async function AdminCoursesPage() {
   const t = await getTranslations('admin.content')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
 
-  const { data: raw } = await supabase
-    .from('courses')
-    .select(`
-      id, title, description, language, has_levels, is_published, created_at,
-      teacher:users!courses_teacher_id_fkey(full_name),
-      course_levels(count),
-      course_units(count),
-      course_enrollments(count)
-    `)
-    .eq('tenant_id', user.tenant_id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  const tenantId = user.tenant_id
+  const [raw] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select c.id, c.title, c.description, c.language, c.has_levels, c.is_published, c.created_at,
+               case when u.id is null then null else json_build_object('full_name', u.full_name) end as teacher,
+               json_build_array(json_build_object('count', (select count(*)::int from public.course_levels x where x.course_id = c.id))) as course_levels,
+               json_build_array(json_build_object('count', (select count(*)::int from public.course_units x where x.course_id = c.id))) as course_units,
+               json_build_array(json_build_object('count', (select count(*)::int from public.course_enrollments x where x.course_id = c.id))) as course_enrollments
+          from public.courses c left join public.users u on u.id = c.teacher_id
+         where c.tenant_id = ${tenantId} and c.deleted_at is null
+         order by c.created_at desc limit 1000`,
+  ])
 
-  const courses = (raw ?? []) as unknown as CourseRow[]
+  const courses = raw as unknown as CourseRow[]
   const count = (rows: { count: number }[] | undefined) => rows?.[0]?.count ?? 0
 
   const stats = [

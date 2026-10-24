@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
- * Batch 2 / R1 — GET /api/admin/report-targets and searchReportTargets
+ * Batch 2 / R1 — GET /api/admin/report-targets and searchReportTargetsAs
  * (src/lib/data/report-targets.ts). Owner only (role read from the database,
  * like the page); scoped to the chosen institution; ≤ 20 rows of the picker's
  * fields; no write, no service-role client. Plus: the page reads only the
@@ -57,7 +57,7 @@ vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: co
 const redirect = vi.fn((to: string) => { throw new Error('REDIRECT ' + to) })
 vi.mock('next/navigation', () => ({ redirect: (to: string) => redirect(to) }))
 
-import { searchReportTargets, REPORT_TARGET_LIMIT } from '@/lib/data/report-targets'
+import { searchReportTargetsAs, REPORT_TARGET_LIMIT } from '@/lib/data/report-targets'
 import { GET } from '@/app/api/admin/report-targets/route'
 
 const person = (i: number) => ({ id: `u${i}`, full_name: `Person ${i}`, email: `p${i}@x.test`, role: 'student', permissions: { secret: true } })
@@ -73,55 +73,46 @@ beforeEach(() => {
   createAdmin.mockReset()
 })
 
-describe('searchReportTargets', () => {
-  it('students/teachers: ONE institution, the role, name OR email, ordered, ≤ 20, any status (as the old list)', async () => {
-    reply = { data: Array.from({ length: 25 }, (_, i) => person(i)) }
-    const { rows, error } = await searchReportTargets(sessionClient() as never, TENANT, 'student', '  huda  ')
-    expect(error).toBeNull()
-    const q = calls[0]
-    expect(q).toContainEqual(['from', 'users'])
-    expect(q).toContainEqual(['select', 'id, full_name, email'])
-    expect(q).toContainEqual(['eq', 'tenant_id', TENANT])
-    expect(q).toContainEqual(['eq', 'role', 'student'])
-    expect(q).toContainEqual(['or', 'full_name.ilike."%huda%",email.ilike."%huda%"'])
-    expect(q).toContainEqual(['order', 'full_name', { ascending: true }])
-    expect(q).toContainEqual(['order', 'id', { ascending: true }])
-    expect(q).toContainEqual(['limit', REPORT_TARGET_LIMIT])
-    expect(q.some(x => x[0] === 'eq' && x[1] === 'is_active')).toBe(false)
-    // capped, and only the picker's fields (role/permissions never leave)
-    expect(rows).toHaveLength(20)
-    expect(rows[0]).toEqual({ id: 'u0', label: 'Person 0', email: 'p0@x.test' })
+describe('searchReportTargetsAs', () => {
+  it('students/teachers: ONE institution, the role, name OR email, ordered, ≤ 20, any status (as the old list), as the owner', async () => {
+    reply = { data: [person(1)] }
+    const rows = await searchReportTargetsAs('me', TENANT, 'student', '  huda  ')
+    const [q] = searches()
+    expect(q.ctx).toEqual({ as: 'user', userId: 'me' })
+    expect(q.text).toContain('where tenant_id = $ and role = $ and (full_name ilike $ or email ilike $)')
+    expect(q.text).toContain('order by full_name, id limit $')
+    expect(q.text).not.toContain('is_active')
+    expect(q.values).toEqual([TENANT, 'student', '%huda%', '%huda%', REPORT_TARGET_LIMIT])
+    expect(rows).toEqual([{ id: 'u1', label: 'Person 1', email: 'p1@x.test' }])
   })
 
   it('teachers use role=teacher', async () => {
-    await searchReportTargets(sessionClient() as never, TENANT, 'teacher', 'a')
-    expect(calls[0]).toContainEqual(['eq', 'role', 'teacher'])
+    await searchReportTargetsAs('me', TENANT, 'teacher', 'a')
+    expect(searches()[0].values[1]).toBe('teacher')
   })
 
   it('groups: ONE institution, by name, id + name only, ≤ 20', async () => {
-    reply = { data: Array.from({ length: 30 }, (_, i) => ({ id: `g${i}`, name: `Group ${i}`, tenant_id: TENANT, teacher_id: 't' })) }
-    const { rows } = await searchReportTargets(sessionClient() as never, TENANT, 'group', 'Group 1')
-    const q = calls[0]
-    expect(q).toContainEqual(['from', 'groups'])
-    expect(q).toContainEqual(['select', 'id, name'])
-    expect(q).toContainEqual(['eq', 'tenant_id', TENANT])
-    expect(q).toContainEqual(['ilike', 'name', '%Group 1%'])
-    expect(q).toContainEqual(['limit', REPORT_TARGET_LIMIT])
-    expect(rows).toHaveLength(20)
-    expect(rows[0]).toEqual({ id: 'g0', label: 'Group 0' })
+    reply = { data: [{ id: 'g1', name: 'Group 1' }] }
+    const rows = await searchReportTargetsAs('me', TENANT, 'group', 'Group 1')
+    const [q] = searches()
+    expect(q.text).toMatch(/^select id, name from public\.groups where tenant_id = \$ and name ilike \$/)
+    expect(q.values).toEqual([TENANT, '%Group 1%', REPORT_TARGET_LIMIT])
+    expect(rows).toEqual([{ id: 'g1', label: 'Group 1' }])
   })
 
-  it('filter syntax and wildcards are neutralised; an empty / wildcard-only query touches no table', async () => {
-    await searchReportTargets(sessionClient() as never, TENANT, 'student', 'a"),role.eq.super_admin,(x%*')
-    expect(calls[0]).toContainEqual(['or', 'full_name.ilike."%a ),role.eq.super_admin,(x%",email.ilike."%a ),role.eq.super_admin,(x%"'])
-    calls = []
-    expect((await searchReportTargets(sessionClient() as never, TENANT, 'group', ' %* ')).rows).toEqual([])
-    expect(calls).toHaveLength(0)
+  it('the term is a bound parameter with wildcards removed; an empty / wildcard-only query touches no table', async () => {
+    await searchReportTargetsAs('me', TENANT, 'student', 'a"),role.eq.super_admin,(x%*')
+    const [q] = searches()
+    expect(q.text).not.toContain('super_admin')
+    expect(q.values[2]).toBe('%a ),role.eq.super_admin,(x%')
+    db.sql = []
+    expect(await searchReportTargetsAs('me', TENANT, 'group', ' %* ')).toEqual([])
+    expect(searches()).toHaveLength(0)
   })
 
-  it('a database error is returned, with no rows', async () => {
+  it('a database error is thrown to the route (which answers 500), never an empty success', async () => {
     reply = { error: { message: 'boom' } }
-    expect(await searchReportTargets(sessionClient() as never, TENANT, 'group', 'g')).toEqual({ rows: [], error: { message: 'boom' } })
+    await expect(searchReportTargetsAs('me', TENANT, 'group', 'g')).rejects.toThrow('boom')
   })
 })
 

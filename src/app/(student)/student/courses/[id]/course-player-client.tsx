@@ -10,7 +10,6 @@ import {
   FileText, GraduationCap, ListChecks, PlayCircle, Sparkles, Video,
   ClipboardList, ShieldCheck, Clock, Hourglass,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LessonView } from '@/components/lesson/lesson-view'
@@ -89,13 +88,20 @@ const TYPE_ICON: Record<string, typeof FileText> = {
 // Item-type labels come from the message layer, looked up at render. As a
 // module constant this froze one locale for the whole process — and half of
 // it was still English while the rest of the screen was Arabic.
+/** Marks course items done for the signed-in student (POST /api/student/progress); false on any failure. */
+async function saveProgress(itemIds: string[]): Promise<boolean> {
+  const res = await fetch('/api/student/progress', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_ids: itemIds }),
+  }).catch(() => null)
+  return !!res?.ok
+}
+
 const ITEM_TYPES = ['text', 'grammar', 'idioms', 'rules', 'task', 'quiz', 'video'] as const
 
 export function CoursePlayerClient({
   course, levels, completedIds, unsyncedIds = [], assessments = {}, violationWarningThreshold, studentId, tenantId,
 }: Props) {
   const t = useTranslations('student.player')
-  const supabase = createClient()
   const router = useRouter()
   // Server truth (progress rows + handed-in quizzes) plus what was marked here.
   const [markedHere, setMarkedHere] = useState<Set<string>>(() => new Set())
@@ -108,11 +114,8 @@ export function CoursePlayerClient({
   const unsyncedKey = unsyncedIds.join(',')
   useEffect(() => {
     if (!unsyncedKey) return
-    void supabase.from('student_progress').upsert(
-      unsyncedKey.split(',').map(id => ({ student_id: studentId, unit_item_id: id, tenant_id: tenantId })),
-      { onConflict: 'student_id,unit_item_id', ignoreDuplicates: true },
-    )
-  }, [unsyncedKey, studentId, tenantId, supabase])
+    void saveProgress(unsyncedKey.split(','))
+  }, [unsyncedKey])
   const [saving, setSaving] = useState(false)
   const [openLevels, setOpenLevels] = useState<Record<string, boolean>>(
     () => Object.fromEntries(levels.map((l, i) => [l.id, i === 0]))
@@ -144,17 +147,12 @@ export function CoursePlayerClient({
   async function markComplete() {
     if (!current || completed.has(current.item.id)) return
     setSaving(true)
-    // student_progress RLS pins student_id = auth.uid() and tenant_id =
-    // current_tenant_id(), so neither value can be forged from the client.
-    const { error } = await supabase
-      .from('student_progress')
-      .upsert(
-        { student_id: studentId, unit_item_id: current.item.id, tenant_id: tenantId },
-        { onConflict: 'student_id,unit_item_id', ignoreDuplicates: true }
-      )
+    // The route writes as the student: student_progress RLS pins student_id and
+    // tenant_id, so neither value can be forged from the client.
+    const ok = await saveProgress([current.item.id])
     setSaving(false)
 
-    if (error) {
+    if (!ok) {
       toast.error(t('saveFailed'))
       return
     }

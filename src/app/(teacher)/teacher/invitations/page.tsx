@@ -1,27 +1,25 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { InvitationsClient } from '@/components/shared/invitations-client'
 import { ScopedIntlProvider } from '@/i18n/provider'
 
 export default async function TeacherInvitationsPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, name')
-    .eq('teacher_id', user.id)
-    .order('name')
+  const [groups] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select id, name from public.groups where teacher_id = ${user.id} order by name limit 500`,
+  ])
 
   return (
     <ScopedIntlProvider namespaces={['common', 'teacher', 'terms', 'staff']}>
       <InvitationsClient
         callerRole="teacher"
         tenants={[]}
-        groups={groups ?? []}
+        groups={groups as unknown as { id: string; name: string }[]}
       />
     </ScopedIntlProvider>
   )

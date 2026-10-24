@@ -1,13 +1,13 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
 import { getTenantSettings } from '@/lib/structure-mode'
 import { getTerms } from '@/lib/terminology'
 import { GraduationCap, Users, BookOpen, ClipboardList } from 'lucide-react'
-import type { SupabaseClient } from '@/lib/db'
 import { formatDate } from '@/lib/utils'
 import { AiAllowanceCard } from '@/components/shared/ai-allowance-card'
 import { loadAdminContentCounts, loadAdminLessonsPage } from '@/lib/data/admin-content'
@@ -15,17 +15,17 @@ import { loadAdminContentCounts, loadAdminLessonsPage } from '@/lib/data/admin-c
 // Lesson/exam figures come from the metadata-only admin feeds (the admin
 // has no direct RLS read on lessons/exams — that would expose content and
 // questions). Teacher/student counts stay on `users`, which the admin can read.
-async function getStats(supabase: SupabaseClient, tenantId: string, lessons: number, exams: number) {
-  const [{ count: teachers }, { count: students }] = await Promise.all([
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'teacher'),
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'student'),
+async function getStats(userId: string, tenantId: string, lessons: number, exams: number) {
+  const [rows] = await run({ as: 'user', userId }, sql => [
+    sql`select (select count(*)::int from public.users where tenant_id = ${tenantId} and role = 'teacher') as teachers,
+               (select count(*)::int from public.users where tenant_id = ${tenantId} and role = 'student') as students`,
   ])
-  return { teachers: teachers ?? 0, students: students ?? 0, lessons, exams }
+  const c = rows[0] as { teachers: number; students: number }
+  return { teachers: c.teachers, students: c.students, lessons, exams }
 }
 
 export default async function AdminDashboard() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
   // tenant_id comes from the JWT claims (synced by sync_user_claims) — no DB lookup needed
@@ -36,13 +36,13 @@ export default async function AdminDashboard() {
   // and the 5 newest lessons — never the institution's whole lesson / exam list.
   // Recent lessons stand in as the activity feed until a dedicated audit table exists.
   const [{ counts }, { data: recent }] = await Promise.all([
-    loadAdminContentCounts(supabase),
-    loadAdminLessonsPage(supabase, 1, 5, 5),
+    loadAdminContentCounts(user.id),
+    loadAdminLessonsPage(user.id, 1, 5, 5),
   ])
   const [stats, settings] = await Promise.all([
     // «Exams» counted every exam row, homework included — unchanged.
-    getStats(supabase, tenantId, counts.lessons, counts.exams + counts.homework),
-    getTenantSettings(supabase, tenantId),
+    getStats(user.id, tenantId, counts.lessons, counts.exams + counts.homework),
+    getTenantSettings(user.id, tenantId),
   ])
   const t = await getTranslations('admin.dashboard')
   const locale = (await getLocale()) as Locale
@@ -80,7 +80,7 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      <AiAllowanceCard supabase={supabase} />
+      <AiAllowanceCard userId={user.id} />
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <h3 className="text-white font-semibold mb-4">{t('recentActivity')}</h3>

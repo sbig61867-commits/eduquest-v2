@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { notFound, redirect } from 'next/navigation'
 import { buildItems, isShared, marksFor, progressFor, requestNow, summarize } from '@/lib/teacher-records'
 import { loadGroupData } from '@/lib/data/teacher-records'
@@ -16,12 +16,11 @@ export default async function StudentRecordPage({ params, searchParams }: {
 }) {
   const { groupId, studentId } = await params
   const { followup } = await searchParams
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
   // Only this student's roster row, submissions, marks and progress are read.
-  const data = await loadGroupData(supabase, user.id, groupId, { studentId })
+  const data = await loadGroupData(user.id, groupId, { studentId })
   if (!data) notFound()
   const member = data.members.find(m => m.studentId === studentId)
   if (!member) notFound()

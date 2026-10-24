@@ -1,32 +1,27 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { GroupsClient } from './groups-client'
 import { ScopedIntlProvider } from '@/i18n/provider'
 
 export default async function GroupsPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  // Read the teacher's profile (users SELECT policy has id=auth.uid() escape — always works)
-  const { data: profile } = await supabase
-    .from('users')
-    .select('tenant_id, role')
-    .eq('id', user.id)
-    .single()
-
+  // The teacher's live profile and their groups in one unit. The groups are
+  // those of the institution the profile names now (a removed teacher has none).
+  const [profiles, groups] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select tenant_id from public.users where id = ${user.id}`,
+    sql`select g.id, g.name, g.description, g.created_at, g.is_active,
+               json_build_array(json_build_object('count', (select count(*)::int from public.group_students s where s.group_id = g.id))) as group_students
+          from public.groups g
+         where g.teacher_id = ${user.id} and g.tenant_id = (select u.tenant_id from public.users u where u.id = ${user.id})
+         order by g.created_at desc limit 500`,
+  ])
+  const profile = profiles[0] as { tenant_id: string | null } | undefined
   if (!profile?.tenant_id) redirect('/login?error=university_removed')
-
-  // RLS scopes this to the teacher's own groups; the .eq filters below
-  // are kept as defense-in-depth.
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('*, group_students(count)')
-    .eq('teacher_id', user.id)
-    .eq('tenant_id', profile.tenant_id)
-    .order('created_at', { ascending: false })
 
   // «إدارة الطلاب» finds students on demand through /api/students/search
   // (≤ 20 per search); the institution's student body is never sent to the page.
@@ -34,7 +29,7 @@ export default async function GroupsPage() {
   return (
     <ScopedIntlProvider namespaces={['common', 'teacher', 'terms', 'staff']}>
       <GroupsClient
-        initialGroups={groups ?? []}
+        initialGroups={groups as unknown as Parameters<typeof GroupsClient>[0]['initialGroups']}
         teacherId={user.id}
         tenantId={profile.tenant_id}
       />

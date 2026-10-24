@@ -1,69 +1,50 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run } from '@/lib/db/sql'
 import { parsePage } from '@/lib/data/people'
-import { IncompleteReadError, readAllPages, rowsOf, type ReadResult } from '@/lib/data/complete-read'
 
 // ── /center/groups (B, absorbs F1) ──────────────────────────────────────────
 //
-// The institution's groups, read through the centre manager's session (RLS:
-// groups_select — own tenant, not deleted), plus the same explicit tenant filter
-// as before. The table is one server page (newest first, `id` breaks ties so
-// pages never overlap or skip); the active / archived totals are head counts;
-// and the transfer picker gets every ACTIVE group of the institution, read
-// completely in counted pages — not just the groups on the current page. A
-// failed or short read throws (IncompleteReadError), never a partial screen.
+// The institution's groups, read as the centre manager (RLS: groups_select —
+// own tenant, not deleted), plus the same explicit tenant filter as before.
+// ONE unit: the table's page (newest first, `id` breaks ties so pages never
+// overlap or skip, a page past the end becomes the last page) with the active /
+// archived totals, and the transfer picker's every ACTIVE group of the
+// institution — not just the groups on the current page. A failed read throws,
+// never a partial screen.
 
 export const CENTER_GROUPS_PAGE_SIZE = 50
-const RANGE_NOT_SATISFIABLE = 'PGRST103'
-
-/** What the transfer picker shows: name, course, cap and current size. */
-const TRANSFER_OPTION_COLUMNS = 'id, name, course_id, max_students, group_students(count)'
 
 export interface TransferOptionRow {
   id: string; name: string; course_id: string | null; max_students: number | null
   group_students: { count: number }[] | null
 }
 
-function countOf(r: ReadResult, what: string): number {
-  if (r.error) throw new IncompleteReadError(`${what}: count failed`, r.error)
-  if (r.count == null) throw new IncompleteReadError(`${what}: no count returned`)
-  return r.count
-}
+const memberCount = (sql: Parameters<Parameters<typeof run>[1]>[0]) =>
+  sql`json_build_array(json_build_object('count', (select count(*)::int from public.group_students s where s.group_id = g.id)))`
 
-export async function loadCenterGroupsPage(db: SupabaseClient, tenantId: string, rawPage: unknown) {
-  const pageOf = (page: number) => {
-    const from = (page - 1) * CENTER_GROUPS_PAGE_SIZE
-    // Exactly the columns the table uses (was `*`; the optional course / image / cap columns
-    // exist since group_course_transfer_migration.sql, which the picker below also reads).
-    return db.from('groups')
-      .select('id, name, description, is_active, teacher_id, course_id, image_url, max_students, instructions, group_students(count), teacher:users!groups_teacher_id_fkey(full_name, role, is_active)', { count: 'exact' })
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false }).order('id', { ascending: true })
-      .range(from, from + CENTER_GROUPS_PAGE_SIZE - 1)
-  }
-
-  let page = parsePage(rawPage)
-  const [first, activeRes, archivedRes, transferOptions] = await Promise.all([
-    pageOf(page),
-    db.from('groups').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_active', true),
-    db.from('groups').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_active', false),
-    readAllPages<TransferOptionRow>('transfer groups', (from, to, withCount) => db.from('groups')
-      .select(TRANSFER_OPTION_COLUMNS, withCount ? { count: 'exact' } : undefined)
-      .eq('tenant_id', tenantId).eq('is_active', true)
-      .order('name').order('id').range(from, to)),
+export async function loadCenterGroupsPage(userId: string, tenantId: string, rawPage: unknown) {
+  const size = CENTER_GROUPS_PAGE_SIZE
+  const [pageRows, transfer] = await run({ as: 'user', userId }, sql => [
+    sql`with t as (select count(*) filter (where is_active)::int as active, count(*) filter (where not is_active)::int as archived
+                   from public.groups where tenant_id = ${tenantId}),
+             pg as (select least(${parsePage(rawPage)}, greatest(1, ceil((active + archived) / ${size}::numeric)::int)) as p from t)
+        select (select active from t) as active, (select archived from t) as archived, (select p from pg) as page,
+               coalesce((select json_agg(x order by x.created_at desc, x.id) from (
+                 select g.id, g.name, g.description, g.is_active, g.teacher_id, g.course_id, g.image_url, g.max_students,
+                        g.instructions, g.created_at, ${memberCount(sql)} as group_students,
+                        case when u.id is null then null else json_build_object('full_name', u.full_name, 'role', u.role, 'is_active', u.is_active) end as teacher
+                   from public.groups g left join public.users u on u.id = g.teacher_id
+                  where g.tenant_id = ${tenantId}
+                  order by g.created_at desc, g.id
+                  limit ${size} offset ((select p from pg) - 1) * ${size}) x), '[]') as rows`,
+    sql`select g.id, g.name, g.course_id, g.max_students, ${memberCount(sql)} as group_students
+          from public.groups g where g.tenant_id = ${tenantId} and g.is_active order by g.name, g.id`,
   ])
-  const active = countOf(activeRes, 'active groups')
-  const archived = countOf(archivedRes, 'archived groups')
-
-  let res = first
-  if (res.error?.code === RANGE_NOT_SATISFIABLE) {
-    // A page past the end (e.g. after an archive or a stale link): serve the last page.
-    page = Math.max(1, Math.ceil((active + archived) / CENTER_GROUPS_PAGE_SIZE))
-    res = await pageOf(page)
-  }
-  const rows = rowsOf(res as ReadResult, 'groups page')
-  const total = countOf(res as ReadResult, 'groups page')
+  const p = pageRows[0] as { active: number; archived: number; page: number; rows: Record<string, unknown>[] }
+  const total = p.active + p.archived
   return {
-    rows, page, total, active, archived, transferOptions,
-    pageCount: Math.max(1, Math.ceil(total / CENTER_GROUPS_PAGE_SIZE)),
+    rows: p.rows.map(({ created_at: _c, ...row }) => (void _c, row)),
+    page: p.page, total, active: p.active, archived: p.archived,
+    transferOptions: transfer as unknown as TransferOptionRow[],
+    pageCount: Math.max(1, Math.ceil(total / size)),
   }
 }

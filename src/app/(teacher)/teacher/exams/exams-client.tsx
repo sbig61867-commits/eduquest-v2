@@ -16,7 +16,6 @@ import { SimilarityPanel } from '@/components/teacher/similarity-panel'
 import type { SimilarPair } from '@/lib/answer-similarity'
 import { extractFilesText } from '@/lib/ai/extract-client'
 import type { Question } from '@/types'
-import { createClient } from '@/lib/supabase/client'
 import { toTeacherExamRow, type TeacherExamRow } from '@/lib/data/teacher-exams'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
@@ -146,9 +145,10 @@ export function ExamsClient({ initialExams, groups, courses = [], proctoringDefa
   const [resultsLoading, setResultsLoading] = useState(false)
   const [viewQuestions, setViewQuestions] = useState<{ title: string; questions: Question[] } | null>(null)
   async function openQuestions(exam: Exam) {
-    const { data, error } = await createClient().from('exams').select('questions').eq('id', exam.id).single()
-    if (error || !data) { toast.error(error?.message ?? t('exams.questionsViewer.loadFailed')); return }
-    setViewQuestions({ title: exam.title, questions: (data.questions as Question[] | null) ?? [] })
+    const res = await fetch(`/api/exams?id=${exam.id}`).catch(() => null)
+    const data = res?.ok ? await res.json().catch(() => null) as { questions?: Question[] } | null : null
+    if (!data) { toast.error(t('exams.questionsViewer.loadFailed')); return }
+    setViewQuestions({ title: exam.title, questions: data.questions ?? [] })
   }
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [manualPts, setManualPts] = useState<Record<string, Record<string, number>>>({})

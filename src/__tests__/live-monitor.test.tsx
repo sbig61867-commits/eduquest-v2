@@ -3,11 +3,19 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 
 // The teacher's monitoring page, with a fake Realtime client: students come
 // from presence (no table read), the wall shows only validated pictures, and
-// the 'last 30 s' button broadcasts to that one student.
+// the 'last 30 s' button broadcasts to that one student. Names come from
+// POST /api/proctoring/live-names (step 9), stubbed on fetch.
 
-// Names lookups (C1): each `.in()` call's ids, and the reply the test chooses.
+// Names lookups: each request's ids, and the reply the test chooses (null = the request fails).
 const nameCalls: string[][] = []
-let namesReply: (ids: string[]) => { data: { id: string; full_name: string }[] | null; error: unknown } = () => ({ data: [], error: null })
+let namesReply: (ids: string[]) => { id: string; full_name: string }[] | null = () => []
+const namesFetch = vi.fn(async (url: string, init?: { body?: string }) => {
+  if (url !== '/api/proctoring/live-names') throw new Error('unexpected fetch ' + url)
+  const { ids } = JSON.parse(init?.body ?? '{}') as { ids: string[] }
+  nameCalls.push(ids)
+  const rows = namesReply(ids)
+  return rows ? { ok: true, status: 200, json: async () => ({ names: rows }) } : { ok: false, status: 400, json: async () => ({}) }
+})
 const channels: Record<string, { handlers: Record<string, (m: unknown) => void>; sent: unknown[]; state: Record<string, unknown[]> }> = {}
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
@@ -24,7 +32,6 @@ vi.mock('@/lib/supabase/client', () => ({
       return ch
     },
     removeChannel: () => {},
-    from: () => ({ select: () => ({ in: async (_c: string, ids: string[]) => { nameCalls.push(ids); return namesReply(ids) } }) }),
   }),
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {} }) }))
@@ -45,14 +52,15 @@ describe('teacher live monitor', () => {
   beforeEach(() => {
     for (const k of Object.keys(channels)) delete channels[k]
     nameCalls.length = 0
+    vi.stubGlobal('fetch', namesFetch)
     const known: Record<string, string> = { [S1]: 'Sara', [S2]: 'Omar' }
-    namesReply = ids => ({ data: ids.filter(id => known[id]).map(id => ({ id, full_name: known[id] })), error: null })
+    namesReply = ids => ids.filter(id => known[id]).map(id => ({ id, full_name: known[id] }))
   })
 
   it('a failed names lookup leaves the students unnamed (…), not "—", and the next presence change retries them', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
     const ok = namesReply
-    namesReply = () => ({ data: null, error: { code: '400', message: 'Bad Request' } })
+    namesReply = () => null
     render(<LiveMonitor examId={EXAM} examTitle="Quiz" liveConfigured={false} />)
     await waitFor(() => expect(channels[`exam-live:${EXAM}`]).toBeTruthy())
     const live = channels[`exam-live:${EXAM}`]
@@ -69,7 +77,7 @@ describe('teacher live monitor', () => {
     errors.mockRestore()
   })
 
-  it('more than 640 students: names are looked up in batches of at most 100 ids', async () => {
+  it('more than 500 students: names are looked up in chunks the route accepts (≤ 500 ids), and every student is asked for', async () => {
     render(<LiveMonitor examId={EXAM} examTitle="Quiz" liveConfigured={false} />)
     await waitFor(() => expect(channels[`exam-live:${EXAM}`]).toBeTruthy())
     const live = channels[`exam-live:${EXAM}`]
@@ -77,7 +85,8 @@ describe('teacher live monitor', () => {
     live.state = Object.fromEntries([[S1, [{ v: 0, ev: 0 }]], ...ids.map(id => [id, [{ v: 0, ev: 0 }]])])
     act(() => live.handlers['presence:sync']({}))
     await waitFor(() => expect(nameCalls.flat()).toHaveLength(701), { timeout: 30_000 })
-    expect(Math.max(...nameCalls.map(c => c.length))).toBeLessThanOrEqual(100)
+    expect(Math.max(...nameCalls.map(c => c.length))).toBeLessThanOrEqual(500)
+    expect(namesFetch.mock.calls.every(([, init]) => JSON.parse((init as { body: string }).body).exam_id === EXAM)).toBe(true)
   }, 60_000) // 701 student tiles render slowly in jsdom
 
   it('lists students from presence with their counts, without video', async () => {

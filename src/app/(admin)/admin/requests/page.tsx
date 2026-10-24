@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { getRoleLabel } from '@/lib/utils'
@@ -10,12 +10,11 @@ import { loadRequestsData } from '@/lib/requests-data'
 
 export default async function AdminRequestsPage() {
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id || !user.role) redirect('/login')
 
   const { requests, recipients, groups } = await loadRequestsData(
-    supabase, { id: user.id, role: user.role, tenant_id: user.tenant_id },
+    { id: user.id, role: user.role, tenant_id: user.tenant_id },
   )
 
   return (

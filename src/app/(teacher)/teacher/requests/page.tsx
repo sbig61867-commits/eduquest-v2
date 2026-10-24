@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { redirect } from 'next/navigation'
 import { RequestsInbox } from '@/components/requests/requests-inbox'
 import { loadRequestsData } from '@/lib/requests-data'
@@ -8,13 +8,12 @@ import { getTranslations } from 'next-intl/server'
 import { ScopedIntlProvider } from '@/i18n/provider'
 
 export default async function TeacherRequestsPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user?.tenant_id || !user.role) redirect('/login')
   const t = await getTranslations('teacher')
 
   const { requests, recipients, groups } = await loadRequestsData(
-    supabase, { id: user.id, role: user.role, tenant_id: user.tenant_id },
+    { id: user.id, role: user.role, tenant_id: user.tenant_id },
   )
 
   return (

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { Users, BookOpen, ClipboardList, Eye, EyeOff, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -14,40 +15,32 @@ interface RecentLesson { id: string; title: string; is_published: boolean; creat
 interface UpcomingExam  { id: string; title: string; ends_at: string | null; groups: { name: string } | null }
 
 export default async function TeacherDashboard() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
   const t = await getTranslations('teacher')
   const locale = (await getLocale()) as Locale
 
-  const [
-    { count: groups },
-    { count: lessons },
-    { count: exams },
-    { data: recentLessons },
-    { data: upcomingExams },
-    { data: announcementRows },
-  ] = await Promise.all([
-    supabase.from('groups').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
-    supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
-    supabase.from('exams').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id).is('deleted_at', null),
-    supabase.from('lessons')
-      .select('id, title, is_published, created_at, groups(name)')
-      .eq('teacher_id', user.id).is('deleted_at', null)
-      .order('created_at', { ascending: false }).limit(5),
-    supabase.from('exams')
-      .select('id, title, ends_at, groups(name)')
-      .eq('teacher_id', user.id).is('deleted_at', null)
-      .eq('is_published', true)
-      .gte('ends_at', new Date().toISOString())
-      .order('ends_at', { ascending: true }).limit(5),
-    supabase.from('announcements')
-      .select('id, title, body, image_url, link_url, cta_label, is_published, starts_at, ends_at')
-      .eq('tenant_id', user.tenant_id ?? '')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false }).limit(20),
+  const tenantId = user.tenant_id ?? null
+  const [countRows, recentRows, upcomingRows, announcementRows] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select (select count(*)::int from public.groups where teacher_id = ${user.id} and deleted_at is null) as groups,
+               (select count(*)::int from public.lessons where teacher_id = ${user.id} and deleted_at is null) as lessons,
+               (select count(*)::int from public.exams where teacher_id = ${user.id} and deleted_at is null) as exams`,
+    sql`select l.id, l.title, l.is_published, l.created_at,
+               case when g.id is null then null else json_build_object('name', g.name) end as groups
+          from public.lessons l left join public.groups g on g.id = l.group_id
+         where l.teacher_id = ${user.id} and l.deleted_at is null order by l.created_at desc limit 5`,
+    sql`select e.id, e.title, e.ends_at,
+               case when g.id is null then null else json_build_object('name', g.name) end as groups
+          from public.exams e left join public.groups g on g.id = e.group_id
+         where e.teacher_id = ${user.id} and e.deleted_at is null and e.is_published and e.ends_at >= now()
+         order by e.ends_at limit 5`,
+    sql`select id, title, body, image_url, link_url, cta_label, is_published, starts_at, ends_at
+          from public.announcements where tenant_id = ${tenantId} and is_published order by created_at desc limit 20`,
   ])
-  const liveAnnouncements = (announcementRows ?? []).filter(a => isAnnouncementLive(a)) as StudentAnnouncement[]
+  const { groups, lessons, exams } = countRows[0] as unknown as { groups: number; lessons: number; exams: number }
+  const recentLessons = recentRows as unknown as RecentLesson[]
+  const upcomingExams = upcomingRows as unknown as UpcomingExam[]
+  const liveAnnouncements = (announcementRows as unknown as (StudentAnnouncement & { is_published: boolean; starts_at: string | null; ends_at: string | null })[]).filter(a => isAnnouncementLive(a)) as StudentAnnouncement[]
 
   const cards = [
     { label: t('dashboard.cards.groups'),   value: groups  ?? 0, icon: Users,        color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/teacher/groups'  },

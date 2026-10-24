@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
-import type { Sql } from '@/lib/db/sql'
+import { run, type Sql } from '@/lib/db/sql'
 import { teacherFootprints, type TeacherFootprint } from '@/lib/account-scope'
 
 /**
@@ -7,29 +6,21 @@ import { teacherFootprints, type TeacherFootprint } from '@/lib/account-scope'
  *
  * A directory screen never receives the institution's whole membership: the
  * database returns one page of named columns, the total comes from the same
- * query (count: 'exact'), and search runs in the database. Reads go through
- * the caller's session client, so RLS stays the tenant boundary; the explicit
- * tenant filter is defense in depth.
+ * statement, and search runs in the database. Reads run as the caller, so RLS
+ * stays the tenant boundary; the explicit tenant filter is defense in depth.
  */
 
 export const PEOPLE_PAGE_SIZE = 50
 const MAX_SEARCH = 100
 
 /**
- * A search term safe to place inside a double-quoted PostgREST filter value
- * (see nameOrEmailFilter). Inside quotes `,` `.` `(` `)` `:` are plain text —
- * so "gmail.com" still finds addresses — while `"` and `\` (which would end or
- * escape the quoting) and the LIKE wildcards `%` `*` (a lone one would match
- * everyone) are removed.
+ * A search term for a bound ILIKE pattern: `,` `.` `(` `)` `:` are plain text —
+ * so "gmail.com" still finds addresses — while the LIKE wildcards `%` `*` (a
+ * lone one would match everyone) and `"` `\` are removed.
  */
 export function sanitizeSearch(raw: unknown): string {
   if (typeof raw !== 'string') return ''
   return raw.replace(/["\\%*]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_SEARCH)
-}
-
-/** `or=(…)` value: case-insensitive substring match on name or email. */
-export function nameOrEmailFilter(search: string): string {
-  return `full_name.ilike."%${search}%",email.ilike."%${search}%"`
 }
 
 /** `?page=` as a positive integer (1 when missing or malformed). */
@@ -63,8 +54,7 @@ export interface StudentRow {
   name_complete: boolean | null
 }
 
-const STUDENT_COLUMNS =
-  'id, email, full_name, avatar_url, role, is_active, created_at, tenant_id, can_create_courses, is_university_student, name_complete'
+const STUDENT_COLUMNS = ['id', 'email', 'full_name', 'avatar_url', 'role', 'is_active', 'created_at', 'tenant_id', 'can_create_courses', 'is_university_student', 'name_complete']
 
 export interface TeacherRow {
   id: string
@@ -76,7 +66,7 @@ export interface TeacherRow {
 }
 
 /** Exactly what /admin/teachers renders — no avatar/role/tenant it never shows. */
-const TEACHER_COLUMNS = 'id, email, full_name, is_active, created_at, can_create_courses'
+const TEACHER_COLUMNS = ['id', 'email', 'full_name', 'is_active', 'created_at', 'can_create_courses']
 
 /** /center/students: what the centre people table renders, name flag on the same rows. */
 export interface CenterStudentRow {
@@ -89,89 +79,72 @@ export interface CenterStudentRow {
   name_complete: boolean | null
 }
 
-const CENTER_STUDENT_COLUMNS = 'id, full_name, email, is_active, created_at, is_university_student, name_complete'
-
-/** PostgREST: the requested range starts past the last row. */
-const RANGE_NOT_SATISFIABLE = 'PGRST103'
+const CENTER_STUDENT_COLUMNS = ['id', 'full_name', 'email', 'is_active', 'created_at', 'is_university_student', 'name_complete']
 
 type ListOptions = { search?: string; page?: number; pageSize?: number }
 
 /**
  * One page of an institution's members of one role, newest first, optionally
- * filtered by a name/email search. A page past the end is answered with the
- * last page of the SAME search.
+ * filtered by a name/email search — ONE statement read as the caller: the
+ * total (and active count) of the same search, the page clamped to the last
+ * one, and its rows. The statement reads one superset of columns; only
+ * `columns` leave this function.
  */
 async function listByRole<T>(
-  db: SupabaseClient,
+  userId: string,
   tenantId: string,
   role: 'student' | 'teacher',
-  columns: string,
+  columns: readonly string[],
   opts: ListOptions & { countActive?: boolean },
 ): Promise<{ data: Page<T>; error: { message: string } | null }> {
   const pageSize = opts.pageSize ?? PEOPLE_PAGE_SIZE
   const search = sanitizeSearch(opts.search)
-
-  // One filter for the page and for the past-the-end count, so both agree.
-  const filtered = (select: string, head: boolean) => {
-    let query = db
-      .from('users')
-      .select(select, head ? { count: 'exact', head: true } : { count: 'exact' })
-      .eq('tenant_id', tenantId)
-      .eq('role', role)
-    if (search) query = query.or(nameOrEmailFilter(search))
-    return query
-  }
-
-  const fetchPage = (page: number) => {
-    const from = (page - 1) * pageSize
-    return filtered(columns, false)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: true })
-      .range(from, from + pageSize - 1)
-  }
-
-  let page = opts.page ?? 1
-  // The active count (same search) runs beside the page, not after it.
-  const [first, activeRes] = await Promise.all([
-    fetchPage(page),
-    opts.countActive ? filtered('id', true).eq('is_active', true) : null,
-  ])
-  let res = first
-  if (res.error?.code === RANGE_NOT_SATISFIABLE) {
-    // Asked for a page past the end (e.g. after deletions): count, then serve the last page.
-    const { count } = await filtered('id', true)
-    page = Math.max(1, Math.ceil((count ?? 0) / pageSize))
-    res = await fetchPage(page)
-  }
-  const error = res.error ?? activeRes?.error ?? null
-  if (error) {
-    return { data: { rows: [], total: 0, page: 1, pageCount: 1, pageSize, ...(activeRes ? { active: 0 } : {}) }, error }
-  }
-  const total = res.count ?? 0
-  return {
-    data: {
-      rows: (res.data ?? []) as unknown as T[],
-      total,
-      page,
-      pageCount: Math.max(1, Math.ceil(total / pageSize)),
-      pageSize,
-      ...(activeRes ? { active: activeRes.count ?? 0 } : {}),
-    },
-    error: null,
+  const pattern = search ? `%${search}%` : null
+  const empty = { rows: [], total: 0, page: 1, pageCount: 1, pageSize, ...(opts.countActive ? { active: 0 } : {}) }
+  try {
+    const [rows] = await run({ as: 'user', userId }, sql => [
+      sql`with m as (
+             select u.id, u.email, u.full_name, u.avatar_url, u.role, u.is_active, u.created_at, u.tenant_id,
+                    u.can_create_courses, u.is_university_student, u.name_complete
+               from public.users u
+              where u.tenant_id = ${tenantId} and u.role = ${role}
+                and (${pattern}::text is null or u.full_name ilike ${pattern} or u.email ilike ${pattern})),
+           t as (select count(*)::int as total, count(*) filter (where is_active)::int as active from m),
+           pg as (select least(${opts.page ?? 1}, greatest(1, ceil(total / ${pageSize}::numeric)::int)) as p from t)
+      select (select total from t) as total, (select active from t) as active, (select p from pg) as page,
+             coalesce((select json_agg(row_to_json(x) order by x.created_at desc, x.id)
+                         from (select * from m order by created_at desc, id
+                                limit ${pageSize} offset ((select p from pg) - 1) * ${pageSize}) x), '[]') as rows`,
+    ])
+    const r = rows[0] as { total: number; active: number; page: number; rows: Record<string, unknown>[] } | undefined
+    if (!r) return { data: empty, error: null }
+    return {
+      data: {
+        rows: r.rows.map(row => Object.fromEntries(columns.map(c => [c, row[c] ?? null]))) as unknown as T[],
+        total: r.total,
+        page: r.page,
+        pageCount: Math.max(1, Math.ceil(r.total / pageSize)),
+        pageSize,
+        ...(opts.countActive ? { active: r.active } : {}),
+      },
+      error: null,
+    }
+  } catch (e) {
+    return { data: empty, error: { message: e instanceof Error ? e.message : String(e) } }
   }
 }
 
 /** One page of an institution's students (/admin/students). */
-export function listStudents(db: SupabaseClient, tenantId: string, opts: ListOptions = {}) {
-  return listByRole<StudentRow>(db, tenantId, 'student', STUDENT_COLUMNS, opts)
+export function listStudents(userId: string, tenantId: string, opts: ListOptions = {}) {
+  return listByRole<StudentRow>(userId, tenantId, 'student', STUDENT_COLUMNS, opts)
 }
 
 /**
  * One page of an institution's students for the centre manager (/center/students),
  * with the four-part-name flag on the same rows and the active count for the summary.
  */
-export function listCenterStudents(db: SupabaseClient, tenantId: string, opts: ListOptions = {}) {
-  return listByRole<CenterStudentRow>(db, tenantId, 'student', CENTER_STUDENT_COLUMNS, { ...opts, countActive: true })
+export function listCenterStudents(userId: string, tenantId: string, opts: ListOptions = {}) {
+  return listByRole<CenterStudentRow>(userId, tenantId, 'student', CENTER_STUDENT_COLUMNS, { ...opts, countActive: true })
 }
 
 export interface CenterTeacherRow {
@@ -184,32 +157,37 @@ export interface CenterTeacherRow {
   footprint: TeacherFootprint
 }
 
-const CENTER_TEACHER_COLUMNS = 'id, full_name, email, is_active, created_at'
+const CENTER_TEACHER_COLUMNS = ['id', 'full_name', 'email', 'is_active', 'created_at']
 
 /**
  * One page of an institution's teachers for the centre manager (/center/teachers),
  * with the active count and each teacher's footprint — which decides whether the
  * centre may (de)activate them. The footprint reads only the groups and courses
- * of THIS page's teachers (P4: one batched `.in()` per table, never one call per
+ * of THIS page's teachers (P4: one statement per table, never one call per
  * row); a teacher's footprint depends on their own rows only, so the result is
  * the same as computing it from the whole institution
  * (supabase/tests/center_teachers_list_check.sql, L1).
  */
-export async function listCenterTeachers(db: SupabaseClient, tenantId: string, opts: ListOptions = {}) {
+export async function listCenterTeachers(userId: string, tenantId: string, opts: ListOptions = {}) {
   const res = await listByRole<Omit<CenterTeacherRow, 'footprint'>>(
-    db, tenantId, 'teacher', CENTER_TEACHER_COLUMNS, { ...opts, countActive: true },
+    userId, tenantId, 'teacher', CENTER_TEACHER_COLUMNS, { ...opts, countActive: true },
   )
   const ids = res.data.rows.map(r => r.id)
   // Restricted to this page's teachers (≤ pageSize = 50) and used only here to
   // decide the lock — never sent to the browser. Not hard-row-limited: it returns
   // every live group/course those teachers own (a .limit() could flip a lock).
-  const [{ data: groups }, { data: courses }] = ids.length
-    ? await Promise.all([
-        db.from('groups').select('teacher_id, course_id').eq('tenant_id', tenantId).in('teacher_id', ids).is('deleted_at', null),
-        db.from('courses').select('teacher_id').eq('tenant_id', tenantId).in('teacher_id', ids).is('deleted_at', null),
+  const [groups, courses] = ids.length
+    ? await run({ as: 'user', userId }, sql => [
+        sql`select teacher_id, course_id from public.groups
+             where tenant_id = ${tenantId} and teacher_id in (select jsonb_array_elements_text(${sql.json(ids)})::uuid) and deleted_at is null`,
+        sql`select teacher_id from public.courses
+             where tenant_id = ${tenantId} and teacher_id in (select jsonb_array_elements_text(${sql.json(ids)})::uuid) and deleted_at is null`,
       ])
-    : [{ data: [] }, { data: [] }]
-  const footprints = teacherFootprints(groups ?? [], courses ?? [])
+    : [[], []]
+  const footprints = teacherFootprints(
+    groups as unknown as { teacher_id: string; course_id: string | null }[],
+    courses as unknown as { teacher_id: string }[],
+  )
   const rows: CenterTeacherRow[] = res.data.rows.map(r => ({
     ...r,
     footprint: footprints.get(r.id) ?? { universityGroups: 0, centreItems: 0 },
@@ -229,35 +207,6 @@ export interface StudentSearchRow {
 /** Whose members a student search leaves out: a group roster or a course's enrolments. */
 export type RosterTarget = { group: string } | { course: string }
 
-/** `or=(…)` value: case-insensitive substring match on the name only. */
-export function nameFilter(search: string): string {
-  return `full_name.ilike."%${search}%"`
-}
-
-// The membership table each target is anti-joined on (left embed through the
-// student's FK, filtered to the target, then `<table>=is.null`).
-const MEMBERSHIP = {
-  group: { table: 'group_students', fk: 'group_students_student_id_fkey', column: 'group_id' },
-  course: { table: 'course_enrollments', fk: 'course_enrollments_student_id_fkey', column: 'course_id' },
-} as const
-
-/**
- * Student selector: at most STUDENT_SEARCH_LIMIT active students of the
- * institution matching `q`, excluding those already in the target — never the
- * institution's whole student body.
- *   - /teacher/groups «إدارة الطلاب» (T1): `target` is the group id; name or
- *     email, and the email comes back (the teacher screen shows it).
- *   - RosterModal on /center/groups and /center/courses (C-S): `{ group }` or
- *     `{ course }` with `nameOnly` — searched by name and returned without the
- *     email, the same data those pages sent before (id + name).
- *
- * The exclusion is a PostgREST anti-join (left-embed the membership table
- * filtered to the target, then `<table>=is.null`), so no member list is read or
- * sent and no id list grows the URL. Runs on the caller's session: RLS decides
- * which students and memberships are visible; the tenant, role and active
- * filters are defence in depth and keep the result to students. An empty `q`
- * returns nothing and touches no table.
- */
 /**
  * The same search as a SQL fragment (step 9), for a route to send in the same
  * unit as its authorization reads: at most STUDENT_SEARCH_LIMIT active
@@ -288,70 +237,6 @@ export function studentSearchSql(
            order by u.full_name, u.id limit ${STUDENT_SEARCH_LIMIT}`
 }
 
-export async function searchStudents(
-  db: SupabaseClient,
-  tenantId: string,
-  q: string,
-  target: string | RosterTarget,
-  opts: { nameOnly?: boolean } = {},
-): Promise<{ rows: Array<Pick<StudentSearchRow, 'id' | 'full_name'> & { email?: string }>; error: { message: string } | null }> {
-  const search = sanitizeSearch(q)
-  if (!search) return { rows: [], error: null }
-  const kind: keyof typeof MEMBERSHIP = typeof target === 'string' || 'group' in target ? 'group' : 'course'
-  const targetId = typeof target === 'string' ? target : 'group' in target ? target.group : target.course
-  const m = MEMBERSHIP[kind]
-  const nameOnly = opts.nameOnly === true
-  const { data, error } = await db
-    .from('users')
-    .select(`${nameOnly ? 'id, full_name' : 'id, full_name, email'}, ${m.table}!${m.fk}(${m.column})`)
-    .eq('tenant_id', tenantId)
-    .eq('role', 'student')
-    .eq('is_active', true)
-    .or(nameOnly ? nameFilter(search) : nameOrEmailFilter(search))
-    .eq(`${m.table}.${m.column}`, targetId)
-    .is(m.table, null)
-    .order('full_name', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(STUDENT_SEARCH_LIMIT)
-  if (error) return { rows: [], error }
-  // Only the fields the selector shows; the (empty) embed is dropped.
-  const rows = ((data ?? []) as unknown as StudentSearchRow[])
-    .slice(0, STUDENT_SEARCH_LIMIT)
-    .map(({ id, full_name, email }) => (nameOnly ? { id, full_name } : { id, full_name, email }))
-  return { rows, error: null }
-}
-
-/**
- * Recipient search of /center/mail: at most STUDENT_SEARCH_LIMIT active students
- * of the institution whose name or email matches `q` — the same set and fields
- * (id, name, email) the page used to send for EVERY active student. Runs on the
- * caller's session (RLS); tenant / role / active are defence in depth. An empty
- * `q` touches no table.
- */
-export async function searchActiveStudents(
-  db: SupabaseClient,
-  tenantId: string,
-  q: string,
-): Promise<{ rows: StudentSearchRow[]; error: { message: string } | null }> {
-  const search = sanitizeSearch(q)
-  if (!search) return { rows: [], error: null }
-  const { data, error } = await db
-    .from('users')
-    .select('id, full_name, email')
-    .eq('tenant_id', tenantId)
-    .eq('role', 'student')
-    .eq('is_active', true)
-    .or(nameOrEmailFilter(search))
-    .order('full_name', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(STUDENT_SEARCH_LIMIT)
-  if (error) return { rows: [], error }
-  const rows = ((data ?? []) as unknown as StudentSearchRow[])
-    .slice(0, STUDENT_SEARCH_LIMIT)
-    .map(({ id, full_name, email }) => ({ id, full_name, email }))
-  return { rows, error: null }
-}
-
 /** A teacher embedded on a group/course row: teacher:users!…_teacher_id_fkey(full_name, role, is_active). */
 export interface EmbeddedTeacher {
   full_name: string | null
@@ -379,41 +264,7 @@ export interface TeacherSearchRow {
   full_name: string
 }
 
-/**
- * Teacher selector (/center/groups and /center/courses — create, «تغيير المعلم»):
- * at most TEACHER_SEARCH_LIMIT active teachers of the institution whose name
- * matches `q` — never the institution's whole teaching staff.
- *
- * Same set and fields the pages used to send (active teachers, id + name), so
- * no new data is exposed: the search is by name only and returns no email.
- * Runs on the caller's session, so RLS stays the tenant boundary; the tenant,
- * role and active filters are defence in depth. An empty `q` touches no table.
- */
-export async function searchTeachers(
-  db: SupabaseClient,
-  tenantId: string,
-  q: string,
-): Promise<{ rows: TeacherSearchRow[]; error: { message: string } | null }> {
-  const search = sanitizeSearch(q)
-  if (!search) return { rows: [], error: null }
-  const { data, error } = await db
-    .from('users')
-    .select('id, full_name')
-    .eq('tenant_id', tenantId)
-    .eq('role', 'teacher')
-    .eq('is_active', true)
-    .ilike('full_name', `%${search}%`)
-    .order('full_name', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(TEACHER_SEARCH_LIMIT)
-  if (error) return { rows: [], error }
-  const rows = ((data ?? []) as unknown as TeacherSearchRow[])
-    .slice(0, TEACHER_SEARCH_LIMIT)
-    .map(({ id, full_name }) => ({ id, full_name }))
-  return { rows, error: null }
-}
-
 /** One page of an institution's teachers (/admin/teachers). */
-export function listTeachers(db: SupabaseClient, tenantId: string, opts: ListOptions = {}) {
-  return listByRole<TeacherRow>(db, tenantId, 'teacher', TEACHER_COLUMNS, opts)
+export function listTeachers(userId: string, tenantId: string, opts: ListOptions = {}) {
+  return listByRole<TeacherRow>(userId, tenantId, 'teacher', TEACHER_COLUMNS, opts)
 }

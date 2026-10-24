@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { parsePage } from '@/lib/data/people'
 import { VIOLATION_TYPES } from '@/lib/proctoring-events'
 import type { ProctoringEvent } from '@/types'
@@ -13,21 +13,13 @@ import type { ProctoringEvent } from '@/types'
  *   used to add up from the questions); null only while an attempt is open.
  * - «Flagged» = at least one VIOLATION event, the same rule as the page
  *   (eventKind === 'violation'), counted in the database with one JSONB
- *   containment test per violation type. (`exam_submissions.is_flagged` is
- *   never written, so it is not used.)
- * - Runs on the teacher's session: RLS decides which submissions are visible;
- *   the teacher / proctoring filters are the page's own, unchanged.
+ *   test of the event types. (`exam_submissions.is_flagged` is not used.)
+ * - Read as the teacher, ONE statement (totals, page clamp, rows): RLS decides
+ *   which submissions are visible; the teacher / proctoring filters are the
+ *   page's own, unchanged.
  */
 
 export const PROCTORING_PAGE_SIZE = 20
-
-/** PostgREST: the requested range starts past the last row. */
-const RANGE_NOT_SATISFIABLE = 'PGRST103'
-
-/** `or=(…)` value: the submission has at least one violation event. */
-export function violationFilter(): string {
-  return VIOLATION_TYPES.map(type => `proctoring_events.cs.${JSON.stringify([{ type }])}`).join(',')
-}
 
 export interface ProctoredSubmission {
   id: string
@@ -47,43 +39,38 @@ export interface ProctoringPage {
   pageCount: number
 }
 
-const ROW_COLUMNS = 'id, score, max_score, submitted_at, proctoring_events, exams!inner(title), users(full_name, email)'
-
 export async function loadProctoringPage(
-  db: SupabaseClient,
   teacherId: string,
   rawPage: unknown,
 ): Promise<{ data: ProctoringPage; error: { message: string } | null }> {
-  const fetchRows = (page: number) => {
-    const from = (page - 1) * PROCTORING_PAGE_SIZE
-    return db.from('exam_submissions').select(ROW_COLUMNS)
-      .eq('exams.teacher_id', teacherId).eq('exams.proctoring_enabled', true)
-      .order('submitted_at', { ascending: false }).order('id', { ascending: true })
-      .range(from, from + PROCTORING_PAGE_SIZE - 1)
-  }
-
-  const [totalRes, flaggedRes] = await Promise.all([
-    db.from('exam_submissions').select('id, exams!inner(teacher_id)', { count: 'exact', head: true })
-      .eq('exams.teacher_id', teacherId).eq('exams.proctoring_enabled', true),
-    db.from('exam_submissions').select('id, exams!inner(teacher_id)', { count: 'exact', head: true })
-      .eq('exams.teacher_id', teacherId).eq('exams.proctoring_enabled', true).or(violationFilter()),
-  ])
-  const empty: ProctoringPage = { rows: [], total: 0, flagged: 0, page: 1, pageCount: 1 }
-  const countErr = totalRes.error ?? flaggedRes.error
-  if (countErr) return { data: empty, error: countErr }
-
-  const total = totalRes.count ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / PROCTORING_PAGE_SIZE))
-  let page = Math.min(parsePage(rawPage), pageCount)
-  let rowsRes = await fetchRows(page)
-  if (rowsRes.error?.code === RANGE_NOT_SATISFIABLE) {
-    page = pageCount
-    rowsRes = await fetchRows(page)
-  }
-  if (rowsRes.error) return { data: empty, error: rowsRes.error }
-
-  return {
-    data: { rows: (rowsRes.data ?? []) as unknown as ProctoredSubmission[], total, flagged: flaggedRes.count ?? 0, page, pageCount },
-    error: null,
+  const size = PROCTORING_PAGE_SIZE
+  try {
+    const [rows] = await run({ as: 'user', userId: teacherId }, sql => [
+      sql`with subs as (
+             select s.id, s.score, s.max_score, s.submitted_at, s.proctoring_events, s.student_id, e.title as exam_title
+               from public.exam_submissions s join public.exams e on e.id = s.exam_id
+              where e.teacher_id = ${teacherId} and e.proctoring_enabled),
+           totals as (
+             select count(*)::int as total,
+                    count(*) filter (where jsonb_typeof(proctoring_events) = 'array' and exists (
+                      select 1 from jsonb_array_elements(proctoring_events) ev
+                       where ev->>'type' in (select jsonb_array_elements_text(${sql.json(VIOLATION_TYPES)}))))::int as flagged
+               from subs),
+           pg as (select least(${parsePage(rawPage)}, greatest(1, ceil(total / ${size}::numeric)::int)) as p from totals)
+      select (select total from totals) as total, (select flagged from totals) as flagged, (select p from pg) as page,
+             coalesce((select json_agg(json_build_object('id', x.id, 'score', x.score, 'max_score', x.max_score,
+                               'submitted_at', x.submitted_at, 'proctoring_events', x.proctoring_events,
+                               'exams', json_build_object('title', x.exam_title),
+                               'users', case when u.id is null then null else json_build_object('full_name', u.full_name, 'email', u.email) end)
+                               order by x.submitted_at desc, x.id)
+                         from (select * from subs order by submitted_at desc, id
+                                limit ${size} offset ((select p from pg) - 1) * ${size}) x
+                         left join public.users u on u.id = x.student_id), '[]') as rows`,
+    ])
+    const r = maybeOne<{ total: number; flagged: number; page: number; rows: ProctoredSubmission[] }>(rows)
+      ?? { total: 0, flagged: 0, page: 1, rows: [] }
+    return { data: { ...r, pageCount: Math.max(1, Math.ceil(r.total / size)) }, error: null }
+  } catch (e) {
+    return { data: { rows: [], total: 0, flagged: 0, page: 1, pageCount: 1 }, error: { message: e instanceof Error ? e.message : String(e) } }
   }
 }

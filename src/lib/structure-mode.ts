@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@/lib/db'
+import { run, type Sql } from '@/lib/db/sql'
 import type { InstitutionType, StructureMode } from '@/types'
 import { isInstitutionType } from '@/lib/terminology'
 
@@ -8,16 +8,6 @@ import { isInstitutionType } from '@/lib/terminology'
 
 export function isAcademicMode(mode: unknown): boolean {
   return mode === 'academic'
-}
-
-/**
- * Reads the tenant's mode. Selects `*` on purpose: before the migration is
- * applied the column does not exist, and naming it would fail the query —
- * `*` simply omits it, which resolves to 'flat'.
- */
-export async function getTenantStructureMode(client: SupabaseClient, tenantId: string): Promise<StructureMode> {
-  const { data } = await client.from('tenants').select('*').eq('id', tenantId).maybeSingle()
-  return isAcademicMode((data as { structure_mode?: unknown } | null)?.structure_mode) ? 'academic' : 'flat'
 }
 
 export interface TenantSettings {
@@ -37,8 +27,13 @@ export function toTenantSettings(row: Record<string, unknown> | null | undefined
   }
 }
 
-/** All per-tenant settings in one read; `*` for the same pre-migration reason as above. */
-export async function getTenantSettings(client: SupabaseClient, tenantId: string): Promise<TenantSettings> {
-  const { data } = await client.from('tenants').select('*').eq('id', tenantId).maybeSingle()
-  return toTenantSettings(data as Record<string, unknown> | null)
+/** The statement reading a tenant's settings, for a caller's own unit (toTenantSettings on its row). */
+export function tenantSettingsSql(sql: Sql, tenantId: string) {
+  return sql`select institution_type, structure_mode, has_center from public.tenants where id = ${tenantId}`
+}
+
+/** All per-tenant settings in one read, as the caller. */
+export async function getTenantSettings(userId: string, tenantId: string): Promise<TenantSettings> {
+  const [rows] = await run({ as: 'user', userId }, sql => [tenantSettingsSql(sql, tenantId)])
+  return toTenantSettings(rows[0])
 }

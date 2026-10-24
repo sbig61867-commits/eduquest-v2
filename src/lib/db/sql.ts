@@ -15,7 +15,7 @@ import postgres from 'postgres'
 
 export type Sql = postgres.Sql
 export type Row = Record<string, unknown>
-type Pending = postgres.PendingQuery<postgres.Row[]>
+export type Pending = postgres.PendingQuery<postgres.Row[]>
 
 export type DbContext =
   | { as: 'user'; userId: string }

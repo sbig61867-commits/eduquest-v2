@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import { redirect } from 'next/navigation'
@@ -18,12 +18,12 @@ import { loadAdminContentCounts, loadAdminLessonsPage } from '@/lib/data/admin-c
 export default async function AdminLessonsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const t = await getTranslations('admin.content')
   const locale = (await getLocale()) as Locale
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+
+  const user = await currentUser()
   if (!user?.tenant_id) redirect('/login')
 
-  const { counts } = await loadAdminContentCounts(supabase)
-  const { data: lessonPage, error } = await loadAdminLessonsPage(supabase, (await searchParams).page, counts.lessons)
+  const { counts } = await loadAdminContentCounts(user.id)
+  const { data: lessonPage, error } = await loadAdminLessonsPage(user.id, (await searchParams).page, counts.lessons)
   if (error) console.error('[admin/lessons]', error)
   const lessons = lessonPage.rows
 
