@@ -5,8 +5,10 @@ import { THUMBS_TIMEOUT_MS, THUMB_EVERY_MS } from '@/lib/live-channel'
 // A fake Supabase Realtime client: records handlers, lets the test broadcast.
 const handlers: Record<string, (msg: { payload: unknown }) => void> = {}
 const httpSend = vi.fn()
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({
+// The live channel client (src/lib/live-client.ts) keeps the channel surface the
+// pages used from Supabase Realtime, so the same fake stands in for it.
+vi.mock('@/lib/live-client', () => ({
+  createLiveClient: () => ({
     realtime: { setAuth: async () => {} },
     channel: () => {
       const ch = {

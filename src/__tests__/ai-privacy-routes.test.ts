@@ -22,7 +22,6 @@ vi.mock('@/lib/rate-limit', () => ({
   rateLimit: async () => ({ allowed: true, remaining: 9, resetAt: Date.now() + 1000 }),
   aiRateLimit: async () => ({ allowed: true, remaining: 9, resetAt: Date.now() + 1000 }),
 }))
-vi.mock('@/lib/settings', () => ({ getAiRateLimits: async () => ({ lesson_per_hour: 99, exam_per_hour: 99 }) }))
 const authorizeAiUsage = vi.fn(async (userId: string) => (void userId, null as Response | null))
 vi.mock('@/lib/ai/usage', async () => {
   const actual = await vi.importActual<typeof import('@/lib/ai/usage')>('@/lib/ai/usage')

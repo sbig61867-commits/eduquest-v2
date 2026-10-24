@@ -12,7 +12,7 @@
  *  8. open-redirect: next param with //evil.com blocked by callback
  */
 import { describe, it, expect } from 'vitest'
-import { resolveAppUrl, resetPasswordRedirectTo } from '@/lib/auth-urls'
+import { resolveAppUrl } from '@/lib/auth-urls'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -188,23 +188,8 @@ describe('reset-password submit flow', () => {
   })
 })
 
-describe('resetPasswordForEmail redirectTo (real src/lib/auth-urls.ts)', () => {
+describe('app URL resolution for emailed links (real src/lib/auth-urls.ts)', () => {
   const PROD = 'https://eduquest-v2.vercel.app'
-
-  it('13. production env → full redirectTo with /auth/callback?next=/reset-password', () => {
-    expect(resetPasswordRedirectTo(`${PROD}/api/auth/forgot-password`, PROD))
-      .toBe(`${PROD}/auth/callback?next=/reset-password`)
-  })
-
-  it('13b. trailing slash in env is stripped', () => {
-    expect(resetPasswordRedirectTo(`${PROD}/api/auth/forgot-password`, `${PROD}/`))
-      .toBe(`${PROD}/auth/callback?next=/reset-password`)
-  })
-
-  it('14. localhost request with no env → localhost redirectTo', () => {
-    expect(resetPasswordRedirectTo('http://localhost:3000/api/auth/forgot-password', undefined))
-      .toBe('http://localhost:3000/auth/callback?next=/reset-password')
-  })
 
   it('15. stale localhost env on a production request → production URL wins', () => {
     expect(resolveAppUrl(`${PROD}/api/auth/forgot-password`, 'http://localhost:3000'))

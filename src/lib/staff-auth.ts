@@ -2,7 +2,6 @@ import { currentCtx } from '@/lib/auth/current'
 import { NextResponse } from 'next/server'
 import { apiErr } from '@/lib/api-error'
 import { run, maybeOne } from '@/lib/db/sql'
-import { getAdminDb } from '@/lib/db'
 import { can, type Capability } from '@/lib/permissions'
 
 // Shared caller resolution for staff route handlers. Identity and capability
@@ -16,10 +15,6 @@ export interface StaffCaller {
   permissions: Record<string, unknown> | null
   /** The institution's structure ('flat' | 'academic'), read with the caller. */
   structure_mode?: string | null
-}
-
-export function serviceClient() {
-  return getAdminDb()
 }
 
 /**
@@ -77,10 +72,3 @@ export function canManageAccountOf(caller: Pick<StaffCaller, 'role' | 'permissio
   return canManageAccountRole(caller, targetRole)
 }
 
-/** Confirm a user id is an active-or-not teacher in this tenant. */
-export async function isTenantTeacher(admin: ReturnType<typeof serviceClient>, tenantId: string, teacherId: unknown) {
-  if (typeof teacherId !== 'string' || !teacherId) return false
-  const { data } = await admin
-    .from('users').select('id').eq('id', teacherId).eq('tenant_id', tenantId).eq('role', 'teacher').maybeSingle()
-  return !!data
-}

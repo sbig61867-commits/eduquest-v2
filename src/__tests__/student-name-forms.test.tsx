@@ -14,11 +14,10 @@ import { JOIN_NAME_COOKIE } from '@/lib/person-name'
 // specs cover its name gate, so switch it on.
 process.env.NEXT_PUBLIC_GOOGLE_SIGNIN = 'on'
 
-const signInWithOAuth = vi.fn().mockResolvedValue({ error: null })
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({ auth: { signInWithOAuth, signInWithPassword: vi.fn().mockResolvedValue({ data: {}, error: { message: 'x' } }) } }),
-}))
+// Google sign-in is not available on the new sign-in system yet: the button
+// leads to the same "Google unavailable" notice as the login page.
+const routerReplace = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: routerReplace }) }))
 
 import { JoinForm } from '@/app/(auth)/join/[token]/join-form'
 import { StudentProfileClient } from '@/app/(student)/student/profile/profile-client'
@@ -46,7 +45,7 @@ describe('JoinForm — student invitation', () => {
   beforeEach(() => {
     fetchMock.mockReset().mockResolvedValue(new Response(JSON.stringify({ error: 'stop' }), { status: 400 }))
     vi.stubGlobal('fetch', fetchMock)
-    signInWithOAuth.mockClear()
+    routerReplace.mockClear()
     document.cookie = `${JOIN_NAME_COOKIE}=; path=/auth/callback; max-age=0`
   })
   afterEach(() => vi.unstubAllGlobals())
@@ -85,18 +84,18 @@ describe('JoinForm — student invitation', () => {
     expect(body.fullName).toBeUndefined()
   })
 
-  it('does not start Google until the name is complete, then carries it to the callback', () => {
+  it('does not leave for Google until the name is complete, then shows the Google-unavailable notice', () => {
     render(<JoinForm token="tok" invitedEmail="s@x.edu" isPublic={false} role="student" />)
     const google = screen.getByRole('button', { name: arMessages.auth.join.google })
     fireEvent.click(google)
-    expect(signInWithOAuth).not.toHaveBeenCalled()
+    expect(routerReplace).not.toHaveBeenCalled()
 
     // path=/auth/callback hides the cookie from this page's own document.cookie,
     // so assert the write itself.
     const spy = vi.spyOn(document, 'cookie', 'set')
     fillValidName()
     fireEvent.click(google)
-    expect(signInWithOAuth).toHaveBeenCalledTimes(1)
+    expect(routerReplace).toHaveBeenCalledWith('/login?error=google_unavailable')
     const written = String(spy.mock.calls.at(-1)?.[0])
     spy.mockRestore()
     expect(written).toContain(`${JOIN_NAME_COOKIE}=`)

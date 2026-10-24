@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@/lib/db'
 import type { ApiErrorCode } from '@/lib/api-error'
 
 // Plan seat caps set by the owner on each institution:
@@ -49,43 +48,6 @@ export function seatStatus(limit: unknown, used: number | null): SeatStatus {
   const cap = typeof limit === 'number' && Number.isFinite(limit) ? limit : null
   if (cap === null || used === null) return { limit: cap, used, allowed: true }
   return { limit: cap, used, allowed: used < cap }
-}
-
-async function countActive(admin: SupabaseClient, tenantId: string, role: SeatRole): Promise<number | null> {
-  const { count, error } = await admin
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId)
-    .eq('role', role)
-    .eq('is_active', true)
-  if (error || count == null) {
-    console.error('[seat-limit] count failed, allowing:', error?.message)
-    return null
-  }
-  return count
-}
-
-/** One role's seat status. `*` so it keeps working before teacher_limit exists. */
-export async function checkSeatLimit(admin: SupabaseClient, tenantId: string, role: SeatRole): Promise<SeatStatus> {
-  const { data: tenant, error } = await admin.from('tenants').select('*').eq('id', tenantId).maybeSingle()
-  if (error || !tenant) {
-    if (error) console.error('[seat-limit] tenant read failed, allowing:', error.message)
-    return { limit: null, used: null, allowed: true }
-  }
-  const limit = (tenant as Record<string, unknown>)[LIMIT_COLUMN[role]]
-  if (limit == null) return { limit: null, used: null, allowed: true }
-  return seatStatus(limit, await countActive(admin, tenantId, role))
-}
-
-/** Both roles at once — for the invitations screen and the owner's institution cards. */
-export async function getSeatUsage(admin: SupabaseClient, tenantId: string): Promise<Record<SeatRole, SeatStatus>> {
-  const { data: tenant } = await admin.from('tenants').select('*').eq('id', tenantId).maybeSingle()
-  const row = (tenant ?? {}) as Record<string, unknown>
-  const [students, teachers] = await Promise.all(SEAT_ROLES.map(r => countActive(admin, tenantId, r)))
-  return {
-    student: seatStatus(row.student_limit, students),
-    teacher: seatStatus(row.teacher_limit, teachers),
-  }
 }
 
 /** The role whose limit the DB trigger refused, from its error message; null otherwise. */

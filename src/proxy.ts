@@ -20,7 +20,7 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // scripts/copy-human-models.mjs); the proxy matcher only skips images.
 // /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
 // and is gated by CRON_SECRET inside the route instead.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/auth/sign-in', '/api/contact', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/auth/sign-in', '/api/contact', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/cron/', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true

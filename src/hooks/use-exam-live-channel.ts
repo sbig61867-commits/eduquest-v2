@@ -1,19 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RealtimeChannel } from '@/lib/db'
-import { createClient } from '@/lib/supabase/client'
+import { createLiveClient, type LiveChannel } from '@/lib/live-client'
 import { CLIP_EVENT, THUMBS_EVENT, THUMBS_TIMEOUT_MS, WATCH_EVENT, liveTopic, watchPayloadIncludes, type StudentPresence } from '@/lib/live-channel'
 
 // The student's side of the per-exam live channel (see src/lib/live-channel.ts).
 // It announces the student to the teacher's page and returns whether the
 // teacher asked to watch this student live right now. Nothing is shown to the
 // student either way. No table is read or written: presence and broadcast are
-// Realtime messages only.
+// live-channel messages only (src/lib/live-client.ts).
 
 const PRESENCE_MIN_GAP_MS = 3_000
 // A whole class opens the exam in the same minute; each student waits a random
-// moment before joining so the channel's RLS checks arrive spread out.
+// moment before joining so the join checks (/api/live/ticket) arrive spread out.
 const JOIN_JITTER_MS = 8_000
 
 export function useExamLiveChannel(
@@ -30,7 +29,7 @@ export function useExamLiveChannel(
   // Thumbnail wall: on while the teacher keeps saying so (see live-channel.ts).
   const [thumbsOn, setThumbsOn] = useState(false)
   const thumbsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const channelRef = useRef<RealtimeChannel | null>(null)
+  const channelRef = useRef<LiveChannel | null>(null)
   const subscribedRef = useRef(false)
   const countsRef = useRef(counts)
   const lastTrackRef = useRef(0)
@@ -40,13 +39,13 @@ export function useExamLiveChannel(
 
   useEffect(() => {
     if (!active) return
-    const supabase = createClient()
+    const supabase = createLiveClient()
     let cancelled = false
 
     ;(async () => {
       await new Promise(resolve => setTimeout(resolve, Math.random() * JOIN_JITTER_MS))
       if (cancelled) return
-      // A private channel is authorised with the user's own JWT.
+      // The join ticket carries the user's identity (/api/live/ticket).
       await supabase.realtime.setAuth()
       if (cancelled) return
       const channel = supabase.channel(liveTopic(examId), {
@@ -63,7 +62,7 @@ export function useExamLiveChannel(
           if (thumbsTimerRef.current) clearTimeout(thumbsTimerRef.current)
           if (on) thumbsTimerRef.current = setTimeout(() => setThumbsOn(false), THUMBS_TIMEOUT_MS)
         })
-        // Only the exam's teacher can broadcast here (RLS), so this is trusted.
+        // Only the exam's teacher can broadcast here (src/lib/live-relay.ts), so this is trusted.
         .on('broadcast', { event: CLIP_EVENT }, ({ payload }) => {
           if (!watchPayloadIncludes(payload, userId)) return
           const seconds = Number((payload as { seconds?: unknown }).seconds)

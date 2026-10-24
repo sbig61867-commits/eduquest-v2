@@ -3,8 +3,9 @@ import { apiErr } from '@/lib/api-error'
 import { currentCtx } from '@/lib/auth/current'
 import { run, maybeOne } from '@/lib/db/sql'
 
-// GET /api/auth/me — the signed-in user's role and member ID, for client pages
-// that used to read them from the browser (change-password). Own row only, as
+// GET /api/auth/me — the signed-in user's id, role and member ID, for client
+// pages that used to read them from the browser (change-password, the
+// account-switch notice). Own row only, as
 // that user (RLS).
 export async function GET() {
   const ctx = await currentCtx()
@@ -13,5 +14,5 @@ export async function GET() {
     sql`select role, member_code from public.users where id = ${ctx.sub}`,
   ])
   const me = maybeOne<{ role: string | null; member_code: string | null }>(rows)
-  return NextResponse.json({ role: me?.role ?? null, memberCode: me?.member_code ?? null }, { headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json({ id: ctx.sub, role: me?.role ?? null, memberCode: me?.member_code ?? null }, { headers: { 'Cache-Control': 'no-store' } })
 }

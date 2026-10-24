@@ -1,17 +1,13 @@
-import { getSessionUser } from '@/lib/auth'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { getAdminDb } from '@/lib/db'
-import { can } from '@/lib/permissions'
+import { loadAnnouncementAuthor } from '@/lib/announcement-author'
 import { rateLimit } from '@/lib/rate-limit'
-import { checkStorageQuota } from '@/lib/storage-quota'
+import { checkStorageQuotaAs, publicFileUrl, putFile } from '@/lib/file-store'
 
-// Uploads an announcement image to the public `announcement-images` bucket.
-// The upload itself runs through the service-role client (bypassing storage
-// RLS) only after the caller's `manage_announcements` capability is verified
-// and the file is validated, so the bucket needs no write policy of its own.
-const BUCKET = 'announcement-images'
+// Uploads an announcement image to the R2 bucket under public/announcements/
+// (src/lib/file-store.ts: any signed-in user may view it, as the public bucket
+// allowed). Only after the caller's `manage_announcements` capability is
+// verified on their live row (loadAnnouncementAuthor) and the file is validated.
 const MAX_BYTES = 4 * 1024 * 1024 // 4 MB
 const ALLOWED = new Map<string, string>([
   ['image/jpeg', 'jpg'],
@@ -35,20 +31,11 @@ function sniffedType(bytes: Uint8Array): string | null {
   return null
 }
 
-function adminClient() {
-  return getAdminDb()
-}
-
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('users').select('role, tenant_id, permissions').eq('id', user.id).single()
-  if (!profile?.tenant_id || !can(profile.role, profile.permissions, 'manage_announcements')) {
-    return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
-  }
+  const auth = await loadAnnouncementAuthor()
+  if ('error' in auth) return auth.error
+  const user = { id: auth.author.id }
+  const tenantId = auth.author.tenant_id
 
   const limit = await rateLimit(`announcement_upload:${user.id}`, { limit: 20, windowSecs: 3600 })
   if (!limit.allowed) {
@@ -78,22 +65,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...(await apiErr('imageContentInvalid')) }, { status: 400 })
   }
 
-  const admin = adminClient()
-  // The institution's file allowance (owner's plan limit, src/lib/storage-quota.ts).
-  const quota = await checkStorageQuota(admin, profile.tenant_id, bytes.length)
+  // The institution's file allowance (owner's plan limit, src/lib/file-store.ts).
+  const quota = await checkStorageQuotaAs(tenantId, bytes.length)
   if (!quota.allowed) return NextResponse.json({ ...(await apiErr('storageLimit')) }, { status: 413 })
-  // Tenant-scoped path keeps one institution's uploads out of another's folder.
-  const path = `${profile.tenant_id}/${crypto.randomUUID()}.${ext}`
-
-  const { error } = await admin.storage.from(BUCKET).upload(path, bytes, {
-    contentType: realType,
-    upsert: false,
-  })
-  if (error) {
-    console.error('[api/announcements/upload]', error)
+  // Tenant-scoped key keeps one institution's uploads out of another's folder.
+  const path = `public/announcements/${tenantId}/${crypto.randomUUID()}.${ext}`
+  try {
+    await putFile(tenantId, path, bytes, realType)
+  } catch (e) {
+    console.error('[api/announcements/upload]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('imageUploadFailed')) }, { status: 500 })
   }
 
-  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path)
-  return NextResponse.json({ url: pub.publicUrl }, { status: 201 })
+  return NextResponse.json({ url: publicFileUrl(path) }, { status: 201 })
 }

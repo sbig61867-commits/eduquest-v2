@@ -1,13 +1,12 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { run, maybeOne } from '@/lib/db/sql'
 import { rateLimit } from '@/lib/rate-limit'
-import { isOnExamRoster } from '@/lib/exam-roster'
-import { checkStorageQuota } from '@/lib/storage-quota'
+import { onRosterSql } from '@/lib/exam-roster'
+import { checkStorageQuotaAs, putFile, removeFiles } from '@/lib/file-store'
 import {
-  EXAM_FILES_BUCKET, MAX_FILE_BYTES, answerFilePath, examFilesAdmin, extFor, isSafeQuestionId, isUuid,
-  signExamFiles, sniffImageType,
+  MAX_FILE_BYTES, answerFilePath, extFor, isSafeQuestionId, isUuid, signExamFiles, sniffImageType,
 } from '@/lib/exam-files'
 
 // A student attaches a photo of their handwritten answer to one written
@@ -15,36 +14,52 @@ import {
 //
 // Only for a task assigned to this student, only while their attempt is
 // still in progress, only for a written question of that task. The file goes
-// to the private exam-files bucket; the submission row keeps the path in
-// answer_files and the teacher sees it through a signed URL in the results.
+// to the R2 bucket (src/lib/file-store.ts); the submission row keeps the path
+// in answer_files and the teacher sees it through a signed link in the results.
+// Reads and writes run as app_service pinned to the student's institution; the
+// write repeats the attempt's conditions (still in progress, this student).
 
-type Ctx = { examId: string; questionId: string }
+type Ask = { examId: string; questionId: string }
+type Exam = { id: string; tenant_id: string; questions: unknown; on_roster: boolean }
+type Sub = { id: string; status: string; answer_files: Record<string, string> | null }
 
-async function authorize(ctx: Ctx) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return { fail: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+async function authorize(ask: Ask) {
+  const ctx = await currentCtx()
+  if (!ctx) return { fail: NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 }) }
+  if (!ctx.tenant_id) return { fail: NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 }) }
+  const userId = ctx.sub
+  const tenantId = ctx.tenant_id
 
-  const admin = examFilesAdmin()
-  const { data: exam } = await admin.from('exams').select('*').eq('id', ctx.examId).maybeSingle()
-  if (!exam || !exam.is_published || exam.deleted_at || exam.assigned_student_id !== user.id) {
-    return { fail: NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 }) }
-  }
-  if (!(await isOnExamRoster(supabase, exam, user.id))) {
-    return { fail: NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 }) }
-  }
+  const [examRows, subRows] = await run({ as: 'service', tenantId }, sql => [
+    sql`select e.id, e.tenant_id, e.questions, ${onRosterSql(sql, userId)} as on_roster
+          from public.exams e
+         where e.id = ${ask.examId} and e.tenant_id = ${tenantId}
+           and e.is_published and e.deleted_at is null and e.assigned_student_id = ${userId}`,
+    sql`select id, status, answer_files from public.exam_submissions
+         where exam_id = ${ask.examId} and student_id = ${userId}`,
+  ])
+  const exam = maybeOne<Exam>(examRows)
+  if (!exam) return { fail: NextResponse.json({ ...(await apiErr('examNotFound')) }, { status: 404 }) }
+  if (!exam.on_roster) return { fail: NextResponse.json({ ...(await apiErr('notEnrolledInExam')) }, { status: 403 }) }
   const question = (Array.isArray(exam.questions) ? exam.questions : [])
-    .find((q: { id?: string; type?: string }) => q?.id === ctx.questionId)
-  if (!question || !['essay', 'short_answer'].includes(question.type)) {
+    .find((q: { id?: string; type?: string }) => q?.id === ask.questionId) as { type?: string } | undefined
+  if (!question || !['essay', 'short_answer'].includes(question.type ?? '')) {
     return { fail: NextResponse.json({ ...(await apiErr('invalidData')) }, { status: 400 }) }
   }
-  const { data: sub } = await admin
-    .from('exam_submissions').select('id, status, answer_files')
-    .eq('exam_id', ctx.examId).eq('student_id', user.id).maybeSingle()
+  const sub = maybeOne<Sub>(subRows)
   if (!sub || sub.status !== 'in_progress') {
     return { fail: NextResponse.json({ ...(await apiErr('examNotStarted')) }, { status: 409 }) }
   }
-  return { user, exam, sub, admin }
+  return { userId, tenantId, sub }
+}
+
+/** Saves answer_files only while the attempt is still this student's and in progress. */
+async function saveFiles(tenantId: string, subId: string, userId: string, files: Record<string, string>) {
+  const [rows] = await run({ as: 'service', tenantId }, sql => [
+    sql`update public.exam_submissions set answer_files = ${sql.json(files)}
+         where id = ${subId} and student_id = ${userId} and status = 'in_progress' returning id`,
+  ])
+  return rows.length > 0
 }
 
 export async function POST(request: Request) {
@@ -61,9 +76,9 @@ export async function POST(request: Request) {
 
   const auth = await authorize({ examId, questionId })
   if (auth.fail) return auth.fail
-  const { user, exam, sub, admin } = auth
+  const { userId, tenantId, sub } = auth
 
-  const limit = await rateLimit(`answer_file:${user.id}`, { limit: 40, windowSecs: 3600 })
+  const limit = await rateLimit(`answer_file:${userId}`, { limit: 40, windowSecs: 3600 })
   if (!limit.allowed) return NextResponse.json({ ...(await apiErr('rateLimited')) }, { status: 429 })
 
   const bytes = new Uint8Array(await file.arrayBuffer())
@@ -71,26 +86,27 @@ export async function POST(request: Request) {
   const ext = type ? extFor(type) : null
   if (!type || !ext) return NextResponse.json({ ...(await apiErr('imageContentInvalid')) }, { status: 400 })
 
-  // The institution's file allowance (owner's plan limit, src/lib/storage-quota.ts).
-  const quota = await checkStorageQuota(admin, exam.tenant_id, bytes.length)
+  // The institution's file allowance (owner's plan limit, src/lib/file-store.ts).
+  const quota = await checkStorageQuotaAs(tenantId, bytes.length)
   if (!quota.allowed) return NextResponse.json({ ...(await apiErr('storageLimit')) }, { status: 413 })
-  const path = answerFilePath(exam.tenant_id, examId, user.id, questionId, ext)
-  const { error } = await admin.storage.from(EXAM_FILES_BUCKET).upload(path, bytes, { contentType: type, upsert: true })
-  if (error) {
-    console.error('[api/exam/answer-file]', error.message)
+  const path = answerFilePath(tenantId, examId, userId, questionId, ext)
+  try {
+    await putFile(tenantId, path, bytes, type)
+  } catch (e) {
+    console.error('[api/exam/answer-file]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('imageUploadFailed')) }, { status: 500 })
   }
 
-  const files = { ...((sub.answer_files as Record<string, string> | null) ?? {}) }
+  const files = { ...(sub.answer_files ?? {}) }
   const previous = files[questionId]
   files[questionId] = path
-  const { error: saveErr } = await admin
-    .from('exam_submissions').update({ answer_files: files }).eq('id', sub.id).eq('status', 'in_progress')
-  if (saveErr) return NextResponse.json({ ...(await apiErr('submissionSaveFailed')) }, { status: 500 })
+  if (!(await saveFiles(tenantId, sub.id, userId, files))) {
+    return NextResponse.json({ ...(await apiErr('submissionSaveFailed')) }, { status: 500 })
+  }
   // A photo of another format replaced the old one: drop the orphan.
-  if (previous && previous !== path) void admin.storage.from(EXAM_FILES_BUCKET).remove([previous])
+  if (previous && previous !== path) void removeFiles(tenantId, [previous]).catch(() => {})
 
-  const [url] = await signExamFiles([path], admin)
+  const [url] = await signExamFiles([path])
   return NextResponse.json({ url: url ?? null })
 }
 
@@ -104,15 +120,15 @@ export async function DELETE(request: Request) {
 
   const auth = await authorize({ examId: body.examId, questionId: body.questionId })
   if (auth.fail) return auth.fail
-  const { sub, admin } = auth
+  const { userId, tenantId, sub } = auth
 
-  const files = { ...((sub.answer_files as Record<string, string> | null) ?? {}) }
+  const files = { ...(sub.answer_files ?? {}) }
   const path = files[body.questionId]
   if (!path) return NextResponse.json({ ok: true })
   delete files[body.questionId]
-  const { error } = await admin
-    .from('exam_submissions').update({ answer_files: files }).eq('id', sub.id).eq('status', 'in_progress')
-  if (error) return NextResponse.json({ ...(await apiErr('submissionSaveFailed')) }, { status: 500 })
-  void admin.storage.from(EXAM_FILES_BUCKET).remove([path])
+  if (!(await saveFiles(tenantId, sub.id, userId, files))) {
+    return NextResponse.json({ ...(await apiErr('submissionSaveFailed')) }, { status: 500 })
+  }
+  void removeFiles(tenantId, [path]).catch(() => {})
   return NextResponse.json({ ok: true })
 }

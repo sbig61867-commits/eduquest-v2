@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@/lib/db'
 import { run, maybeOne } from '@/lib/db/sql'
 
 // ── AI model prices ──────────────────────────────────────────────
@@ -85,8 +84,3 @@ export async function readAiPricingAs(userId: string): Promise<AiPricing> {
   return mergeAiPricing((maybeOne<{ value: unknown }>(rows))?.value)
 }
 
-export async function readAiPricing(supabase: SupabaseClient): Promise<AiPricing> {
-  const { data } = await supabase
-    .from('platform_settings').select('value').eq('key', 'ai_pricing').maybeSingle()
-  return mergeAiPricing(data?.value)
-}

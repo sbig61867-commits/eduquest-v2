@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@/lib/db'
 import type { ApiErrorCode } from '@/lib/api-error'
 
 // Optional group settings added by group_course_transfer_migration.sql:
@@ -53,9 +52,3 @@ export function parseGroupFields(body: Record<string, unknown>): Parsed {
   return { update }
 }
 
-/** The linked course must exist in the caller's tenant (the DB trigger enforces it too). */
-export async function courseInTenant(admin: SupabaseClient, tenantId: string, courseId: string | null | undefined) {
-  if (!courseId) return true
-  const { data } = await admin.from('courses').select('id').eq('id', courseId).eq('tenant_id', tenantId).maybeSingle()
-  return !!data
-}

@@ -1,8 +1,8 @@
 import { getLocale, getTranslations } from 'next-intl/server'
-import { getAdminDb } from '@/lib/db'
+import { run, maybeOne } from '@/lib/db/sql'
 import { AuthTopBar } from '@/components/public/auth-top-bar'
 import { JoinForm } from './join-form'
-import { checkSeatLimit, isSeatRole } from '@/lib/seat-limit'
+import { isSeatRole, seatStatus } from '@/lib/seat-limit'
 
 // Invitation acceptance. Same public look (`.eq-public`, light/dark), shaped
 // as an official invitation: a ticket with a perforated edge beside the
@@ -18,15 +18,18 @@ type InvitationResult =
   | { email: string | null; role: string; tenant_name: string; expires_at: string; is_public: boolean; max_uses: number | null; use_count: number }
   | null
 
-function adminClient() {
-  return getAdminDb()
-}
-
+// Before sign-in there is no user: the link is looked up as app_system, which
+// may only call the two token functions (neon/migrations/0007, 0008).
 async function getInvitation(token: string): Promise<InvitationResult> {
-  const { data, error } = await adminClient().rpc('get_invitation_by_token', { p_token: token })
-  if (error) console.error('[join-page] RPC error:', error.message, error.code)
-  if (!data) console.error('[join-page] RPC returned null for token:', token.slice(0, 8) + '…')
-  return data as InvitationResult
+  try {
+    const [rows] = await run({ as: 'system' }, sql => [sql`select public.get_invitation_by_token(${token}) as inv`])
+    const inv = maybeOne<{ inv: InvitationResult }>(rows)?.inv ?? null
+    if (!inv) console.error('[join-page] no invitation for token:', token.slice(0, 8) + '…')
+    return inv
+  } catch (e) {
+    console.error('[join-page] lookup failed:', e instanceof Error ? e.message : e)
+    return null
+  }
 }
 
 /**
@@ -34,16 +37,22 @@ async function getInvitation(token: string): Promise<InvitationResult> {
  * suspended, or at its plan limit for the invited role. Shown instead of a
  * sign-up form that would only fail at the end (the accept route and the DB
  * trigger refuse it either way). Fails open — the refusal still happens there.
+ * The same reads as /api/auth/accept-invitation.
  */
 async function closedReason(token: string): Promise<'full' | 'suspended' | null> {
   try {
-    const admin = adminClient()
-    const { data: inv } = await admin
-      .from('invitations').select('tenant_id, role, tenants(is_active)').eq('token', token).maybeSingle()
+    const [invRows] = await run({ as: 'system' }, sql => [sql`select public.invitation_for_accept(${token}) as inv`])
+    const inv = maybeOne<{ inv: { tenant_id: string; role: string; tenant_active: boolean } | null }>(invRows)?.inv
     if (!inv) return null
-    const tenant = inv.tenants as unknown as { is_active: boolean } | null
-    if (tenant && tenant.is_active === false) return 'suspended'
-    if (isSeatRole(inv.role) && !(await checkSeatLimit(admin, inv.tenant_id, inv.role)).allowed) return 'full'
+    if (inv.tenant_active === false) return 'suspended'
+    if (!isSeatRole(inv.role)) return null
+    const [tenantRows, countRows] = await run({ as: 'service', tenantId: inv.tenant_id }, sql => [
+      sql`select student_limit, teacher_limit from public.tenants where id = ${inv.tenant_id}`,
+      sql`select count(*)::int as n from public.users where tenant_id = ${inv.tenant_id} and role = ${inv.role} and is_active`,
+    ])
+    const t = maybeOne<{ student_limit: number | null; teacher_limit: number | null }>(tenantRows)
+    const seat = seatStatus(inv.role === 'student' ? t?.student_limit : t?.teacher_limit, maybeOne<{ n: number }>(countRows)?.n ?? null)
+    if (!seat.allowed) return 'full'
   } catch (e) {
     console.error('[join-page] closed check failed:', e instanceof Error ? e.message : e)
   }

@@ -1,24 +1,23 @@
-import { getSessionUser } from '@/lib/auth'
+import { currentCtx } from '@/lib/auth/current'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
-import { checkStorageQuota } from '@/lib/storage-quota'
-import {
-  EXAM_FILES_BUCKET, MAX_FILE_BYTES, examFilesAdmin, extFor, lessonImagePath, signExamFiles, sniffImageType,
-} from '@/lib/exam-files'
+import { checkStorageQuotaAs, putFile } from '@/lib/file-store'
+import { MAX_FILE_BYTES, extFor, lessonImagePath, signExamFiles, sniffImageType } from '@/lib/exam-files'
 
 // POST /api/lessons/files — a teacher uploads one image for a lesson's image
 // block (a summary or diagram they made elsewhere, kept exactly as they made
-// it). Lands in the private exam-files bucket under the teacher's own lessons
-// prefix; PATCH /api/lessons only accepts image paths under that prefix.
+// it). Lands in the R2 bucket (src/lib/file-store.ts) under the teacher's own
+// lessons prefix; PATCH /api/lessons only accepts image paths under that prefix.
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const user = await getSessionUser(supabase)
-  if (!user) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const ctx = await currentCtx()
+  if (!ctx) return NextResponse.json({ ...(await apiErr('unauthorized')) }, { status: 401 })
+  const user = { id: ctx.sub }
 
-  const { data: profile } = await supabase.from('users').select('role, tenant_id').eq('id', user.id).single()
-  if (!profile?.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
+  // Role and institution from the session context; the image only becomes part
+  // of a lesson through PATCH /api/lessons, which checks the caller live.
+  const profile = { role: ctx.role, tenant_id: ctx.tenant_id }
+  if (!profile.tenant_id || !['teacher', 'university_admin'].includes(profile.role ?? '')) {
     return NextResponse.json({ ...(await apiErr('forbidden')) }, { status: 403 })
   }
 
@@ -40,16 +39,16 @@ export async function POST(request: Request) {
   const ext = type ? extFor(type) : null
   if (!type || !ext) return NextResponse.json({ ...(await apiErr('imageContentInvalid')) }, { status: 400 })
 
-  const admin = examFilesAdmin()
-  const quota = await checkStorageQuota(admin, profile.tenant_id, bytes.length)
+  const quota = await checkStorageQuotaAs(profile.tenant_id, bytes.length)
   if (!quota.allowed) return NextResponse.json({ ...(await apiErr('storageLimit')) }, { status: 413 })
   const path = lessonImagePath(profile.tenant_id, user.id, crypto.randomUUID(), ext)
-  const { error } = await admin.storage.from(EXAM_FILES_BUCKET).upload(path, bytes, { contentType: type, upsert: false })
-  if (error) {
-    console.error('[api/lessons/files]', error.message)
+  try {
+    await putFile(profile.tenant_id, path, bytes, type)
+  } catch (e) {
+    console.error('[api/lessons/files]', e instanceof Error ? e.message : e)
     return NextResponse.json({ ...(await apiErr('imageUploadFailed')) }, { status: 500 })
   }
 
-  const [url] = await signExamFiles([path], admin)
+  const [url] = await signExamFiles([path])
   return NextResponse.json({ path, url: url ?? null }, { status: 201 })
 }

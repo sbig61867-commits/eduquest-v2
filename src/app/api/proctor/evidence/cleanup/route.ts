@@ -1,5 +1,5 @@
-import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
+import { cronAuthorized } from '@/lib/cron-secret'
 import { EVIDENCE_ROOT, isExpired, parseEvidenceKey } from '@/lib/evidence-keys'
 import { deleteEvidence, evidenceBackend, listEvidenceKeys } from '@/lib/evidence-store'
 
@@ -11,16 +11,8 @@ import { deleteEvidence, evidenceBackend, listEvidenceKeys } from '@/lib/evidenc
 // evidence/ that is not a well-formed key is removed too: nothing else belongs there.
 // Public in src/proxy.ts (no user session) — the secret is the only gate.
 
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret || secret.length < 16) return false
-  const given = Buffer.from(request.headers.get('authorization') ?? '')
-  const expected = Buffer.from(`Bearer ${secret}`)
-  return given.length === expected.length && timingSafeEqual(given, expected)
-}
-
 export async function POST(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  if (!cronAuthorized(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const backend = evidenceBackend()
   if (!backend) return NextResponse.json({ configured: false, deleted: 0 })
   // Workers KV deletes each snapshot itself at its 30-hour expiry: nothing to do.

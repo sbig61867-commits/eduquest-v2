@@ -1,13 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RealtimeChannel } from '@/lib/db'
 import type { Room, RemoteTrack, RemoteParticipant } from 'livekit-client'
 import { ArrowLeft, Eye, EyeOff, MicOff, Radio, ShieldCheck, Video, VideoOff, Volume2, Users, WifiOff, AlertTriangle, Camera, History, LayoutGrid } from 'lucide-react'
 import { toast } from '@/components/ui/toast'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
+import { createLiveClient, type LiveChannel } from '@/lib/live-client'
 import {
   CLIP_EVENT, MAX_WATCHED, TEACHER_PRESENCE_KEY, THUMBS_EVENT, THUMBS_KEEPALIVE_MS, THUMB_EVENT,
   WATCHING_ATTRIBUTE, WATCH_EVENT, liveTopic, thumbsTopic,
@@ -47,7 +46,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   const [students, setStudents] = useState<Record<string, StudentPresence>>({})
   const [names, setNames] = useState<Record<string, string>>({})
   const [channelStatus, setChannelStatus] = useState<'connecting' | 'ready' | 'error'>('connecting')
-  const channelRef = useRef<RealtimeChannel | null>(null)
+  const channelRef = useRef<LiveChannel | null>(null)
 
   // ── Layer 2: live video ──
   const [liveOn, setLiveOn] = useState(false)
@@ -86,7 +85,7 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
 
   // ── Layer 1: join the exam's live channel for as long as the page is open ──
   useEffect(() => {
-    const supabase = createClient()
+    const supabase = createLiveClient()
     let cancelled = false
     ;(async () => {
       await supabase.realtime.setAuth()
@@ -286,9 +285,9 @@ export function LiveMonitor({ examId, examTitle, liveConfigured }: { examId: str
   // telling the students it is on (they stop by themselves otherwise).
   useEffect(() => {
     if (!wallOn) return
-    const supabase = createClient()
+    const supabase = createLiveClient()
     let cancelled = false
-    let channel: RealtimeChannel | null = null
+    let channel: LiveChannel | null = null
     ;(async () => {
       await supabase.realtime.setAuth()
       if (cancelled) return

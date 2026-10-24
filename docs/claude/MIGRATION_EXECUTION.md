@@ -94,7 +94,34 @@ Done when: the build exits 0 and the test counts are recorded. A failing build
 or test is recorded (exact first error) and the step marked `blocked`; do not
 try to fix it in this step.
 
-### Steps 3–18
-Not yet detailed. The owner and the planning model will add each step's exact
-actions here before it runs. If you are asked to run a step that has no
-section here, stop and say so.
+### Steps 3–18 — the approved plan and its status (2026-10-24)
+
+**Owner decision 2026-10-24:** the Supabase database and storage hold trial
+data only. Nothing is carried over — no users, lessons, exams, files. Neon
+starts empty (the schema only) plus ONE new platform owner (super_admin)
+signing in with the owner's own email. This removes the account copy (7),
+the backup (14) and the data/file copy (15) from the critical path.
+
+| # | Step | Status |
+|---|------|--------|
+| 1 | Clean trial leftovers on Neon | done |
+| 2 | Re-verify the Workers build | done |
+| 3 | Measure the role lookup inside RLS | done |
+| 4 | Link the auth identity to `public.users` | done (trial) |
+| 5 | `must_change_password` becomes a column | done (trial) |
+| 6 | Replace sign-in in the code (login, invitation sign-up, password reset, member-code login, proxy) | done — invitation sign-up, account store and account-switch notice on the new auth; the OAuth callback shows "Google unavailable" (Google stays off until the owner asks) |
+| 7 | Prepare moving user accounts with their passwords | built; **not needed** (no accounts are moved) |
+| 8 | Hyperdrive → Neon | done |
+| 9 | Data access on Neon (SQL layer, RLS kept) | done — no app code imports Supabase; the unused client modules (src/lib/supabase, src/lib/db/index.ts) go in step 18 |
+| 10 | Activate R2 | **owner action** in the Cloudflare dashboard |
+| 11 | File upload/read → R2 (incl. `exam-files.ts`, storage quota) | done in code (src/lib/file-store.ts, GET /api/files, stored_files + quota on Neon: migrations 0011–0012); needs the bucket from step 10 |
+| 12 | Scheduled jobs: `pg_cron` → Cloudflare Cron Triggers | done (worker.ts scheduled → POST /api/cron/daily; migration 0010); needs the CRON_SECRET secret at deploy |
+| 13 | Replace Supabase Realtime channels (live proctoring video stays deferred) | done (Durable Object per exam, live/exam-live.ts; tickets via GET /api/live/ticket; src/lib/live-client.ts); needs the LIVE_SIGNING_SECRET secret at deploy |
+| 14 | Back up Supabase | **skipped** — owner: nothing to keep |
+| 15 | Move data, accounts, files | **reduced** to: the schema on a clean Neon database + the new owner account (password set by the owner, never in chat) |
+| 16 | Deploy on Cloudflare + switch the domain | **owner approval** ("انشر") |
+| 17 | Verify each area one by one: tenant isolation, exams and grading, proctoring, permissions, files, AI, translations, performance and request counts, all automated tests | after 16 |
+| 18 | Stop Vercel and Supabase | **owner confirmation** |
+
+Steps 10, 16 and 18 happen only with the owner's action or approval. Nothing
+reaches production before step 16.

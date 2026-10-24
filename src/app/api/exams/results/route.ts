@@ -4,14 +4,8 @@ import { findSimilarPairs, type SimilarityQuestion } from '@/lib/answer-similari
 import { getTranslations } from 'next-intl/server'
 import { apiErr } from '@/lib/api-error'
 import { NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/db'
 import { run, maybeOne } from '@/lib/db/sql'
-import { EXAM_FILES_BUCKET, SIGNED_URL_SECONDS, signExamFiles } from '@/lib/exam-files'
-
-// Storage (exam files) stays on the Supabase client until step 11 moves files to R2.
-function storageClient() {
-  return getAdminDb()
-}
+import { signExamFiles, signFileMap } from '@/lib/exam-files'
 
 type ExamRow = {
   id: string; teacher_id: string; title: string; questions: unknown[] | null; group_id: string | null; course_id: string | null
@@ -78,26 +72,16 @@ export async function GET(request: Request) {
   }
   const roster = resultRows as unknown as ResultRow[]
   const subs = roster.filter(r => r.id)
-  const admin = storageClient()
 
   const maxScore = ((exam.questions as Array<{ points?: number }>) ?? [])
     .reduce((s, q) => s + (q.points ?? 0), 0)
 
 
-  // Photos of handwritten answers (individual tasks): one signing round-trip
-  // for the whole roster, keyed back to student + question.
-  const filePairs = subs.flatMap(s =>
-    s.status === 'submitted'
-      ? Object.entries((s.answer_files as Record<string, string> | null) ?? {}).map(([qid, path]) => ({ student: s.student_id as string, qid, path }))
-      : [])
+  // Photos of handwritten answers (individual tasks), keyed back to student + question.
   const signedFiles = new Map<string, Record<string, string>>()
-  if (filePairs.length > 0) {
-    const { data: signed } = await admin.storage.from(EXAM_FILES_BUCKET).createSignedUrls(filePairs.map(f => f.path), SIGNED_URL_SECONDS)
-    filePairs.forEach((f, i) => {
-      const url = signed?.[i]?.signedUrl
-      if (url) signedFiles.set(f.student, { ...(signedFiles.get(f.student) ?? {}), [f.qid]: url })
-    })
-  }
+  await Promise.all(subs.filter(s => s.status === 'submitted' && s.answer_files).map(async s => {
+    signedFiles.set(s.student_id as string, await signFileMap(s.answer_files as Record<string, string>))
+  }))
 
   // One row per enrolled student — submitted or not. Includes the submission
   // id + raw answers so the teacher can review and manually grade (this route
@@ -141,7 +125,7 @@ export async function GET(request: Request) {
     individual: !!exam.assigned_student_id,
     counts_toward_grade: exam.counts_toward_grade !== false,
     instructions: exam.instructions ?? null,
-    attachment_urls: await signExamFiles(Array.isArray(exam.attachments) ? exam.attachments : [], admin),
+    attachment_urls: await signExamFiles(Array.isArray(exam.attachments) ? exam.attachments : []),
     results,
     // Collusion hints between submitted students (computed here, stored nowhere).
     similarity: exam.assigned_student_id ? [] : findSimilarPairs(

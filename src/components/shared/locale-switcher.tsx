@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { type Locale } from '@/i18n/config'
 import { writeLocaleCookie } from '@/lib/locale-cookie'
 import { LocaleToggle } from '@/components/public/locale-toggle'
-import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 
 /**
@@ -20,8 +19,8 @@ import { useAuthStore } from '@/stores/auth-store'
  * `lang`/`dir` on <html> come from the same cookie in the root layout, so the
  * direction flips with the language from one source of truth.
  *
- * For a signed-in user the choice is also saved to `users.locale` (a plain
- * self-update that RLS allows — supabase/tests/locale_rls_check.sql), so it
+ * For a signed-in user the choice is also saved to `users.locale`
+ * (PATCH /api/account/locale — a plain self-update that RLS allows), so it
  * follows them to another browser or device: src/proxy.ts reads it into the
  * cookie on the first request that arrives without one. Saving is
  * best-effort — the switch itself never waits on it or fails because of it.
@@ -37,8 +36,10 @@ export function LocaleSwitcher({ className = '' }: { className?: string }) {
     writeLocaleCookie(next)
     if (userId) {
       // Best-effort, but give it a moment to land before the reload aborts it.
-      const save = createClient().from('users').update({ locale: next }).eq('id', userId)
-        .then(({ error }) => { if (error) console.warn('[locale] preference not saved:', error.message) })
+      const save = fetch('/api/account/locale', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locale: next }),
+      }).then(res => { if (!res.ok) console.warn('[locale] preference not saved:', res.status) })
+        .catch(() => console.warn('[locale] preference not saved: offline'))
       await Promise.race([save, new Promise(r => setTimeout(r, 1500))])
     }
     window.location.reload()

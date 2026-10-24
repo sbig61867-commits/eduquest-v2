@@ -1,22 +1,20 @@
-import { createClient as createAdminClient, type SupabaseClient } from '@supabase/supabase-js'
+import { SIGNED_URL_SECONDS, signedFileUrl, signedFileUrls } from '@/lib/file-store'
 
 // Images of individual follow-up tasks: the teacher's attachments (a photo of
 // the student's marked paper, a worked example) and the student's photo of
-// their handwritten answer. They are personal, so the exam-files bucket is
-// PRIVATE with no storage policies at all (individual_tasks_migration.sql):
-// only the service role reads or writes, and a page hands out short-lived
-// signed URLs after its own access check. A stored path alone opens nothing.
+// their handwritten answer. They are personal: they live in the R2 bucket
+// (src/lib/file-store.ts) and are only ever opened through a short-lived signed
+// link that a page hands out after its own access check. A stored path alone
+// opens nothing.
 //
 // Path layout — the prefix is what the routes check before they accept a path:
 //   <tenant>/tasks/<teacher>/<uuid>.<ext>                    teacher attachment
 //   <tenant>/answers/<exam>/<student>/<question>.<ext>       student answer photo
 //   <tenant>/lessons/<teacher>/<uuid>.<ext>                  lesson image block
 
-export const EXAM_FILES_BUCKET = 'exam-files'
 export const MAX_FILE_BYTES = 4 * 1024 * 1024
 export const MAX_ATTACHMENTS = 6
-/** Long enough to read a task or grade it; short enough that a copied link dies. */
-export const SIGNED_URL_SECONDS = 60 * 60
+export { SIGNED_URL_SECONDS }
 
 const EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -79,51 +77,29 @@ export function isUuid(v: unknown): v is string {
   return typeof v === 'string' && SEGMENT.test(v)
 }
 
-export function examFilesAdmin(): SupabaseClient {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  )
-}
-
 /**
- * Signed URLs for `paths`, in the same order; a path that cannot be signed
- * (deleted file) is dropped rather than rendered broken. The caller must have
- * already decided the viewer may see these files.
+ * Signed links for `paths`, in the same order; an empty or non-string path is
+ * dropped. The caller must have already decided the viewer may see these files.
  */
-export async function signExamFiles(paths: string[], admin: SupabaseClient = examFilesAdmin()): Promise<string[]> {
-  const clean = paths.filter(p => typeof p === 'string' && p.length > 0)
-  if (clean.length === 0) return []
-  const { data } = await admin.storage.from(EXAM_FILES_BUCKET).createSignedUrls(clean, SIGNED_URL_SECONDS)
-  return (data ?? []).flatMap(d => (d.signedUrl ? [d.signedUrl] : []))
+export async function signExamFiles(paths: unknown[]): Promise<string[]> {
+  return signedFileUrls(paths)
 }
 
 /** Signs one {key: path} map (student answer photos), keeping the keys. */
-export async function signFileMap(map: Record<string, string> | null | undefined, admin?: SupabaseClient): Promise<Record<string, string>> {
+export async function signFileMap(map: Record<string, string> | null | undefined): Promise<Record<string, string>> {
   const entries = Object.entries(map ?? {}).filter(([, p]) => typeof p === 'string' && p)
-  if (entries.length === 0) return {}
-  const client = admin ?? examFilesAdmin()
-  const { data } = await client.storage.from(EXAM_FILES_BUCKET).createSignedUrls(entries.map(([, p]) => p), SIGNED_URL_SECONDS)
-  const out: Record<string, string> = {}
-  entries.forEach(([k], i) => { const url = data?.[i]?.signedUrl; if (url) out[k] = url })
-  return out
+  const urls = await Promise.all(entries.map(([, p]) => signedFileUrl(p)))
+  return Object.fromEntries(entries.map(([k], i) => [k, urls[i]]))
 }
 
 /**
  * Adds attachment_urls to exam rows the viewer is already allowed to see
  * (rows that came out of get_student_exams, or the teacher's own exams).
- * One storage round-trip for the whole list.
  */
 export async function withSignedAttachments<T>(rows: T[]): Promise<(T & { attachment_urls: string[] })[]> {
-  const lists = rows.map(r => {
+  return Promise.all(rows.map(async r => {
     const att = (r as { attachments?: unknown }).attachments
-    return Array.isArray(att) ? att.filter((p): p is string => typeof p === 'string') : []
-  })
-  const all = lists.flat()
-  if (all.length === 0) return rows.map(r => ({ ...r, attachment_urls: [] }))
-  const admin = examFilesAdmin()
-  const { data } = await admin.storage.from(EXAM_FILES_BUCKET).createSignedUrls(all, SIGNED_URL_SECONDS)
-  const byPath = new Map((data ?? []).flatMap(d => (d.path && d.signedUrl ? [[d.path, d.signedUrl] as const] : [])))
-  return rows.map((r, i) => ({ ...r, attachment_urls: lists[i].flatMap(p => (byPath.has(p) ? [byPath.get(p)!] : [])) }))
+    const paths = Array.isArray(att) ? att.filter((p): p is string => typeof p === 'string' && p.length > 0) : []
+    return { ...r, attachment_urls: await signedFileUrls(paths) }
+  }))
 }

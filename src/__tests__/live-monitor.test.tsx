@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 
-// The teacher's monitoring page, with a fake Realtime client: students come
+// The teacher's monitoring page, with a fake live-channel client: students come
 // from presence (no table read), the wall shows only validated pictures, and
 // the 'last 30 s' button broadcasts to that one student. Names come from
 // POST /api/proctoring/live-names (step 9), stubbed on fetch.
@@ -17,8 +17,10 @@ const namesFetch = vi.fn(async (url: string, init?: { body?: string }) => {
   return rows ? { ok: true, status: 200, json: async () => ({ names: rows }) } : { ok: false, status: 400, json: async () => ({}) }
 })
 const channels: Record<string, { handlers: Record<string, (m: unknown) => void>; sent: unknown[]; state: Record<string, unknown[]> }> = {}
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({
+// The live channel client (src/lib/live-client.ts) keeps the channel surface the
+// pages used from Supabase Realtime, so the same fake stands in for it.
+vi.mock('@/lib/live-client', () => ({
+  createLiveClient: () => ({
     realtime: { setAuth: async () => {} },
     channel: (topic: string) => {
       const rec = channels[topic] ??= { handlers: {}, sent: [], state: {} }

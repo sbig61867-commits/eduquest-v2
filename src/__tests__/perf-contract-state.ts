@@ -13,9 +13,6 @@
 
 /** .select('*…') on a read (row shape = whatever the table grows into). */
 export const STAR_SELECT: Readonly<Record<string, number>> = {
-  'app/api/exam/answer-file/route.ts': 1,
-  'lib/seat-limit.ts': 2,
-  'lib/storage-quota.ts': 1,
 }
 
 /** Reads with no limit/range/single/maybeSingle/head count/eq('id'). */

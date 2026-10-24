@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@/lib/db'
 
 export interface AiRateLimits {
   lesson_per_hour: number
@@ -19,15 +18,6 @@ export function aiRateLimitsFrom(value: unknown): AiRateLimits {
   }
 }
 
-export async function getAiRateLimits(supabase: SupabaseClient): Promise<AiRateLimits> {
-  const { data } = await supabase
-    .from('platform_settings')
-    .select('value')
-    .eq('key', 'ai_rate_limits')
-    .maybeSingle()
-  return aiRateLimitsFrom(data?.value)
-}
-
 export interface ExamPolicies {
   proctoring_default_enabled: boolean
   violation_warning_threshold: number
@@ -36,15 +26,6 @@ export interface ExamPolicies {
 export const FALLBACK_EXAM_POLICIES: ExamPolicies = {
   proctoring_default_enabled: false,
   violation_warning_threshold: 5,
-}
-
-export async function getExamPolicies(supabase: SupabaseClient): Promise<ExamPolicies> {
-  const { data } = await supabase
-    .from('platform_settings')
-    .select('value')
-    .eq('key', 'exam_policies')
-    .maybeSingle()
-  return examPoliciesFrom(data?.value)
 }
 
 /** The exam policies from a platform_settings value, with the fallbacks. */
@@ -74,15 +55,6 @@ export function deletionPolicyFrom(value: unknown): DeletionPolicy {
   }
 }
 
-export async function getDeletionPolicy(supabase: SupabaseClient): Promise<DeletionPolicy> {
-  const { data } = await supabase
-    .from('platform_settings')
-    .select('value')
-    .eq('key', 'deletion_policy')
-    .maybeSingle()
-  return deletionPolicyFrom(data?.value)
-}
-
 export interface InvitationDefaults {
   university_admin: number
   teacher: number
@@ -95,18 +67,6 @@ export const FALLBACK_INVITATION_DEFAULTS: InvitationDefaults = {
   teacher: 48,
   student: 168,
   max_expiry_hours: 720,
-}
-
-// Reads a platform setting with the caller's session client (RLS: any
-// authenticated user can SELECT). Falls back silently so a missing row or
-// un-applied migration never breaks the calling route.
-export async function getInvitationDefaults(supabase: SupabaseClient): Promise<InvitationDefaults> {
-  const { data } = await supabase
-    .from('platform_settings')
-    .select('value')
-    .eq('key', 'invitation_defaults')
-    .maybeSingle()
-  return invitationDefaultsFrom(data?.value)
 }
 
 /** The invitation expiry defaults from a platform_settings value, with the fallbacks. */

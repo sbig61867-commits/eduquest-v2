@@ -74,6 +74,7 @@ const INTENTIONALLY_PUBLIC_ROUTES = new Set([
   'src/app/api/auth/sign-in/route.ts',           // email sign-in itself; rate-limited per IP and per account
   'src/app/api/contact/route.ts',
   'src/app/api/proctor/evidence/cleanup/route.ts', // cron, CRON_SECRET bearer token
+  'src/app/api/cron/daily/route.ts',             // Cron Trigger (worker.ts), CRON_SECRET bearer token
   'src/app/api/proctor/second-camera/event/route.ts', // signed short-lived token + rate limit
 ])
 
@@ -104,8 +105,9 @@ describe('I1 — every API route authenticates the caller', () => {
       const full = join(ROOT, relPath)
       const src = read(full)
       // startSession() signs in through authSignIn(), which applies the per-IP
-      // and per-account limits itself (src/lib/auth/better.ts, SIGN_IN_LIMITS)
-      const guarded = /rateLimit\(|aiRateLimit\(|startSession\(|token|timingSafeEqual\(/i.test(src)
+      // and per-account limits itself (src/lib/auth/better.ts, SIGN_IN_LIMITS);
+      // cronAuthorized() is the shared CRON_SECRET check (src/lib/cron-secret.ts)
+      const guarded = /rateLimit\(|aiRateLimit\(|startSession\(|token|timingSafeEqual\(|cronAuthorized\(/i.test(src)
       expect(guarded, `${relPath} is public with no rate limit and no token check`).toBe(true)
     }
   })

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createLiveClient } from '@/lib/live-client'
 import { THUMB_EVENT, THUMB_EVERY_MS, thumbsTopic } from '@/lib/live-channel'
 
 // The student's side of the teacher's thumbnail wall: while `active` (the
@@ -23,7 +23,7 @@ export function useThumbnailSender(
 ) {
   useEffect(() => {
     if (!active) return
-    const supabase = createClient()
+    const supabase = createLiveClient()
     const channel = supabase.channel(thumbsTopic(examId), { config: { private: true } })
     const canvas = document.createElement('canvas')
     canvas.width = W; canvas.height = H

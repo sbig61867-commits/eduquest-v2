@@ -2,14 +2,23 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 
 // One browser holds one sign-in (a cookie shared by every tab of the site).
 // Signing in to another account in a second tab silently moves the first tab
 // to that account too, and its next request lands on the wrong role and is
 // sent to sign-in (owner report, 2026-10-18). This notice says so plainly the
 // moment the older tab comes back into view, instead of a surprise redirect.
-// It reads the session locally (no network) on focus and visibility changes.
+// It asks GET /api/auth/me (one small statement) when the tab is shown again —
+// the session lives in HttpOnly cookies, so the page cannot read it itself.
+
+/** The signed-in account's id; null when signed out; undefined when unknown (network). */
+async function currentAccountId(): Promise<string | null | undefined> {
+  const res = await fetch('/api/auth/me', { cache: 'no-store' }).catch(() => null)
+  if (!res) return undefined
+  if (res.status === 401) return null
+  const me = res.ok ? await res.json().catch(() => null) as { id?: string } | null : null
+  return me?.id ?? undefined
+}
 
 export function AccountSwitchNotice() {
   const t = useTranslations('common.account.switched')
@@ -17,12 +26,10 @@ export function AccountSwitchNotice() {
   const first = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
-    const supabase = createClient()
     let alive = true
     const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!alive) return
-      const id = session?.user.id ?? null
+      const id = await currentAccountId()
+      if (!alive || id === undefined) return
       if (first.current === undefined) { first.current = id; return }
       if (first.current && id !== first.current) setState(id ? 'other' : 'none')
     }

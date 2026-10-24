@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@/lib/db'
 import { currentUser } from './current'
 
 // Stage 4 (step 6) access layer for identity. Code outside this folder asks
@@ -9,12 +8,10 @@ import { currentUser } from './current'
 
 export type SessionUser = { id: string; email?: string }
 
-// The signed-in user for a route handler (id and email). The client argument
-// is kept so existing call sites stay unchanged; it is not used. Writes are
-// re-checked against the live account by the proxy before the handler runs.
-export async function getSessionUser(_db?: SupabaseClient): Promise<SessionUser | null> {
+// The signed-in user for a route handler (id and email). Writes are re-checked
+// against the live account by the proxy before the handler runs.
+export async function getSessionUser(): Promise<SessionUser | null> {
   const user = await currentUser()
   return user ? { id: user.id, email: user.email } : null
 }
 
-export { getAuthUser, type AuthUser } from '@/lib/supabase/server'

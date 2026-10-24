@@ -30,7 +30,3 @@ export function resolveAppUrl(requestUrl: string, envAppUrl?: string): string {
   return PROD_URL
 }
 
-/** Full redirectTo for resetPasswordForEmail. */
-export function resetPasswordRedirectTo(requestUrl: string, envAppUrl?: string): string {
-  return `${resolveAppUrl(requestUrl, envAppUrl)}/auth/callback?next=/reset-password`
-}

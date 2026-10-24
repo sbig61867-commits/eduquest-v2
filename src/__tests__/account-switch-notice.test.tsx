@@ -6,11 +6,13 @@ import en from '@/messages/en'
 // One browser keeps one sign-in for every tab: when another tab signs in to a
 // different account, the older tab says so as soon as it is looked at again.
 
+// The session lives in HttpOnly cookies; the notice asks GET /api/auth/me (stubbed here).
 const session = vi.hoisted(() => ({ id: 'teacher-1' as string | null }))
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({
-    auth: { getSession: async () => ({ data: { session: session.id ? { user: { id: session.id } } : null } }) },
-  }),
+vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+  if (url !== '/api/auth/me') throw new Error('unexpected fetch ' + url)
+  return session.id
+    ? { ok: true, status: 200, json: async () => ({ id: session.id, role: 'teacher', memberCode: null }) }
+    : { ok: false, status: 401, json: async () => ({ error: 'unauthorized' }) }
 }))
 
 import { AccountSwitchNotice } from '@/components/shared/account-switch-notice'

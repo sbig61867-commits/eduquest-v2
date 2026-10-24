@@ -3,7 +3,6 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { getRoleDashboardPath } from '@/lib/utils'
 import { checkNameParts, EMPTY_NAME_PARTS, JOIN_NAME_COOKIE, type NameParts } from '@/lib/person-name'
 import { FourPartNameFields } from '@/components/shared/four-part-name-fields'
@@ -36,7 +35,6 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
   const [loading, setLoading]               = useState(false)
   const [googleLoading, setGoogleLoading]   = useState(false)
   const router = useRouter()
-  const supabase = createClient()
   const captcha = useRef<TurnstileHandle>(null)
   const isDev = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEV_MODE === 'true'
 
@@ -57,18 +55,10 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
       const secure = window.location.protocol === 'https:' ? '; secure' : ''
       document.cookie = `${JOIN_NAME_COOKIE}=${encodeURIComponent(JSON.stringify(nameParts))}; path=/auth/callback; max-age=600; samesite=lax${secure}`
     }
+    // Google sign-in is not available on the new sign-in system yet (the
+    // owner turns it on later); same answer as the login page's button.
     setGoogleLoading(true)
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?invite=${encodeURIComponent(token)}`,
-      },
-    })
-    if (oauthError) {
-      setError(oauthError.message)
-      setGoogleLoading(false)
-    }
-    // On success the browser is redirected to Google — no further action here.
+    router.replace('/login?error=google_unavailable')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,22 +99,22 @@ export function JoinForm({ token, invitedEmail, isPublic, role, nameRequired = f
 
       const registeredEmail = typeof data.email === 'string' ? data.email : email.trim()
 
-      const { data: session, error: signInError } = await supabase.auth.signInWithPassword({
-        email: registeredEmail,
-        password,
-      })
-
-      if (signInError || !session.user) {
+      // Sign in with the account just created (the same route as the login page).
+      const signIn = await fetch('/api/auth/sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: registeredEmail, password }),
+      }).catch(() => null)
+      const session = signIn?.ok ? await signIn.json().catch(() => null) as { role?: string } | null : null
+      if (!session) {
         router.push(`/login?email=${encodeURIComponent(registeredEmail)}&registered=true`)
         return
       }
 
-      const { data: profile } = await supabase
-        .from('users').select('role').eq('id', session.user.id).single()
-
-      const role: Role = (profile?.role as Role) ?? 'student'
+      const role: Role = (session.role as Role) ?? 'student'
       // ?welcome=1: the header greets the new account with its details and ID.
-      router.push(`${getRoleDashboardPath(role)}?welcome=1`)
+      // A full load, so the dashboard renders with the session cookies just set (as the login page does).
+      window.location.replace(`${getRoleDashboardPath(role)}?welcome=1`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setError(t('networkError'))

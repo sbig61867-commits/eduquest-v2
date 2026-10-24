@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { AnnouncementsBanner, type StudentAnnouncement } from '@/components/student/announcements-banner'
@@ -36,11 +35,14 @@ export function AnnouncementPopup() {
     let cancelled = false
     // Asked for once the page has rendered, so the popup never delays it.
     const timer = setTimeout(() => {
-      createClient().rpc('get_student_announcements').then(({ data, error }) => {
-        if (cancelled || error || !data) return
-        const seen = new Set(readSeen())
-        setUnseen((data as unknown as StudentAnnouncement[]).filter(a => !seen.has(a.id)))
-      })
+      fetch('/api/student/announcements', { cache: 'no-store' })
+        .then(res => (res.ok ? res.json() as Promise<{ announcements: StudentAnnouncement[] }> : null))
+        .then(data => {
+          if (cancelled || !data) return
+          const seen = new Set(readSeen())
+          setUnseen(data.announcements.filter(a => !seen.has(a.id)))
+        })
+        .catch(() => { /* the popup is optional: no announcement shown */ })
     }, 1200)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [])

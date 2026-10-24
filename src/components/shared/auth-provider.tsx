@@ -1,82 +1,47 @@
 'use client'
 
 import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { Tenant } from '@/types'
 import { toTenantSettings } from '@/lib/structure-mode'
 import { AccountSwitchNotice } from './account-switch-notice'
 
-// Named user columns; the embedded tenant is `*` so its optional settings
-// columns (institution_type, structure_mode, has_center) come through in the
-// same round-trip when they exist, and are simply absent when they don't —
-// this used to be a second, separate tenants query on every load.
-const PROFILE_SELECT =
-  // '*' so member_code (member_code_migration.sql) arrives once it exists, without breaking before.
-  '*, tenants(*)'
+// The client account store, filled from GET /api/auth/profile (own row and
+// institution, read as the user). This provider sits inside every role
+// layout, and signing in or out is always a full page load (login page,
+// join form, lib/sign-out.ts), so loading once on mount is enough: there is
+// no in-page session change to listen for. Switching accounts in another tab
+// is caught by <AccountSwitchNotice>.
+
+type Profile = { user: Record<string, unknown>; tenant: Record<string, unknown> | null }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setTenant, setLoading, reset } = useAuthStore()
-  const supabase = createClient()
 
   useEffect(() => {
-    let latestLoad = 0
+    let alive = true
 
-    async function applyProfile(userId: string, loadId: number) {
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select(PROFILE_SELECT)
-        .eq('id', userId)
-        .single()
-      if (loadId !== latestLoad) return
-      if (error) console.error('[auth-provider] profile fetch failed', error.message)
-      if (profile) {
-        setUser(profile as Parameters<typeof setUser>[0])
-        const row = (profile.tenants as unknown as Record<string, unknown> | null) ?? null
-        setTenant(row ? ({ ...row, ...toTenantSettings(row) } as unknown as Tenant) : null)
+    async function load() {
+      const res = await fetch('/api/auth/profile', { cache: 'no-store' }).catch(() => null)
+      if (!alive) return
+      if (res?.status === 401) { reset(); setLoading(false); return }
+      const profile = res?.ok ? await res.json().catch(() => null) as Profile | null : null
+      if (!alive) return
+      if (!profile) {
+        console.error('[auth-provider] profile fetch failed', res?.status)
+        setLoading(false)
+        return
       }
+      setUser(profile.user as unknown as Parameters<typeof setUser>[0])
+      const row = profile.tenant
+      setTenant(row ? ({ ...row, ...toTenantSettings(row) } as unknown as Tenant) : null)
       setLoading(false)
     }
 
-    async function loadUser() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) { setLoading(false); return }
-
-      const cached = useAuthStore.getState()
-      if (cached.user?.id === session.user.id) {
-        // Show cached data immediately — re-fetch in background to pick up changes
-        setLoading(false)
-        applyProfile(session.user.id, ++latestLoad)
-        return
-      }
-
-      // No cache for this user — wait for the first fetch before unblocking
-      await applyProfile(session.user.id, ++latestLoad)
-    }
-
-    loadUser()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_OUT' || !session) { reset(); return }
-        // TOKEN_REFRESHED only rotates the JWT — profile data is unchanged.
-        // SIGNED_IN also fires when an existing session is re-confirmed (every
-        // tab refocus), so only fetch when it is a different account than the
-        // one already loaded — loadUser() above has the current one covered.
-        //
-        // Never await inside this callback: supabase-js awaits every
-        // subscriber before signInWithPassword() resolves, so an awaited
-        // profile fetch here held the login button for two extra database
-        // round-trips (measured on production: ~1.7s of a 3.8s login).
-        // Deferred, it runs alongside the navigation to the dashboard.
-        if (event === 'SIGNED_IN' && useAuthStore.getState().user?.id !== session.user.id) {
-          const loadId = ++latestLoad
-          setTimeout(() => { void applyProfile(session.user.id, loadId) }, 0)
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
+    // A cached account for this device shows immediately; the fetch refreshes it.
+    if (useAuthStore.getState().user) setLoading(false)
+    void load()
+    return () => { alive = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

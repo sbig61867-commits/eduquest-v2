@@ -404,3 +404,11 @@ Once that migration is applied, RLS-scoped reads work correctly again, so route/
 None.
 
 
+
+## Neon (Cloudflare migration) — trial database only, never Supabase
+
+Files in `neon/migrations/`, applied with a rolled-back dry run first, to the Neon trial only (details per step in
+`docs/claude/MIGRATION_PROGRESS.md`). They are part of the schema the clean Neon database starts from (step 15).
+- `0010_cleanup_invitations_system.sql` — 2026-10-24: daily invitation cleanup for the Cron Trigger; hardened, app_system only.
+- `0011_stored_files.sql` — 2026-10-24: `public.stored_files` + `tenant_storage_bytes` over it (files on R2).
+- `0012_tenant_storage_bytes_null_guard.sql` — 2026-10-24: fixes 0011's NULL guard (cross-institution read), found by `file-store-trial`.
