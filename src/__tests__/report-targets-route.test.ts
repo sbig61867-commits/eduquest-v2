@@ -46,11 +46,14 @@ vi.mock('@/lib/supabase/server', () => ({
 const db = vi.hoisted(() => ({ sql: [] as { text: string; values: unknown[]; ctx: { as: string } }[] }))
 vi.mock('@/lib/db/sql', async () => (await import('./helpers/fake-sql')).fakeSqlModule(q => {
   db.sql.push(q)
+  // the page's owner check reads the caller's live role; the rest of the statements are the search's
+  if (q.text.startsWith('select role from public.users')) return [{ role: profile?.role ?? null }]
   if (reply.error) return new Error(reply.error.message)
   return (reply.data ?? []) as unknown[]
 }))
 vi.mock('@/lib/auth/current', async () => ({
   ...(await vi.importActual<object>('@/lib/auth/current')),
+  currentUser: async () => (signedIn ? { id: 'me', role: profile?.role ?? null, tenant_id: null } : null),
   currentCtx: async () => (signedIn ? { sub: 'me', role: profile?.role ?? null, tenant_id: null, email: null, is_active: true, must_change_password: false } : null),
 }))
 vi.mock('@/lib/api-error', () => ({ apiErr: async (code: string) => ({ error: code, code }) }))
@@ -176,14 +179,15 @@ describe('/super-admin/reports page', () => {
     const { default: Page } = await import('@/app/(super-admin)/super-admin/reports/page')
     const el = await Page() as { props: Record<string, unknown> }
     expect(Object.keys(el.props)).toEqual(['tenants'])
-    const reads = calls.filter(c => !c.some(x => x[0] === 'single')).map(c => c[0][1])
-    expect(reads).toEqual(['tenants'])
+    const texts = searches().map(q => q.text)
+    expect(texts.some(x => x.includes('from public.tenants'))).toBe(true)
+    expect(texts.filter(x => !x.startsWith('select role from public.users') && /from public\.(users|groups|lessons)\b/.test(x))).toEqual([])
   })
 
-  it('a non-owner is redirected before anything is read', async () => {
+  it('a non-owner is redirected before the institutions are read', async () => {
     profile = { role: 'university_admin' }
     const { default: Page } = await import('@/app/(super-admin)/super-admin/reports/page')
     await expect(Page()).rejects.toThrow('REDIRECT /login')
-    expect(calls.filter(c => !c.some(x => x[0] === 'single'))).toHaveLength(0)
+    expect(searches().some(x => x.text.includes('from public.tenants'))).toBe(false)
   })
 })

@@ -440,7 +440,8 @@
     "onDevice": "On the student's device (no AI cost)",
     "appUrl": "App base URL (invitation links)",
     "appUrlUnset": "not set — falls back to Vercel/localhost",
-    "envHint": "These values come from the server's environment variables. To change them, edit <code>.env.local</code> (or your Vercel project settings) and redeploy."
+    "envHint": "These values come from the server's environment variables. To change them, edit <code>.env.local</code> (or your Vercel project settings) and redeploy.",
+    "saveFailed": "Could not save. Try again."
   },
   "reports": {
     "title": "Reports",

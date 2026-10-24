@@ -3,7 +3,6 @@ import { confirmDialog } from '@/lib/confirm-dialog'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -33,6 +32,15 @@ function parseSeatLimit(raw: string): number | null | undefined {
   return Number.isSafeInteger(n) ? n : undefined
 }
 
+/** The owner's institution write (POST creates, PATCH changes the fields sent). */
+async function tenantWrite(method: 'POST' | 'PATCH', body: Record<string, unknown>): Promise<{ data: Tenant | null; error: string | null }> {
+  const res = await fetch('/api/super-admin/tenants', {
+    method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }).catch(() => null)
+  if (!res?.ok) return { data: null, error: (await res?.json().catch(() => null) as { error?: string } | null)?.error ?? 'failed' }
+  return { data: (await res.json()) as Tenant, error: null }
+}
+
 export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Props) {
   const t = useTranslations('superAdmin.tenants')
   const tc = useTranslations('common.actions')
@@ -55,7 +63,6 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
   const [limitsForm, setLimitsForm] = useState({ student: '', teacher: '', storage: '' })
   const [limitsSaving, setLimitsSaving] = useState(false)
 
-  const supabase = createClient()
   const router = useRouter()
 
   function openLimits(tenant: Tenant) {
@@ -82,10 +89,9 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
       ? { student_limit, teacher_limit, storage_limit_mb }
       : { student_limit, teacher_limit }
     setLimitsSaving(true)
-    const { data, error: err } = await supabase
-      .from('tenants').update(update).eq('id', limitsTarget.id).select().single()
+    const { data, error: err } = await tenantWrite('PATCH', { id: limitsTarget.id, ...update })
     setLimitsSaving(false)
-    if (err) { toast.error(t('limitsSaveFailed')); return }
+    if (err || !data) { toast.error(t('limitsSaveFailed')); return }
     setTenants(prev => prev.map(x => x.id === limitsTarget.id ? data : x))
     setLimitsTarget(null)
     toast.success(t('limitsSaved'))
@@ -120,18 +126,12 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
     setLoading(true)
     setError('')
     const slug = form.slug || form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    const { data, error: err } = await supabase
-      .from('tenants')
-      .insert({
-        name: form.name, slug,
-        // Omitted for the default so creation still works before
-        // institution_type_migration.sql is applied.
-        ...(form.institution_type !== 'university' ? { institution_type: form.institution_type } : {}),
-        ...(!form.has_center ? { has_center: false } : {}),
-      })
-      .select()
-      .single()
-    if (err) { setError(err.message); setLoading(false); return }
+    const { data, error: err } = await tenantWrite('POST', {
+      name: form.name, slug,
+      institution_type: form.institution_type,
+      has_center: form.has_center,
+    })
+    if (err || !data) { setError(err ?? 'failed'); setLoading(false); return }
     setTenants(prev => [data, ...prev])
     setForm({ name: '', slug: '', institution_type: 'university', has_center: true })
     setShowAdd(false)
@@ -166,9 +166,8 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
   }
 
   async function changeType(tenant: Tenant, institution_type: InstitutionType) {
-    const { data, error: err } = await supabase
-      .from('tenants').update({ institution_type }).eq('id', tenant.id).select().single()
-    if (err) { toast.error(err.message); return }
+    const { data, error: err } = await tenantWrite('PATCH', { id: tenant.id, institution_type })
+    if (err || !data) { toast.error(err ?? t('updateFailed')); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
     router.refresh()
   }
@@ -179,9 +178,8 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
     const code = raw.trim().toUpperCase()
     if (code === (tenant.code ?? '')) return
     if (!/^[A-Z0-9]{2,6}$/.test(code) || code === 'EQ') { toast.error(t('codeInvalid')); return }
-    const { data, error: err } = await supabase
-      .from('tenants').update({ code }).eq('id', tenant.id).select().single()
-    if (err) { toast.error(err.code === '23505' ? t('codeTaken') : err.message); return }
+    const { data, error: err } = await tenantWrite('PATCH', { id: tenant.id, code })
+    if (err || !data) { toast.error(err === 'invalidData' ? t('codeTaken') : (err ?? t('updateFailed'))); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
     toast.success(t('codeSaved'))
   }
@@ -191,9 +189,8 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
   async function changeHasCenter(tenant: Tenant, has_center: boolean) {
     const message = t(has_center ? 'centerOn' : 'centerOff', { name: tenant.name })
     if (!(await confirmDialog(message))) return
-    const { data, error: err } = await supabase
-      .from('tenants').update({ has_center }).eq('id', tenant.id).select().single()
-    if (err) { toast.error(err.message); return }
+    const { data, error: err } = await tenantWrite('PATCH', { id: tenant.id, has_center })
+    if (err || !data) { toast.error(err ?? t('updateFailed')); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
     router.refresh()
   }
@@ -201,9 +198,8 @@ export function TenantsClient({ initialTenants, seats = {}, storage = {} }: Prop
   async function changeStructureMode(tenant: Tenant, structure_mode: StructureMode) {
     const message = t(structure_mode === 'academic' ? 'academicOn' : 'academicOff', { name: tenant.name })
     if (!(await confirmDialog(message))) return
-    const { data, error: err } = await supabase
-      .from('tenants').update({ structure_mode }).eq('id', tenant.id).select().single()
-    if (err) { toast.error(err.message); return }
+    const { data, error: err } = await tenantWrite('PATCH', { id: tenant.id, structure_mode })
+    if (err || !data) { toast.error(err ?? t('updateFailed')); return }
     setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
     router.refresh()
   }

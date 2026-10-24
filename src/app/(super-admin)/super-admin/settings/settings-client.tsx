@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/auth-store'
@@ -48,10 +47,17 @@ function StatusPill({ ok, okLabel, badLabel }: { ok: boolean; okLabel?: string; 
   )
 }
 
+/** Saves one platform setting through the owner's route. */
+async function savePlatformSetting(key: string, value: unknown): Promise<boolean> {
+  const res = await fetch('/api/super-admin/platform-settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }),
+  }).catch(() => null)
+  return !!res?.ok
+}
+
 export function SettingsClient({ profile, config, invitationDefaults, aiRateLimits, examPolicies, deletionPolicy }: Props) {
   const t = useTranslations('superAdmin.settings')
   const locale = useLocale() as Locale
-  const supabase = createClient()
   const { setUser, user } = useAuthStore()
 
   // Profile form
@@ -76,10 +82,8 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
 
   async function saveDeletionPolicy(next: boolean) {
     setDel({ hard_delete_enabled: next }); setDelSaved(false); setSavingDel(true)
-    const { error } = await supabase
-      .from('platform_settings')
-      .upsert({ key: 'deletion_policy', value: { hard_delete_enabled: next }, updated_at: new Date().toISOString() })
-    if (!error) { setDelSaved(true); setTimeout(() => setDelSaved(false), 3000) }
+    const ok = await savePlatformSetting('deletion_policy', { hard_delete_enabled: next })
+    if (ok) { setDelSaved(true); setTimeout(() => setDelSaved(false), 3000) }
     else setDel({ hard_delete_enabled: !next }) // revert on failure
     setSavingDel(false)
   }
@@ -97,11 +101,10 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
     e.preventDefault()
     if (!profile) return
     setSavingName(true); setNameError(''); setNameSaved(false)
-    const { error } = await supabase
-      .from('users')
-      .update({ full_name: fullName.trim() })
-      .eq('id', profile.id)
-    if (error) setNameError(error.message)
+    const res = await fetch('/api/super-admin/profile', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full_name: fullName.trim() }),
+    }).catch(() => null)
+    if (!res?.ok) setNameError(t('saveFailed'))
     else {
       if (user) setUser({ ...user, full_name: fullName.trim() })
       setNameSaved(true)
@@ -120,10 +123,8 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       setAiError(t('examLimitRange')); return
     }
     setSavingAi(true)
-    const { error } = await supabase
-      .from('platform_settings')
-      .upsert({ key: 'ai_rate_limits', value: ai, updated_at: new Date().toISOString() })
-    if (error) setAiError(error.message)
+    const ok = await savePlatformSetting('ai_rate_limits', ai)
+    if (!ok) setAiError(t('saveFailed'))
     else {
       setAiSaved(true)
       setTimeout(() => setAiSaved(false), 3000)
@@ -138,10 +139,8 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       setExamError(t('violationRange')); return
     }
     setSavingExam(true)
-    const { error } = await supabase
-      .from('platform_settings')
-      .upsert({ key: 'exam_policies', value: exam, updated_at: new Date().toISOString() })
-    if (error) setExamError(error.message)
+    const ok = await savePlatformSetting('exam_policies', exam)
+    if (!ok) setExamError(t('saveFailed'))
     else {
       setExamSaved(true)
       setTimeout(() => setExamSaved(false), 3000)
@@ -160,10 +159,8 @@ export function SettingsClient({ profile, config, invitationDefaults, aiRateLimi
       if (!Number.isFinite(v) || v < 1 || v > 8760) { setInvError(t('hoursRange', { label })); return }
     }
     setSavingInv(true)
-    const { error } = await supabase
-      .from('platform_settings')
-      .upsert({ key: 'invitation_defaults', value: inv, updated_at: new Date().toISOString() })
-    if (error) setInvError(error.message)
+    const ok = await savePlatformSetting('invitation_defaults', inv)
+    if (!ok) setInvError(t('saveFailed'))
     else {
       setInvSaved(true)
       setTimeout(() => setInvSaved(false), 3000)

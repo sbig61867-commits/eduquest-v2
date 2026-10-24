@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { createClient } from '@/lib/supabase/client'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,17 +44,18 @@ export function TenantLimitsModal({ tenant, fmt, onClose }: {
   async function save() {
     if (reqLimit === undefined || tokLimit === undefined || !pctValid) return
     setSaving(true)
-    const { error } = await createClient()
-      .from('tenants')
-      .update({
+    const res = await fetch('/api/super-admin/ai', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: tenant.tenant_id,
         ai_monthly_request_limit: reqLimit,
         ai_monthly_token_limit: tokLimit,
         ai_limit_action: action,
         ai_alert_threshold_pct: pct,
-      })
-      .eq('id', tenant.tenant_id)
+      }),
+    }).catch(() => null)
     setSaving(false)
-    if (error) { toast.error(t('saveFailed')); return }
+    if (!res?.ok) { toast.error(t('saveFailed')); return }
     toast.success(t('saved'))
     onClose()
     router.refresh()

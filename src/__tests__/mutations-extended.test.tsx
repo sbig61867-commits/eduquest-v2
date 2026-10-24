@@ -332,7 +332,13 @@ describe('TenantsClient — deleteTenant', () => {
   })
 })
 
-// ── 6. MessagesClient — remove (Supabase direct) ─────────────────────────────
+
+/** A fetch stub for an owner route: answers ok / refused with the body. */
+function fetchReply(ok: boolean, body: unknown = {}) {
+  return vi.fn(async () => ({ ok, status: ok ? 200 : 403, json: async () => body }))
+}
+
+// ── 6. MessagesClient — remove (owner route) ─────────────────────────────
 
 import { MessagesClient } from '@/app/(super-admin)/super-admin/messages/messages-client'
 
@@ -345,7 +351,7 @@ describe('MessagesClient — remove', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('success → message removed + router.refresh called', async () => {
-    mockFrom.mockReturnValue(supaChain({ error: null }))
+    vi.stubGlobal('fetch', fetchReply(true, { ok: true }))
     render(<MessagesClient initialMessages={[MESSAGE]} />)
     // The key-echo mock renders the translation key as the button text.
     const del = screen.getByRole('button', { name: 'delete' })
@@ -358,11 +364,12 @@ describe('MessagesClient — remove', () => {
   })
 
   it('failure → message stays + router.refresh NOT called', async () => {
-    mockFrom.mockReturnValue(supaChain({ error: { message: 'db err' } }))
+    const fetchMock = fetchReply(false, { error: 'forbidden' })
+    vi.stubGlobal('fetch', fetchMock)
     render(<MessagesClient initialMessages={[MESSAGE]} />)
     const buttons = screen.getAllByRole('button')
     await userEvent.click(buttons[buttons.length - 1])
-    await waitFor(() => expect(mockFrom).toHaveBeenCalled())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
     expect(screen.getByText('Bob')).toBeInTheDocument()
   })

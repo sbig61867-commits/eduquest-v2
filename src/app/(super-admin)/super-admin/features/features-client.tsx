@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
@@ -17,6 +16,24 @@ interface Props { initialFlags: FeatureFlag[]; tenants: Tenant[] }
 const GLOBAL_FEATURES = ['ai_lesson_generation', 'proctoring', 'file_uploads', 'realtime_updates'] as const
 const isGlobal = (name: string) => (GLOBAL_FEATURES as readonly string[]).includes(name)
 
+
+/** A JSON call to an owner route: the body when it succeeded, else null (the caller leaves its state alone). */
+type CallInit = { method: string; body?: unknown }
+type Res<T> = Promise<T | null>
+async function callJson(url: string, init: CallInit): Res<unknown> {
+  const res = await fetch(url, {
+    method: init.method,
+    headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: init.body ? JSON.stringify(init.body) : undefined,
+  }).catch(() => null)
+  return res?.ok ? await res.json().catch(() => null) : null
+}
+
+/** A flag row from an owner route, or null. */
+async function callFlag(url: string, init: CallInit) {
+  return (await callJson(url, init)) as FeatureFlag | null
+}
+
 export function FeaturesClient({ initialFlags, tenants }: Props) {
   const t = useTranslations('superAdmin.features')
   const tc = useTranslations('common.actions')
@@ -25,25 +42,24 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', tenant_id: '' })
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
 
   async function toggleFlag(flag: FeatureFlag) {
-    const { data } = await supabase.from('feature_flags').update({ is_enabled: !flag.is_enabled }).eq('id', flag.id).select().single()
+    const data = await callFlag('/api/super-admin/feature-flags', { method: 'PATCH', body: { id: flag.id, is_enabled: !flag.is_enabled } })
     if (data) { setFlags(prev => prev.map(f => f.id === flag.id ? data : f)); router.refresh() }
   }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const { data } = await supabase.from('feature_flags').insert({ name: form.name, tenant_id: form.tenant_id || null, is_enabled: true }).select().single()
+    const data = await callFlag('/api/super-admin/feature-flags', { method: 'POST', body: { name: form.name, tenant_id: form.tenant_id || null, is_enabled: true } })
     if (data) { setFlags(prev => [...prev, data]); router.refresh() }
     setShowAdd(false)
     setLoading(false)
   }
 
   async function deleteFlag(id: string) {
-    const { error } = await supabase.from('feature_flags').delete().eq('id', id)
-    if (!error) { setFlags(prev => prev.filter(f => f.id !== id)); router.refresh() }
+    const ok = await callJson(`/api/super-admin/feature-flags?id=${id}`, { method: 'DELETE' })
+    if (ok) { setFlags(prev => prev.filter(f => f.id !== id)); router.refresh() }
   }
 
   return (
@@ -74,7 +90,7 @@ export function FeaturesClient({ initialFlags, tenants }: Props) {
                   aria-pressed={flag?.is_enabled !== false}
                   onClick={async () => {
                     if (flag) { toggleFlag(flag) } else {
-                      const { data } = await supabase.from('feature_flags').insert({ name, is_enabled: true }).select().single()
+                      const data = await callFlag('/api/super-admin/feature-flags', { method: 'POST', body: { name, is_enabled: true } })
                       if (data) { setFlags(prev => [...prev, data]); router.refresh() }
                     }
                   }}

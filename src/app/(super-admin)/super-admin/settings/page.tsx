@@ -1,28 +1,27 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { SettingsClient } from './settings-client'
-import { getInvitationDefaults, getAiRateLimits, getExamPolicies, getDeletionPolicy } from '@/lib/settings'
+import { invitationDefaultsAs, aiRateLimitsAs, examPoliciesAs, deletionPolicyAs } from '@/lib/super-admin-data'
 import { PreferencesCard } from '@/components/shared/preferences-card'
 import { PasswordCard } from '@/components/shared/account-settings'
 
 export default async function SettingsPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, invitationDefaults, aiRateLimits, examPolicies, deletionPolicy] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, full_name, email, role, created_at')
-      .eq('id', user.id)
-      .single(),
-    getInvitationDefaults(supabase),
-    getAiRateLimits(supabase),
-    getExamPolicies(supabase),
-    getDeletionPolicy(supabase),
+  const [profiles, invitationDefaults, aiRateLimits, examPolicies, deletionPolicy] = await Promise.all([
+    run({ as: 'user', userId: user.id }, sql => [
+      sql`select id, full_name, email, role, created_at from public.users where id = ${user.id}`,
+    ]).then(([rows]) => rows),
+    invitationDefaultsAs(user.id),
+    aiRateLimitsAs(user.id),
+    examPoliciesAs(user.id),
+    deletionPolicyAs(user.id),
   ])
+  const profile = (profiles[0] ?? null) as unknown as Parameters<typeof SettingsClient>[0]['profile']
 
   // Configuration health — checked server-side, only booleans reach the client
   const isSet = (v: string | undefined, placeholder: string) => !!v && v !== placeholder

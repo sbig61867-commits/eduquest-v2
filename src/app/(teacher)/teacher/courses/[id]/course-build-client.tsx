@@ -78,11 +78,25 @@ const isAssessmentType = (type: string) => type in ASSESSMENT_KIND
 const EMPTY_ITEM = { title: '', type: 'text', body: '', aiTopic: '', exam_id: '', video_url: '' }
 
 /** The builder's writes go through /api/courses/structure (written as the teacher). */
-async function structure<T>({ method, body, query }: { method: 'POST' | 'PATCH' | 'DELETE'; body?: Record<string, unknown>; query?: string }): Promise<T | null> {
+type StructureCall = { method: 'POST' | 'PATCH' | 'DELETE'; body?: Record<string, unknown>; query?: string }
+type Res<T> = Promise<T | null>
+async function structure(call: StructureCall): Res<unknown> {
+  const { method, body, query } = call
   const res = await fetch(`/api/courses/structure${query ? '?' + query : ''}`, {
     method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined,
   }).catch(() => null)
-  return res?.ok ? ((await res.json().catch(() => null)) as T | null) : null
+  return res?.ok ? await res.json().catch(() => null) : null
+}
+
+/** The typed results of the builder's writes. */
+async function levelWrite(call: StructureCall) {
+  return (await structure(call)) as CourseLevel | null
+}
+async function unitWrite(call: StructureCall) {
+  return (await structure(call)) as CourseUnit | null
+}
+async function itemWrite(call: StructureCall) {
+  return (await structure(call)) as UnitItem | null
 }
 
 export function CourseBuildClient({ course, initialLevels, initialFlatUnits, assessments = [] }: Props) {
@@ -145,7 +159,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
 
   async function addLevel(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    const data = await structure<CourseLevel>({ method: 'POST', body: { kind: 'level', course_id: course.id, title: levelForm.title, order_index: levels.length } })
+    const data = await levelWrite({ method: 'POST', body: { kind: 'level', course_id: course.id, title: levelForm.title, order_index: levels.length } })
     if (data) { setLevels(p => [...p, data]); router.refresh() }
     setLevelForm({ title: '' }); setLevelModal(false); setSaving(false)
   }
@@ -161,7 +175,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
     const existingUnits = levelId
       ? levels.find(l => l.id === levelId)?.course_units ?? []
       : flatUnits
-    const data = await structure<CourseUnit>({ method: 'POST', body: {
+    const data = await unitWrite({ method: 'POST', body: {
       kind: 'unit', course_id: course.id, level_id: levelId, title: unitForm.title, order_index: existingUnits.length,
     } })
     if (data) {
@@ -225,7 +239,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
     setSaving(true)
     const unitId = itemModal.unitId!
     if (editingItem) {
-      const data = await structure<UnitItem>({ method: 'PATCH', body: { id: editingItem, title: itemForm.title, type: itemForm.type, content } })
+      const data = await itemWrite({ method: 'PATCH', body: { id: editingItem, title: itemForm.title, type: itemForm.type, content } })
       if (!data) { toast.error(t('courses.generateFailed')); setSaving(false); return }
       const swap = (units: CourseUnit[]) => units.map(u => u.id === unitId
         ? { ...u, unit_items: u.unit_items.map(i => (i.id === editingItem ? { ...i, ...data } : i)) }
@@ -237,7 +251,7 @@ export function CourseBuildClient({ course, initialLevels, initialFlatUnits, ass
       setItemModal({ open: false, unitId: null }); setSaving(false)
       return
     }
-    const data = await structure<UnitItem>({ method: 'POST', body: {
+    const data = await itemWrite({ method: 'POST', body: {
       kind: 'item', course_id: course.id, unit_id: unitId, title: itemForm.title, type: itemForm.type, content,
     } })
     if (data) {

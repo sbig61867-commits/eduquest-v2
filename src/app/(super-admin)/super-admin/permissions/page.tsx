@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
@@ -24,17 +25,16 @@ interface StaffRow {
 }
 
 export default async function SuperAdminPermissionsPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const { data: rows } = await supabase
-    .from('users')
-    .select('id, full_name, email, role, is_active, permissions, tenant_id, tenants(name, institution_type)')
-    .in('role', ['university_admin', 'center_manager'])
-    .order('role')
-
-  const staffRows = (rows ?? []) as unknown as StaffRow[]
+  const [rows] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select u.id, u.full_name, u.email, u.role, u.is_active, u.permissions, u.tenant_id,
+               case when t.id is null then null else json_build_object('name', t.name, 'institution_type', t.institution_type) end as tenants
+          from public.users u left join public.tenants t on t.id = u.tenant_id
+         where u.role in ('university_admin', 'center_manager') order by u.role limit 2000`,
+  ])
+  const staffRows = rows as unknown as StaffRow[]
   const [t, locale] = await Promise.all([getTranslations('superAdmin.permissions'), getLocale() as Promise<Locale>])
 
   const staff: StaffMember[] = staffRows.map(r => ({

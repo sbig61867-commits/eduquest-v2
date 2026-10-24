@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { Locale } from '@/i18n/config'
 import Link from 'next/link'
@@ -9,20 +11,24 @@ import { formatDate } from '@/lib/utils'
 
 interface TenantRow { id: string; name: string; created_at: string }
 
-async function getStats() {
-  const supabase = await createClient()
-  const [{ data: recentTenants, count: tenants }, { count: users }] = await Promise.all([
-    supabase.from('tenants').select('id, name, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(5),
-    supabase.from('users').select('*', { count: 'exact', head: true }),
+async function getStats(userId: string) {
+  const [rows] = await run({ as: 'user', userId }, sql => [
+    sql`select (select count(*)::int from public.tenants) as tenants,
+               (select count(*)::int from public.users) as users,
+               coalesce((select json_agg(x) from (select id, name, created_at from public.tenants
+                          order by created_at desc limit 5) x), '[]') as recent`,
   ])
-  return { tenants: tenants ?? 0, users: users ?? 0, recentTenants: (recentTenants ?? []) as TenantRow[] }
+  const r = rows[0] as { tenants: number; users: number; recent: TenantRow[] }
+  return { tenants: r.tenants, users: r.users, recentTenants: r.recent }
 }
 
 const SERVICES = ['database', 'auth', 'storage', 'realtime'] as const
 
 export default async function SuperAdminDashboard() {
+  const user = await currentUser()
+  if (!user) redirect('/login')
   const [stats, t, locale] = await Promise.all([
-    getStats(),
+    getStats(user.id),
     getTranslations('superAdmin.dashboard'),
     getLocale() as Promise<Locale>,
   ])

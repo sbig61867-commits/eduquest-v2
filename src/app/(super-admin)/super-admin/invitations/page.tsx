@@ -1,21 +1,22 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { currentUser } from '@/lib/auth/current'
+import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { InvitationsClient } from '@/components/shared/invitations-client'
 
 export default async function SuperAdminInvitationsPage() {
-  const supabase = await createClient()
-  const user = await getAuthUser(supabase)
+  const user = await currentUser()
   if (!user) redirect('/login')
 
-  const { data: tenants } = await supabase
-    .from('tenants').select('id, name').eq('is_active', true).order('name')
+  const [tenants] = await run({ as: 'user', userId: user.id }, sql => [
+    sql`select id, name from public.tenants where is_active order by name limit 1000`,
+  ])
 
   return (
     <InvitationsClient
       callerRole="super_admin"
-      tenants={tenants ?? []}
+      tenants={tenants as unknown as { id: string; name: string }[]}
       groups={[]}
     />
   )

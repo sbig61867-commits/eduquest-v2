@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/config'
@@ -21,23 +20,24 @@ export function MessagesClient({ initialMessages }: { initialMessages: ContactMe
   const t = useTranslations('superAdmin.messages')
   const locale = useLocale() as Locale
   const router = useRouter()
-  const supabase = createClient()
   const [messages, setMessages] = useState(initialMessages)
   const [copiedId, setCopiedId] = useState('')
 
   const unread = messages.filter(m => !m.is_read).length
 
   async function markRead(id: string) {
-    const { error } = await supabase.from('contact_messages').update({ is_read: true }).eq('id', id)
-    if (!error) {
+    const res = await fetch('/api/super-admin/messages', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, is_read: true }),
+    }).catch(() => null)
+    if (res?.ok) {
       setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read: true } : m))
       router.refresh()
     }
   }
 
   async function remove(id: string) {
-    const { error } = await supabase.from('contact_messages').delete().eq('id', id)
-    if (!error) {
+    const res = await fetch(`/api/super-admin/messages?id=${id}`, { method: 'DELETE' }).catch(() => null)
+    if (res?.ok) {
       setMessages(prev => prev.filter(m => m.id !== id))
       router.refresh()
     }

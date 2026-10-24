@@ -13,7 +13,6 @@
 
 /** .select('*…') on a read (row shape = whatever the table grows into). */
 export const STAR_SELECT: Readonly<Record<string, number>> = {
-  'app/(super-admin)/super-admin/tenants/page.tsx': 1,
   'app/api/exam/answer-file/route.ts': 1,
   'lib/seat-limit.ts': 2,
   'lib/storage-quota.ts': 1,
@@ -23,11 +22,6 @@ export const STAR_SELECT: Readonly<Record<string, number>> = {
 export const UNBOUNDED_READS: Readonly<Record<string, number>> = {
   // 1 — the courses list (out of B's approved scope). The groups are now one server page,
   //     head-only totals and a complete paged read for the transfer picker (lib/data/center-groups.ts).
-  'app/(super-admin)/super-admin/invitations/page.tsx': 1,
-  'app/(super-admin)/super-admin/permissions/page.tsx': 1,
-  'app/(super-admin)/super-admin/reports/page.tsx': 1,
-  'app/(super-admin)/super-admin/tenants/page.tsx': 1,
-  'app/(super-admin)/super-admin/users/page.tsx': 2,
   // 1 — listByRole (listStudents / listTeachers / listCenterStudents / listCenterTeachers):
   //     bounded by .range() on the same builder, built over two statements
   //     (conditional search) — the scanner's known blind spot. Counts are head-only.

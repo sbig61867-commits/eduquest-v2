@@ -72,9 +72,12 @@ vi.mock('@/lib/utils', () => ({
 
 // Supabase client mock — used by FeaturesClient
 const mockFrom = vi.fn()
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({ from: mockFrom }),
-}))
+
+
+/** A fetch stub for an owner route: answers ok / refused with the body. */
+function fetchReply(ok: boolean, body: unknown = {}) {
+  return vi.fn(async () => ({ ok, status: ok ? 200 : 403, json: async () => body }))
+}
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -241,12 +244,13 @@ describe('StudentsClient — API Route mutations', () => {
 
 describe('FeaturesClient — direct Supabase mutations', () => {
   beforeEach(() => vi.clearAllMocks())
+  // Flags are written through /api/super-admin/feature-flags (step 9).
 
   // Scenario 5 — toggleFlag success → router.refresh called
   it('toggleFlag success → local state updated + router.refresh called', async () => {
     const flag = makeFlag({ is_enabled: true })
-    const chain = supaChain({ data: { ...flag, is_enabled: false }, error: null })
-    mockFrom.mockReturnValue(chain)
+    const fetchMock = fetchReply(true, { ...flag, is_enabled: false })
+    vi.stubGlobal('fetch', fetchMock)
 
     render(<FeaturesClient initialFlags={[flag]} tenants={[]} />)
 
@@ -256,6 +260,8 @@ describe('FeaturesClient — direct Supabase mutations', () => {
     if (toggleBtn) {
       await userEvent.click(toggleBtn)
       await waitFor(() => expect(mockRefresh).toHaveBeenCalled())
+      // The first toggle may be a default feature without a stored flag (POST) or the flag itself (PATCH).
+      expect(fetchMock).toHaveBeenCalledWith('/api/super-admin/feature-flags', expect.anything())
     } else {
       // Fallback: find any toggle-like button (not Add Flag, not delete)
       const nonDeleteBtns = allButtons.filter(b => !b.textContent?.includes('Add') && !b.textContent?.includes('Delete'))
@@ -269,8 +275,7 @@ describe('FeaturesClient — direct Supabase mutations', () => {
   // Scenario 3 — deleteFlag success → removed from list
   it('deleteFlag success → flag removed and router.refresh called', async () => {
     const flag = makeFlag({ name: 'my_custom_flag' })
-    const chain = supaChain({ error: null })
-    mockFrom.mockReturnValue(chain)
+    vi.stubGlobal('fetch', fetchReply(true, { ok: true }))
 
     render(<FeaturesClient initialFlags={[flag]} tenants={[]} />)
     expect(screen.getByText('my_custom_flag')).toBeInTheDocument()
@@ -289,15 +294,15 @@ describe('FeaturesClient — direct Supabase mutations', () => {
   // Scenario 6 — deleteFlag failure → flag stays, no refresh
   it('deleteFlag failure → flag stays, router.refresh NOT called', async () => {
     const flag = makeFlag({ name: 'sticky_flag' })
-    const chain = supaChain({ error: { message: 'db error' } })
-    mockFrom.mockReturnValue(chain)
+    const fetchMock = fetchReply(false, { error: 'forbidden' })
+    vi.stubGlobal('fetch', fetchMock)
 
     render(<FeaturesClient initialFlags={[flag]} tenants={[]} />)
 
     const allButtons = screen.getAllByRole('button')
     await userEvent.click(allButtons[allButtons.length - 1])
 
-    await waitFor(() => expect(mockFrom).toHaveBeenCalled())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
     expect(mockRefresh).not.toHaveBeenCalled()
     expect(screen.getByText('sticky_flag')).toBeInTheDocument()
   })

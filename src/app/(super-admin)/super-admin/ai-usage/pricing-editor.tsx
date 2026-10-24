@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Trash2, Plus } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
 import { priceKey, type AiPricing } from '@/lib/ai/pricing'
@@ -42,11 +41,11 @@ export function PricingEditor({ pricing, defaults }: { pricing: AiPricing; defau
     setSaving(true)
     const models: AiPricing['models'] = {}
     for (const r of rows) models[priceKey(r.model)] = { input: Number(r.input), output: Number(r.output) }
-    const { error } = await createClient()
-      .from('platform_settings')
-      .upsert({ key: 'ai_pricing', value: { models, billedProviders: billed }, updated_at: new Date().toISOString() })
+    const res = await fetch('/api/super-admin/ai', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ models, billedProviders: billed }),
+    }).catch(() => null)
     setSaving(false)
-    if (error) { toast.error(t('saveFailed')); return }
+    if (!res?.ok) { toast.error(t('saveFailed')); return }
     toast.success(t('saved'))
     router.refresh()
   }

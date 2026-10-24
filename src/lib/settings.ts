@@ -66,16 +66,21 @@ export const FALLBACK_DELETION_POLICY: DeletionPolicy = {
   hard_delete_enabled: false,
 }
 
+/** The deletion policy from a platform_settings value, with the fallbacks. */
+export function deletionPolicyFrom(value: unknown): DeletionPolicy {
+  const v = (value ?? {}) as Partial<DeletionPolicy>
+  return {
+    hard_delete_enabled: v.hard_delete_enabled ?? FALLBACK_DELETION_POLICY.hard_delete_enabled,
+  }
+}
+
 export async function getDeletionPolicy(supabase: SupabaseClient): Promise<DeletionPolicy> {
   const { data } = await supabase
     .from('platform_settings')
     .select('value')
     .eq('key', 'deletion_policy')
     .maybeSingle()
-  const v = (data?.value ?? {}) as Partial<DeletionPolicy>
-  return {
-    hard_delete_enabled: v.hard_delete_enabled ?? FALLBACK_DELETION_POLICY.hard_delete_enabled,
-  }
+  return deletionPolicyFrom(data?.value)
 }
 
 export interface InvitationDefaults {
