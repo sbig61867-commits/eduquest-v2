@@ -3,7 +3,7 @@ import { apiErr } from '@/lib/api-error'
 import { currentCtx } from '@/lib/auth/current'
 import { PUBLIC_PREFIX, readStoredFile, verifyFileSignature } from '@/lib/file-store'
 
-// GET /api/files/<key> — serves one object of the R2 bucket (src/lib/file-store.ts).
+// GET /api/files/<key> — serves one object of the file store (src/lib/file-store.ts).
 //  - Private keys (task attachments, answer photos, lesson images) need the
 //    short-lived signature a page handed out after its own access check
 //    (?exp=…&sig=…); a bare or expired link opens nothing.

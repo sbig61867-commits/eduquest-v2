@@ -113,8 +113,8 @@ the backup (14) and the data/file copy (15) from the critical path.
 | 7 | Prepare moving user accounts with their passwords | built; **not needed** (no accounts are moved) |
 | 8 | Hyperdrive → Neon | done |
 | 9 | Data access on Neon (SQL layer, RLS kept) | done — no app code imports Supabase; the unused client modules (src/lib/supabase, src/lib/db/index.ts) go in step 18 |
-| 10 | Activate R2 | **owner action** in the Cloudflare dashboard |
-| 11 | File upload/read → R2 (incl. `exam-files.ts`, storage quota) | done in code (src/lib/file-store.ts, GET /api/files, stored_files + quota on Neon: migrations 0011–0012); needs the bucket from step 10 |
+| 10 | File storage on Cloudflare | done — owner chose the free plan (no payment method): Workers KV namespace `tilmoo-files` (id 40c323b9…), created 2026-10-24; R2 later is a one-file change |
+| 11 | File upload/read → R2 (incl. `exam-files.ts`, storage quota) | done in code (src/lib/file-store.ts, GET /api/files, stored_files + quota on Neon: migrations 0011–0012); on KV (step 10) |
 | 12 | Scheduled jobs: `pg_cron` → Cloudflare Cron Triggers | done (worker.ts scheduled → POST /api/cron/daily; migration 0010); needs the CRON_SECRET secret at deploy |
 | 13 | Replace Supabase Realtime channels (live proctoring video stays deferred) | done (Durable Object per exam, live/exam-live.ts; tickets via GET /api/live/ticket; src/lib/live-client.ts); needs the LIVE_SIGNING_SECRET secret at deploy |
 | 14 | Back up Supabase | **skipped** — owner: nothing to keep |

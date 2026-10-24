@@ -14,7 +14,7 @@ import {
 //
 // Only for a task assigned to this student, only while their attempt is
 // still in progress, only for a written question of that task. The file goes
-// to the R2 bucket (src/lib/file-store.ts); the submission row keeps the path
+// to the file store (src/lib/file-store.ts); the submission row keeps the path
 // in answer_files and the teacher sees it through a signed link in the results.
 // Reads and writes run as app_service pinned to the student's institution; the
 // write repeats the attempt's conditions (still in progress, this student).

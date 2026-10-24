@@ -6,8 +6,8 @@ import { checkStorageQuotaAs, putFile } from '@/lib/file-store'
 import { MAX_FILE_BYTES, extFor, signExamFiles, sniffImageType, taskAttachmentPath } from '@/lib/exam-files'
 
 // POST /api/exams/files — a teacher uploads one image for an individual task
-// (typically a photo of the student's marked paper). It lands in the R2
-// bucket (src/lib/file-store.ts) under the teacher's own prefix; /api/exams/individual
+// (typically a photo of the student's marked paper). It lands in the file
+// store (src/lib/file-store.ts) under the teacher's own prefix; /api/exams/individual
 // only accepts paths under that prefix, so nobody can attach someone else's
 // file. Returns the path (stored on the task) and a signed preview URL.
 export async function POST(request: Request) {

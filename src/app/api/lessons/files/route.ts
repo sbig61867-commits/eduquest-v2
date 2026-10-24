@@ -7,7 +7,7 @@ import { MAX_FILE_BYTES, extFor, lessonImagePath, signExamFiles, sniffImageType 
 
 // POST /api/lessons/files — a teacher uploads one image for a lesson's image
 // block (a summary or diagram they made elsewhere, kept exactly as they made
-// it). Lands in the R2 bucket (src/lib/file-store.ts) under the teacher's own
+// it). Lands in the file store (src/lib/file-store.ts) under the teacher's own
 // lessons prefix; PATCH /api/lessons only accepts image paths under that prefix.
 export async function POST(request: Request) {
   const ctx = await currentCtx()

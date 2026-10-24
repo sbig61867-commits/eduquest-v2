@@ -1,11 +1,15 @@
 import { run, maybeOne } from '@/lib/db/sql'
 import { storageStatus, type StorageStatus } from '@/lib/storage-quota'
 
-// ── Files on Cloudflare R2 (step 11) ─────────────────────────────────────────
+// ── Files on Cloudflare Workers KV (step 11) ─────────────────────────────────
 //
-// One bucket, bound to the Worker as FILES (wrangler.jsonc → r2_buckets); no R2
-// API keys anywhere. Key layout — the prefix is what the routes check before
-// they accept a path (src/lib/exam-files.ts):
+// One KV namespace, "tilmoo-files", bound to the Worker as FILES
+// (wrangler.jsonc → kv_namespaces): the free plan, no payment method (owner's
+// choice 2026-10-24). Free limits: 1 GB, 1 000 writes a day for the whole
+// account (shared with the proctoring evidence namespace), values up to 25 MiB
+// (ours ≤ 4 MB); a new key can take up to ~60 s to appear in other regions.
+// Moving to R2 later is a change to store() below only. Key layout — the
+// prefix is what the routes check before they accept a path (src/lib/exam-files.ts):
 //   <tenant>/tasks/<teacher>/<uuid>.<ext>                  teacher attachment
 //   <tenant>/answers/<exam>/<student>/<question>.<ext>     student answer photo
 //   <tenant>/lessons/<teacher>/<uuid>.<ext>                lesson image block
@@ -35,26 +39,28 @@ interface Store {
   remove(keys: string[]): Promise<void>
 }
 
-type R2Bucket = {
-  put(key: string, value: Uint8Array, opts: { httpMetadata: { contentType: string } }): Promise<unknown>
-  get(key: string): Promise<{ body: ReadableStream; size: number; httpMetadata?: { contentType?: string } } | null>
-  delete(keys: string | string[]): Promise<void>
+type KvNamespace = {
+  put(key: string, value: Uint8Array, opts: { metadata: { contentType: string; size: number } }): Promise<void>
+  getWithMetadata(key: string, type: 'arrayBuffer'): Promise<{ value: ArrayBuffer | null; metadata: { contentType?: string; size?: number } | null }>
+  delete(key: string): Promise<void>
 }
 
 const onWorkers = typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers'
 
-async function r2(): Promise<Store> {
+async function kv(): Promise<Store> {
   const { getCloudflareContext } = await import('@opennextjs/cloudflare')
   const { env } = await getCloudflareContext({ async: true })
-  const bucket = (env as unknown as { FILES?: R2Bucket }).FILES
-  if (!bucket) throw new Error('file store: the FILES bucket is not bound')
+  const ns = (env as unknown as { FILES?: KvNamespace }).FILES
+  if (!ns) throw new Error('file store: the FILES namespace is not bound')
   return {
-    put: async (key, bytes, contentType) => { await bucket.put(key, bytes, { httpMetadata: { contentType } }) },
+    put: async (key, bytes, contentType) => { await ns.put(key, bytes, { metadata: { contentType, size: bytes.length } }) },
     get: async key => {
-      const o = await bucket.get(key)
-      return o ? { body: o.body, size: o.size, contentType: o.httpMetadata?.contentType ?? 'application/octet-stream' } : null
+      const { value, metadata } = await ns.getWithMetadata(key, 'arrayBuffer')
+      if (!value) return null
+      const bytes = new Uint8Array(value)
+      return { body: bytes, size: bytes.length, contentType: metadata?.contentType ?? 'application/octet-stream' }
     },
-    remove: async keys => { if (keys.length) await bucket.delete(keys) },
+    remove: async keys => { await Promise.all(keys.map(k => ns.delete(k))) },
   }
 }
 
@@ -80,7 +86,7 @@ async function localDir(): Promise<Store> {
   }
 }
 
-const store = (): Promise<Store> => (onWorkers ? r2() : localDir())
+const store = (): Promise<Store> => (onWorkers ? kv() : localDir())
 
 /** The owning institution of a key (its first segment, or the third under public/announcements/). */
 export function tenantOfKey(key: string): string | null {

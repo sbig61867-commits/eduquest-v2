@@ -2,8 +2,8 @@ import { SIGNED_URL_SECONDS, signedFileUrl, signedFileUrls } from '@/lib/file-st
 
 // Images of individual follow-up tasks: the teacher's attachments (a photo of
 // the student's marked paper, a worked example) and the student's photo of
-// their handwritten answer. They are personal: they live in the R2 bucket
-// (src/lib/file-store.ts) and are only ever opened through a short-lived signed
+// their handwritten answer. They are personal: they live in the file store
+// (src/lib/file-store.ts, Workers KV) and are only ever opened through a short-lived signed
 // link that a page hands out after its own access check. A stored path alone
 // opens nothing.
 //

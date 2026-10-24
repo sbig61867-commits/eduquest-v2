@@ -13,6 +13,18 @@
   "observability": { "enabled": true },
   // Daily jobs at 02:00 UTC → POST /api/cron/daily (needs the CRON_SECRET secret).
   "triggers": { "crons": ["0 2 * * *"] },
+  // The live channel (step 13): one Durable Object per exam (live/exam-live.ts),
+  // SQLite-backed so it runs on the Workers free plan. worker.ts routes /live/*.
+  "durable_objects": {
+    "bindings": [{ "name": "EXAM_LIVE", "class_name": "ExamLive" }]
+  },
+  "migrations": [{ "tag": "v1-exam-live", "new_sqlite_classes": ["ExamLive"] }],
+  // Files (step 11, src/lib/file-store.ts): Workers KV namespace "tilmoo-files"
+  // (free plan, no payment method — the owner's choice 2026-10-24; R2 later is a
+  // one-file change in file-store.ts).
+  "kv_namespaces": [
+    { "binding": "FILES", "id": "40c323b9fd404e6da5352b4845ccb817" }
+  ],
   // Neon trial database through Hyperdrive (step 8), connecting as app_gateway
   // (step 9.1: no table rights, no BYPASSRLS). Query caching is turned
   // off on this config: cached reads could show a stale exam or grade.
@@ -20,17 +32,6 @@
   // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
   // HYPERDRIVE_AUTH: Better Auth's own login role app_auth (schema `ba` only,
   // step 9.6); local dev reads CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE_AUTH.
-  // Files (step 11, src/lib/file-store.ts): one R2 bucket. The owner creates it
-  // in the Cloudflare dashboard (step 10) before the first deploy.
-  // The live channel (step 13): one Durable Object per exam (live/exam-live.ts),
-  // SQLite-backed so it runs on the Workers free plan. worker.ts routes /live/*.
-  "durable_objects": {
-    "bindings": [{ "name": "EXAM_LIVE", "class_name": "ExamLive" }]
-  },
-  "migrations": [{ "tag": "v1-exam-live", "new_sqlite_classes": ["ExamLive"] }],
-  "r2_buckets": [
-    { "binding": "FILES", "bucket_name": "tilmoo-files" }
-  ],
   "hyperdrive": [
     { "binding": "HYPERDRIVE", "id": "4f0f384a2ed04edf9bfc048483cbfd48" },
     { "binding": "HYPERDRIVE_AUTH", "id": "0ce994ae39bf45a1a9dad28e0b350dca" }

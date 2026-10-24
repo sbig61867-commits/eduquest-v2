@@ -4,7 +4,7 @@ import { loadAnnouncementAuthor } from '@/lib/announcement-author'
 import { rateLimit } from '@/lib/rate-limit'
 import { checkStorageQuotaAs, publicFileUrl, putFile } from '@/lib/file-store'
 
-// Uploads an announcement image to the R2 bucket under public/announcements/
+// Uploads an announcement image to the file store under public/announcements/
 // (src/lib/file-store.ts: any signed-in user may view it, as the public bucket
 // allowed). Only after the caller's `manage_announcements` capability is
 // verified on their live row (loadAnnouncementAuthor) and the file is validated.
