@@ -4,7 +4,7 @@ import { currentUser } from '@/lib/auth/current'
 import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { LessonsClient } from './lessons-client'
-import { loadTeacherLessons } from '@/lib/data/teacher-lessons'
+import { loadTeacherLessons } from '@/lib/data/teacher-lessons-load'
 
 export default async function LessonsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await currentUser()

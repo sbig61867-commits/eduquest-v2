@@ -1,6 +1,7 @@
 import { run } from '@/lib/db/sql'
 import { can } from '@/lib/permissions'
-import { tenantSettingsSql, toTenantSettings } from '@/lib/structure-mode'
+import { toTenantSettings } from '@/lib/structure-mode'
+import { tenantSettingsSql } from '@/lib/data/tenant-settings'
 import { canTargetUniversity, type AnnouncementAudience } from '@/lib/announcement-audience'
 import type { AnnouncementRow, GroupOption } from '@/components/announcements/announcements-manager'
 

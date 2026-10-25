@@ -4,7 +4,7 @@ import { currentUser } from '@/lib/auth/current'
 import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { AdminGroupsClient } from './groups-client'
-import { getTenantSettings } from '@/lib/structure-mode'
+import { getTenantSettings } from '@/lib/data/tenant-settings'
 
 export default async function AdminGroupsPage() {
   const user = await currentUser()

@@ -5,7 +5,7 @@ import { run } from '@/lib/db/sql'
 import { redirect } from 'next/navigation'
 import { StudentsClient } from './students-client'
 import { canSetAffiliation } from '@/lib/student-affiliation'
-import { getTenantSettings } from '@/lib/structure-mode'
+import { getTenantSettings } from '@/lib/data/tenant-settings'
 import { listStudents, parsePage, sanitizeSearch } from '@/lib/data/people'
 
 // One page of the institution's students (PERFORMANCE_CONTRACT.md P1): search,

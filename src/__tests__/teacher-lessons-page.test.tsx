@@ -27,7 +27,8 @@ vi.mock('next-intl', () => ({ useTranslations: () => tStub, useLocale: () => 'en
 vi.mock('@/components/shared/ai-quota', () => ({ AiQuota: () => null }))
 vi.mock('@/components/ui/toast', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-import { loadTeacherLessons, lessonExcerpt, toLessonRow, TEACHER_LESSONS_PAGE_SIZE } from '@/lib/data/teacher-lessons'
+import { lessonExcerpt, toLessonRow, TEACHER_LESSONS_PAGE_SIZE } from '@/lib/data/teacher-lessons'
+import { loadTeacherLessons } from '@/lib/data/teacher-lessons-load'
 import { LessonsClient } from '@/app/(teacher)/teacher/lessons/lessons-client'
 
 // loadTeacherLessons is ONE statement read as the teacher (step 9); the

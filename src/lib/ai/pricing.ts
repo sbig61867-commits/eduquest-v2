@@ -1,4 +1,3 @@
-import { run, maybeOne } from '@/lib/db/sql'
 
 // ── AI model prices ──────────────────────────────────────────────
 // Every provider in the chain runs on its FREE tier, so nothing is actually
@@ -76,11 +75,5 @@ export function mergeAiPricing(stored: unknown): AiPricing {
     ? v.billedProviders.filter((x): x is string => typeof x === 'string')
     : DEFAULT_AI_PRICING.billedProviders
   return { models, billedProviders }
-}
-
-/** The price table, read as the caller (SQL layer). */
-export async function readAiPricingAs(userId: string): Promise<AiPricing> {
-  const [rows] = await run({ as: 'user', userId }, sql => [sql`select value from public.platform_settings where key = 'ai_pricing'`])
-  return mergeAiPricing((maybeOne<{ value: unknown }>(rows))?.value)
 }
 

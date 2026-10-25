@@ -2,6 +2,7 @@ import { run, maybeOne } from '@/lib/db/sql'
 import { aiRateLimitsFrom, examPoliciesFrom, invitationDefaultsFrom, deletionPolicyFrom, type AiRateLimits, type ExamPolicies, type InvitationDefaults, type DeletionPolicy } from '@/lib/settings'
 import { seatStatus, SEAT_ROLES, type SeatRole, type SeatStatus } from '@/lib/seat-limit'
 import { storageStatus, type StorageStatus } from '@/lib/storage-quota'
+import { mergeAiPricing, type AiPricing } from '@/lib/ai/pricing'
 export interface TenantRoleCounts { admins: number; teachers: number; students: number }
 
 // The owner's (super_admin) reads, on the SQL layer, read as the caller. RLS
@@ -52,4 +53,10 @@ export async function tenantRoleCountsAs(userId: string): Promise<{ counts: Reco
     console.error('[tenant-counts]', e instanceof Error ? e.message : e)
     return { counts: {}, error: true }
   }
+}
+
+/** The AI price table (platform_settings 'ai_pricing'), merged with the defaults. Kept here, not in
+ * src/lib/ai/pricing.ts, which the browser's pricing editor imports. */
+export async function readAiPricingAs(userId: string): Promise<AiPricing> {
+  return mergeAiPricing(await platformSettingAs(userId, 'ai_pricing'))
 }

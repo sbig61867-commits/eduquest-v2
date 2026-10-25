@@ -80,7 +80,7 @@ describe.skipIf(!READY)('staff page loaders on the trial', () => {
   }, 120_000)
 
   it('teacher lessons: own lessons only — never a colleague\'s or another institution\'s', async () => {
-    const { loadTeacherLessons } = await import('@/lib/data/teacher-lessons')
+    const { loadTeacherLessons } = await import('@/lib/data/teacher-lessons-load')
     const { data, error } = await loadTeacherLessons(ids.tA, '1')
     expect(error).toBeNull()
     expect(data.rows.map(r => r.id)).toEqual([ids.lA])
@@ -141,7 +141,7 @@ describe.skipIf(!READY)('staff page loaders on the trial', () => {
   })
 
   it('admin settings, announcements and the metadata-only content feeds read as the admin', async () => {
-    const { getTenantSettings } = await import('@/lib/structure-mode')
+    const { getTenantSettings } = await import('@/lib/data/tenant-settings')
     expect(await getTenantSettings(ids.aA, ids.A)).toMatchObject({ structure_mode: 'flat' })
     const { loadAnnouncementsPage } = await import('@/lib/announcements-data')
     const ann = await loadAnnouncementsPage(ids.aA, ids.A)

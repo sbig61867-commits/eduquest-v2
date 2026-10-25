@@ -11,10 +11,11 @@ import { signOutAndLeave } from '@/lib/sign-out'
 // Not Realtime because Supabase Realtime enforces RLS on postgres_changes,
 // and non-admin users don't have SELECT on the universities row that would
 // change. Polling on a server endpoint (service-role) is simpler and honest.
-// Every 3 min (was 1): a disabled account or suspended tenant is signed out
-// within 3 minutes, or at once on the next focus after MIN_GAP_MS — while the
-// database answers a third of the checks.
-const POLL_INTERVAL_MS = 3 * 60_000
+// Every 10 min (was 3; owner 2026-10-25, to stay within the hosting plan's
+// request allowance): a disabled account or suspended tenant is signed out
+// within 10 minutes, or at once on the next focus after MIN_GAP_MS. Writes do
+// not wait for this: the proxy re-checks the live account before every write.
+const POLL_INTERVAL_MS = 10 * 60_000
 const MIN_GAP_MS = 60_000
 // The first check waits until the page has finished loading, so it never
 // competes with the page's own requests.

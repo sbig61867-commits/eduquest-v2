@@ -48,10 +48,15 @@ const nextConfig: NextConfig = {
   // Cloudflare (OpenNext): the middleware bundler resolves the ESM and esnext
   // builds of @opentelemetry/api, which Next's file tracing does not copy by
   // itself (it only follows the CJS entry). Without these the Workers build fails.
+  // pg-cloudflare: `pg` (Better Auth's database driver) loads it under the
+  // `workerd` condition (dist/index.js, esm/), while tracing on Node copies only
+  // the `default` dist/empty.js — so the Workers bundle could not resolve it.
   outputFileTracingIncludes: {
     '/*': [
       './node_modules/@opentelemetry/api/build/esm/**/*',
       './node_modules/@opentelemetry/api/build/esnext/**/*',
+      './node_modules/pg-cloudflare/dist/**/*',
+      './node_modules/pg-cloudflare/esm/**/*',
     ],
   },
 

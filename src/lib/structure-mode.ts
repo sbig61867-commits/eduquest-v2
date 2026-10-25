@@ -1,4 +1,3 @@
-import { run, type Sql } from '@/lib/db/sql'
 import type { InstitutionType, StructureMode } from '@/types'
 import { isInstitutionType } from '@/lib/terminology'
 
@@ -27,13 +26,5 @@ export function toTenantSettings(row: Record<string, unknown> | null | undefined
   }
 }
 
-/** The statement reading a tenant's settings, for a caller's own unit (toTenantSettings on its row). */
-export function tenantSettingsSql(sql: Sql, tenantId: string) {
-  return sql`select institution_type, structure_mode, has_center from public.tenants where id = ${tenantId}`
-}
-
-/** All per-tenant settings in one read, as the caller. */
-export async function getTenantSettings(userId: string, tenantId: string): Promise<TenantSettings> {
-  const [rows] = await run({ as: 'user', userId }, sql => [tenantSettingsSql(sql, tenantId)])
-  return toTenantSettings(rows[0])
-}
+// Pure on purpose: the browser's account store imports toTenantSettings. The
+// database reads are in src/lib/data/tenant-settings.ts (server only).

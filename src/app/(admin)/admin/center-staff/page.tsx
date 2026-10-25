@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation'
 import { PermissionsEditor, type StaffMember } from '@/components/shared/permissions-editor'
 import { can, resolvePermissions } from '@/lib/permissions'
 import { NoPermission } from '@/components/shared/no-permission'
-import { getTenantSettings } from '@/lib/structure-mode'
+import { getTenantSettings } from '@/lib/data/tenant-settings'
 
 // The university_admin grants capabilities to their centre managers.
 // The escalation guard (you cannot grant what you don't hold) is enforced
