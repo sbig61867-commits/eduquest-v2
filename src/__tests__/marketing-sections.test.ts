@@ -51,7 +51,8 @@ function readAll(files: Iterable<string>): string[] {
 }
 
 const PAGES = ['page.tsx', 'about/page.tsx', 'ai/page.tsx', 'contact/page.tsx', 'features/page.tsx',
-  'pricing/page.tsx', 'privacy/page.tsx', 'security/page.tsx', 'terms/page.tsx']
+  'pricing/page.tsx', 'privacy/page.tsx', 'security/page.tsx', 'terms/page.tsx', 'legal/page.tsx',
+  'solutions/universities/page.tsx', 'solutions/institutes/page.tsx', 'solutions/training-centres/page.tsx', 'solutions/schools/page.tsx']
 
 describe('each marketing page sends every public section it reads', () => {
   for (const page of PAGES) {
@@ -67,9 +68,9 @@ describe('each marketing page sends every public section it reads', () => {
     })
   }
 
-  it('demo: the layout sends shell + demo, and the tour reads nothing else', () => {
+  it('demo: the layout sends shell + demo + solutions (per-type tour names), and the tour reads nothing else', () => {
     const layout = readFileSync(join(SRC, 'app/demo/layout.tsx'), 'utf8')
-    expect(layout).toContain("only={{ public: ['shell', 'demo'] }}")
+    expect(layout).toContain("only={{ public: ['shell', 'demo', 'solutions'] }}")
     const files = new Set<string>()
     const walk = (d: string) => readdirSync(d).forEach(n => {
       const p = join(d, n)
@@ -77,7 +78,7 @@ describe('each marketing page sends every public section it reads', () => {
       else if (/\.tsx?$/.test(n)) closure(p, files)
     })
     walk(join(SRC, 'app/demo'))
-    expect(readAll(files).filter(s => !['shell', 'demo'].includes(s))).toEqual([])
+    expect(readAll(files).filter(s => !['shell', 'demo', 'solutions'].includes(s))).toEqual([])
   })
 })
 

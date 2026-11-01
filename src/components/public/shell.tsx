@@ -40,6 +40,7 @@ export { PublicNav } from './public-nav'
 export function PublicFooter({ lang }: { lang: Lang }) {
   const t = useTranslations('public.shell')
   const f = useTranslations('public.shell.footer')
+  const m = useTranslations('public.shell.menu.solutions.items')
   const columns: { title: string; links: { label: string; href: string }[] }[] = [
     {
       title: f('platform'),
@@ -48,6 +49,15 @@ export function PublicFooter({ lang }: { lang: Lang }) {
         { label: f('ai'), href: localizedPath(lang, '/ai') },
         { label: f('security'), href: localizedPath(lang, '/security') },
         ...(pricingEnabled ? [{ label: t('pricing'), href: localizedPath(lang, '/pricing') }] : []),
+      ],
+    },
+    {
+      title: f('solutions'),
+      links: [
+        { label: m('university.title'), href: localizedPath(lang, '/solutions/universities') },
+        { label: m('institute.title'), href: localizedPath(lang, '/solutions/institutes') },
+        { label: m('training_center.title'), href: localizedPath(lang, '/solutions/training-centres') },
+        { label: m('school.title'), href: localizedPath(lang, '/solutions/schools') },
       ],
     },
     {
@@ -63,13 +73,14 @@ export function PublicFooter({ lang }: { lang: Lang }) {
       links: [
         { label: t('privacy'), href: localizedPath(lang, '/privacy') },
         { label: t('terms'), href: localizedPath(lang, '/terms') },
+        { label: t('legal'), href: localizedPath(lang, '/legal') },
       ],
     },
   ]
 
   return (
     <footer className="border-t border-slate-800 mt-16 bg-slate-950">
-      <div className={`${WRAP} py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]`}>
+      <div className={`${WRAP} py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))]`}>
         <div className="sm:col-span-2 lg:col-span-1 max-w-sm">
           <Link href={localizedPath(lang, '/')} dir="ltr" className="eq-brand inline-flex items-center gap-2.5">
             <BrandMark size={36} />

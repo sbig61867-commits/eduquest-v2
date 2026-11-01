@@ -1,6 +1,6 @@
 /**
- * The language switch is a compact dropdown: the button shows the current
- * two-letter code, and the menu lists every language by its full name.
+ * The language switch is a compact dropdown: the button shows a globe and the
+ * current language's full name, and the menu lists every language by name.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -25,10 +25,10 @@ describe('LocaleSwitcher', () => {
     <NextIntlClientProvider locale="ar" messages={arMessages}><LocaleSwitcher /></NextIntlClientProvider>,
   )
 
-  it('shows the current language code, and the menu is closed at first', () => {
+  it('shows the current language name, and the menu is closed at first', () => {
     renderAr()
     const trigger = screen.getByRole('button', { name: /العربية/ })
-    expect(trigger).toHaveTextContent(/^AR$/)
+    expect(trigger).toHaveTextContent(/^العربية$/)
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('menu')).toBeNull()
   })

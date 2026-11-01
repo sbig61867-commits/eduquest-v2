@@ -29,7 +29,7 @@ import { APP_NAME } from '@/lib/brand'
 //
 // No icons by design (see public-copy-style.test.ts for the copy rules).
 
-type MenuKey = 'platform' | 'audience' | 'about' | 'resources' | 'contact'
+type MenuKey = 'platform' | 'solutions' | 'audience' | 'about' | 'resources' | 'contact'
 type Target = { path: MarketingPath | '/login'; hash?: string }
 type MenuDef = { key: MenuKey; overview: Target; items: { key: string; to: Target }[] }
 
@@ -38,6 +38,16 @@ const MENUS: MenuDef[] = [
     key: 'platform',
     overview: { path: '/features' },
     items: FEATURE_ANCHORS.map(a => ({ key: a, to: { path: '/features', hash: a } })),
+  },
+  {
+    key: 'solutions',
+    overview: { path: '/solutions/universities' },
+    items: [
+      { key: 'university', to: { path: '/solutions/universities' } },
+      { key: 'institute', to: { path: '/solutions/institutes' } },
+      { key: 'training_center', to: { path: '/solutions/training-centres' } },
+      { key: 'school', to: { path: '/solutions/schools' } },
+    ],
   },
   {
     key: 'audience',
@@ -61,6 +71,7 @@ const MENUS: MenuDef[] = [
       { key: 'faq', to: { path: '/', hash: FAQ_SECTION } },
       { key: 'privacy', to: { path: '/privacy' } },
       { key: 'terms', to: { path: '/terms' } },
+      { key: 'legal', to: { path: '/legal' } },
     ],
   },
   {

@@ -7,7 +7,7 @@ import type { Locale } from '@/i18n/config'
 import type { Role } from '@/types'
 
 // Exact matches — only these exact paths are public
-const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', '/about', '/security', '/ai', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml'])
+const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/legal', '/features', '/about', '/security', '/ai', '/features/live-monitoring', '/features/ai-assistant', '/contact', '/cookies', '/pricing', '/forgot-password', '/reset-password', '/robots.txt', '/sitemap.xml', '/solutions/universities', '/solutions/institutes', '/solutions/training-centres', '/solutions/schools'])
 
 // Prefix matches — these paths AND all their sub-paths are public.
 // /api/auth/accept-invitation MUST be public: the joining user has no session
@@ -18,7 +18,7 @@ const PUBLIC_EXACT = new Set(['/', '/login', '/privacy', '/terms', '/features', 
 // scripts/copy-human-models.mjs); the proxy matcher only skips images.
 // /api/proctor/evidence/cleanup has no user session (a scheduled job calls it)
 // and is gated by CRON_SECRET inside the route instead.
-const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo']
+const PUBLIC_PREFIXES = ['/auth/callback', '/auth/signout', '/join/', '/api/auth/accept-invitation', '/api/contact', '/api/auth/forgot-password', '/api/auth/login-id', '/api/proctor/evidence/cleanup', '/api/proctor/second-camera/event', '/cam/', '/models/', '/demo-', '/demo', '/solutions/']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true

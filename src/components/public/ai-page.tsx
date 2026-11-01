@@ -140,11 +140,11 @@ export function AiPage() {
         <TaskMap copy={t.map} />
       </section>
 
-      <section className={`${WRAP} py-12 sm:py-16`}>
+      <section className={`eq-pub-band ${WRAP} py-12 sm:py-16`}>
         <ReviewFlow copy={t.flow} />
       </section>
 
-      <section className={`${WRAP} py-16 sm:py-24 grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6 items-start`}>
+      <section className={`eq-pub-glow ${WRAP} py-16 sm:py-24 grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6 items-start`}>
         <div>
           <SectionHead eyebrow={t.principles.eyebrow} title={t.principles.title} />
           <div className="grid sm:grid-cols-2 gap-4">

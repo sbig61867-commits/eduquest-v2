@@ -5,7 +5,8 @@ import { toLocale } from '@/i18n/config'
 import { marketingAlternates, type MarketingPath } from '@/i18n/public-routes'
 import type { Messages } from '@/i18n/messages'
 
-type MetaKey = 'home' | 'features' | 'pricing' | 'about' | 'security' | 'ai' | 'demo' | 'contact' | 'privacy' | 'terms'
+type MetaKey = 'home' | 'features' | 'pricing' | 'about' | 'security' | 'ai' | 'demo' | 'contact' | 'privacy' | 'terms' | 'legal'
+  | 'solutions.university' | 'solutions.institute' | 'solutions.training_center' | 'solutions.school'
 
 /**
  * Title, description and the per-language URLs (canonical + hreflang) for a

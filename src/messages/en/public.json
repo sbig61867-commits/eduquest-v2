@@ -39,6 +39,28 @@
     "demo": {
       "title": "Demonstration | Tilmoo",
       "description": "Explore the Tilmoo dashboards for four roles with illustrative data and no sign in."
+    },
+    "solutions": {
+      "university": {
+        "title": "Tilmoo for universities | Tilmoo",
+        "description": "Faculties and departments and courses and server graded examinations for universities in Arabic and English."
+      },
+      "institute": {
+        "title": "Tilmoo for institutes | Tilmoo",
+        "description": "Divisions and programmes and sections with assessment and proctoring for institutes in Arabic and English."
+      },
+      "training_center": {
+        "title": "Tilmoo for training centres | Tilmoo",
+        "description": "Tracks and programmes and cohorts with assessment and schedules for training centres in Arabic and English."
+      },
+      "school": {
+        "title": "Tilmoo for schools | Tilmoo",
+        "description": "Stages and grades and classes with lessons and examinations and announcements for schools in Arabic and English."
+      }
+    },
+    "legal": {
+      "title": "Legal Centre | Tilmoo",
+      "description": "The terms of use and privacy policy and security summary and cookie policy of the Tilmoo platform."
     }
   },
   "demo": {
@@ -183,6 +205,126 @@
       "myExams": "My exams",
       "upcomingExams": "Upcoming exams",
       "examMeta": "{date} · {count} min"
+    },
+    "tour": {
+      "tenants": {
+        "institute": "Horizon Institute",
+        "training_center": "Horizon Training Centre",
+        "school": "Horizon School"
+      },
+      "metaTitle": "{role} | {institution} | Demonstration | Tilmoo",
+      "metaDesc": "A tour of the {role} dashboard at {institution} with illustrative data.",
+      "dashTitle": "{role} dashboard",
+      "nav": {
+        "schedule": "Timetable",
+        "requests": "Requests",
+        "teachers": "Instructors"
+      },
+      "col": {
+        "course": "Course",
+        "level": "Level",
+        "teacher": "Instructor",
+        "units": "Units",
+        "status": "Status",
+        "students": "Members",
+        "exam": "Exam",
+        "date": "Date",
+        "duration": "Duration",
+        "submissions": "Submissions",
+        "score": "Score",
+        "percent": "Percentage",
+        "name": "Name",
+        "subject": "Subject",
+        "average": "Average",
+        "day": "Day",
+        "sessions": "Sessions",
+        "from": "From",
+        "audience": "Audience",
+        "lessons": "Lessons",
+        "groups": "Count"
+      },
+      "st": {
+        "published": "Published",
+        "draft": "Draft",
+        "upcoming": "Upcoming",
+        "graded": "Graded",
+        "pending": "Under review",
+        "answered": "Answered",
+        "awaiting": "Awaiting grading",
+        "active": "Active",
+        "granted": "Granted",
+        "notGranted": "Not granted"
+      },
+      "minutes": "{count} min",
+      "student": {
+        "enrolled": "Enrolled courses",
+        "upcoming": "Upcoming exams",
+        "average": "Overall average",
+        "attendance": "Attendance",
+        "continue": "Continue learning",
+        "resume": "Resume lesson",
+        "unitOf": "Unit {n} of {total}",
+        "progress": "{pct}% complete",
+        "weekly": "Weekly timetable",
+        "recentGrades": "Recent grades",
+        "announcements": "Announcements",
+        "opens": "Opens at its scheduled time",
+        "serverTimed": "Timed and graded on the server",
+        "coursesTitle": "My courses",
+        "examsTitle": "My exams",
+        "gradesTitle": "My grades",
+        "scheduleTitle": "My weekly timetable",
+        "allGrades": "View all grades"
+      },
+      "teacher": {
+        "groups": "My {groups}",
+        "members": "Members of my {groups}",
+        "lessons": "Published lessons",
+        "toGrade": "Submissions to grade",
+        "upcoming": "Upcoming exams",
+        "recentSubs": "Recent submissions",
+        "inbox": "Requests and inbox",
+        "today": "Teaching this week",
+        "groupAvg": "Average {pct}%",
+        "nextSession": "Next session",
+        "examsTitle": "Exams and grading",
+        "requestsTitle": "Requests",
+        "scheduleTitle": "Teaching timetable"
+      },
+      "admin": {
+        "teachers": "Instructors",
+        "courses": "Courses",
+        "exams": "Exams",
+        "activity": "Recent activity",
+        "act1": "{name} published the course {course}",
+        "act2": "{name} scheduled the exam {exam}",
+        "act3": "{count} new members joined by invitation",
+        "act4": "Grades of {exam} were published",
+        "ai": "AI usage this month",
+        "aiUsed": "{pct}% of the monthly allowance",
+        "aiLessons": "Lessons drafted with AI",
+        "aiQuestions": "Questions generated",
+        "archive": "Archive",
+        "archiveDesc": "Records of previous {terms} are kept and can be searched at any time.",
+        "archiveCount": "Previous {terms}",
+        "latestCourses": "Latest courses",
+        "topStudents": "Highest averages"
+      },
+      "center": {
+        "groups": "Centre {groups}",
+        "schedules": "Active timetables",
+        "announcements": "Published announcements",
+        "openRequests": "Open requests",
+        "permissions": "Permissions granted by the administration",
+        "perm1": "Manage centre {groups}",
+        "perm2": "Publish announcements",
+        "perm3": "Edit weekly timetables",
+        "perm4": "Announce to the whole {institution}",
+        "staffRequests": "Staff requests",
+        "audienceCentre": "Centre members",
+        "audienceAll": "Whole {institution}",
+        "weekly": "Weekly timetables"
+      }
     }
   },
   "shell": {
@@ -276,6 +418,10 @@
           "terms": {
             "title": "Terms of use",
             "desc": "The provisions governing use of the platform."
+          },
+          "legal": {
+            "title": "Legal centre",
+            "desc": "All policies of the platform in one place."
           }
         }
       },
@@ -318,6 +464,30 @@
             "desc": "Where artificial intelligence is used and where it is not."
           }
         }
+      },
+      "solutions": {
+        "label": "Solutions",
+        "heading": "One platform shaped to each type of institution",
+        "overview": "Solutions for universities",
+        "group": "Institution types",
+        "items": {
+          "university": {
+            "title": "Universities",
+            "desc": "Faculties and departments and continuing education in one system."
+          },
+          "institute": {
+            "title": "Institutes",
+            "desc": "Divisions and programmes and sections with clear academic records."
+          },
+          "training_center": {
+            "title": "Training centres",
+            "desc": "Tracks and cohorts and course runs managed from one place."
+          },
+          "school": {
+            "title": "Schools",
+            "desc": "Stages and grades and classes with lessons and announcements."
+          }
+        }
       }
     },
     "footer": {
@@ -330,17 +500,20 @@
       "security": "Security and privacy",
       "about": "About the platform",
       "demo": "Demonstration",
-      "contact": "Contact"
-    }
+      "contact": "Contact",
+      "solutions": "Solutions"
+    },
+    "legal": "Legal centre"
   },
   "landing": {
     "hero": {
       "badge": "An integrated digital system for educational institutions",
-      "title": "An integrated digital learning environment",
-      "titleAccent": "for content design and assessment and academic administration",
-      "desc": "Tilmoo provides educational institutions with a unified system that brings together the preparation of instructional content and the assessment of students and the monitoring of their performance and the organisation of academic affairs. It is available in Arabic and English and serves universities and schools and institutes and training centres and professional organisations.",
-      "primary": "Request an introductory presentation",
-      "demo": "Explore the demonstration",
+      "title": "One platform for the whole learning journey",
+      "titleAccent": "From preparing the lesson to reading the result",
+      "desc": "Tilmoo brings content preparation and secure examinations and performance tracking and institution management into one environment in Arabic and English for universities and schools and institutes and training centres.",
+      "primary": "Join now",
+      "demo": "See the platform",
+      "signIn": "Sign in",
       "note": "No installation is required. The platform is accessed through the browser on computers and mobile devices."
     },
     "studio": {
@@ -474,7 +647,8 @@
             "Staff members"
           ]
         }
-      ]
+      ],
+      "solutionsLink": "Explore the solution for each institution type."
     },
     "journey": {
       "eyebrow": "The course of a school day",
@@ -793,38 +967,290 @@
     },
     "faq": {
       "title": "Frequently asked questions",
-      "items": [
-        {
-          "q": "Technical requirements",
-          "a": "The platform runs in the browser on computers and mobile devices and requires no installation."
+      "intro": "Concise answers grouped by topic. Select a topic or search across every answer.",
+      "categoriesLabel": "Topics",
+      "searchLabel": "Search the questions",
+      "searchPlaceholder": "Search every answer",
+      "resultsTitle": "Search results",
+      "resultCount": "Matching answers {count}",
+      "noResults": "No answer matches this search. Try another word or write to the platform team.",
+      "moreTitle": "Your question is not listed here.",
+      "moreLink": "Write to the platform team",
+      "copyLink": "Copy link to this answer",
+      "copied": "Link copied",
+      "categories": {
+        "start": {
+          "title": "Getting started",
+          "items": {
+            "audience": {
+              "q": "Institutions the platform serves",
+              "a": "The platform serves universities and schools and institutes and training centres as well as organisations that train their staff. The terminology of every screen follows the institution type. A university sees faculties and departments while a school sees stages and grades."
+            },
+            "joining": {
+              "q": "How an institution joins",
+              "a": "Joining begins with a request through the contact page. We then discuss the institution type and student numbers and academic requirements. An independent environment is established with its own terminology and default language and its administrator is invited to it."
+            },
+            "accounts": {
+              "q": "Accounts and signing in",
+              "a": "There is no open registration. An account is created only by the institution through an invitation link or directly by an authorised staff member. Members sign in with their email address or with the member ID their institution issues. An account created directly receives a temporary password that must be changed at the first sign in."
+            },
+            "requirements": {
+              "q": "Technical requirements",
+              "a": "The platform runs in the browser on computers and phones and requires no installation. A proctored examination also needs access to the camera and the microphone with the student’s consent."
+            }
+          }
         },
-        {
-          "q": "Student images during examinations",
-          "a": "They are analysed on the student's device. Only a small snapshot is taken for a serious violation and only the exam teacher can see it before it is permanently deleted after 30 hours."
+        "teaching": {
+          "title": "Teaching and content",
+          "items": {
+            "aiDrafts": {
+              "q": "Preparing lessons with artificial intelligence",
+              "a": "The instructor uploads their own material as a PDF or Word or PowerPoint file or as images of pages including scanned ones. The platform builds a structured lesson draft from it. A lesson can also be drafted from a title and examination questions can be proposed with model answers. Artificial intelligence is called only when the instructor asks."
+            },
+            "review": {
+              "q": "Review before publication",
+              "a": "Everything artificial intelligence produces remains a draft until the instructor reviews it and edits it and approves it. Nothing reaches students without the instructor’s decision and the instructor remains responsible for the published content."
+            },
+            "structure": {
+              "q": "Organisation of courses and lessons",
+              "a": "Each course is divided into units and each unit holds its lessons. A lesson may combine text and images and video and mind maps and flashcards and short quizzes. The institution arranges its academic structure in two levels and assigns its students to groups."
+            },
+            "languages": {
+              "q": "Arabic and English",
+              "a": "Interfaces and email messages and reports are available in Arabic and English with a right to left layout for Arabic. Each user chooses a preferred language and the institution sets its default language."
+            }
+          }
         },
-        {
-          "q": "Accuracy of generated content",
-          "a": "The instructor reviews and revises every lesson and examination before it is made available to students."
+        "exams": {
+          "title": "Examinations and integrity",
+          "items": {
+            "timing": {
+              "q": "Examination timing",
+              "a": "The start time is recorded on the server when the student begins. Refreshing the page or changing the device clock does not change the remaining time. Questions and their options can be shown in a different order to each student."
+            },
+            "grading": {
+              "q": "Grading and model answers",
+              "a": "Model answers stay on the server and never reach the student’s browser. Multiple choice and true or false questions are graded on the server from the stored answers. Essay answers are graded by the instructor and students see their grades once they are published."
+            },
+            "proctoring": {
+              "q": "How proctoring works",
+              "a": "Proctoring is enabled for each examination separately and the student consents before it starts. Detection runs on the student’s own device and covers the face and gaze and phones and books and additional people and speech and leaving the examination window. No camera image is sent for analysis and no artificial intelligence provider sees the camera."
+            },
+            "evidence": {
+              "q": "What is recorded and for how long",
+              "a": "Monitoring events are kept as short text entries. Evidence is limited to a ten second room check at the start and to a still image or a short clip for a serious violation or at the request of the exam teacher. Only the exam teacher can view it. It is stored outside the platform database and deleted permanently after 30 hours. Live viewing by the teacher is never recorded."
+            },
+            "appeals": {
+              "q": "Appeals against a flag",
+              "a": "A flag alerts the instructor and is not a final ruling. The student can appeal any recorded violation in writing. The exam teacher reviews the event and decides the appeal with a written reply that the student can read."
+            }
+          }
         },
-        {
-          "q": "Supported institution types",
-          "a": "Universities and schools and institutes and training centres and professional organisations. Terminology adapts to each type."
+        "data": {
+          "title": "Data and privacy",
+          "items": {
+            "isolation": {
+              "q": "Separation between institutions",
+              "a": "Each institution’s data is isolated from all others in the database itself and not in the interface alone. Every read and write is restricted to the user’s own institution. Data is used only to run the platform and protect examination integrity and is never sold or shared for marketing."
+            },
+            "access": {
+              "q": "Who sees what",
+              "a": "Administrators see statistical indicators without the content of questions or student answers or individual grades. Instructors see their own groups and examinations. Students see their own content and their grades once published. No user can grant themselves a permission."
+            },
+            "aiPrivacy": {
+              "q": "Student data and artificial intelligence",
+              "a": "Names and contact details and identifiers and links are removed from a student’s text before it reaches an artificial intelligence provider. Camera images never reach any such provider. Providers are called only when a user asks."
+            },
+            "cookies": {
+              "q": "Cookies",
+              "a": "The platform sets only the cookies needed to keep you signed in and to remember the language and appearance you chose. It sets no advertising cookies and no third party tracking cookies. The full list is in the cookie policy."
+            }
+          }
         },
-        {
-          "q": "Confidentiality of institutional data",
-          "a": "Each institution's data is isolated from all others. Deleted items are moved to an archive from which they can be recovered."
+        "admin": {
+          "title": "Administration",
+          "items": {
+            "roles": {
+              "q": "Roles and permissions",
+              "a": "Each institution has an administrator and a centre manager and instructors and students. The administrator grants the centre manager only the permissions the role requires such as managing students or courses or attendance or announcements or timetables or reports. No one can grant a permission they do not hold and permissions are verified on the server before every sensitive operation."
+            },
+            "communication": {
+              "q": "Timetables and announcements",
+              "a": "Authorised staff prepare a weekly timetable for each group and publish it to its students. Announcements appear as cards to the students of a chosen audience and their wording can be suggested by artificial intelligence on request."
+            },
+            "reports": {
+              "q": "Reports and indicators",
+              "a": "Each course has an analysis of strengths and weaknesses with recommendations derived from fixed published rules. Staff follow attendance and progress and participation and each instructor can export the grades of their groups as a spreadsheet. Administrators see indicators for the whole institution."
+            },
+            "archive": {
+              "q": "Deletion and the archive",
+              "a": "Deleting an item moves it to the institution’s archive instead of erasing it. The archive keeps the academic record across the years and items can be recovered from it when needed."
+            }
+          }
         },
-        {
-          "q": "Configuration and technical support",
-          "a": "We configure the environment in collaboration with the institution and accompany its staff until work on the platform is well established."
+        "support": {
+          "title": "Support and plans",
+          "items": {
+            "afterContact": {
+              "q": "After you contact us",
+              "a": "We reply to the email address you provide. If you wish we arrange an introductory presentation drawn from your institution. We then configure the environment together with the institution and accompany its staff until work on the platform is well established."
+            },
+            "pricing": {
+              "q": "Plans and pricing",
+              "a": "Plans and prices are not published yet. They are agreed directly with each institution according to its size and needs."
+            },
+            "demo": {
+              "q": "Trying the platform before joining",
+              "a": "The demonstration shows the screens of each role with illustrative data and needs no account. You can also request an introductory presentation through the contact page."
+            }
+          }
         }
-      ]
+      }
     },
     "cta": {
       "title": "Advance the educational process in your institution",
       "desc": "Book an introductory presentation in which we demonstrate the platform through a model drawn from your institution.",
       "primary": "Request a presentation",
       "secondary": "Sign in"
+    },
+    "stack": {
+      "admin": "Administration dashboard",
+      "teacher": "Instructor dashboard",
+      "student": "Student dashboard",
+      "students": "Students",
+      "teachers": "Instructors",
+      "courses": "Courses",
+      "submissions": "Submissions",
+      "groups": "Groups",
+      "average": "Overall average",
+      "upcoming": "Upcoming exams",
+      "open": "Soon"
+    },
+    "solutionsBy": {
+      "eyebrow": "Solutions by institution",
+      "title": "One platform that speaks the language of each institution",
+      "desc": "Every institution type gets its own vocabulary for its levels and groups and periods. Select a type to see its terminology and open its page.",
+      "levels": "Academic levels",
+      "groups": "Groups",
+      "period": "Academic period",
+      "members": "Learners",
+      "open": "Open the solution page",
+      "blurbs": {
+        "university": "Faculties and departments and continuing education in one bilingual system.",
+        "institute": "Programmes and sections with assessment and clear academic records.",
+        "training_center": "Training tracks and cohorts with schedules and certificates of progress.",
+        "school": "Stages and classes with lessons and examinations for every grade."
+      }
+    },
+    "byRole": {
+      "eyebrow": "Try it by role",
+      "title": "See the platform through the eyes of each member",
+      "desc": "Each tour opens the screens of one role with sample data from the demonstration university.",
+      "open": "Open the tour",
+      "roles": {
+        "student": [
+          "Courses and lessons of the student group.",
+          "Upcoming examinations and published grades.",
+          "The weekly schedule."
+        ],
+        "teacher": [
+          "Groups and their students.",
+          "Examinations and their submissions.",
+          "Requests and the weekly schedule."
+        ],
+        "admin": [
+          "Courses and teaching staff and students.",
+          "Groups of the institution.",
+          "Activity at the metadata level without examination answers."
+        ],
+        "center": [
+          "Centre groups and weekly schedules.",
+          "Announcements to centre students.",
+          "Requests from centre staff."
+        ]
+      }
+    },
+    "responsibleAi": {
+      "eyebrow": "Responsible AI",
+      "title": "Artificial intelligence that drafts and the instructor who decides",
+      "desc": "AI prepares drafts on request. Grading and decisions on flags remain in human hands.",
+      "items": [
+        {
+          "title": "Drafts from the instructor’s own material",
+          "desc": "A lesson is drafted from the files or the title the instructor provides."
+        },
+        {
+          "title": "Review before publication",
+          "desc": "Everything AI generates stays a draft until the instructor approves it."
+        },
+        {
+          "title": "Free tier providers",
+          "desc": "The platform uses the free tiers of its AI providers and calls them only when a user asks."
+        },
+        {
+          "title": "Personal details removed",
+          "desc": "Contact details and identifiers and names are removed from a student’s text before it reaches an AI provider."
+        }
+      ],
+      "link": "How the platform uses AI"
+    },
+    "securityGlance": {
+      "eyebrow": "Security at a glance",
+      "title": "Safeguards enforced in the server and the database",
+      "desc": "These safeguards do not depend on the interface alone.",
+      "items": [
+        {
+          "title": "Tenant isolation",
+          "desc": "Every read and write is restricted to the user’s own institution by row level security in Postgres."
+        },
+        {
+          "title": "Server authoritative examinations",
+          "desc": "Examinations are started and timed and graded on the server and model answers never reach the browser."
+        },
+        {
+          "title": "Proctoring on the device",
+          "desc": "The camera stream is analysed inside the student’s browser and no video is recorded."
+        },
+        {
+          "title": "Evidence deleted after 30 hours",
+          "desc": "Snapshots of serious violations are seen only by the exam teacher and are deleted permanently after 30 hours."
+        },
+        {
+          "title": "Accounts by invitation only",
+          "desc": "An account is created only with a valid invitation from the institution."
+        },
+        {
+          "title": "Sign in by member ID",
+          "desc": "Members sign in with the member ID their institution issues."
+        }
+      ],
+      "link": "Read the security page"
+    },
+    "devices": {
+      "eyebrow": "Works on any device",
+      "title": "In the browser on computers and phones",
+      "desc": "Nothing to install. The same account opens on a laptop in the lecture hall and on a phone on the way home.",
+      "points": [
+        {
+          "title": "Computers and phones",
+          "desc": "Every screen adapts from a wide display to a narrow phone."
+        },
+        {
+          "title": "Arabic and English",
+          "desc": "Each language has its full interface with right to left layout for Arabic."
+        },
+        {
+          "title": "Light and dark themes",
+          "desc": "Each user chooses the theme that suits them."
+        }
+      ],
+      "phoneLabel": "Phone",
+      "laptopLabel": "Laptop",
+      "nextExam": "Next examination",
+      "duration": "Minutes",
+      "latest": "Latest announcement",
+      "courses": "Courses",
+      "units": "Units"
     }
   },
   "featuresPage": {
@@ -1168,7 +1594,7 @@
   "policy": {
     "privacy": {
       "title": "Privacy Policy",
-      "updated": "Last updated September 2026",
+      "updated": "Last updated October 2026",
       "sections": [
         {
           "h": "Data we collect",
@@ -1216,11 +1642,25 @@
             "For any privacy question use the Contact page."
           ]
         }
+      ],
+      "keyPoints": [
+        "The camera image is analysed on the student’s device and video is not recorded.",
+        "Snapshots of serious violations are deleted permanently 30 hours after capture.",
+        "Each institution is separated from the others at the database level.",
+        "Your data is never sold or shared for marketing."
+      ],
+      "summaries": [
+        "Account data and educational content and monitoring events from monitored exams only.",
+        "Data runs the platform and protects exam integrity and is never sold.",
+        "No user can see the data of another institution.",
+        "Data is encrypted in transit and at rest and sensitive operations run on the server.",
+        "You can ask for correction or for your account to be deleted.",
+        "Privacy questions go through the Contact page."
       ]
     },
     "terms": {
       "title": "Terms of Use",
-      "updated": "Last updated July 2026",
+      "updated": "Last updated October 2026",
       "sections": [
         {
           "h": "Accepting these terms",
@@ -1270,7 +1710,183 @@
             "For any question about these terms use the Contact page."
           ]
         }
+      ],
+      "keyPoints": [
+        "Access is by invitation only and you are responsible for your account.",
+        "The platform is for educational use only.",
+        "Content created by teachers belongs to their institutions.",
+        "AI content is reviewed and approved by the teacher before publishing."
+      ],
+      "summaries": [
+        "Using the platform means you agree to these terms.",
+        "Access is by invitation and accounts are not shared.",
+        "Educational use only with no cheating and no attempts to break in.",
+        "Teacher content belongs to the institution and AI content is reviewed by the teacher.",
+        "Institutions subscribe by direct agreement and accounts that break the terms may be suspended.",
+        "The platform is provided as it is and important changes are announced inside it.",
+        "Questions about these terms go through the Contact page."
       ]
+    },
+    "centre": {
+      "eyebrow": "Policy centre",
+      "title": "Policies of the platform",
+      "desc": "Select a document then open any section. Each section starts with a one line summary and the full text follows.",
+      "docsLabel": "Documents",
+      "indexLabel": "Sections",
+      "searchLabel": "Filter sections",
+      "searchPlaceholder": "Type a word to filter the sections",
+      "noResults": "No section matches this word.",
+      "keyPoints": "Key points",
+      "summary": "In one line",
+      "copyLink": "Copy link",
+      "copied": "Link copied",
+      "fullPage": "Open the security page"
+    },
+    "security": {
+      "title": "Security summary",
+      "updated": "Last updated October 2026",
+      "keyPoints": [
+        "Grades are computed on the server from the model answers stored there.",
+        "Every read and write is restricted to the user’s own institution.",
+        "Accounts are created only with a valid invitation.",
+        "Snapshots are deleted permanently after 30 hours."
+      ],
+      "sections": [
+        {
+          "h": "Grades",
+          "summary": "Grades cannot be forged from the browser.",
+          "body": [
+            "Grades are computed on the server from the model answers stored there. User accounts have no direct write access to result tables."
+          ]
+        },
+        {
+          "h": "Examination time",
+          "summary": "The remaining time is kept by the server.",
+          "body": [
+            "The start time of an examination is recorded on the server when it begins. Refreshing the page or changing the device clock does not change the remaining time."
+          ]
+        },
+        {
+          "h": "Separation between institutions",
+          "summary": "No institution can reach the data of another.",
+          "body": [
+            "Every read and write in the database is restricted to the user's own institution. Access attempts between institutions have been tested to confirm that they fail."
+          ]
+        },
+        {
+          "h": "Roles and permissions",
+          "summary": "Users cannot grant themselves permissions.",
+          "body": [
+            "Role and permission columns are pinned in the database so users cannot change their own. Permissions are verified on the server before every sensitive operation."
+          ]
+        },
+        {
+          "h": "Joining the platform",
+          "summary": "Accounts exist only by invitation.",
+          "body": [
+            "Accounts are created only with a valid invitation from the institution. Google is used for signing in only and never for creating accounts."
+          ]
+        },
+        {
+          "h": "Student images",
+          "summary": "The camera is analysed on the device and snapshots last 30 hours.",
+          "body": [
+            "The camera stream is analysed inside the student's browser. Only small snapshots are sent for serious violations and only the exam teacher sees them through temporary links before they are permanently deleted after 30 hours."
+          ]
+        },
+        {
+          "h": "Deletion and archive",
+          "summary": "Deleted data moves to an archive.",
+          "body": [
+            "Data is never permanently erased. It moves to an institutional archive from which it can be recovered."
+          ]
+        },
+        {
+          "h": "Fair use of services",
+          "summary": "Costly operations are rate limited per user.",
+          "body": [
+            "Rate limits apply to costly operations for each user separately."
+          ]
+        }
+      ]
+    },
+    "badges": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "security": "Security Summary",
+      "cookies": "Cookie Policy"
+    },
+    "securityNote": {
+      "title": "Important note",
+      "body": "This page is public. It shows no data of any institution or branch or user and it describes only how the platform protects that data."
+    },
+    "cookies": {
+      "title": "Cookie policy",
+      "updated": "Last updated October 2026",
+      "keyPoints": [
+        "Every cookie the platform sets is needed for sign in or for a preference you chose.",
+        "The platform sets no advertising cookies and no third party tracking cookies.",
+        "The session cookies cannot be read by page scripts.",
+        "Signing out clears the session cookies."
+      ],
+      "sections": [
+        {
+          "h": "What cookies are",
+          "summary": "Small text files the browser keeps for a site.",
+          "body": [
+            "A cookie is a small piece of text that a site asks the browser to keep and send back on later visits. The platform uses cookies only to keep you signed in and to remember the language and appearance you chose."
+          ]
+        },
+        {
+          "h": "Cookies the platform sets",
+          "summary": "Five cookies and all of them are necessary or functional.",
+          "body": [
+            "The table above lists every cookie the platform sets with its purpose and lifetime. None of them is used for advertising or for measuring visits and no analytics service sets cookies on the platform."
+          ]
+        },
+        {
+          "h": "How to control cookies",
+          "summary": "Through the browser settings or by signing out.",
+          "body": [
+            "You can view and delete cookies at any time from the settings of your browser. Blocking the session cookies prevents signing in.",
+            "Signing out ends the session and clears the session cookies. The language and appearance cookies stay until they expire or until you delete them."
+          ]
+        }
+      ],
+      "table": {
+        "caption": "Cookies set by the platform",
+        "name": "Name",
+        "purpose": "Purpose",
+        "lifetime": "Lifetime",
+        "httpOnly": "Hidden from page scripts",
+        "category": "Category",
+        "yes": "Yes",
+        "no": "No",
+        "necessary": "Strictly necessary",
+        "functional": "Functional",
+        "rows": {
+          "session": {
+            "purpose": "Keeps you signed in. Over HTTPS its name starts with __Secure.",
+            "lifetime": "7 days and renewed once a day while in use"
+          },
+          "ctx": {
+            "purpose": "A signed copy of your role and institution used to route each request.",
+            "lifetime": "15 minutes and renewed while you stay signed in"
+          },
+          "locale": {
+            "purpose": "Remembers the interface language.",
+            "lifetime": "One year"
+          },
+          "theme": {
+            "purpose": "Remembers the light or dark appearance.",
+            "lifetime": "One year"
+          },
+          "join": {
+            "purpose": "Carries the name you entered when accepting an invitation through Google sign in. It is sent only to the sign in return page.",
+            "lifetime": "10 minutes"
+          }
+        }
+      }
     }
   },
   "aboutPage": {
@@ -1808,6 +2424,534 @@
       "desc": "Explore the demonstration or request an introductory presentation in which we show the full cycle of preparing and reviewing content.",
       "primary": "Request a presentation",
       "secondary": "Explore the demonstration"
+    }
+  },
+  "solutions": {
+    "primary": "Register your institution",
+    "secondary": "Try the demonstration",
+    "tour": {
+      "eyebrow": "Inside the platform",
+      "title": "A guided view of the screens your members use every day",
+      "desc": "Select a stop to open the screen as it appears inside the platform. The sample data comes from the demonstration institution and the wording follows your institution type.",
+      "railLabel": "Tour stops",
+      "whoLabel": "Who uses it",
+      "stops": {
+        "dashboard": {
+          "label": "Overview",
+          "desc": "The administration sees members and courses and examinations at a glance together with the next examination and the latest announcement.",
+          "who": "The institution administration and the continuing education management."
+        },
+        "structure": {
+          "label": "Academic structure",
+          "desc": "The institution is organised into its own academic levels and every group gathers its students and its teaching staff.",
+          "who": "The institution administration sets it up once and keeps it current."
+        },
+        "courses": {
+          "label": "Courses and lessons",
+          "desc": "Each course is divided into units and lessons. A lesson draft can be prepared with AI assistance from source material and is reviewed before publication.",
+          "who": "Teaching staff prepare the content and students follow it."
+        },
+        "exams": {
+          "label": "Examinations",
+          "desc": "Examinations are started and timed and graded on the server so correct answers never reach the browser. Proctoring runs on the student device and its evidence is deleted after 30 hours.",
+          "who": "Teaching staff build and grade them and students sit them."
+        },
+        "schedule": {
+          "label": "Schedule and announcements",
+          "desc": "Weekly schedules and announcements reach every member in Arabic or English. Staff requests move through an inbox with a visible status.",
+          "who": "Every member of the institution."
+        },
+        "reports": {
+          "label": "Grades and reports",
+          "desc": "Averages per student and per examination. A student can file an appeal on a published grade and the archive keeps the record of earlier years.",
+          "who": "The administration and teaching staff and students each within their own scope."
+        }
+      },
+      "screen": {
+        "courses": "Courses",
+        "exams": "Examinations",
+        "upcoming": "Next examination",
+        "latest": "Latest announcement",
+        "minutes": "Minutes",
+        "date": "Date",
+        "submissions": "Submissions",
+        "status": "Status",
+        "graded": "Graded",
+        "scheduled": "Scheduled",
+        "score": "Score",
+        "course": "Course",
+        "level": "Level",
+        "units": "Units",
+        "published": "Published",
+        "draft": "Draft",
+        "students": "Students",
+        "weekly": "Weekly schedule",
+        "announcements": "Announcements",
+        "requests": "Staff requests",
+        "pending": "Pending",
+        "answered": "Answered",
+        "averages": "Student averages",
+        "recent": "Recent grades",
+        "appeal": "Appeals open on published grades",
+        "serverNote": "Timed and graded on the server",
+        "proctorNote": "On device proctoring"
+      }
+    },
+    "roles": {
+      "eyebrow": "Benefits by role",
+      "title": "What each member of the institution gains",
+      "desc": "Every role sees its own screens and its own data. Access is enforced in the database and not only in the interface."
+    },
+    "changes": {
+      "eyebrow": "What changes",
+      "title": "What changes for your institution",
+      "before": "Common practice",
+      "after": "With the platform"
+    },
+    "cta": {
+      "title": "Start with your institution",
+      "desc": "Register your institution and its space is prepared with the right terminology and academic structure."
+    },
+    "types": {
+      "university": {
+        "hero": {
+          "eyebrow": "For universities",
+          "title": "A digital campus for faculties and departments and continuing education",
+          "desc": "For university administrations and faculty members and students who need courses and examinations and academic administration in one bilingual system."
+        },
+        "structure": [
+          {
+            "name": "Faculty of Information Technology",
+            "children": [
+              "Computer Science",
+              "Information Systems"
+            ]
+          },
+          {
+            "name": "Faculty of Engineering",
+            "children": [
+              "Civil Engineering"
+            ]
+          }
+        ],
+        "roles": {
+          "admin": [
+            "Faculties and departments and groups and semesters set up in the vocabulary of the university.",
+            "Member accounts created by invitation with sign in by member ID.",
+            "Oversight of activity at the metadata level without access to examination content or answers."
+          ],
+          "centre": [
+            "Continuing education programmes run beside the degree programmes.",
+            "Announcements to centre students or to the whole university when permitted."
+          ],
+          "teacher": [
+            "Lessons drafted with AI assistance and reviewed before publication.",
+            "Examinations graded on the server with batch grading for written answers.",
+            "Appeals received and answered inside the platform."
+          ],
+          "student": [
+            "Courses and schedule and grades in one place in Arabic or English.",
+            "Examinations proctored on the device with no evidence kept beyond 30 hours."
+          ]
+        },
+        "changes": [
+          {
+            "before": "Examinations on paper or in general purpose forms.",
+            "after": "Examinations timed and graded on the server with proctoring on the device."
+          },
+          {
+            "before": "Course material spread across email and shared drives.",
+            "after": "Courses organised by faculty and department with units and lessons."
+          },
+          {
+            "before": "Grade queries handled by email.",
+            "after": "Appeals filed and answered on the published grade."
+          },
+          {
+            "before": "Records of earlier years hard to retrieve.",
+            "after": "An archive that keeps several academic years."
+          }
+        ]
+      },
+      "institute": {
+        "hero": {
+          "eyebrow": "For institutes",
+          "title": "Programmes and sections organised the way your institute works",
+          "desc": "For institute administrations and instructors and students who need programmes and assessment and clear academic records in Arabic and English."
+        },
+        "structure": [
+          {
+            "name": "Division of Applied Technology",
+            "children": [
+              "Network Administration",
+              "Software Development"
+            ]
+          },
+          {
+            "name": "Division of Business",
+            "children": [
+              "Accounting"
+            ]
+          }
+        ],
+        "roles": {
+          "admin": [
+            "Divisions and programmes and sections set up in the vocabulary of the institute.",
+            "Staff capabilities granted per member and checked on every request.",
+            "An archive that keeps the record of earlier terms."
+          ],
+          "centre": [
+            "Short programmes managed beside the main programmes.",
+            "Announcements to centre students or to the whole institute when permitted."
+          ],
+          "teacher": [
+            "Lessons and examinations prepared from source material with AI assistance.",
+            "Written answers graded in batches and results published together."
+          ],
+          "student": [
+            "Lessons and examinations and grades in one place.",
+            "Appeals filed on a published grade."
+          ]
+        },
+        "changes": [
+          {
+            "before": "Section lists kept in separate spreadsheets.",
+            "after": "Sections linked to programmes and to their instructors."
+          },
+          {
+            "before": "Practical assessment results entered by hand.",
+            "after": "Examinations graded on the server and results published per section."
+          },
+          {
+            "before": "Announcements on notice boards.",
+            "after": "Announcements delivered to the right section in its language."
+          }
+        ],
+        "samples": {
+          "courses": [
+            {
+              "title": "Financial Accounting",
+              "level": "Diploma Year 1"
+            },
+            {
+              "title": "Networking Technician",
+              "level": "Diploma Year 1"
+            },
+            {
+              "title": "Graphic Design",
+              "level": "Diploma Year 2"
+            },
+            {
+              "title": "Office Management",
+              "level": "Diploma Year 2"
+            }
+          ],
+          "exams": [
+            "Midterm in Financial Accounting",
+            "Final in Networking Technician",
+            "Practical Test in Graphic Design"
+          ],
+          "homework": "Accounting Ledger Assignment",
+          "groups": [
+            "Accounting Diploma Section A",
+            "Networking Diploma Section A",
+            "Design Diploma Section B"
+          ],
+          "schedule": {
+            "0": [
+              "Financial Accounting at 9",
+              "Office Management at 11"
+            ],
+            "1": [
+              "Networking Lab at 10"
+            ],
+            "2": [
+              "Graphic Design Studio at 9",
+              "Financial Accounting at 13"
+            ],
+            "3": [
+              "Office Management at 11"
+            ],
+            "4": [
+              "Networking Lab at 10",
+              "Graphic Design Studio at 12"
+            ]
+          },
+          "announcements": [
+            {
+              "title": "Networking final moved",
+              "body": "The Networking Technician final exam has moved back one week and the new date is on the Exams page."
+            },
+            {
+              "title": "Internship briefing",
+              "body": "Second year diploma students are invited to an internship briefing next Thursday in the main hall."
+            }
+          ],
+          "requests": [
+            "Request to open a new evening section",
+            "Question about practical exam marking"
+          ]
+        }
+      },
+      "training_center": {
+        "hero": {
+          "eyebrow": "For training centres",
+          "title": "Tracks and cohorts and course runs managed from one place",
+          "desc": "For training centre directors and trainers and trainees who need programmes and schedules and assessment without separate tools."
+        },
+        "structure": [
+          {
+            "name": "Digital Skills",
+            "children": [
+              "Web Development",
+              "Data Analysis"
+            ]
+          },
+          {
+            "name": "Languages",
+            "children": [
+              "English for Work"
+            ]
+          }
+        ],
+        "roles": {
+          "admin": [
+            "Tracks and programmes and cohorts and course runs in the vocabulary of the centre.",
+            "Trainer accounts created by invitation with capabilities granted per member."
+          ],
+          "centre": [
+            "An assistant manager runs daily operations within the capabilities granted.",
+            "Requests from trainers received in one inbox."
+          ],
+          "teacher": [
+            "Training material turned into lessons and quizzes with AI assistance.",
+            "A weekly schedule for each cohort."
+          ],
+          "student": [
+            "The schedule and lessons and results of each course run in one place.",
+            "Assessments proctored on the device with evidence deleted after 30 hours."
+          ]
+        },
+        "changes": [
+          {
+            "before": "Cohort timetables shared as images.",
+            "after": "A weekly schedule for each cohort inside the platform."
+          },
+          {
+            "before": "Assessments run in general purpose forms.",
+            "after": "Assessments timed and graded on the server."
+          },
+          {
+            "before": "Trainer requests handled in chat groups.",
+            "after": "Requests with a visible status in one inbox."
+          }
+        ],
+        "samples": {
+          "courses": [
+            {
+              "title": "English Level 2",
+              "level": "Cohort 3"
+            },
+            {
+              "title": "Advanced Excel",
+              "level": "Cohort 5"
+            },
+            {
+              "title": "Project Management Essentials",
+              "level": "Cohort 2"
+            },
+            {
+              "title": "Customer Service Skills",
+              "level": "Cohort 4"
+            }
+          ],
+          "exams": [
+            "Placement Test in English Level 2",
+            "Final Assessment in Advanced Excel",
+            "Module Quiz in Project Management"
+          ],
+          "homework": "Excel Pivot Table Exercise",
+          "groups": [
+            "English Level 2 Morning Cohort",
+            "Advanced Excel Evening Cohort",
+            "Project Management Weekend Cohort"
+          ],
+          "schedule": {
+            "0": [
+              "English Level 2 at 9",
+              "Advanced Excel at 17"
+            ],
+            "1": [
+              "Project Management at 10"
+            ],
+            "2": [
+              "English Level 2 at 9",
+              "Customer Service at 13"
+            ],
+            "3": [
+              "Advanced Excel at 17"
+            ],
+            "4": [
+              "Project Management at 10",
+              "Customer Service at 12"
+            ]
+          },
+          "announcements": [
+            {
+              "title": "Advanced Excel assessment moved",
+              "body": "The final assessment of the Advanced Excel cohort has moved back one week and the new date is on the Exams page."
+            },
+            {
+              "title": "Certificates ready",
+              "body": "Certificates for the previous English Level 1 cohort are ready for collection from the reception desk."
+            }
+          ],
+          "requests": [
+            "Request to open a new weekend cohort",
+            "Question about certificate requirements"
+          ]
+        }
+      },
+      "school": {
+        "hero": {
+          "eyebrow": "For schools",
+          "title": "Stages and grades and classes in one calm system",
+          "desc": "For school administrations and teachers and students who need lessons and examinations and announcements in Arabic and English."
+        },
+        "structure": [
+          {
+            "name": "Secondary Stage",
+            "children": [
+              "Grade 10",
+              "Grade 11"
+            ]
+          },
+          {
+            "name": "Middle Stage",
+            "children": [
+              "Grade 8"
+            ]
+          }
+        ],
+        "roles": {
+          "admin": [
+            "Stages and grades and classes and terms set up in the vocabulary of the school.",
+            "Teacher and student accounts created by invitation with sign in by member ID."
+          ],
+          "centre": [
+            "An activities centre manager runs activities beside the regular classes.",
+            "Announcements to activity students or to the whole school when permitted."
+          ],
+          "teacher": [
+            "Lessons prepared with AI assistance and reviewed before publication.",
+            "Quizzes and examinations graded on the server.",
+            "A weekly schedule for each class."
+          ],
+          "student": [
+            "Lessons and homework and grades in one place.",
+            "Announcements from the school in Arabic or English."
+          ]
+        },
+        "changes": [
+          {
+            "before": "Lesson material handed out on paper.",
+            "after": "Lessons organised by grade and class and available at any time."
+          },
+          {
+            "before": "Quizzes marked by hand.",
+            "after": "Quizzes graded on the server with results published to the class."
+          },
+          {
+            "before": "Announcements sent home on paper.",
+            "after": "Announcements delivered to each class inside the platform."
+          }
+        ],
+        "samples": {
+          "courses": [
+            {
+              "title": "Mathematics",
+              "level": "Grade 7"
+            },
+            {
+              "title": "Science",
+              "level": "Grade 8"
+            },
+            {
+              "title": "Arabic Language",
+              "level": "Grade 7"
+            },
+            {
+              "title": "English Language",
+              "level": "Grade 9"
+            }
+          ],
+          "exams": [
+            "Midterm in Mathematics Grade 7",
+            "Final in Science Grade 8",
+            "Weekly Quiz in Arabic Language"
+          ],
+          "homework": "Mathematics Homework on Fractions",
+          "groups": [
+            "Grade 7 Section A",
+            "Grade 7 Section B",
+            "Grade 8 Section A"
+          ],
+          "schedule": {
+            "0": [
+              "Mathematics at 8",
+              "Arabic Language at 10"
+            ],
+            "1": [
+              "Science at 9"
+            ],
+            "2": [
+              "English Language at 8",
+              "Mathematics at 11"
+            ],
+            "3": [
+              "Arabic Language at 10"
+            ],
+            "4": [
+              "Science at 9",
+              "English Language at 11"
+            ]
+          },
+          "announcements": [
+            {
+              "title": "Science final moved",
+              "body": "Dear parents. The Grade 8 Science final exam has moved back one week and the new date is on the Exams page."
+            },
+            {
+              "title": "Parent meeting",
+              "body": "Parents of Grade 7 students are invited to a meeting with the class teachers next Thursday in the school hall."
+            }
+          ],
+          "requests": [
+            "Request to add a new section for Grade 7",
+            "Question about homework marking"
+          ]
+        }
+      }
+    },
+    "pick": {
+      "eyebrow": "Choose a role",
+      "title": "See the platform through the eyes of each role",
+      "desc": "Every role opens its own dashboard with illustrative data in the vocabulary of this institution type.",
+      "open": "Open the dashboard"
+    }
+  },
+  "legal": {
+    "eyebrow": "Legal centre",
+    "title": "Legal documents of the platform",
+    "desc": "Every policy that governs the use of the platform in one place.",
+    "general": "General",
+    "securityGroup": "Security",
+    "open": "Open the document",
+    "docs": {
+      "terms": "The conditions for using the platform and the duties of institutions and users.",
+      "privacy": "What data the platform keeps and how it is used and protected.",
+      "security": "How grades and accounts and institution data are protected.",
+      "cookies": "The cookies the platform sets and how to control them."
     }
   }
 }
