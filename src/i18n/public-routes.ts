@@ -20,12 +20,43 @@ import { LOCALES, type Locale, isLocale } from './config'
 /** Request header the proxy uses to hand a URL locale to the renderer. */
 export const LOCALE_HEADER = 'x-eq-locale'
 
-/** Marketing pages that exist in both languages. */
-export const MARKETING_PATHS = ['/', '/features', '/pricing', '/about', '/security', '/ai', '/demo', '/contact', '/privacy', '/terms'] as const
-export type MarketingPath = (typeof MARKETING_PATHS)[number]
+/** Marketing pages that exist in both languages (role tours are listed below). */
+const PAGE_PATHS = ['/', '/features', '/pricing', '/about', '/security', '/ai', '/demo', '/contact', '/privacy', '/terms', '/legal',
+  '/solutions/universities', '/solutions/institutes', '/solutions/training-centres', '/solutions/schools'] as const
 
+/** Institution type of each /solutions/<slug> page. */
+export const SOLUTION_SLUGS = {
+  university: 'universities', institute: 'institutes', training_center: 'training-centres', school: 'schools',
+} as const
+export type DemoInstitutionType = keyof typeof SOLUTION_SLUGS
+
+/** Role tours: each role's dashboard ('') and the pages of its sidebar. */
+export const DEMO_ROLE_PAGES = {
+  student: ['', 'courses', 'exams', 'grades', 'schedule'],
+  teacher: ['', 'groups', 'exams', 'requests', 'schedule'],
+  admin: ['', 'courses', 'teachers', 'students', 'groups'],
+  center: ['', 'groups', 'schedules', 'announcements', 'requests'],
+} as const
+export type DemoRole = keyof typeof DEMO_ROLE_PAGES
+export const DEMO_ROLES = Object.keys(DEMO_ROLE_PAGES) as DemoRole[]
+
+/** Base of a role tour: /demo (the university fixtures) or /solutions/<slug>. */
+export type RoleTourBase = '/demo' | `/solutions/${(typeof SOLUTION_SLUGS)[DemoInstitutionType]}`
+export type RoleTourPath = `${RoleTourBase}/${DemoRole}` | `${RoleTourBase}/${DemoRole}/${string}`
+
+export function roleTourPath(base: RoleTourBase, role: DemoRole, page = ''): RoleTourPath {
+  return page ? `${base}/${role}/${page}` : `${base}/${role}`
+}
+
+const ROLE_TOUR_PATHS: RoleTourPath[] = (['/demo', ...Object.values(SOLUTION_SLUGS).map(s => `/solutions/${s}` as const)] as RoleTourBase[])
+  .flatMap(base => DEMO_ROLES.flatMap(role => DEMO_ROLE_PAGES[role].map(page => roleTourPath(base, role, page))))
+
+export const MARKETING_PATHS: readonly MarketingPath[] = [...PAGE_PATHS, ...ROLE_TOUR_PATHS]
+export type MarketingPath = (typeof PAGE_PATHS)[number] | RoleTourPath
+
+const MARKETING_SET = new Set<string>(MARKETING_PATHS)
 export function isMarketingPath(path: string): path is MarketingPath {
-  return (MARKETING_PATHS as readonly string[]).includes(path)
+  return MARKETING_SET.has(path)
 }
 
 /** `('en', '/pricing')` → `/en/pricing`; `('ar', '/')` → `/ar`. */

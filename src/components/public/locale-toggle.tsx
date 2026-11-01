@@ -59,9 +59,14 @@ export function LocaleToggle({ active, onPick }: { active: Locale; onPick: (l: L
           setOpen(v => !v)
         }}
         onKeyDown={e => { if (e.key === 'ArrowDown' && !open) { e.preventDefault(); setOpen(true) } }}
-        className="eq-focus inline-flex h-8 items-center gap-1.5 px-2.5 rounded-control bg-elevated text-label font-semibold tracking-wide text-fg hover:bg-line transition-colors"
+        className="eq-focus inline-flex h-9 items-center gap-2 ps-2.5 pe-2 rounded-full border border-line bg-surface text-body-sm font-medium text-fg shadow-sm hover:border-line-strong hover:bg-elevated transition-colors"
       >
-        <span lang={active}>{active.toUpperCase()}</span>
+        {/* Globe: the universal language mark. */}
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="w-4 h-4 text-fg-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+        </svg>
+        <span lang={active}>{LOCALE_LABEL[active]}</span>
         <svg aria-hidden="true" viewBox="0 0 24 24" className={`w-3.5 h-3.5 text-fg-3 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -73,7 +78,7 @@ export function LocaleToggle({ active, onPick }: { active: Locale; onPick: (l: L
           aria-label={t('switchLabel')}
           onKeyDown={onMenuKey}
           onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false) }}
-          className={`absolute top-full mt-1.5 z-50 min-w-40 p-1 rounded-overlay border border-line-strong bg-surface shadow-overlay ${hang === 'start' ? 'start-0' : 'end-0'}`}
+          className={`absolute top-full mt-2 z-50 min-w-48 p-1.5 rounded-overlay border border-line bg-surface shadow-overlay ${hang === 'start' ? 'start-0' : 'end-0'}`}
         >
           {LOCALES.map(l => (
             <button
@@ -84,10 +89,14 @@ export function LocaleToggle({ active, onPick }: { active: Locale; onPick: (l: L
               lang={l}
               autoFocus={l === active}
               onClick={() => pick(l)}
-              className="eq-focus flex w-full items-center justify-between gap-6 px-3 py-2 rounded-control text-body-sm text-fg hover:bg-elevated focus-visible:bg-elevated"
+              className={`eq-focus flex w-full items-center gap-3 px-3 py-2.5 rounded-control text-body-sm hover:bg-elevated focus-visible:bg-elevated ${l === active ? 'text-fg font-semibold' : 'text-fg-2'}`}
             >
-              <span>{LOCALE_LABEL[l]}</span>
-              {l === active && <span aria-hidden="true" className="text-accent font-bold">✓</span>}
+              {/* Decorative code badge, drawn from data-code by CSS so the item text stays the language name. */}
+              <span aria-hidden="true" data-code={l.toUpperCase()} className="eq-locale-code w-8 text-center rounded-control bg-elevated py-0.5 text-xs font-semibold text-fg-3" />
+              <span className="flex-1 text-start">{LOCALE_LABEL[l]}</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24" className={`w-4 h-4 text-accent ${l === active ? '' : 'invisible'}`} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m5 12 5 5 9-10" />
+              </svg>
             </button>
           ))}
         </div>

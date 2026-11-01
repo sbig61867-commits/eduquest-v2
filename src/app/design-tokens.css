@@ -13,31 +13,31 @@
 
 :root {
   /* Neutrals — values identical to the pre-D3 tokens, so nothing shifts. */
-  --eq-canvas: #0f1a36;        /* page background — deep navy */
-  --eq-surface: #15224a;       /* sidebar, dialogs */
-  --eq-elevated: #1d2d5c;      /* hover / raised */
-  --eq-line: #24365f;          /* hairline dividers */
-  --eq-line-strong: #34497b;   /* field borders, table head */
-  --eq-fg: #f5f3ec;            /* headings, values */
-  --eq-fg-2: #d6dbe8;          /* body text */
-  --eq-fg-3: #a7b1cc;          /* metadata */
+  --eq-canvas: #0b1a33;        /* page background — deep indigo */
+  --eq-surface: #112445;       /* sidebar, dialogs */
+  --eq-elevated: #183058;      /* hover / raised */
+  --eq-line: #1f3a66;          /* hairline dividers */
+  --eq-line-strong: #2c4c80;   /* field borders, table head */
+  --eq-fg: #f2f6fc;            /* headings, values */
+  --eq-fg-2: #cfdbec;          /* body text */
+  --eq-fg-3: #9db0cc;          /* metadata */
 
   /* Accent — primary action, link, selection, focus. Never decoration. */
-  --eq-accent: #c9a24a;        /* gold on navy */
-  --eq-accent-hover: #d4af5f;
-  --eq-accent-fg: #13224a;
-  --eq-accent-subtle: rgb(201 162 74 / 0.14);
-  --eq-focus: #d4af5f;
+  --eq-accent: #5db4f5;        /* light indigo on indigo */
+  --eq-accent-hover: #86c8f8;
+  --eq-accent-fg: #08172e;
+  --eq-accent-subtle: rgb(93 180 245 / 0.15);
+  --eq-focus: #86c8f8;
 
   /* Semantic — state only (success / late / violation / error), never category. */
-  --eq-success: #34d399;
-  --eq-success-subtle: rgb(16 185 129 / 0.15);
-  --eq-warning: #fbbf24;
-  --eq-warning-subtle: rgb(245 158 11 / 0.15);
+  --eq-success: #66bb6a;
+  --eq-success-subtle: rgb(102 187 106 / 0.15);
+  --eq-warning: #ffa94d;
+  --eq-warning-subtle: rgb(255 169 77 / 0.15);
   --eq-danger: #dc2626;
   --eq-danger-subtle: rgb(239 68 68 / 0.15);
-  --eq-info: #8fa6dd;
-  --eq-info-subtle: rgb(143 166 221 / 0.15);
+  --eq-info: #7dd3fc;
+  --eq-info-subtle: rgb(125 211 252 / 0.15);
 
   --eq-shadow-overlay: 0 8px 24px rgb(0 0 0 / 0.45);
 
@@ -49,29 +49,29 @@
 
 /* Light — calm blue-tinted paper (see header). */
 :root[data-eq-theme="light"] {
-  --eq-canvas: #faf7f0;        /* ivory, not stark white */
+  --eq-canvas: #f7f9fc;        /* white */
   --eq-surface: #ffffff;
-  --eq-elevated: #f1ece1;
-  --eq-line: #e6dfd0;
-  --eq-line-strong: #d1c6b0;
-  --eq-fg: #13203a;
-  --eq-fg-2: #33415a;
-  --eq-fg-3: #56637a;
+  --eq-elevated: #eef3f9;
+  --eq-line: #e3e9f2;
+  --eq-line-strong: #c9d4e3;
+  --eq-fg: #0f2547;
+  --eq-fg-2: #33445f;
+  --eq-fg-3: #5e6e86;
 
-  --eq-accent: #8a6520;        /* antique gold; navy stays the ink */
-  --eq-accent-hover: #6e5018;
+  --eq-accent: #1f6fd1;        /* indigo on white */
+  --eq-accent-hover: #175bb0;
   --eq-accent-fg: #ffffff;
-  --eq-accent-subtle: rgb(138 101 32 / 0.10);
-  --eq-focus: #8a6520;
+  --eq-accent-subtle: #e6f1fc;
+  --eq-focus: #1f6fd1;
 
-  --eq-success: #047857;
-  --eq-success-subtle: rgb(4 120 87 / 0.10);
-  --eq-warning: #b45309;
-  --eq-warning-subtle: rgb(180 83 9 / 0.10);
+  --eq-success: #2e7d46;
+  --eq-success-subtle: #e3f6e8;
+  --eq-warning: #b86a0a;
+  --eq-warning-subtle: #fff1de;
   --eq-danger: #b91c1c;
   --eq-danger-subtle: rgb(185 28 28 / 0.10);
-  --eq-info: #1d2f63;
-  --eq-info-subtle: rgb(29 47 99 / 0.08);
+  --eq-info: #0a6aa1;
+  --eq-info-subtle: #e0f2fe;
 
   --eq-shadow-overlay: 0 8px 24px rgb(15 23 42 / 0.12);
 }

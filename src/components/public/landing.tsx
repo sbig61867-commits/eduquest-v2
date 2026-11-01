@@ -1,14 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useLang, PublicNav, PublicFooter } from './shell'
+import { HeroStack } from './hero-stack'
+import { Devices, ResponsibleAi, SecurityGlance, SolutionsByInstitution, TryByRole, type DeviceSample } from './landing-more'
+import { useLang, PublicNav, PublicFooter, type Lang } from './shell'
 import type enPublic from '@/messages/en/public.json'
 import { localizedPath } from '@/i18n/public-routes'
 import { LOCALES, LOCALE_DIR } from '@/i18n/config'
-import { FAQ_SECTION } from './anchors'
-import { CtaBand, Eyebrow, FaqGrid, MediaSlot, PANEL, SectionHead, Segmented, WRAP } from './ui'
+import { FaqSection } from './faq-section'
+import { CtaBand, Eyebrow, PANEL, SectionHead, Segmented, WRAP } from './ui'
 
 // Copy lives in src/messages/<locale>/public.json under `landing`, written in a
 // formal academic register. Read with t.raw(): it is structured and static.
@@ -152,8 +154,12 @@ function LessonStudio({ copy }: { copy: LandingCopy['studio'] }) {
 }
 
 /** Institution type → the admin side menu relabels itself. */
-function Institutions({ copy }: { copy: LandingCopy['institutions'] }) {
+/** Solution page per institution type, in the order of `institutions.items` (the last, organisations, has none). */
+const SOLUTION_PATHS = ['/solutions/universities', '/solutions/schools', '/solutions/institutes', '/solutions/training-centres'] as const
+
+function Institutions({ copy, lang }: { copy: LandingCopy['institutions']; lang: Lang }) {
   const [active, setActive] = useState(0)
+  const solution = SOLUTION_PATHS[active]
   const item = copy.items[active]
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-10 lg:gap-16 items-center">
@@ -174,6 +180,11 @@ function Institutions({ copy }: { copy: LandingCopy['institutions'] }) {
             </button>
           ))}
         </div>
+        {solution && (
+          <Link href={localizedPath(lang, solution)} className="inline-flex mt-6 text-accent hover:text-accent-hover text-sm font-semibold underline-offset-4 hover:underline">
+            {copy.solutionsLink}
+          </Link>
+        )}
       </div>
       <div className="rounded-3xl border border-slate-700/60 bg-slate-900/90 overflow-hidden shadow-2xl">
         <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-800">
@@ -272,7 +283,7 @@ function Capabilities({ copy }: { copy: LandingCopy['capabilities'] }) {
       </div>
       <div key={filter ?? 'all'} className="eq-menu-in grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {cards.map(card => (
-          <article key={card.title} className={`${PANEL} p-6 hover:border-slate-600 hover:bg-slate-900 transition-colors`}>
+          <article key={card.title} data-cat={card.cat} className={`${PANEL} eq-pub-card p-6`}>
             <span className="text-blue-400 text-xs font-semibold">{labelOf(card.cat)}</span>
             <h3 className="text-white font-semibold text-lg mt-2 leading-snug">{card.title}</h3>
             <p className="text-slate-400 text-sm mt-2.5 leading-relaxed">{card.desc}</p>
@@ -331,18 +342,41 @@ function Privacy({ copy }: { copy: LandingCopy['privacy'] }) {
 
 /** Appeal procedure as a clickable stepper. */
 function Fairness({ copy }: { copy: LandingCopy['fairness'] }) {
-  const [active, setActive] = useState(0)
   const n = copy.steps.length
+  // -1 = nothing shown yet. When the section first scrolls into view the
+  // steps appear one by one (1, then 2 …) and then stay; a click still picks
+  // a step. Reduced motion shows every step at once.
+  const [active, setActive] = useState(-1)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let timer = 0
+    const io = new IntersectionObserver(entries => {
+      if (!entries[0]?.isIntersecting) return
+      io.disconnect()
+      if (prefersReducedMotion()) { setActive(n - 1); return }
+      let i = 0
+      setActive(0)
+      timer = window.setInterval(() => {
+        i += 1
+        if (i >= n) { window.clearInterval(timer); return }
+        setActive(i)
+      }, 1100)
+    }, { threshold: 0.35 })
+    io.observe(el)
+    return () => { io.disconnect(); window.clearInterval(timer) }
+  }, [n])
   return (
-    <div className="rounded-[2rem] border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 p-7 sm:p-12">
+    <div ref={ref} className="rounded-[2rem] border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 p-7 sm:p-12">
       <SectionHead eyebrow={copy.eyebrow} title={copy.title} desc={copy.desc} center />
       <div className="relative">
         <div aria-hidden="true" className="hidden lg:block absolute top-6 h-0.5 bg-slate-800" style={{ insetInline: `${50 / n}%` }}>
-          <div className="h-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${(active / (n - 1)) * 100}%` }} />
+          <div className="h-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${(Math.max(active, 0) / (n - 1)) * 100}%` }} />
         </div>
         <ol className="relative grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-4">
           {copy.steps.map((s, i) => (
-            <li key={s.title}>
+            <li key={s.title} className={`transition-[opacity,translate] duration-500 motion-reduce:transition-none ${i <= active ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
               <button type="button" aria-pressed={i === active} onClick={() => setActive(i)} className="group w-full text-center">
                 <span
                   className={`relative mx-auto flex items-center justify-center w-12 h-12 rounded-full border-2 font-bold transition-colors ${
@@ -441,7 +475,7 @@ function Insights({ copy }: { copy: LandingCopy['insights'] }) {
   )
 }
 
-export function Landing() {
+export function Landing({ device }: { device: DeviceSample }) {
   const [lang, setLang] = useLang()
   const t = useTranslations('public').raw('landing') as LandingCopy
   const contact = localizedPath(lang, '/contact')
@@ -450,8 +484,8 @@ export function Landing() {
     <div className="min-h-screen bg-slate-950 overflow-x-clip">
       <PublicNav lang={lang} setLang={setLang} />
 
-      {/* Hero + lesson studio */}
-      <section className="relative">
+      {/* Hero «الموجة»: navy-to-blue wave (eq-pub-hero-dusk + eq-pub-hero-wave), solid white type, three role screens */}
+      <section className="relative eq-pub-hero-dusk eq-pub-hero-wave">
         <div className={`relative ${WRAP} pt-14 sm:pt-20 pb-16 sm:pb-20`}>
           <div className="grid gap-10 lg:gap-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center">
           <div className="text-start">
@@ -466,20 +500,24 @@ export function Landing() {
             </h1>
             <p className="text-slate-400 text-base sm:text-lg mt-7 max-w-2xl leading-loose">{t.hero.desc}</p>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-9">
-              <Link href={contact} className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-on-accent font-semibold transition-colors text-center">
-                {t.hero.primary}
+              <Link href="/login" className="eq-pub-hero-cta w-full sm:w-auto px-8 py-3.5 rounded-lg font-semibold transition-colors text-center">
+                {t.hero.signIn}
               </Link>
-              <Link href={localizedPath(lang, '/demo')} className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-slate-700 hover:border-slate-500 hover:bg-slate-900 text-slate-200 font-semibold transition-colors text-center">
+              <Link href={localizedPath(lang, '/demo')} className="w-full sm:w-auto px-4 py-3.5 text-accent font-semibold hover:underline underline-offset-4 text-center">
                 {t.hero.demo}
               </Link>
             </div>
             <p className="text-slate-500 text-sm mt-5">{t.hero.note}</p>
           </div>
-          {/* Reserved for a hero photograph or video (none yet). */}
-          <MediaSlot />
+          <HeroStack />
           </div>
+        </div>
+      </section>
 
-          <div className="mt-16 sm:mt-20">
+      {/* Lesson studio */}
+      <section>
+        <div className={`${WRAP} py-16 sm:py-20`}>
+          <div>
             <div className="text-center mb-8">
               <Eyebrow>{t.studio.eyebrow}</Eyebrow>
               <h2 className="text-2xl sm:text-3xl font-bold text-white">{t.studio.title}</h2>
@@ -490,17 +528,26 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="border-y border-slate-800/80 bg-slate-900/30">
+      <section className="eq-pub-band">
         <div className={`${WRAP} py-16 sm:py-20`}>
-          <Institutions copy={t.institutions} />
+          <Institutions copy={t.institutions} lang={lang} />
         </div>
+      </section>
+
+      {/* New sections keep the light / eq-pub-band rhythm: inserted in pairs */}
+      <section className={`${WRAP} py-16 sm:py-20`}>
+        <SolutionsByInstitution copy={t.solutionsBy} lang={lang} />
+      </section>
+
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-20`}>
+        <TryByRole copy={t.byRole} lang={lang} />
       </section>
 
       <section className={`${WRAP} py-16 sm:py-20`}>
         <Journey copy={t.journey} />
       </section>
 
-      <section className={`${WRAP} py-16 sm:py-20`}>
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-20`}>
         <Capabilities copy={t.capabilities} />
       </section>
 
@@ -508,8 +555,16 @@ export function Landing() {
         <Privacy copy={t.privacy} />
       </section>
 
-      <section className={`${WRAP} py-16 sm:py-20`}>
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-20`}>
         <Fairness copy={t.fairness} />
+      </section>
+
+      <section className={`${WRAP} py-16 sm:py-20`}>
+        <ResponsibleAi copy={t.responsibleAi} lang={lang} />
+      </section>
+
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-20`}>
+        <SecurityGlance copy={t.securityGlance} lang={lang} />
       </section>
 
       <section className={`${WRAP} py-16 sm:py-20 grid lg:grid-cols-2 gap-6`}>
@@ -518,7 +573,7 @@ export function Landing() {
       </section>
 
       {/* Safeguards */}
-      <section className={`${WRAP} py-16 sm:py-20`}>
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-20`}>
         <SectionHead eyebrow={t.trust.eyebrow} title={t.trust.title} center />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {t.trust.items.map(item => (
@@ -549,7 +604,7 @@ export function Landing() {
       </section>
 
       {/* Joining */}
-      <section className={`${WRAP} py-16 sm:py-20`}>
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-20`}>
         <SectionHead title={t.steps.title} center />
         <ol className="grid md:grid-cols-3 gap-4">
           {t.steps.items.map((s, i) => (
@@ -562,11 +617,12 @@ export function Landing() {
         </ol>
       </section>
 
-      {/* FAQ */}
-      <section id={FAQ_SECTION} className={`scroll-mt-24 ${WRAP} py-16 sm:py-20`}>
-        <SectionHead title={t.faq.title} center />
-        <FaqGrid items={t.faq.items} />
+      <section className={`${WRAP} py-16 sm:py-20`}>
+        <Devices copy={t.devices} d={device} />
       </section>
+
+      {/* FAQ: topics, search and deep links (faq-section.tsx); keeps #faq and its eq-pub-band place */}
+      <FaqSection copy={t.faq} lang={lang} />
 
       <CtaBand
         title={t.cta.title}
