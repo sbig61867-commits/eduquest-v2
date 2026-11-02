@@ -119,7 +119,7 @@ the backup (14) and the data/file copy (15) from the critical path.
 | 13 | Replace Supabase Realtime channels (live proctoring video stays deferred) | done (Durable Object per exam, live/exam-live.ts; tickets via GET /api/live/ticket; src/lib/live-client.ts); needs the LIVE_SIGNING_SECRET secret at deploy |
 | 14 | Back up Supabase | **skipped** — owner: nothing to keep |
 | 15 | Move data, accounts, files | done 2026-10-24 — Neon held no trial data (the trials clean up after themselves); rate-limit counters cleared; owner sbig61867@gmail.com created as super_admin by the owner via scripts/create-owner.ps1 (password never in chat) |
-| 16 | Deploy on Cloudflare + switch the domain | **owner approval** ("انشر") |
+| 16 | Deploy on Cloudflare + switch the domain | approved 2026-11-02; **blocked** — the Worker upload fails from this PC's connection (MIGRATION_PROGRESS.md, step 16) |
 | 17 | Verify each area one by one: tenant isolation, exams and grading, proctoring, permissions, files, AI, translations, performance and request counts, all automated tests | after 16 |
 | 18 | Stop Vercel and Supabase | **owner confirmation** |
 
