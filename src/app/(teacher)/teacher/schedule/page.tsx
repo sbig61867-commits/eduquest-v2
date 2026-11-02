@@ -4,6 +4,7 @@ import { currentUser } from '@/lib/auth/current'
 import { redirect } from 'next/navigation'
 import { ScheduleGrid } from '@/components/schedules/schedule-grid'
 import { loadTeacherSchedules } from '@/lib/schedules-data'
+import { loadTeacherSchoolPeriods } from '@/lib/data/school-timetable'
 import { CalendarDays, Users, User } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
@@ -12,7 +13,12 @@ export default async function TeacherSchedulePage() {
   if (!user?.tenant_id) redirect('/login')
   const t = await getTranslations('teacher')
 
-  const schedules = await loadTeacherSchedules(user.id, user.tenant_id)
+  // «جدولي»: in a school, the teacher's own periods across the sections they
+  // teach (empty for every other institution); read together with the timetables.
+  const [schedules, mine] = await Promise.all([
+    loadTeacherSchedules(user.id, user.tenant_id),
+    loadTeacherSchoolPeriods(user.id, user.tenant_id),
+  ])
 
   return (
     <div className="space-y-6">
@@ -21,7 +27,17 @@ export default async function TeacherSchedulePage() {
         <p className="text-slate-400 mt-1">{t('schedule.subtitle')}</p>
       </div>
 
-      {schedules.length === 0 ? (
+      {mine.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-h3 text-fg">{t('schedule.mine')}</h3>
+            <p className="text-meta text-fg-3 mt-0.5">{t('schedule.mineSubtitle')}</p>
+          </div>
+          <ScheduleGrid slots={mine} showGroup />
+        </section>
+      )}
+
+      {schedules.length === 0 && mine.length === 0 ? (
         <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
           <CalendarDays className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400">{t('schedule.noSchedules')}</p>

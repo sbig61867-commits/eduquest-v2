@@ -17,7 +17,7 @@ const SEARCH_DELAY_MS = 300
  * checks the matching capability (manage_groups / manage_courses).
  */
 export function TeacherPicker({ scope, selectedId, onPick }: {
-  scope: 'groups' | 'courses'
+  scope: 'groups' | 'courses' | 'school'
   /** Highlights the teacher already chosen, if they appear in the results. */
   selectedId?: string | null
   onPick: (teacher: PickedTeacher) => void

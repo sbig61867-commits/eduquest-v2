@@ -13,6 +13,8 @@ const TEACHER_SEARCH_LIMIT = 20
 const SCOPE_CAPABILITY: Record<string, Capability> = {
   groups: 'manage_groups',
   courses: 'manage_courses',
+  // /admin/school homeroom teacher (رائد الصف): the same gate as /api/school/structure
+  school: 'manage_academic_structure',
 }
 
 // GET /api/teachers/search?for=groups|courses&q=…

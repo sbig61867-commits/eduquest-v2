@@ -13,7 +13,7 @@ export type IconName =
   | 'GraduationCap' | 'BookOpen' | 'ClipboardList' | 'ClipboardCheck' | 'Activity'
   | 'BarChart2' | 'Bell' | 'Mail' | 'Layers' | 'Inbox' | 'Archive' | 'CalendarDays'
   | 'Gavel' | 'Network' | 'Sparkles' | 'FileText' | 'Megaphone' | 'UserCog' | 'ScanEye'
-  | 'ScrollText' | 'CircleUser'
+  | 'ScrollText' | 'CircleUser' | 'School'
 
 export interface NavEntry {
   key: string
@@ -25,6 +25,8 @@ export interface NavEntry {
   academicOnly?: boolean
   /** Hidden for institutions without a continuing-education centre. */
   centerOnly?: boolean
+  /** Shown only to schools (tenants.institution_type = 'school'). */
+  schoolOnly?: boolean
 }
 
 export interface NavGroupDef {
@@ -53,6 +55,7 @@ export const NAVIGATION: Record<NavRole, RoleNavDef> = {
       ] },
       { key: 'academic', items: [
         { key: 'academic', href: '/admin/academic', icon: 'Network', academicOnly: true },
+        { key: 'school', href: '/admin/school', icon: 'School', schoolOnly: true },
         { key: 'groups', href: '/admin/groups', icon: 'Layers', term: 'groups' },
         { key: 'courses', href: '/admin/courses', icon: 'BookOpen' },
         { key: 'schedules', href: '/admin/schedules', icon: 'CalendarDays' },

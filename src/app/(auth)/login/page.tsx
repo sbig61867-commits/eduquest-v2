@@ -73,7 +73,7 @@ function ShowcasePanel({ copy }: { copy: Showcase }) {
       </div>
 
       {/* Floating cards: a glimpse of the platform at work. */}
-      <div aria-hidden="true" className="relative flex-1 flex flex-col justify-center gap-4 py-10 max-w-md mx-auto w-full">
+      <div aria-hidden="true" className="relative flex-1 flex flex-col justify-center gap-4 py-6 max-w-md mx-auto w-full">
         {cards.map(c => (
           <div key={c.label} className={c.offset}>
             <div className="eq-float flex items-center gap-4 rounded-2xl border border-slate-700/60 bg-slate-900/80 backdrop-blur px-5 py-4 shadow-2xl shadow-black/20" style={{ animationDelay: c.delay }}>
@@ -198,15 +198,15 @@ function LoginForm() {
   const showcase = t.raw('showcase') as Showcase
 
   return (
-    <div className="eq-public min-h-screen bg-slate-950 p-3 sm:p-4 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4">
-      <main className="relative flex flex-col px-3 sm:px-8 lg:px-12 xl:px-16 py-4">
+    <div className="eq-public min-h-dvh lg:h-dvh lg:overflow-hidden bg-slate-950 p-3 sm:p-4 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4">
+      <main className="eq-pub-login-art relative flex flex-col px-3 sm:px-8 lg:px-12 xl:px-16 py-4 overflow-hidden">
         <div aria-hidden="true" className="lg:hidden absolute inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.2),transparent_70%)]" />
 
         <AuthTopBar />
 
         {/* Form */}
-        <div className="relative flex-1 flex items-center py-10">
-          <div className="w-full max-w-md mx-auto">
+        <div className="relative flex-1 flex items-center py-6 lg:py-4">
+          <div className="relative w-full max-w-md mx-auto rounded-lg border border-line bg-surface p-6 sm:p-8 shadow-overlay">
             <p className="text-blue-400 text-sm font-semibold h-5">{greeting}</p>
             <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-white">{t('welcome')}</h1>
             <p className="text-slate-400 mt-3 leading-relaxed">{t('subtitle')}</p>

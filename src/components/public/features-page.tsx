@@ -359,7 +359,7 @@ export function FeaturesPage() {
       <ChapterBar labels={barLabels} ids={barIds} label={t.navLabel} />
 
       {t.chapters.map((c, i) => (
-        <section key={FEATURE_ANCHORS[i]} id={FEATURE_ANCHORS[i]} className={`scroll-mt-20 ${i % 2 ? 'bg-slate-900/30 border-y border-slate-800/60' : ''}`}>
+        <section key={FEATURE_ANCHORS[i]} id={FEATURE_ANCHORS[i]} className={`scroll-mt-20 ${i % 2 ? 'eq-pub-band' : 'eq-pub-glow'}`}>
           <div className={`${WRAP} py-16 sm:py-24 grid lg:grid-cols-2 gap-12 lg:gap-20 items-center`}>
             <div className={i % 2 ? 'lg:order-2' : ''}>
               <div className="flex items-center gap-4 mb-5">
@@ -382,7 +382,7 @@ export function FeaturesPage() {
         </section>
       ))}
 
-      <section id={ROLES_SECTION} className={`scroll-mt-20 ${WRAP} py-16 sm:py-24`}>
+      <section id={ROLES_SECTION} className={`eq-pub-glow scroll-mt-20 ${WRAP} py-16 sm:py-24`}>
         <SectionHead eyebrow={t.roles.eyebrow} title={t.roles.title} desc={t.roles.desc} />
         <RoleTabs copy={t.roles} />
       </section>

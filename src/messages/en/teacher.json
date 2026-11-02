@@ -288,7 +288,9 @@
     "noSchedules": "No timetables linked to you yet.",
     "publishedToStudents": "Published to students",
     "draft": "Draft",
-    "privateSchedule": "Private — not visible to students"
+    "privateSchedule": "Private — not visible to students",
+    "mine": "My periods",
+    "mineSubtitle": "Your periods this academic year, across the sections you teach"
   },
   "requests": {
     "recipientLabel": "Manager"

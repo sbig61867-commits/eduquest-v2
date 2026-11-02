@@ -142,7 +142,7 @@ export function PricingPage() {
       </section>
 
       {/* Plan advisor */}
-      <section className="border-y border-slate-800/80 bg-slate-900/30">
+      <section className="eq-pub-band">
         <div className={`${WRAP} py-16 sm:py-20 grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-10 lg:gap-16 items-center`}>
           <div>
             <SectionHead eyebrow={t.advisor.eyebrow} title={t.advisor.title} desc={t.advisor.desc} />

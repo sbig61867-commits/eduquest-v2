@@ -288,7 +288,9 @@
     "noSchedules": "لا توجد جداول مرتبطة بك بعد.",
     "publishedToStudents": "منشور للطلاب",
     "draft": "مسودة",
-    "privateSchedule": "خاص بك — لا يراه الطلاب"
+    "privateSchedule": "خاص بك — لا يراه الطلاب",
+    "mine": "جدولي",
+    "mineSubtitle": "حصصك في السنة الدراسية الحالية في الشعب التي تدرّسها"
   },
   "requests": {
     "recipientLabel": "المدير"

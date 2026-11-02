@@ -53,49 +53,49 @@ body {
 }
 
 :root:not([data-eq-theme="light"]) {
-  --color-slate-950: oklch(19% 0.045 266);
-  --color-slate-900: oklch(23.5% 0.055 266);
-  --color-slate-800: oklch(30% 0.06 266);
-  --color-slate-700: oklch(38% 0.06 266);
-  --color-slate-600: oklch(49% 0.055 266);
-  --color-slate-500: oklch(64% 0.045 266);
-  --color-slate-400: oklch(76% 0.035 266);
-  /* Navy and gold: the blue/sky ramps carry a metallic gold on the navy
-     shell. Amber hue, moderate chroma: gold, never yellow. */
-  --color-blue-200: #f1e2b8;  /* champagne */
-  --color-blue-300: #e3c788;  /* pale gold */
-  --color-blue-400: #d4af5f;  /* bright gold */
-  --color-blue-500: #c9a24a;  /* gold */
-  --color-blue-600: #b8892f;  /* old gold: fills, navy text on it */
-  --color-blue-700: #9a7226;  /* deep gold */
-  --color-sky-300: #f3e6c4;   /* sheen end of gold gradients */
-  --color-sky-400: #e8d29c;
+  --color-slate-950: #0b1a33;
+  --color-slate-900: #112445;
+  --color-slate-800: #183058;
+  --color-slate-700: #1f3a66;
+  --color-slate-600: #2c4c80;
+  --color-slate-500: #9db0cc;
+  --color-slate-400: #b7c6db;
+
+
+  --color-blue-200: #d6ebfd;
+  --color-blue-300: #a9d6fa;
+  --color-blue-400: #5db4f5;
+  --color-blue-500: #3b9bea;
+  --color-blue-600: #1f6fd1;
+  --color-blue-700: #175bb0;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
   color-scheme: dark;
 }
 
 :root[data-eq-theme="light"] {
-  --color-slate-950: oklch(97.6% 0.009 85);   /* ivory page */
+  --color-slate-950: #f7f9fc;   /* white page */
   --color-slate-900: oklch(100% 0 0);
-  --color-slate-800: oklch(93% 0.013 85);
-  --color-slate-700: oklch(87% 0.02 82);
-  --color-slate-600: oklch(70.4% 0.04 256.788);
-  --color-slate-500: oklch(52% 0.046 257.417);
-  --color-slate-400: oklch(44.6% 0.043 257.281);
-  --color-slate-300: oklch(37.2% 0.044 257.287);
-  --color-slate-200: oklch(27.9% 0.041 260.031);
-  --color-slate-100: oklch(20.8% 0.042 265.755);
-  --color-white: oklch(20.8% 0.042 265.755);
-  /* Day: navy is the ink, gold is the accent. Fills (buttons, badges) use
-     the same bright gold as the night shell, with navy text on them; gold
-     used as small text is deepened only as far as reading needs. */
-  --color-blue-200: #6e5018;
-  --color-blue-300: #8a6520;
-  --color-blue-400: #86631c;  /* small gold text: 5.1:1 on ivory */
-  --color-blue-500: #d4af5f;  /* hover: brighter */
-  --color-blue-600: #c9a24a;  /* same gold as the night shell */
-  --color-blue-700: #b8892f;
-  --color-sky-300: #8a6520;   /* also used as text, so kept readable */
-  --color-sky-400: #7d5b1c;
+  --color-slate-800: #eef3f9;
+  --color-slate-700: #e3e9f2;
+  --color-slate-600: #c9d4e3;
+  --color-slate-500: #5e6e86;
+  --color-slate-400: #5e6e86;
+  --color-slate-300: #33445f;
+  --color-slate-200: #33445f;
+  --color-slate-100: #0f2547;
+  --color-white: #0f2547;
+
+
+
+  --color-blue-200: #123a6b;
+  --color-blue-300: #1f6fd1;
+  --color-blue-400: #1f6fd1;
+  --color-blue-500: #175bb0;
+  --color-blue-600: #1f6fd1;
+  --color-blue-700: #123a6b;
+  --color-sky-300: #0a6aa1;
+  --color-sky-400: #0a7bb8;
   --color-emerald-300: oklch(50.8% 0.118 165.612);
   --color-emerald-400: oklch(52% 0.13 163.225);
   --color-amber-300: oklch(55.5% 0.163 48.998);
@@ -123,10 +123,13 @@ body {
    contrast. Exact class tokens only (~=), so tints like bg-blue-600/10 and
    hover-only fills keep their own text colour; every other coloured fill
    (green, red, violet …) keeps white text. */
-:is([class~="bg-blue-500"], [class~="bg-blue-600"], [class~="bg-blue-700"]),
+:is([class~="bg-blue-500"], [class~="bg-blue-600"], [class~="bg-blue-700"]) {
+  --color-white: #ffffff;
+  --color-on-accent: #ffffff;
+}
 :root:not([data-eq-theme="light"]) [class~="bg-accent"] {
-  --color-white: #13224a;
-  --color-on-accent: #13224a;
+  --color-white: #08172e;
+  --color-on-accent: #08172e;
 }
 
 /* Sign-in showcase: gentle drift of the decorative cards. */
@@ -219,3 +222,184 @@ html[data-eq-intro] .eq-intro-run, html[data-eq-intro] .eq-intro-run ~ .eq-intro
 .eq-tree li:only-child::before, .eq-tree li:only-child::after { display: none; }
 .eq-tree li:first-child::before, .eq-tree li:last-child::after { border: 0 none; }
 .eq-tree li:last-child::before { border-inline-end: 2px solid var(--eq-line-strong); }
+
+
+/* eq-pub-card: public feature cards lift on hover. A 3px bar in the card's
+   category colour grows across the top; the border and a soft shadow take the
+   same colour (data-cat). Text keeps its colour. `translate`, not `transform`,
+   so it never fights another transform animation on the card. */
+.eq-pub-card {
+  position: relative; overflow: hidden; --tone: var(--eq-accent);
+  transition: translate 250ms var(--eq-ease), box-shadow 250ms var(--eq-ease), border-color 250ms var(--eq-ease);
+}
+.eq-pub-card[data-cat="assessment"] { --tone: var(--eq-warning); }
+.eq-pub-card[data-cat="admin"]      { --tone: var(--eq-success); }
+.eq-pub-card[data-cat="comms"]      { --tone: var(--eq-info); }
+.eq-pub-card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--tone);
+  transform: scaleX(0); transform-origin: right; transition: transform 300ms var(--eq-ease);
+}
+.eq-pub-card:hover {
+  translate: 0 -6px;
+  border-color: color-mix(in srgb, var(--tone) 45%, transparent);
+  box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--tone) 40%, transparent);
+}
+.eq-pub-card:hover::before { transform: scaleX(1); }
+
+/* Theme button icon (src/components/public/theme-toggle.tsx): one SVG that
+   morphs. Dark (default): a large disc with a shadow disc over it = crescent,
+   rays hidden. Light: the shadow slides away and the rays turn in = sun.
+   Driven by the page theme attribute, so the first paint is right. */
+.eq-theme-icon .eq-ti-disc, .eq-theme-icon .eq-ti-cut, .eq-theme-icon .eq-ti-rays {
+  transform-box: view-box; transform-origin: 12px 12px;
+  transition: transform 450ms var(--eq-ease), opacity 300ms var(--eq-ease);
+}
+.eq-theme-icon .eq-ti-disc { transform: scale(1.75); }
+.eq-theme-icon .eq-ti-cut  { transform: translate(0, 0); }
+.eq-theme-icon .eq-ti-rays { opacity: 0; transform: rotate(-60deg) scale(0.6); }
+:root[data-eq-theme="light"] .eq-theme-icon .eq-ti-disc { transform: scale(1); }
+:root[data-eq-theme="light"] .eq-theme-icon .eq-ti-cut  { transform: translate(9px, -9px); }
+:root[data-eq-theme="light"] .eq-theme-icon .eq-ti-rays { opacity: 1; transform: rotate(0deg) scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .eq-pub-card, .eq-pub-card::before, .eq-theme-icon * { transition: none; }
+  .eq-pub-card:hover { translate: none; }
+}
+
+
+
+
+/* eq-pub-login-art: fills the empty space around the sign-in form with quiet
+   CSS shapes only (no script): a fading dot grid, two large outlined rings
+   and a soft sky glow in the far corners, all behind the form card. */
+.eq-pub-login-art { isolation: isolate; }
+.eq-pub-login-art::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--eq-accent) 28%, transparent) 1.2px, transparent 1.6px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 30%, black 75%);
+          mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 30%, black 75%);
+}
+.eq-pub-login-art::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  width: 34rem; height: 34rem; inset-inline-end: -14rem; inset-block-start: -12rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--eq-accent) 30%, transparent);
+  box-shadow: 0 0 0 3.5rem color-mix(in srgb, var(--eq-accent) 5%, transparent),
+              0 0 0 7rem color-mix(in srgb, var(--eq-accent) 3%, transparent);
+  background: radial-gradient(circle at 30% 70%, color-mix(in srgb, var(--eq-accent) 14%, transparent), transparent 60%);
+}
+
+
+/* eq-pub-band / eq-pub-glow: soft transitions between consecutive public
+   sections instead of hard cuts. A band fades canvas -> a faint accent tint ->
+   canvas, full bleed even inside a max-width section (border-image outset
+   paints past the box without adding horizontal scroll). A glow section stays
+   on the canvas with two quiet corner glows. Public marketing pages only
+   (CLAUDE.md rule 11); dashboards stay flat. Tokens only, so light and dark
+   both follow the theme. */
+.eq-pub-band {
+  --eq-pub-tint: color-mix(in srgb, var(--eq-accent) 12%, var(--eq-canvas));
+  border-image: linear-gradient(to bottom, var(--eq-canvas), var(--eq-pub-tint) 22%, var(--eq-pub-tint) 78%, var(--eq-canvas)) fill 0 / 0 / 0 100vmax;
+}
+.eq-pub-glow {
+  background-image:
+    radial-gradient(40rem 22rem at 0% 0%, color-mix(in srgb, var(--eq-accent) 7%, transparent), transparent 70%),
+    radial-gradient(36rem 20rem at 100% 100%, color-mix(in srgb, var(--eq-info) 6%, transparent), transparent 70%);
+}
+
+/* eq-pub-hero-tri: the home hero — a deep-navy to sky gradient under a tiled
+   pattern of triangles in light and dark facets, so some read as raised, some
+   as sunken and some as tilted. Static, CSS only. It re-points the text and
+   surface tokens (and the remapped palette ramps the landing still uses) so
+   the section's own classes read white-on-blue in both themes. */
+.eq-pub-hero-tri {
+  --eq-fg: #ffffff; --eq-fg-2: #e6f0fb; --eq-fg-3: #c9dcf2;
+  --eq-line: rgb(255 255 255 / 0.22); --eq-line-strong: rgb(255 255 255 / 0.4);
+  --eq-surface: rgb(255 255 255 / 0.08); --eq-canvas: rgb(255 255 255 / 0.06); --eq-elevated: rgb(255 255 255 / 0.14);
+  --eq-accent: #ffffff;
+  --color-white: #ffffff; --color-blue-300: #bfe3ff; --color-blue-500: #9fd3ff; --color-blue-600: #ffffff;
+  --color-slate-200: #ffffff; --color-slate-400: #dbe8f7; --color-slate-500: #c9dcf2;
+  --color-slate-500: #c9dcf2; --color-slate-700: rgb(255 255 255 / 0.45); --color-slate-900: rgb(255 255 255 / 0.12);
+  color: #ffffff;
+  background-color: #123a6b;
+  background-image:
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='104' viewBox='0 0 120 104'><path d='M0 0L60 0L30 52Z' fill='%23ffffff' fill-opacity='.10'/><path d='M60 0L120 0L90 52Z' fill='%23000000' fill-opacity='.10'/><path d='M30 52L60 0L90 52Z' fill='%23ffffff' fill-opacity='.04'/><path d='M0 104L30 52L60 104Z' fill='%23000000' fill-opacity='.08'/><path d='M30 52L90 52L60 104Z' fill='%23ffffff' fill-opacity='.13'/><path d='M60 104L90 52L120 104Z' fill='%23ffffff' fill-opacity='.06'/><path d='M90 52L120 0L120 104Z' fill='%23000000' fill-opacity='.06'/><path d='M0 0L30 52L0 104Z' fill='%23ffffff' fill-opacity='.07'/><path d='M0 0L60 0L30 52ZM60 0L120 0L90 52ZM30 52L90 52L60 104Z' fill='none' stroke='%23ffffff' stroke-opacity='.14' stroke-width='.8'/></svg>"),
+    radial-gradient(60rem 30rem at 85% 0%, rgb(56 189 248 / 0.35), transparent 60%),
+    linear-gradient(135deg, #0b1f3f 0%, #123a6b 35%, #1f6fd1 75%, #38bdf8 100%);
+  background-size: 120px 104px, auto, auto;
+}
+
+/* eq-pub-hero-dusk «الشفق»: the home hero in both themes — deep navy with two
+   soft sky glows. Re-points text/surface tokens and the palette ramps the
+   landing still uses so its classes read white on navy. */
+.eq-pub-hero-dusk {
+  --eq-fg: #ffffff; --eq-fg-2: #eef5fd; --eq-fg-3: #dbe8f7;
+  --eq-line: rgb(255 255 255 / 0.2); --eq-line-strong: rgb(255 255 255 / 0.4);
+  --eq-surface: rgb(255 255 255 / 0.08); --eq-canvas: rgb(255 255 255 / 0.06); --eq-elevated: rgb(255 255 255 / 0.14);
+  --eq-accent: #bae6fd; --eq-accent-hover: #e0f2fe;
+  --color-white: #ffffff; --color-blue-300: #bae6fd; --color-blue-500: #bae6fd; --color-blue-600: #ffffff;
+  --color-slate-200: #ffffff; --color-slate-400: #eaf2fc; --color-slate-500: #d6e4f5;
+  --color-slate-700: rgb(255 255 255 / 0.45); --color-slate-900: rgb(255 255 255 / 0.12);
+  color: #ffffff;
+  background-color: #0b1a33;
+  background-image:
+    radial-gradient(42rem 26rem at 12% 18%, rgb(56 189 248 / 0.38), transparent 70%),
+    radial-gradient(46rem 30rem at 92% 95%, rgb(31 111 209 / 0.55), transparent 70%),
+    radial-gradient(30rem 18rem at 70% 10%, rgb(125 211 252 / 0.14), transparent 70%);
+  overflow: hidden;
+}
+/* Gradient headline: white into sky. */
+.eq-pub-grad-text {
+  background-image: linear-gradient(90deg, #ffffff 10%, #7dd3fc 90%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+/* Light screens inside the dark hero: restore the light surface tokens. */
+.eq-pub-stack {
+  --eq-surface: #ffffff; --eq-canvas: #f7f9fc; --eq-fg: #0f2547; --eq-fg-2: #33445f; --eq-fg-3: #5e6e86;
+  --eq-line: #e3e9f2; --eq-line-strong: #c9d4e3; --eq-accent: #1f6fd1; --eq-accent-subtle: #e6f1fc;
+  --eq-shadow-overlay: 0 24px 48px -16px rgb(3 10 25 / 0.6);
+}
+
+/* eq-pub-hero-wave «الموجة» (on top of eq-pub-hero-dusk's text tokens): the
+   upper part is a diagonal navy-to-sky gradient that ends in a soft wave into
+   the light page; the role screens overlap the wave. Remove this class to go
+   back to «الشفق». */
+.eq-pub-hero-wave {
+  background-color: var(--color-slate-950);
+  background-image: none;
+  isolation: isolate;
+}
+.eq-pub-hero-wave::before {
+  content: ""; position: absolute; inset: 0 0 4% 0; z-index: -1; pointer-events: none;
+  background-image:
+    radial-gradient(34rem 24rem at 15% 60%, rgb(56 189 248 / 0.28), transparent 70%),
+    linear-gradient(160deg, #0b1f3f 0%, #0f2f5c 45%, #164a94 100%);
+  clip-path: ellipse(140% 100% at 50% 0%);
+}
+@media (max-width: 1023px) {
+  .eq-pub-hero-wave::before { inset: 0 0 38% 0; clip-path: ellipse(140% 100% at 50% 0%); }
+}
+
+
+
+/* The hero's main button: solid accent. */
+.eq-pub-hero-cta { background-color: var(--eq-accent); color: var(--eq-accent-fg); box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--eq-accent) 70%, transparent); }
+.eq-pub-hero-cta:hover { background-color: var(--eq-accent-hover); }
+
+/* On the wave the main button is a solid white box with navy text. */
+.eq-pub-hero-wave .eq-pub-hero-cta { background-color: #ffffff; color: #0f2547; }
+.eq-pub-hero-wave .eq-pub-hero-cta:hover { background-color: #e0f2fe; }
+
+/* Language menu code badge (locale-toggle.tsx). */
+.eq-locale-code::before { content: attr(data-code); }
+
+/* eq-faq: the home FAQ answers (faq-section.tsx) open smoothly where the
+   browser can animate <details> (::details-content + interpolate-size) and
+   open at once elsewhere. Reduced motion zeroes --eq-duration-base. */
+.eq-faq { interpolate-size: allow-keywords; }
+.eq-faq details::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition: block-size var(--eq-duration-base) var(--eq-ease), content-visibility var(--eq-duration-base) allow-discrete;
+}
+.eq-faq details[open]::details-content { block-size: auto; }

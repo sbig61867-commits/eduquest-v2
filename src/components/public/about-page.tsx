@@ -84,14 +84,14 @@ export function AboutPage() {
         </div>
       </section>
 
-      <section className="border-y border-slate-800/80 bg-slate-900/30">
+      <section className="eq-pub-band">
         <div className={`${WRAP} py-16 sm:py-24`}>
           <Principles copy={t.principles} />
         </div>
       </section>
 
       {/* Community */}
-      <section className={`${WRAP} py-16 sm:py-24`}>
+      <section className={`eq-pub-glow ${WRAP} py-16 sm:py-24`}>
         <SectionHead eyebrow={t.community.eyebrow} title={t.community.title} />
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {t.community.items.map((c, i) => (
@@ -107,7 +107,7 @@ export function AboutPage() {
       </section>
 
       {/* Journey */}
-      <section className={`${WRAP} py-16 sm:py-24`}>
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-24`}>
         <SectionHead eyebrow={t.journey.eyebrow} title={t.journey.title} center />
         <ol className="relative grid gap-8 lg:gap-4 lg:grid-cols-5">
           <span aria-hidden="true" className="hidden lg:block absolute top-6 inset-x-[10%] h-0.5 bg-gradient-to-r from-blue-500/10 via-blue-500/50 to-blue-500/10" />

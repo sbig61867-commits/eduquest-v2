@@ -41,7 +41,7 @@ Next.js 16 (App Router; middleware is `src/proxy.ts`) · React 19 · TypeScript 
 8. Rate-limit expensive routes with `rateLimit('feature:userId', …)`.
 9. No `select('*')`, bounded lists, no N+1. No Redis/app cache, no loading UI, no global prefetch change.
 10. i18n: no UI literals in route groups/components; messages in `src/messages/{en,ar}/` with identical keys; Arabic plurals print `{var}`, never `#`.
-11. Design: tokens from `src/app/design-tokens.css`; no raw palette colours, `text-[Npx]`, `rounded-xl+`, gradients, `backdrop-blur` in new code. IBM Plex fonts only.
+11. Design: tokens from `src/app/design-tokens.css`; no raw palette colours, `text-[Npx]`, `rounded-xl+`, gradients, `backdrop-blur` in new code. IBM Plex fonts only. Exception: public marketing pages may use the `eq-pub-*` section transition/glow classes defined in `globals.css` (components add class names only, never inline gradients); dashboards stay gradient-free.
 12. Never "clean up" dashes in AI lesson prompts (`VOCAB_RE` depends on them).
 13. Public marketing HTML must not depend on cookies (edge-cached).
 14. Ratchet tests (`perf-contract`, `design-contract`, `i18n-*`) are shrink-only.

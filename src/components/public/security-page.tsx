@@ -111,7 +111,7 @@ export function SecurityPage() {
       </section>
 
       {/* Protection layers */}
-      <section className="border-y border-slate-800/80 bg-slate-900/30">
+      <section className="eq-pub-band">
         <div className={`${WRAP} py-16 sm:py-24`}>
           <SectionHead eyebrow={t.layers.eyebrow} title={t.layers.title} center />
           <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -127,7 +127,7 @@ export function SecurityPage() {
       </section>
 
       {/* Access matrix */}
-      <section className={`${WRAP} py-16 sm:py-24`}>
+      <section className={`eq-pub-glow ${WRAP} py-16 sm:py-24`}>
         <SectionHead eyebrow={t.access.eyebrow} title={t.access.title} desc={t.access.desc} />
         <div className={`${PANEL} overflow-x-auto`}>
           <table className="w-full min-w-[40rem] text-sm">
@@ -167,7 +167,7 @@ export function SecurityPage() {
       </section>
 
       {/* What is and is not kept */}
-      <section className={`${WRAP} py-16 sm:py-24`}>
+      <section className={`eq-pub-band ${WRAP} py-16 sm:py-24`}>
         <SectionHead eyebrow={t.data.eyebrow} title={t.data.title} />
         <div className="grid md:grid-cols-2 gap-4">
           <article className={`${PANEL} p-7 sm:p-9`}>
@@ -196,7 +196,7 @@ export function SecurityPage() {
       </section>
 
       {/* Verification practices */}
-      <section className={`${WRAP} py-16 sm:py-24`}>
+      <section className={`eq-pub-glow ${WRAP} py-16 sm:py-24`}>
         <SectionHead eyebrow={t.practices.eyebrow} title={t.practices.title} center />
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {t.practices.items.map(p => (

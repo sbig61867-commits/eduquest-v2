@@ -19,13 +19,13 @@ import {
   LogOut, ChevronLeft, X,
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck,
   GraduationCap, BookOpen, ClipboardList, ClipboardCheck, Activity, BarChart2, Bell, Mail, Layers, Inbox, Archive, CalendarDays, Gavel, Network, Sparkles,
-  FileText, Megaphone, UserCog, ScanEye, ScrollText, CircleUser,
+  FileText, Megaphone, UserCog, ScanEye, ScrollText, CircleUser, School,
 } from 'lucide-react'
 
 const ICONS: Record<IconName, typeof LayoutDashboard> = {
   LayoutDashboard, Building2, Users, Settings, Flag, ShieldCheck, GraduationCap, BookOpen,
   ClipboardList, ClipboardCheck, Activity, BarChart2, Bell, Mail, Layers, Inbox, Archive,
-  CalendarDays, Gavel, Network, Sparkles, FileText, Megaphone, UserCog, ScanEye, ScrollText, CircleUser,
+  CalendarDays, Gavel, Network, Sparkles, FileText, Megaphone, UserCog, ScanEye, ScrollText, CircleUser, School,
 }
 
 export type { IconName, NavItem }
@@ -96,7 +96,8 @@ export function Sidebar({ nav, items = [] }: SidebarProps) {
 
   const visible = (item: NavItem) =>
     (!item.academicOnly || tenant?.structure_mode === 'academic') &&
-    (!item.centerOnly || tenant?.has_center !== false)
+    (!item.centerOnly || tenant?.has_center !== false) &&
+    (!item.schoolOnly || tenant?.institution_type === 'school')
 
   const sections: { key: string; label: string | null; items: NavItem[] }[] = nav
     ? [{ key: '_home', label: null as string | null, items: [nav.home] }, ...nav.groups]
